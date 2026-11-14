@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setVoiceOn } from '@/lib/moment/voice';
 import { applyCalm } from '@/lib/theme';
+import { fakeSpeech } from '@/test-utils';
 import { BreathingPlayer } from './breathing-player';
 
 function liveRegion(): HTMLElement {
@@ -149,5 +151,28 @@ describe('BreathingPlayer', () => {
       'running',
       'done',
     ]);
+  });
+
+  it('with voice guidance on, speaks each phase cue in the app language and falls silent at once on pause', async () => {
+    const { spoken, cancel } = fakeSpeech('en-GB', 'de-DE');
+    setVoiceOn(true);
+    try {
+      render(<BreathingPlayer inhale={2} hold={1} exhale={2} rounds={2} />);
+      await act(async () => {});
+      fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+      for (let s = 0; s < 5; s++) second();
+      expect(spoken).toEqual([
+        { text: 'Breathe in', lang: 'en-GB' },
+        { text: 'Hold', lang: 'en-GB' },
+        { text: 'Breathe out', lang: 'en-GB' },
+        { text: 'Breathe in', lang: 'en-GB' },
+      ]);
+      cancel.mockClear();
+      fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+      expect(cancel).toHaveBeenCalled();
+      expect(spoken).toHaveLength(4);
+    } finally {
+      setVoiceOn(false);
+    }
   });
 });

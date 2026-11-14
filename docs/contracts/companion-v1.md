@@ -4,7 +4,7 @@ The "I need a moment" flow and the shared names between teams. Server side: "Com
 
 ## Ground rules
 
-- The moment flow works signed out, offline and without an account. It makes no API call, writes nothing to localStorage, IndexedDB or the query cache, and shows no streaks.
+- The moment flow works signed out, offline and without an account. It makes no API call, writes nothing to localStorage, IndexedDB or the query cache (except the device's voice guidance switch, see below), and shows no streaks.
 - One exception, only after the user opens Reflect: when the account isn't loaded yet and the device is in account mode (a cold start straight into `/moment`), the app may load `GET /api/me` once (a signed-out device then gets a 401) and restore a remembered journal key, so Save can be offered. Nothing about the moment is sent; Save itself writes only through `appendPrivate`.
 - Wellness wording only, in-app and outside. Never: treat, cure, therapy/therapist, heal, clinical(ly), diagnose, prevent, relieve, reduce (a condition), proven. Safe: notice, name, ground, breathe, ride it out, settle, steady, reflect.
 - No automated reading of what the user writes. Crisis lines are always one tap away inside the flow.
@@ -52,6 +52,14 @@ type PracticeStep =
 - A test validates the real file: unique kebab-case ids, version ≥ 1, non-empty states, 1 to 12 steps, text ≤ 160 characters, inhale/exhale 2 to 8 s, hold 0 to 7 s, 3 to 10 rounds, timer 30 to 180 s, every state covered, and the claims wordlist (word boundaries) over every string in the content files and the moment UI copy.
 - Initial set, in order: `paced-breathing` (in 4, out 6, 6 rounds; racing, overloaded, unsure), `kind-voice` (self-compassion and a perceived-rejection check; rejected), `grounding-54321` (overloaded, racing, replaying), `cool-and-here` (cool water or a cool object, then name place, day and three things you see; racing, overloaded), `ride-the-wave` (urge surfing, 90 s timer; rejected, replaying), `set-it-down` (label it, postpone it, one slow breath; replaying). Breathing practices end with "If you feel dizzy, breathe normally."
 - Breathing player: the circle is `aria-hidden`; phases as text ("Breathe in, 4"); one polite announcement per phase change, never per second; explicit Start and Pause (nothing auto-starts); no scaling under reduced motion; focus moves to the step heading on each step.
+
+### Voice guidance
+
+- An optional "Guide me by voice" switch ("Mit Stimme anleiten") on every practice step, below the breathing player or timer. Off by default, remembered per device (`ember.momentVoice` in localStorage, guarded), no account, no request, works offline. Calm mode and reduced motion don't affect it.
+- Shown only when the device has an offline voice for the app language (web: a `speechSynthesis` voice with `localService` whose `lang` matches; Android app: `@capacitor-community/text-to-speech` `isLanguageSupported` for en-US or de-DE, because Android System WebView has no working `speechSynthesis`). Never speaks another language.
+- Speaks text and timer steps as they appear, the breathing cues ("Breathe in", "Hold", "Breathe out") at each phase change and "All rounds done.", and "Time is up. Take your time." at a timer's end, at rate 0.9. Stops at once on Pause, on opening Urgent help, on moving off the step, on leaving the flow and on turning the switch off.
+- Android app only: one soft haptic pulse (`@capacitor/haptics`, light impact; adds the `VIBRATE` permission) at the start of each in-breath and out-breath, tied to the same switch.
+- The live-region announcements stay unchanged. Speech never turns on by itself, so screen reader users opt in.
 
 ## Crisis lines (`web/src/content/crisis-lines.json`, bundled by import)
 

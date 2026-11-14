@@ -145,6 +145,15 @@ export const momentCopy = {
   get timerDone() {
     return t('moment.timer.done');
   },
+  get voiceLabel() {
+    return t('moment.voice.label');
+  },
+  get voiceHint() {
+    return t('moment.voice.hint');
+  },
+  get voiceHintVibrate() {
+    return t('moment.voice.hintVibrate');
+  },
   get afterHeading() {
     return t('moment.after.heading');
   },

@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { useFocusHeadingOnChange } from '@/components/auth/use-field';
@@ -7,9 +7,11 @@ import { IntensityScale } from '@/components/moment/intensity-scale';
 import { MomentHeader } from '@/components/moment/moment-header';
 import { Reflect } from '@/components/moment/reflect';
 import { TimerStep } from '@/components/moment/timer-step';
+import { VoiceSwitch } from '@/components/moment/voice-switch';
 import { Button } from '@/components/ui/button';
 import { momentCopy } from '@/lib/moment/copy';
 import { breathingPractice, practices, practicesFor } from '@/lib/moment/practices';
+import { speak, stopVoice, useVoiceGuide } from '@/lib/moment/voice';
 import type { Intensity, MomentState, Practice } from '@/lib/moment/types';
 import type { HelpItem } from '@/lib/helps/types';
 import { helps } from '@/lib/services';
@@ -68,6 +70,17 @@ export default function MomentPage() {
   const [draft, setDraft] = useState(false);
   const [breathRun, setBreathRun] = useState<{ step: string; status: BreathStatus }>();
   const helped = useStore(helps.items)?.slice(0, 3) ?? [];
+  const voice = useVoiceGuide();
+  const shownStep = step.kind === 'practice' ? inLanguage(practice).steps[step.index] : undefined;
+  const spokenText = !helpOpen && shownStep && shownStep.kind !== 'breath' ? shownStep.text : undefined;
+
+  useEffect(() => {
+    if (!voice.active || shownStep?.kind === 'breath') return;
+    if (spokenText) speak(spokenText, voice.language);
+    else stopVoice();
+  }, [voice.active, voice.language, spokenText, shownStep?.kind, step]);
+
+  useEffect(() => stopVoice, []);
 
   useFocusHeadingOnChange(
     step.kind === 'practice' ? `practice:${practice.id}:${step.index}` : step.kind,
@@ -292,6 +305,7 @@ export default function MomentPage() {
               halted={helpOpen}
             />
           )}
+          <VoiceSwitch />
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-3">
               {step.index > 0 && (

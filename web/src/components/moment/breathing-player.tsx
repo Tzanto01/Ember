@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { LiveRegion } from '@/components/live-region';
 import { Button } from '@/components/ui/button';
 import { momentCopy } from '@/lib/moment/copy';
+import { pulse, speak, stopVoice, useVoiceGuide } from '@/lib/moment/voice';
 import { cn } from '@/lib/utils';
 import { useReduceMotion } from './use-reduce-motion';
 
@@ -61,6 +62,7 @@ export function BreathingPlayer({
   useTranslation();
   const phases = phasesOf(inhale, hold, exhale);
   const reduce = useReduceMotion();
+  const voice = useVoiceGuide();
 
   function enter(state: Player, phase: number, round: number): Player {
     const { label, seconds } = phases[phase]!;
@@ -99,6 +101,19 @@ export function BreathingPlayer({
   useEffect(() => {
     if (halted) dispatch('halt');
   }, [halted]);
+
+  useEffect(() => {
+    if (!voice.active) return;
+    if (player.finished) speak(momentCopy.breathDone, voice.language);
+    else if (!player.running) stopVoice();
+    else {
+      const current = phases[player.phase]!;
+      speak(current.label, voice.language);
+      if (current.from !== current.to) pulse();
+    }
+  }, [voice.active, voice.language, player.running, player.finished, player.phase, player.round]);
+
+  useEffect(() => stopVoice, []);
 
   useEffect(() => {
     if (!player.running) return;

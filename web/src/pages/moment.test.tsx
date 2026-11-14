@@ -8,7 +8,8 @@ import { deviceToday } from '@/lib/guards';
 import type { HelpItem } from '@/lib/helps/types';
 import { api, auth, deviceSync, helps, localMode, offlineQueue } from '@/lib/services';
 import { me } from '@/lib/test-support';
-import { renderPage } from '@/test-utils';
+import { setVoiceOn } from '@/lib/moment/voice';
+import { fakeSpeech, inGerman, renderPage } from '@/test-utils';
 import MomentPage from './moment';
 
 vi.mock('@/lib/services', async (original) => {
@@ -354,6 +355,49 @@ describe('MomentPage', () => {
     ).toBeInTheDocument();
     expect(announced()).toContain('Round 1 of 6. Breathe in, 4');
     expect(announced()).not.toContain('Paused');
+  });
+
+  describe('voice guidance', () => {
+    afterEach(() => setVoiceOn(false));
+
+    it('offers the switch only with an offline voice in the app language, off until turned on, and remembers it', async () => {
+      const { spoken } = fakeSpeech('en-US');
+      open('off');
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'Just breathe with me' }));
+      const toggle = await screen.findByRole('switch', { name: 'Guide me by voice' });
+      expect(toggle).not.toBeChecked();
+      expect(spoken).toEqual([]);
+
+      await user.click(toggle);
+      expect(toggle).toBeChecked();
+      expect(localStorage.getItem('ember.momentVoice')).toBe('on');
+      expect(spoken).toEqual([
+        { text: 'Sit or stand in a way that feels okay. Your eyes can stay open.', lang: 'en-US' },
+      ]);
+
+      await act(inGerman);
+      await user.click(screen.getByRole('button', { name: 'Weiter' }));
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+      expect(spoken).toHaveLength(1);
+    });
+
+    it('speaks each practice step as it appears and stops at once on leaving the flow', async () => {
+      const { spoken, cancel } = fakeSpeech('en-US');
+      setVoiceOn(true);
+      open('off');
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'Just breathe with me' }));
+      await heading(/^Slow breathing, step 1 of 5/);
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await heading(/^Slow breathing, step 2 of 5/);
+      expect(spoken.at(-1)?.text).toBe(
+        "We'll breathe in for 4 and out for 6, a little longer on the way out.",
+      );
+      cancel.mockClear();
+      cleanup();
+      expect(cancel).toHaveBeenCalled();
+    });
   });
 
   describe('what helped before', () => {
