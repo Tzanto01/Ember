@@ -153,7 +153,7 @@ export function YearHeatmap({
         <table
           ref={tableRef}
           aria-label={t('year.tableLabel')}
-          className="[border-collapse:separate] [border-spacing:4px] pointer-coarse:[border-spacing:0]"
+          className="mx-auto [border-collapse:separate] [border-spacing:4px] pointer-coarse:[border-spacing:0]"
         >
           <thead>
             <tr>

@@ -45,7 +45,7 @@ interface TodayData {
 
 /** Today's body: one column, from `lg` the door, notices and habits left and the day's cards right. */
 const columns =
-  'flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start 2xl:grid-cols-[minmax(0,1fr)_24rem] 2xl:gap-8 min-[137.5rem]:grid-cols-[minmax(0,1fr)_28rem] min-[200rem]:grid-cols-[minmax(0,1fr)_30rem]';
+  'flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start 2xl:grid-cols-[minmax(0,1.8fr)_minmax(24rem,1fr)] 2xl:gap-8';
 
 interface HabitGroup {
   routine: Routine | null;
