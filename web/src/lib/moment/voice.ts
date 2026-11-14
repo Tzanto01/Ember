@@ -32,18 +32,27 @@ export function setVoiceOn(on: boolean): void {
   if (!on) stopVoice();
 }
 
-function webVoice(language: Language): SpeechSynthesisVoice | undefined {
+function offlineVoice<T extends { lang: string; localService: boolean }>(
+  voices: T[],
+  language: Language,
+): T | undefined {
   const pattern = new RegExp(`^${language}(?:[-_]|$)`, 'i');
-  return globalThis.speechSynthesis
-    ?.getVoices()
-    .find((voice) => voice.localService && pattern.test(voice.lang));
+  return voices.find((voice) => voice.localService && pattern.test(voice.lang));
+}
+
+function webVoice(language: Language): SpeechSynthesisVoice | undefined {
+  return offlineVoice(globalThis.speechSynthesis?.getVoices() ?? [], language);
 }
 
 async function canSpeak(language: Language): Promise<boolean> {
   if (!env.native) return webVoice(language) !== undefined;
   try {
     const { TextToSpeech } = await textToSpeech();
-    return (await TextToSpeech.isLanguageSupported({ lang: tags[language] })).supported;
+    const [{ supported }, { voices }] = await Promise.all([
+      TextToSpeech.isLanguageSupported({ lang: tags[language] }),
+      TextToSpeech.getSupportedVoices(),
+    ]);
+    return supported && offlineVoice(voices, language) !== undefined;
   } catch {
     return false;
   }
@@ -67,7 +76,12 @@ export function speak(text: string, language: Language): void {
   void textToSpeech()
     .then(({ TextToSpeech, QueueStrategy }) =>
       turn === spoken
-        ? TextToSpeech.speak({ text, lang: tags[language], rate: 0.9, queueStrategy: QueueStrategy.Flush })
+        ? TextToSpeech.speak({
+            text,
+            lang: tags[language],
+            rate: 0.9,
+            queueStrategy: QueueStrategy.Flush,
+          })
         : undefined,
     )
     .catch(() => undefined);
