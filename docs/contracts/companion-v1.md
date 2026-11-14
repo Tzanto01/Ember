@@ -19,7 +19,7 @@ The "I need a moment" flow and the shared names between teams. Server side: "Com
 
 ## The flow
 
-1. **Catch**: dim campfire, "You're here. That's enough for now.", two big buttons: "Name what's happening" and "Just breathe with me" (straight to paced breathing). A persistent header has Leave and "Urgent help" (opens `CrisisLines` in place, keeping the flow's state).
+1. **Catch**: dim campfire in the landscape behind the card, "You're here. That's enough for now.", two big buttons: "Name what's happening" and "Just breathe with me" (straight to paced breathing). A persistent header has Leave and "Urgent help" (opens `CrisisLines` in place, keeping the flow's state).
 2. **Name**: tiles "Rejected / not enough", "Too much / overloaded", "Racing / on edge", "Can't stop replaying", "Not sure" (leads to breathing). Then an optional intensity: 5 worded options in a radiogroup ("a little" … "a lot") with Skip.
 3. **Ride it out**: the first practice whose `states` include the named state, in file order; "Try another" cycles. One step at a time, big text, Next/Back, every step skippable. At the end, optionally "How is it now?" on the same scale.
 4. **Reflect** (optional, never a gate): "what set it off" (up to 300 characters), "what helped" preselected to the practice, "how it is now". Save depends on the journal state, checked before the user types:
@@ -29,6 +29,7 @@ The "I need a moment" flow and the shared names between teams. Server side: "Com
    - consent not given: no Save; explain and link (a write would redirect and lose the draft);
    - signed out or no account: no Save; "Nothing from this moment was saved."
    - Block format: `Moment HH:MM · {tile} · {intensity before} → {after}` then `What set it off: …` and `What helped: {practice title}` (lines left out when empty).
+- The flow sits in a still night/dawn landscape with a campfire whose glow and halo swell and settle at the paced-breathing tempo (in 4 s, out 6 s, no hold) from Catch on. When the breathing player runs, this ambient rhythm fades out so the circle alone carries the rhythm, and it returns on pause or when done. Reduced motion shows it static; calm mode keeps the landscape static and softer, without the campfire.
 - Turning the private journal off re-uploads every entry, moment notes included, as plaintext after the user confirms; the turn-off confirmation says so.
 
 ## Practice content (`web/src/content/practices.json`, bundled by import)
@@ -89,6 +90,7 @@ type PracticeStep =
 ### Calm mode
 
 - One switch in Settings → Appearance ("Calm mode"), on the account (`Me.calmMode`) or on the device without an account. When on: no motion anywhere (as with reduced motion, including the breathing circle, which shows text only), softer contrast-safe colours from a calm token set (still WCAG AA), decorative illustrations and embers hidden, no What's new card on Today (the check-in summary and the weekly card stay, without the flame), the moment flow without the campfire. The system's reduced-motion setting still applies on its own.
+- Calm mode shows the background landscape static and a little softer, an exception to hiding decorations because a blank background unsettles; the background glows and sparks stay hidden.
 
 ## Tips (0.10.0-beta.1, api v1.18)
 
