@@ -51,7 +51,7 @@ export function CrisisLines() {
         {lines.map((line) => (
           <li
             key={`${line.region}-${line.name}`}
-            className="flex flex-col gap-2 rounded-xl border-[length:var(--border-width)] border-border bg-card p-4 text-card-foreground shadow-[var(--shadow-card)] [overflow-wrap:anywhere] hyphens-auto"
+            className="flex flex-col gap-2 rounded-xl border-[length:var(--border-width)] border-border bg-card p-4 text-card-foreground shadow-card [overflow-wrap:anywhere] hyphens-auto"
           >
             <p className="font-semibold">{line.name}</p>
             <p className="text-[0.875rem] text-muted-foreground">{line.hours}</p>
