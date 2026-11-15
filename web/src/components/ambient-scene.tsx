@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { type CSSProperties, useEffect, useRef } from 'react';
 import { HearthIllustration } from '@/components/today/hearth-illustration';
 import { cn } from '@/lib/utils';
 
@@ -39,13 +39,20 @@ function place(side: 'l' | 'r', x: number, y: number): CSSProperties {
  * `moment` (the moment flow): a still sky and a dimmer, taller landscape with a small campfire at the bottom centre whose
  * glow and halo swell and settle at the paced-breathing tempo (in 4 s, out 6 s) and fade out while a breathing player
  * (`[data-breath='running']`) runs. `app`: the signed-in shell's wider content column and, on phones, the landscape above its bottom tab bar. Calm mode keeps the landscape and sky static
- * and softer and hides the glows, sparks and campfire.
+ * and softer and hides the glows, sparks and campfire. Its animations pause while the page is hidden (`data-hidden`).
  */
 export function AmbientScene({ variant = 'full', app = false }: { variant?: 'full' | 'still' | 'moment'; app?: boolean }) {
   const full = variant === 'full';
   const moment = variant === 'moment';
+  const scene = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const sync = () => scene.current?.toggleAttribute('data-hidden', document.hidden);
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
   return (
-    <div aria-hidden="true" className={cn('ember-scene', variant === 'still' && 'ember-scene--still', moment && 'ember-scene--moment', app && 'ember-scene--app')}>
+    <div ref={scene} aria-hidden="true" className={cn('ember-scene', variant === 'still' && 'ember-scene--still', moment && 'ember-scene--moment', app && 'ember-scene--app')}>
       {(full || moment) && (
         <>
           <div className="ember-sky">
