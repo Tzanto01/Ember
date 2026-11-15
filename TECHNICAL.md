@@ -109,12 +109,12 @@ Back up the database before you deploy a build with a new migration.
 **Reading feedback (maintainer).** Feedback and its pictures stay in the database; the daily digest names picture ids only. On the homeserver, from the Ember compose directory:
 
 ```bash
-# Open reports with their picture ids (add --all for handled ones too)
+# Open, planned and implemented reports with their picture ids (add --all for released and declined ones too)
 docker compose exec -T api dotnet Ember.Api.dll --list-feedback
 # Save pictures by report id or picture id to ./feedback/{reportId}/{pictureId}.{ext}
 tools/feedback-images.sh ./feedback 42 0193a6f2-...
-# Mark reports handled; their pictures are deleted 30 days later
-docker compose exec -T api dotnet Ember.Api.dll --resolve-feedback 42
+# Set a status: open, planned, implemented, released or declined; released or declined closes the report and its pictures are deleted 30 days later
+docker compose exec -T api dotnet Ember.Api.dll --feedback-status planned 42
 ```
 
 Pictures are never kept past 12 months after the report. There is no HTTP endpoint for any of this.
