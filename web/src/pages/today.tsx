@@ -163,20 +163,20 @@ export default function TodayPage() {
   });
 
   useEffect(() => {
-    if (!data || openHabit === null) return;
+    if (!data || query.isFetching || openHabit === null) return;
     const target = data.habits.find((h) => String(h.id) === openHabit);
     setSearchParams(
       (params) => {
         params.delete('habit');
         return params;
       },
-      { replace: true },
+      { replace: true, preventScrollReset: true },
     );
     const row = target && document.getElementById(habitRowId(target.id));
     if (!target || !row) return;
     row.scrollIntoView({ block: 'center', behavior: reduceMotion || calm ? 'auto' : 'smooth' });
     setHighlighted(target.id);
-  }, [data, openHabit, setSearchParams, reduceMotion, calm]);
+  }, [data, query.isFetching, openHabit, setSearchParams, reduceMotion, calm]);
 
   useEffect(() => {
     if (highlighted === null) return;

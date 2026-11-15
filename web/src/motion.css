@@ -498,8 +498,8 @@
   animation: none !important;
 }
 
-.ember-scene[data-hidden] *,
-.ember-scene[data-hidden] *::before {
+.ember-scene:not(.ember-scene--moment)[data-hidden] *,
+.ember-scene:not(.ember-scene--moment)[data-hidden] *::before {
   animation-play-state: paused !important;
 }
 

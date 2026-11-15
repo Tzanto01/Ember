@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DayCell } from '@/components/day-cell';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -43,6 +44,7 @@ export function ThemePicker({
   const { t: translate } = useTranslation();
   useStore(themeApplied);
   const theme = currentTheme();
+  const latest = useRef(0);
 
   function choose(value: string): void {
     const id = themes.find((t) => t.id === value)?.id;
@@ -53,9 +55,13 @@ export function ThemePicker({
       const delta = card && before !== undefined ? card.getBoundingClientRect().top - before : 0;
       if (delta) window.scrollBy({ top: delta, behavior: 'instant' });
     };
+    const run = ++latest.current;
     chooseTheme(id);
     keepInPlace();
-    void document.fonts?.ready.then(keepInPlace);
+    const settled = window.scrollY;
+    void document.fonts?.ready.then(() => {
+      if (run === latest.current && card?.isConnected && window.scrollY === settled) keepInPlace();
+    });
     onChoose?.(id);
   }
 

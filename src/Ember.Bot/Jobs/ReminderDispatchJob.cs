@@ -303,7 +303,7 @@ public class ReminderDispatchJob : IJob
             && HabitService.IsScheduledOn(habit, today)
             && !await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
             && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
-            && !(await habits.GetLowDaysAsync(user.Id)).Contains(today);
+            && !await habits.IsLowDayStoredAsync(user.Id, today);
 
         var delivery = Delivery.NotDelivered;
         if (send)
@@ -411,7 +411,7 @@ public class ReminderDispatchJob : IJob
             && HabitService.IsScheduledOn(habit, today)
             && !await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
             && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
-            && !(await habits.GetLowDaysAsync(user.Id)).Contains(today);
+            && !await habits.IsLowDayStoredAsync(user.Id, today);
 
         habit.SecondReminderUtc = null;
         var delivery = Delivery.NotDelivered;

@@ -377,7 +377,8 @@ public partial class HabitService
         return new DayStats(date, scheduled, done, partial, showedUp);
     }
 
-    private Task<bool> IsLowDayStoredAsync(Guid userId, DateOnly date)
+    /// <summary>Whether <paramref name="date"/> is a stored low day for the user.</summary>
+    public Task<bool> IsLowDayStoredAsync(Guid userId, DateOnly date)
         => _db.DayMarks.AnyAsync(m => m.UserId == userId && m.Date == date && m.Kind == DayMarkKind.LowDay);
 
     private async Task<(Habit? Habit, DayEditResult Result)> FindEditableHabitAsync(Guid userId, int habitId, DateOnly date)
