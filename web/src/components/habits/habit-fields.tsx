@@ -41,7 +41,6 @@ export interface HabitFormValue {
   reminderTimes: TimeOfDay[];
 }
 
-const workdays: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri'];
 
 export const emptyHabitForm: HabitFormState = {
   name: '',
@@ -58,7 +57,7 @@ export function habitToForm(habit: Habit): HabitFormState {
     name: habit.name,
     frequency: habit.frequency,
     weeklyTarget: habit.weeklyTarget ?? 3,
-    days: habit.days ?? workdays,
+    days: habit.days ?? [],
     timesPerDay: habit.timesPerDay,
     reminderTimes: reminderTimesOf(habit).length ? [...reminderTimesOf(habit)] : [''],
   };
