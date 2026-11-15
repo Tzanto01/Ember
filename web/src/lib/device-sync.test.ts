@@ -269,15 +269,19 @@ describe('DeviceSync', () => {
       expect(sync.nativeCheckIn.get()).toBeNull();
     });
 
-    it('treats a plain tap on a reminder as opening Today', async () => {
+    it("opens Today at the habit on a plain tap on its reminder, and plain Today for a routine's or another user's", async () => {
       const { fetch, paths } = await setup();
+      const tap = (extra: unknown) =>
+        native.listeners.get('localNotificationActionPerformed')?.({ actionId: 'tap', notification: { id: 1, extra } });
 
-      native.listeners.get('localNotificationActionPerformed')?.({
-        actionId: 'tap',
-        notification: { id: 1, extra: today },
-      });
+      tap(today);
+      await vi.waitFor(() => expect(paths).toEqual(['/today?habit=1']));
+      tap({ userId: 'u1', routineId: 7, date: '2026-11-01' });
+      await vi.waitFor(() => expect(paths).toHaveLength(2));
+      tap({ ...today, userId: 'u2' });
+      await vi.waitFor(() => expect(paths).toHaveLength(3));
 
-      await vi.waitFor(() => expect(paths).toEqual(['/today']));
+      expect(paths).toEqual(['/today?habit=1', '/today', '/today']);
       expect(fetch.all.filter((call) => call.method !== 'GET')).toEqual([]);
     });
   });

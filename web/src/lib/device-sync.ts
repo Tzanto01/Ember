@@ -2,7 +2,7 @@ import type { ApiClient } from './api-client';
 import type { AuthService } from './auth';
 import { isDayEdit } from './device-store';
 import { reminderNames } from './native/reminder-names';
-import { doneAction, type Reminders } from './native/reminders';
+import { checkInTarget, doneAction, type Reminders } from './native/reminders';
 import { capacitorWidget } from './native/widget';
 import { browserTimeZone } from './local-date';
 import { navigate } from './navigation';
@@ -17,7 +17,8 @@ import { themeApplied } from './theme';
  * whenever `me` holds a new time zone or second reminder setting or the theme changes (the reminder icon follows
  * its colour). When a user is known whose zone was never set, it sends the device's zone (not UTC) once per user
  * on this device (a failure waits for the next app start). Native "Done" taps on a reminder this app issued ({@link Reminders.wasIssued})
- * and widget row taps check in through {@link Reminders.checkIn} and open Today.
+ * and widget row taps check in through {@link Reminders.checkIn} and open Today; a plain tap on a habit reminder opens Today
+ * at that habit (`/today?habit=<id>`).
  */
 export class DeviceSync {
   private userId: string | null = null;
@@ -112,17 +113,21 @@ export class DeviceSync {
     await LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
       const { id, extra } = event.notification;
       const done = event.actionId === doneAction && !!this.reminders?.wasIssued(id, extra);
-      void this.checkIn(done ? extra : null);
+      void this.checkIn(done ? extra : null, event.actionId === doneAction ? null : extra);
     });
     const { EmberWidget } = await capacitorWidget();
     await EmberWidget.addListener('widgetTap', (tap) => void this.checkIn(tap));
   }
 
-  /** Checks in `extra` (validated by {@link Reminders.checkIn}) for the signed-in user, then opens Today. */
-  private async checkIn(extra: unknown): Promise<void> {
+  /**
+   * Checks in `extra` (validated by {@link Reminders.checkIn}) for the signed-in user, then opens Today, at the
+   * habit of `tapped` when that is one of the user's habit reminders.
+   */
+  private async checkIn(extra: unknown, tapped: unknown = null): Promise<void> {
     const me = this.auth.me.get() ?? (await this.auth.loadMe().catch(() => null));
     const name = me && extra ? await this.reminders?.checkIn(me.id, me.timezone, extra, this.queue) : null;
-    navigate('/today');
+    const habitId = me && tapped ? checkInTarget(tapped, me.id)?.habitId : undefined;
+    navigate(habitId ? `/today?habit=${habitId}` : '/today');
     if (name) this.nativeCheckIn.set({ name });
   }
 }
