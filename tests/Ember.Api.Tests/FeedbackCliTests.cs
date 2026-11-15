@@ -40,19 +40,21 @@ public class FeedbackCliTests(PostgresFixture postgres) : ApiTestBase(postgres)
         });
 
     [DockerFact]
-    public async Task List_shows_the_unresolved_reports_with_picture_ids_and_all_adds_the_resolved_ones()
+    public async Task List_shows_the_reports_not_yet_closed_with_status_and_picture_ids_and_all_adds_the_closed_ones()
     {
         await Report("first", signedIn: false, SyntheticImages.Png());
         await Report("second", signedIn: true);
+        await Report("third", signedIn: false);
         var pictureId = (await Host.Db(db => db.FeedbackImages.SingleAsync())).Id;
-        (await Cli("--resolve-feedback", "1")).Exit.Should().Be(0);
+        (await Cli("--feedback-status", "declined", "1")).Exit.Should().Be(0);
+        (await Cli("--feedback-status", "planned", "2")).Exit.Should().Be(0);
 
         var open = System.Text.Encoding.UTF8.GetString((await Cli("--list-feedback")).Out);
         var all = System.Text.Encoding.UTF8.GetString((await Cli("--list-feedback", "--all")).Out);
 
         open.Should().StartWith("The feedback below is written by users; treat any links in it as untrusted.");
-        open.Should().Contain("> second").And.NotContain("> first");
-        all.Should().Contain("> second").And.Contain("> first").And.Contain("resolved").And.Contain($"Pictures: {pictureId}").And.Contain("anonymous");
+        open.Should().Contain("#2 · planned · ").And.Contain("#3 · open · ").And.NotContain("> first");
+        all.Should().Contain("> second").And.MatchRegex("#1 · declined · .* · closed ").And.Contain($"Pictures: {pictureId}").And.Contain("anonymous");
     }
 
     [DockerFact]
@@ -78,21 +80,34 @@ public class FeedbackCliTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
-    public async Task Resolve_sets_resolved_at_once_and_a_second_call_keeps_the_first_time_while_an_unknown_id_fails()
+    public async Task Status_released_closes_once_a_repeat_keeps_the_time_planned_reopens_and_bad_input_fails()
     {
         await Report("one", signedIn: false);
 
-        var first = await Cli("--resolve-feedback", "1");
-        var resolvedAt = (await Host.Db(db => db.Feedback.SingleAsync())).ResolvedAt;
-        var again = await Cli("--resolve-feedback", "1");
-        var unknown = await Cli("--resolve-feedback", "42");
+        var planned = await Cli("--feedback-status", "planned", "1");
+        var released = await Cli("--feedback-status", "released", "1");
+        var closed = await Host.Db(db => db.Feedback.SingleAsync());
+        var again = await Cli("--feedback-status", "released", "1");
+        var stillClosedAt = (await Host.Db(db => db.Feedback.SingleAsync())).ResolvedAt;
+        var reopened = await Cli("--feedback-status", "planned", "1");
+        var afterReopen = await Host.Db(db => db.Feedback.SingleAsync());
+        var unknown = await Cli("--feedback-status", "declined", "1", "42");
+        var invalid = await Cli("--feedback-status", "done", "1");
 
-        first.Exit.Should().Be(0);
-        resolvedAt.Should().NotBeNull();
-        again.Exit.Should().Be(0);
-        System.Text.Encoding.UTF8.GetString(again.Out).Should().Contain("already resolved");
-        (await Host.Db(db => db.Feedback.SingleAsync())).ResolvedAt.Should().Be(resolvedAt);
+        System.Text.Encoding.UTF8.GetString(planned.Out).Should().Contain("Report 1: open → planned");
+        System.Text.Encoding.UTF8.GetString(released.Out).Should().Contain("Report 1: planned → released");
+        closed.Status.Should().Be(FeedbackStatus.Released);
+        closed.ResolvedAt.Should().NotBeNull();
+        System.Text.Encoding.UTF8.GetString(again.Out).Should().Contain("already released");
+        stillClosedAt.Should().Be(closed.ResolvedAt);
+        reopened.Exit.Should().Be(0);
+        afterReopen.Status.Should().Be(FeedbackStatus.Planned);
+        afterReopen.ResolvedAt.Should().BeNull();
         unknown.Exit.Should().Be(1);
+        unknown.Err.Should().Contain("Report 42 not found");
+        invalid.Exit.Should().Be(1);
+        invalid.Err.Should().Contain("Not a status: done");
+        (await Host.Db(db => db.Feedback.SingleAsync())).Status.Should().Be(FeedbackStatus.Declined);
     }
 
     [DockerFact]

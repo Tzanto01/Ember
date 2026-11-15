@@ -1,6 +1,7 @@
 using System.Formats.Tar;
 using System.Globalization;
 using Ember.Core.Data;
+using Ember.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api;
@@ -10,21 +11,23 @@ namespace Ember.Api;
 /// ...</c>) against <c>ConnectionStrings:DefaultConnection</c> from the environment, without starting the web host. Never
 /// reachable over HTTP. Any failure prints the exception type and message (no stack trace) to stderr and exits 1.
 /// <list type="bullet">
-/// <item><c>--list-feedback [--all]</c>: read-only; prints the untrusted-content notice, then the unresolved reports (with <c>--all</c> every report), oldest first:
-/// id, created and resolved time (UTC), platform, version, <c>user {id}</c> or <c>anonymous</c>, the title and text quoted with
+/// <item><c>--list-feedback [--all]</c>: read-only; prints the untrusted-content notice, then the open, planned and implemented reports (with <c>--all</c> every report), oldest
+/// first: id, status, created and closed time (UTC), platform, version, <c>user {id}</c> or <c>anonymous</c>, the title and text quoted with
 /// <c>&gt; </c> and the picture ids. Exit 0.</item>
 /// <item><c>--feedback-images &lt;id&gt;...</c>: each id a report id (integer, all its pictures) or a picture id (GUID); writes a
 /// tar stream to stdout with entries <c>{reportId}/{pictureId}.{jpg|png|webp}</c>, the stored (already stripped) bytes. Unknown
 /// ids and reports without pictures go to stderr; exit 1 when nothing was found.</item>
-/// <item><c>--resolve-feedback &lt;reportId&gt;...</c>: marks each open report resolved now, which starts the
-/// <see cref="FeedbackDigest.ImageRetentionDays"/> until its pictures are deleted; prints what changed, unknown ids to stderr;
-/// exit 1 when any id was invalid or unknown.</item>
+/// <item><c>--feedback-status &lt;open|planned|implemented|released|declined&gt; &lt;reportId&gt;...</c>: sets each report's
+/// <see cref="Feedback.Status"/>. Released or declined closes it (sets <see cref="Feedback.ResolvedAt"/> to now unless already
+/// closed), which starts the <see cref="FeedbackDigest.ImageRetentionDays"/> until its pictures are deleted; any other status
+/// clears it. Prints each change or that the report already has the status; an invalid status and invalid or unknown ids go to
+/// stderr; exit 1 when any input was invalid.</item>
 /// </list>
 /// </summary>
 internal static class FeedbackCli
 {
     /// <summary>Whether <paramref name="args"/> start with one of the verbs.</summary>
-    public static bool Handles(string[] args) => args is ["--list-feedback", ..] or ["--feedback-images", ..] or ["--resolve-feedback", ..];
+    public static bool Handles(string[] args) => args is ["--list-feedback", ..] or ["--feedback-images", ..] or ["--feedback-status", ..];
 
     /// <summary>Runs the verb in <paramref name="args"/> and returns the exit code.</summary>
     public static async Task<int> RunAsync(string[] args)
@@ -39,7 +42,7 @@ internal static class FeedbackCli
                 ["--list-feedback"] => await ListAsync(db, all: false),
                 ["--list-feedback", "--all"] => await ListAsync(db, all: true),
                 ["--feedback-images", _, ..] => await ImagesAsync(db, args[1..]),
-                ["--resolve-feedback", _, ..] => await ResolveAsync(db, args[1..]),
+                ["--feedback-status", _, _, ..] => await StatusAsync(db, args[1], args[2..]),
                 _ => Usage(),
             };
         }
@@ -52,16 +55,16 @@ internal static class FeedbackCli
 
     private static int Usage()
     {
-        Console.Error.WriteLine("Usage: --list-feedback [--all] | --feedback-images <reportId|pictureId>... | --resolve-feedback <reportId>...");
+        Console.Error.WriteLine("Usage: --list-feedback [--all] | --feedback-images <reportId|pictureId>... | --feedback-status <open|planned|implemented|released|declined> <reportId>...");
         return 1;
     }
 
     private static async Task<int> ListAsync(EmberDbContext db, bool all)
     {
         var items = await db.Feedback.AsNoTracking()
-            .Where(f => all || f.ResolvedAt == null)
+            .Where(f => all || (f.Status != FeedbackStatus.Released && f.Status != FeedbackStatus.Declined))
             .OrderBy(f => f.CreatedAt).ThenBy(f => f.Id)
-            .Select(f => new { f.Id, f.CreatedAt, f.ResolvedAt, f.Platform, f.Version, f.UserId, f.Title, f.Text, Pictures = f.Images.OrderBy(i => i.Id).Select(i => i.Id).ToList() })
+            .Select(f => new { f.Id, f.Status, f.CreatedAt, f.ResolvedAt, f.Platform, f.Version, f.UserId, f.Title, f.Text, Pictures = f.Images.OrderBy(i => i.Id).Select(i => i.Id).ToList() })
             .ToListAsync();
         var output = Console.Out;
         await output.WriteLineAsync(FeedbackDigest.UntrustedNotice);
@@ -69,7 +72,7 @@ internal static class FeedbackCli
         foreach (var item in items)
         {
             await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture,
-                $"#{item.Id} · {Utc(item.CreatedAt)}{(item.ResolvedAt is { } resolved ? " · resolved " + Utc(resolved) : "")} · {item.Platform} {item.Version ?? "unknown version"} · {(item.UserId is { } userId ? $"user {userId}" : "anonymous")}"));
+                $"#{item.Id} · {Name(item.Status)} · {Utc(item.CreatedAt)}{(item.ResolvedAt is { } closed ? " · closed " + Utc(closed) : "")} · {item.Platform} {item.Version ?? "unknown version"} · {(item.UserId is { } userId ? $"user {userId}" : "anonymous")}"));
             foreach (var line in FeedbackDigest.Quote(item.Title)) await output.WriteLineAsync(line);
             await output.WriteLineAsync(">");
             foreach (var line in FeedbackDigest.Quote(item.Text)) await output.WriteLineAsync(line);
@@ -122,8 +125,15 @@ internal static class FeedbackCli
         return 0;
     }
 
-    private static async Task<int> ResolveAsync(EmberDbContext db, string[] ids)
+    private static async Task<int> StatusAsync(EmberDbContext db, string statusName, string[] ids)
     {
+        if (Enum.GetValues<FeedbackStatus>().Where(s => Name(s) == statusName).Select(s => (FeedbackStatus?)s).FirstOrDefault() is not { } status)
+        {
+            await Console.Error.WriteLineAsync($"Not a status: {statusName} (open, planned, implemented, released or declined)");
+            return 1;
+        }
+
+        var closes = status is FeedbackStatus.Released or FeedbackStatus.Declined;
         var exitCode = 0;
         foreach (var id in ids)
         {
@@ -134,20 +144,28 @@ internal static class FeedbackCli
                 continue;
             }
 
-            var now = DateTime.UtcNow;
-            if (await db.Feedback.Where(f => f.Id == reportId && f.ResolvedAt == null).ExecuteUpdateAsync(s => s.SetProperty(f => f.ResolvedAt, now)) > 0)
-                await Console.Out.WriteLineAsync($"Report {reportId} resolved at {Utc(now)}.");
-            else if (await db.Feedback.Where(f => f.Id == reportId).Select(f => f.ResolvedAt).FirstOrDefaultAsync() is { } resolved)
-                await Console.Out.WriteLineAsync($"Report {reportId} was already resolved at {Utc(resolved)}.");
-            else
+            var report = await db.Feedback.FindAsync(reportId);
+            if (report is null)
             {
                 await Console.Error.WriteLineAsync($"Report {reportId} not found.");
                 exitCode = 1;
+            }
+            else if (report.Status == status)
+                await Console.Out.WriteLineAsync($"Report {reportId} is already {Name(status)}.");
+            else
+            {
+                var previous = report.Status;
+                report.Status = status;
+                report.ResolvedAt = closes ? report.ResolvedAt ?? DateTime.UtcNow : null;
+                await db.SaveChangesAsync();
+                await Console.Out.WriteLineAsync($"Report {reportId}: {Name(previous)} → {Name(status)}");
             }
         }
 
         return exitCode;
     }
+
+    private static string Name(FeedbackStatus status) => status.ToString().ToLowerInvariant();
 
     private static string Utc(DateTime time) => time.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 }

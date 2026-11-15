@@ -137,6 +137,13 @@ namespace Ember.Core.Data.Migrations
                     b.Property<DateTime?>("ResolvedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("open");
+
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasMaxLength(2000)

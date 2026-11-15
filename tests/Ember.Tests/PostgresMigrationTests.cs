@@ -290,6 +290,25 @@ public class PostgresMigrationTests(PostgresFixture postgres)
             "WHERE table_name = 'AspNetUsers' AND column_name = 'TipsSeen'").ToListAsync()).Should().Equal(0);
     }
 
+    [DockerFact]
+    public async Task FeedbackStatusMigration_MarksResolvedReportsReleased_OthersOpen()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        var migrator = db.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261114114442_AddTipsSeen");
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO \"Feedback\" (\"Platform\", \"Title\", \"Text\", \"CreatedAt\", \"ResolvedAt\") VALUES " +
+            "('web', 'handled', 'handled', now(), now()), ('web', 'pending', 'pending', now(), NULL)");
+
+        await migrator.MigrateAsync();
+
+        (await db.Feedback.AsNoTracking().OrderBy(f => f.Id).Select(f => f.Status).ToListAsync())
+            .Should().Equal(FeedbackStatus.Released, FeedbackStatus.Open);
+    }
+
     private static async Task<DateOnly> CurrentDateAsync(EmberDbContext db)
         => (await db.Database.SqlQueryRaw<DateOnly>("SELECT CURRENT_DATE AS \"Value\"").ToListAsync()).Single();
 
