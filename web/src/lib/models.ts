@@ -72,6 +72,9 @@ export interface MePatch {
 export const secondReminderChoices = [0, 15, 30, 60, 120] as const;
 export type SecondReminderMinutes = (typeof secondReminderChoices)[number];
 
+/** The `graceDaysPerWeek` choices. */
+export const graceOptions = [0, 1, 2, 3];
+
 export type Frequency = 'daily' | 'weekly' | 'weekdays';
 
 /** A weekday key, Monday first. */

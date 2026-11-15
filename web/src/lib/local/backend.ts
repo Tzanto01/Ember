@@ -34,19 +34,9 @@ import {
 import type { LocalStore } from './store';
 import { habitTemplates } from './templates';
 import type { LocalData, LocalRoutine } from './types';
+import { limits } from './limits';
 
-/** Core limits the local backend enforces like the API. */
-export const limits = {
-  habits: 25,
-  routines: 10,
-  activeMoods: 20,
-  habitName: 100,
-  routineName: 50,
-  moodLabel: 24,
-  noteText: 2000,
-  timesPerDay: 10,
-  rangeDays: 366,
-} as const;
+export { limits };
 
 /** The consent policy version no-account mode reports: consent is implied by keeping the data on the device. */
 export const devicePolicyVersion = 'device';

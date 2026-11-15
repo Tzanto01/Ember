@@ -30,6 +30,7 @@ export function MomentDoor({ variant }: { variant: 'today' | 'hero' | 'quiet' })
   return (
     <Link
       to="/moment"
+      data-guide="moment"
       className="group relative isolate flex min-h-[64px] w-full items-center gap-3 rounded-xl border-[length:var(--border-width)] border-border bg-secondary p-4 text-secondary-foreground no-underline transition-[color,background-color,scale] duration-[var(--ember-dur-fast)] ease-ember hover:bg-accent hover:text-accent-foreground active:scale-[0.99]"
     >
       <span aria-hidden className="ember-sheen" />

@@ -42,6 +42,7 @@ import { env } from '@/lib/env';
 import { browserTimeZone, isValidTimeZone, timeZoneLabel } from '@/lib/local-date';
 import {
   type ExportFormat,
+  graceOptions,
   type MePatch,
   type ReminderDestination,
   secondReminderChoices,
@@ -92,7 +93,6 @@ function discordMessage(outcome: DiscordOutcome): Message {
 }
 
 const zones = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
-const graceOptions = [0, 1, 2, 3];
 
 function secondReminderLabel(minutes: SecondReminderMinutes): string {
   if (minutes === 0) return t('settings.second.off');

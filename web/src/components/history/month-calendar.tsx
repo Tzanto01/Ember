@@ -54,7 +54,7 @@ export function MonthCalendar({
     [i18n.language],
   );
   return (
-    <section aria-labelledby="month-heading" className={cn(cardVariants(), 'px-0 md:px-5')}>
+    <section aria-labelledby="month-heading" data-guide="calendar" className={cn(cardVariants(), 'px-0 md:px-5')}>
       <div className="flex items-center justify-between gap-2 px-2 md:px-0">
         <Button
           variant="ghost"

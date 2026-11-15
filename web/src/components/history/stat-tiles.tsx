@@ -66,6 +66,7 @@ export function StatTiles({ habit, monthName, doneInMonth, lowDaysInMonth, last7
 
   return (
     <dl
+      data-guide="stats"
       className={cn(
         'grid gap-2',
         tiles.length === 3 ? 'grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))]' : 'grid-cols-2',

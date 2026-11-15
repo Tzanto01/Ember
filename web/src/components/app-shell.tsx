@@ -7,6 +7,7 @@ import { BusyButton } from '@/components/auth/busy-button';
 import { BetaBadge } from '@/components/beta-badge';
 import { BetaUpdateBanner } from '@/components/beta-update';
 import { FlameMark } from '@/components/flame-mark';
+import { Guide } from '@/components/guide/guide';
 import { LegalLinks } from '@/components/legal-links';
 import { NativeConfirmation } from '@/components/native-confirmation';
 import { Button, type ButtonProps } from '@/components/ui/button';
@@ -65,7 +66,7 @@ export function AccountButton({
 
 /**
  * Signed-in shell: sticky header with the brand, the main nav (top pills from `md`, a fixed bottom tab bar below)
- * and "Sign out" from `md` (Settings has it on phones), or "Sign in" in no-account mode; the offline-queue and
+ * and "Sign out" from `md` (Settings has it on phones), or "Sign in" in no-account mode, then the screen's guide; the offline-queue and
  * dropped-edit notices above the page; legal footer.
  * Loads "What helps me" into memory once the account's private journal is unlocked.
  */
@@ -136,25 +137,23 @@ export function AppShell() {
               </NavLink>
             ))}
           </nav>
-          {local ? (
-            <AccountButton
-              to="/login"
-              variant="ghost"
-              className="ml-auto"
-              onFailed={() => setUpgradeFailed(true)}
-            >
-              {t('auth.signIn')}
-            </AccountButton>
-          ) : (
-            <Button
-              variant="ghost"
-              className="ml-auto max-md:hidden"
-              aria-disabled={signingOut || undefined}
-              onClick={() => void signOut()}
-            >
-              {signingOut ? t('nav.signingOut') : t('nav.signOut')}
-            </Button>
-          )}
+          <div className="ml-auto flex items-center gap-1">
+            {local ? (
+              <AccountButton to="/login" variant="ghost" onFailed={() => setUpgradeFailed(true)}>
+                {t('auth.signIn')}
+              </AccountButton>
+            ) : (
+              <Button
+                variant="ghost"
+                className="max-md:hidden"
+                aria-disabled={signingOut || undefined}
+                onClick={() => void signOut()}
+              >
+                {signingOut ? t('nav.signingOut') : t('nav.signOut')}
+              </Button>
+            )}
+            <Guide />
+          </div>
         </div>
       </header>
       <main

@@ -568,7 +568,7 @@ export function PauseSection({ habit, onChange }: SectionProps) {
   }
 
   return (
-    <section aria-labelledby="pause-heading" className={cardVariants()}>
+    <section aria-labelledby="pause-heading" data-guide="pause" className={cardVariants()}>
       <div className="flex items-center gap-3">
         <h2 id="pause-heading" tabIndex={-1} className="text-[1.375rem] focus:outline-none">
           {t('habitEdit.pause')}

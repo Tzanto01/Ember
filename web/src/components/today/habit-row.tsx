@@ -7,6 +7,7 @@ import { habitCadence } from '@/components/habits/habit-fields';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { highlightRing } from '@/lib/guide/highlight';
 import { formatDate } from '@/lib/local-date';
 import type { Habit } from '@/lib/models';
 import { cn } from '@/lib/utils';
@@ -147,7 +148,7 @@ export function HabitRow({
           done &&
             'bg-[color-mix(in_oklch,var(--done)_8%,var(--card))] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_3px_0_0_var(--done)]',
           reward === 'fill' && 'ember-row-fill',
-          highlight && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+          highlight && highlightRing,
           'motion-safe:transition-shadow motion-safe:duration-300',
         )}
       >

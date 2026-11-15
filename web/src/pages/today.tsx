@@ -26,6 +26,7 @@ import { Card, cardVariants } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isOffday } from '@/lib/calendar';
+import { highlightMs } from '@/lib/guide/highlight';
 import { t } from '@/lib/i18n';
 import { addDays, formatDate } from '@/lib/local-date';
 import type { DayState, Habit, LocalDateString, Routine, WeeklyStats } from '@/lib/models';
@@ -180,7 +181,7 @@ export default function TodayPage() {
 
   useEffect(() => {
     if (highlighted === null) return;
-    const timer = setTimeout(() => setHighlighted(null), 1500);
+    const timer = setTimeout(() => setHighlighted(null), highlightMs);
     return () => clearTimeout(timer);
   }, [highlighted]);
 

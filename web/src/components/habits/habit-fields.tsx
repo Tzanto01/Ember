@@ -282,7 +282,7 @@ export function HabitFields({
         )}
       </FormField>
 
-      <div className="flex flex-col gap-2">
+      <div data-guide="frequency" className="flex flex-col gap-2">
         <p id={legendId} className="font-medium">
           {t('habitFields.howOften')}
         </p>

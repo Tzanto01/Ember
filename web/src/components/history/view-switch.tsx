@@ -11,7 +11,7 @@ const views = [
 export function HistoryViewSwitch({ view }: { view: 'month' | 'year' }) {
   const { t } = useTranslation();
   return (
-    <nav aria-label={t('history.view.label')} className="self-start">
+    <nav aria-label={t('history.view.label')} data-guide="history-views" className="self-start">
       <ul role="list" className="flex rounded-full border border-border bg-card p-1">
         {views.map((item) => (
           <li key={item.view}>

@@ -49,6 +49,7 @@ export function CheckButton({
     <button
       id={id}
       type="button"
+      data-guide="check-in"
       aria-pressed={pressed}
       aria-label={
         multi
