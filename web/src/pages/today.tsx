@@ -3,7 +3,7 @@ import { CalendarDays, ListOrdered, Moon, Pencil, Plus } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { TapLink } from '@/components/auth/busy-button';
 import { EmptyState } from '@/components/empty-state';
 import { useReminderReach, useReminderSettingsHash } from '@/components/habits/reminder-reach';
@@ -16,7 +16,7 @@ import { PageHeader } from '@/components/page-header';
 import { routineTitle } from '@/components/routines/routine-title';
 import { TipSlot } from '@/components/tips/tip-slot';
 import { checkButtonId } from '@/components/today/check-button';
-import { HabitRow } from '@/components/today/habit-row';
+import { HabitRow, habitRowId } from '@/components/today/habit-row';
 import { HearthIllustration } from '@/components/today/hearth-illustration';
 import { readReward, type RewardKeyword } from '@/components/today/reward';
 import { TodaysEmber } from '@/components/today/todays-ember';
@@ -33,6 +33,7 @@ import { asApiError, problemToMessage } from '@/lib/problem';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth, deviceSync } from '@/lib/services';
 import { useStore } from '@/lib/store';
+import { useCalmMode } from '@/lib/theme';
 
 interface TodayData {
   habits: Habit[];
@@ -145,6 +146,10 @@ export default function TodayPage() {
   const [lowDayBusy, setLowDayBusy] = useState(false);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openHabit = searchParams.get('habit');
+  const [highlighted, setHighlighted] = useState<number | null>(null);
+  const calm = useCalmMode();
 
   useEffect(() => {
     if (synced !== firstSynced.current) void refetch();
@@ -156,6 +161,28 @@ export default function TodayPage() {
     focusAfter.current = null;
     target.focus();
   });
+
+  useEffect(() => {
+    if (!data || openHabit === null) return;
+    const target = data.habits.find((h) => String(h.id) === openHabit);
+    setSearchParams(
+      (params) => {
+        params.delete('habit');
+        return params;
+      },
+      { replace: true },
+    );
+    const row = target && document.getElementById(habitRowId(target.id));
+    if (!target || !row) return;
+    row.scrollIntoView({ block: 'center', behavior: reduceMotion || calm ? 'auto' : 'smooth' });
+    setHighlighted(target.id);
+  }, [data, openHabit, setSearchParams, reduceMotion, calm]);
+
+  useEffect(() => {
+    if (highlighted === null) return;
+    const timer = setTimeout(() => setHighlighted(null), 1500);
+    return () => clearTimeout(timer);
+  }, [highlighted]);
 
   const nativeCheckIn = useStore(deviceSync.nativeCheckIn);
   useEffect(() => {
@@ -321,6 +348,7 @@ export default function TodayPage() {
           headingLevel={headingLevel}
           showStreaks={showStreaks}
           busy={busy.has(habit.id)}
+          highlight={highlighted === habit.id}
           reward={rewards.get(habit.id) ?? null}
           onToggle={() => void toggle(habit)}
           onUndoOne={() => void toggle(habit, true)}
@@ -460,6 +488,18 @@ export default function TodayPage() {
               </section>
             ))
           )}
+          {data.lowDayToday === false && (
+            <Button
+              id="mark-low-day"
+              variant="ghost"
+              className="self-start text-muted-foreground md:-ml-4"
+              aria-disabled={lowDayBusy || undefined}
+              onClick={() => void toggleLowDay()}
+            >
+              <Moon aria-hidden />
+              {t('today.lowDay.mark')}
+            </Button>
+          )}
           {remindersUnheard && (
             <Notice tone="info" heading={t('today.unheard.heading')}>
               <p>{t('today.unheard.body')}</p>
@@ -517,18 +557,6 @@ export default function TodayPage() {
         }
         aside={hasHabits ? ember('lg:hidden') : undefined}
       />
-      {hasHabits && data.lowDayToday === false && (
-        <Button
-          id="mark-low-day"
-          variant="ghost"
-          className="-mt-3 self-start md:-ml-4"
-          aria-disabled={lowDayBusy || undefined}
-          onClick={() => void toggleLowDay()}
-        >
-          <Moon aria-hidden />
-          {t('today.lowDay.mark')}
-        </Button>
-      )}
       {body}
     </div>
   );

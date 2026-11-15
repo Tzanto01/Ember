@@ -33,14 +33,15 @@ const weekly: WeeklyStats = {
 
 const doneHabit: Habit = { ...habit, today: { ...habit.today, state: 'done', completed: true } };
 
-function renderToday() {
+function renderToday(entry = '/today') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const router = createMemoryRouter([{ path: '/today', Component: TodayPage }], { initialEntries: ['/today'] });
+  const router = createMemoryRouter([{ path: '/today', Component: TodayPage }], { initialEntries: [entry] });
   render(
     <QueryClientProvider client={client}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  return router;
 }
 
 async function answerLoad(
@@ -202,6 +203,38 @@ describe('TodayPage', () => {
 
     expect(await screen.findByText('Today is a low day')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Mark today as a low day' })).toBeNull();
+  });
+
+  it('offers the low day below the habit list, not above it', async () => {
+    renderToday();
+    await answerLoad(f, [habit]);
+
+    const mark = await screen.findByRole('button', { name: 'Mark today as a low day' });
+    expect(screen.getByRole('list').compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('counts a habit at 1 of 2 as checked in today', async () => {
+    const water = { ...habit, name: 'Water', timesPerDay: 2, today: { ...habit.today, state: 'partial' as const, count: 1 } };
+    renderToday();
+    await answerLoad(f, [water]);
+
+    expect((await screen.findAllByText('1 checked in today')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Nothing checked in yet today')).toBeNull();
+  });
+
+  it('scrolls to and rings the habit a reminder tap opened, then drops it from the URL', async () => {
+    const scrolled = vi.fn<(this: Element, options?: ScrollIntoViewOptions) => void>(function (this: Element) {});
+    Element.prototype.scrollIntoView = scrolled;
+    const router = renderToday('/today?habit=2');
+    await answerLoad(f, [habit, { ...habit, id: 2, name: 'Read' }]);
+
+    await waitFor(() => expect(router.state.location.search).toBe(''));
+    const row = screen.getByRole('heading', { name: 'Read' }).closest('li')!;
+    expect(scrolled).toHaveBeenCalledOnce();
+    expect(scrolled.mock.contexts[0]).toBe(row);
+    expect(scrolled.mock.calls[0][0]).toMatchObject({ block: 'center' });
+    expect(row.firstElementChild!.className).toMatch(/ring-primary/);
+    await waitFor(() => expect(row.firstElementChild!.className).not.toMatch(/ring-primary/), { timeout: 2500 });
   });
 
   it('clears the low day with a DELETE and brings the mark button back', async () => {

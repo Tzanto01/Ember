@@ -49,6 +49,17 @@ describe('HabitRow meta line', () => {
     expect(row).toHaveTextContent('2 of 3 this week');
   });
 
+  it('counts a weekly habit from zero before anything is done this week', () => {
+    const row = show({
+      frequency: 'weekly',
+      weeklyTarget: 3,
+      stats: { ...habit.stats, streak: null, week: { done: 0, target: 3 } },
+    });
+
+    expect(row).toHaveTextContent('0 of 3 this week');
+    expect(row).not.toHaveTextContent('3 times a week');
+  });
+
   it('says the pause end and offers no check-in for a paused habit', () => {
     const row = show({
       pausedToday: true,

@@ -28,7 +28,12 @@ export interface HabitRowProps {
   headingLevel?: 'h2' | 'h3';
   /** The account's `showStreaks`: false leaves the streak chip out. */
   showStreaks: boolean;
+  /** Rings the card briefly, after a reminder tap opened Today on this habit. */
+  highlight?: boolean;
 }
+
+/** The DOM id of a habit's Today row. */
+export const habitRowId = (habitId: number) => `habit-row-${habitId}`;
 
 function Progress({ habit, roll, showStreaks }: { habit: Habit; roll: boolean; showStreaks: boolean }) {
   const { t } = useTranslation();
@@ -41,18 +46,14 @@ function Progress({ habit, roll, showStreaks }: { habit: Habit; roll: boolean; s
             <DayCell key={i} state={i < week.done ? 'done' : 'notdone'} size="pip" />
           ))}
         </span>
-        {week.done > 0 ? (
-          <span>
-            <Trans
-              t={t}
-              i18nKey="today.weekDone"
-              values={{ done: week.done, target: week.target }}
-              components={{ num: <RollingNumber value={week.done} roll={roll} /> }}
-            />
-          </span>
-        ) : (
-          t('habitFields.cadence.weekly', { count: week.target })
-        )}
+        <span>
+          <Trans
+            t={t}
+            i18nKey="today.weekDone"
+            values={{ done: week.done, target: week.target }}
+            components={{ num: <RollingNumber value={week.done} roll={roll} /> }}
+          />
+        </span>
       </span>
     );
   }
@@ -86,6 +87,7 @@ export function HabitRow({
   onUndoOne,
   headingLevel: Heading = 'h2',
   showStreaks,
+  highlight = false,
 }: HabitRowProps) {
   const { t } = useTranslation();
   const state = habit.today.state;
@@ -138,13 +140,15 @@ export function HabitRow({
   }
 
   return (
-    <li>
+    <li id={habitRowId(habit.id)}>
       <Card
         className={cn(
           'relative isolate grid grid-cols-[minmax(0,1fr)_56px] items-center gap-x-3 gap-y-0 py-3 md:py-3',
           done &&
             'bg-[color-mix(in_oklch,var(--done)_8%,var(--card))] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_3px_0_0_var(--done)]',
           reward === 'fill' && 'ember-row-fill',
+          highlight && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+          'motion-safe:transition-shadow motion-safe:duration-300',
         )}
       >
         <div className="flex min-w-0 flex-col">
