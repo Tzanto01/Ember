@@ -1,5 +1,33 @@
 [
   {
+    "version": "0.10.0-beta.2",
+    "date": "2026-11-15",
+    "notes": {
+      "en": [
+        "Every screen has a “How this works” button at the top now. It answers the common questions about that screen, and “Show me” points at the button or habit an answer is about.",
+        "“I need a moment” now says what it is for: when panic, worry or anger gets too big.",
+        "During a moment, “Guide me by voice” reads each step aloud with your device’s own voice, and it works offline. On Android, your phone also vibrates softly on each breath.",
+        "Marking a low day keeps that day’s habit and routine reminders quiet. The low-day button now sits below your habits and is there all day.",
+        "On Android, tapping a habit reminder opens Today at that habit.",
+        "Habits you do a few times a week show their progress from the start, like “0 of 3 this week”. The summary on Today counts partial check-ins too.",
+        "When you switch a habit to set days, no days are ticked yet, so you choose them yourself.",
+        "Habit and routine names show a character count when you get close to the limit.",
+        "Picking a theme no longer makes the page jump, and background animations pause while Ember is not on screen."
+      ],
+      "de": [
+        "Jeder Bildschirm hat jetzt oben einen Button „So funktioniert's“. Er beantwortet die häufigsten Fragen zu diesem Bildschirm, und „Zeig's mir“ zeigt dir den Button oder Habit, um den es in einer Antwort geht.",
+        "„Ich brauche einen Moment“ sagt jetzt, wofür es da ist: wenn Panik, Sorgen oder Wut zu groß werden.",
+        "Während eines Moments liest „Mit Stimme anleiten“ jeden Schritt mit der Stimme deines Geräts vor, auch offline. Unter Android vibriert dein Handy zusätzlich sanft bei jedem Atemzug.",
+        "Wenn du einen Tag als Tief markierst, bleiben die Erinnerungen für Habits und Routinen an dem Tag still. Der Button für ein Tief steht jetzt unter deinen Habits und ist den ganzen Tag da.",
+        "Unter Android öffnet ein Tipp auf eine Habit-Erinnerung Heute direkt bei diesem Habit.",
+        "Habits, die du ein paar Mal pro Woche machst, zeigen ihren Fortschritt von Anfang an, zum Beispiel „0 von 3 diese Woche“. Die Übersicht auf Heute zählt jetzt auch teilweise Abgehaktes.",
+        "Wenn du einen Habit auf feste Tage umstellst, ist noch kein Tag angehakt, du wählst sie selbst.",
+        "Bei Namen für Habits und Routinen siehst du kurz vor dem Limit, wie viele Zeichen du schon verwendest.",
+        "Beim Wechsel des Themes springt die Seite nicht mehr, und Animationen im Hintergrund pausieren, solange Ember nicht auf dem Bildschirm ist."
+      ]
+    }
+  },
+  {
     "version": "0.10.0-beta.1",
     "date": "2026-11-14",
     "notes": {
