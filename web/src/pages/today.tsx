@@ -284,6 +284,7 @@ export default function TodayPage() {
   }
 
   const doneCount = data?.habits.filter((h) => h.today.state === 'done').length ?? 0;
+  const checkedInCount = data?.habits.filter((h) => h.today.state === 'done' || h.today.state === 'partial').length ?? 0;
   const lowDay = data?.lowDayToday === true;
   const allDone =
     doneCount > 0 &&
@@ -302,7 +303,7 @@ export default function TodayPage() {
   const remindersUnheard = reach === 'none' && !!data?.habits.some((h) => h.reminderTime);
   const ember = (className: string) => (
     <TodaysEmber
-      count={doneCount}
+      count={checkedInCount}
       lowDay={lowDay}
       allDone={allDone}
       stepping={rewards.size > 0}
