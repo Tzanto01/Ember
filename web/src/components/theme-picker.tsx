@@ -47,7 +47,15 @@ export function ThemePicker({
   function choose(value: string): void {
     const id = themes.find((t) => t.id === value)?.id;
     if (!id) return;
+    const card = document.querySelector(`label[for="theme-${id}"]`);
+    const before = card?.getBoundingClientRect().top;
+    const keepInPlace = () => {
+      const delta = card && before !== undefined ? card.getBoundingClientRect().top - before : 0;
+      if (delta) window.scrollBy({ top: delta, behavior: 'instant' });
+    };
     chooseTheme(id);
+    keepInPlace();
+    void document.fonts?.ready.then(keepInPlace);
     onChoose?.(id);
   }
 
@@ -57,13 +65,13 @@ export function ThemePicker({
       aria-describedby={describedBy}
       value={theme}
       onValueChange={choose}
-      className="grid gap-3 sm:grid-cols-2"
+      className="grid gap-[12px] sm:grid-cols-2"
     >
       {themes.map((t) => (
         <label
           key={t.id}
           htmlFor={`theme-${t.id}`}
-          className="flex min-h-[44px] cursor-pointer items-start gap-3 rounded-lg border-[length:max(1px,var(--border-width))] border-border p-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent has-[[data-state=checked]]:ring-1 has-[[data-state=checked]]:ring-primary has-[[data-state=checked]]:text-accent-foreground"
+          className="flex min-h-[44px] cursor-pointer items-start gap-[12px] rounded-lg border-[length:max(1px,var(--border-width))] border-border p-[12px] has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent has-[[data-state=checked]]:ring-1 has-[[data-state=checked]]:ring-primary has-[[data-state=checked]]:text-accent-foreground"
         >
           <RadioGroupItem
             id={`theme-${t.id}`}
@@ -71,7 +79,7 @@ export function ThemePicker({
             aria-labelledby={`theme-${t.id}-name`}
             aria-describedby={`theme-${t.id}-description`}
           />
-          <span className="flex min-w-0 flex-col items-start gap-2">
+          <span className="flex min-w-0 flex-col items-start gap-[8px]">
             <span className="flex flex-col">
               <span id={`theme-${t.id}-name`} className="font-medium">
                 {t.name}
