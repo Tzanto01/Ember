@@ -47,7 +47,7 @@ export const emptyHabitForm: HabitFormState = {
   name: '',
   frequency: 'daily',
   weeklyTarget: 3,
-  days: workdays,
+  days: [],
   timesPerDay: 1,
   reminderTimes: [''],
 };

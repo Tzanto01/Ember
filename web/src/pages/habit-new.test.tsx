@@ -252,7 +252,9 @@ describe('HabitNewPage', () => {
 
     await user.type(await screen.findByLabelText('Name', { exact: true }), 'Water');
     await user.click(screen.getByRole('radio', { name: 'On set days' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Friday' }));
+    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday']) {
+      await user.click(screen.getByRole('checkbox', { name: day }));
+    }
     await user.selectOptions(screen.getByLabelText('Times a day'), '3');
     await user.click(screen.getByRole('button', { name: 'Create habit' }));
 
@@ -272,8 +274,8 @@ describe('HabitNewPage', () => {
 
     await user.type(await screen.findByLabelText('Name', { exact: true }), 'Water');
     await user.click(screen.getByRole('radio', { name: 'On set days' }));
-    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) {
-      await user.click(screen.getByRole('checkbox', { name: day }));
+    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) {
+      expect(screen.getByRole('checkbox', { name: day })).not.toBeChecked();
     }
     await user.click(screen.getByRole('button', { name: 'Create habit' }));
 
@@ -290,8 +292,9 @@ describe('HabitNewPage', () => {
 
     await user.type(await screen.findByLabelText('Name', { exact: true }), 'Water');
     await user.click(screen.getByRole('radio', { name: 'On set days' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Saturday' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) {
+      await user.click(screen.getByRole('checkbox', { name: day }));
+    }
     await user.click(screen.getByRole('button', { name: 'Create habit' }));
 
     const create = await fetch.next('POST', '/api/habits');
