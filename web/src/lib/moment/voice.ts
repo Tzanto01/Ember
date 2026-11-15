@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { env } from '@/lib/env';
 import { isLanguage, type Language } from '@/lib/i18n';
 import { Store, useStore } from '@/lib/store';
 
 const key = 'ember.momentVoice';
-const tags: Record<Language, string> = { en: 'en-US', de: 'de-DE' };
 const textToSpeech = () => import('@capacitor-community/text-to-speech');
 const haptics = () => import('@capacitor/haptics');
 
@@ -21,6 +20,9 @@ function stored(): boolean {
 export const voiceOn = new Store(stored());
 
 let spoken = 0;
+let pending = false;
+const nativeVoices = new Map<Language, { lang: string; index: number }>();
+const available = new Store<Partial<Record<Language, boolean>>>({});
 
 /** Turns voice guidance on or off and remembers it on this device; turning it off stops speaking at once. */
 export function setVoiceOn(on: boolean): void {
@@ -35,24 +37,25 @@ export function setVoiceOn(on: boolean): void {
 function offlineVoice<T extends { lang: string; localService: boolean }>(
   voices: T[],
   language: Language,
-): T | undefined {
+): number {
   const pattern = new RegExp(`^${language}(?:[-_]|$)`, 'i');
-  return voices.find((voice) => voice.localService && pattern.test(voice.lang));
+  return voices.findIndex((voice) => voice.localService && pattern.test(voice.lang));
 }
 
 function webVoice(language: Language): SpeechSynthesisVoice | undefined {
-  return offlineVoice(globalThis.speechSynthesis?.getVoices() ?? [], language);
+  const voices = globalThis.speechSynthesis?.getVoices() ?? [];
+  return voices[offlineVoice(voices, language)];
 }
 
 async function canSpeak(language: Language): Promise<boolean> {
   if (!env.native) return webVoice(language) !== undefined;
   try {
     const { TextToSpeech } = await textToSpeech();
-    const [{ supported }, { voices }] = await Promise.all([
-      TextToSpeech.isLanguageSupported({ lang: tags[language] }),
-      TextToSpeech.getSupportedVoices(),
-    ]);
-    return supported && offlineVoice(voices, language) !== undefined;
+    const { voices } = await TextToSpeech.getSupportedVoices();
+    const index = offlineVoice(voices, language);
+    if (index < 0) nativeVoices.delete(language);
+    else nativeVoices.set(language, { lang: voices[index]!.lang, index });
+    return index >= 0;
   } catch {
     return false;
   }
@@ -61,6 +64,7 @@ async function canSpeak(language: Language): Promise<boolean> {
 /** Speaks `text` in `language` with the device's own voice, cutting off anything still being spoken. Never throws. */
 export function speak(text: string, language: Language): void {
   const turn = ++spoken;
+  pending = true;
   if (!env.native) {
     const voice = webVoice(language);
     const synth = globalThis.speechSynthesis;
@@ -73,12 +77,15 @@ export function speak(text: string, language: Language): void {
     synth.speak(utterance);
     return;
   }
+  const voice = nativeVoices.get(language);
+  if (!voice) return;
   void textToSpeech()
     .then(({ TextToSpeech, QueueStrategy }) =>
       turn === spoken
         ? TextToSpeech.speak({
             text,
-            lang: tags[language],
+            lang: voice.lang,
+            voice: voice.index,
             rate: 0.9,
             queueStrategy: QueueStrategy.Flush,
           })
@@ -90,6 +97,8 @@ export function speak(text: string, language: Language): void {
 /** Stops speaking at once. Never throws. */
 export function stopVoice(): void {
   spoken++;
+  if (!pending) return;
+  pending = false;
   if (!env.native) {
     globalThis.speechSynthesis?.cancel();
     return;
@@ -115,19 +124,16 @@ export function useVoiceGuide(): { available: boolean; active: boolean; language
   const { i18n } = useTranslation();
   const language: Language = isLanguage(i18n.language) ? i18n.language : 'en';
   const on = useStore(voiceOn);
-  const [available, setAvailable] = useState(false);
+  const known = useStore(available)[language] === true;
 
   useEffect(() => {
-    let live = true;
-    const check = () => void canSpeak(language).then((yes) => live && setAvailable(yes));
+    const check = () =>
+      void canSpeak(language).then((yes) => available.update((all) => (all[language] === yes ? all : { ...all, [language]: yes })));
     check();
     const synth = env.native ? undefined : globalThis.speechSynthesis;
     synth?.addEventListener?.('voiceschanged', check);
-    return () => {
-      live = false;
-      synth?.removeEventListener?.('voiceschanged', check);
-    };
+    return () => synth?.removeEventListener?.('voiceschanged', check);
   }, [language]);
 
-  return { available, active: available && on, language };
+  return { available: known, active: known && on, language };
 }

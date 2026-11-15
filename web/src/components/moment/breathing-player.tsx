@@ -99,21 +99,23 @@ export function BreathingPlayer({
   );
 
   useEffect(() => {
-    if (halted) dispatch('halt');
-  }, [halted]);
+    if (!halted) return;
+    dispatch('halt');
+    if (voice.active) stopVoice();
+  }, [halted, voice.active]);
 
   useEffect(() => {
-    if (!voice.active) return;
-    if (player.finished) speak(momentCopy.breathDone, voice.language);
-    else if (!player.running) stopVoice();
+    if (voice.active && player.finished) speak(momentCopy.breathDone, voice.language);
+    else if (!voice.active || !player.running) stopVoice();
     else {
       const current = phases[player.phase]!;
       speak(current.label, voice.language);
-      if (current.from !== current.to) pulse();
+      if (current.from !== current.to && player.left === current.seconds) pulse();
     }
   }, [voice.active, voice.language, player.running, player.finished, player.phase, player.round]);
 
   useEffect(() => stopVoice, []);
+
 
   useEffect(() => {
     if (!player.running) return;

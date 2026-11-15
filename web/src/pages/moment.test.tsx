@@ -67,6 +67,7 @@ describe('MomentPage', () => {
     offlineQueue.pending.set(0);
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('walks Catch, Name, intensity and every practice step, saves the reflection and leaves', async () => {

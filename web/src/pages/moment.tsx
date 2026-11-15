@@ -75,8 +75,8 @@ export default function MomentPage() {
   const spokenText = !helpOpen && shownStep && shownStep.kind !== 'breath' ? shownStep.text : undefined;
 
   useEffect(() => {
-    if (!voice.active || shownStep?.kind === 'breath') return;
-    if (spokenText) speak(spokenText, voice.language);
+    if (shownStep?.kind === 'breath') return;
+    if (voice.active && spokenText) speak(spokenText, voice.language);
     else stopVoice();
   }, [voice.active, voice.language, spokenText, shownStep?.kind, step]);
 

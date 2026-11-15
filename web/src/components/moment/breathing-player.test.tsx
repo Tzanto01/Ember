@@ -175,4 +175,21 @@ describe('BreathingPlayer', () => {
       setVoiceOn(false);
     }
   });
+
+  it('with voice guidance on, says when all rounds are done and falls silent when urgent help opens', async () => {
+    const { spoken, cancel } = fakeSpeech('en-US');
+    setVoiceOn(true);
+    try {
+      const { rerender } = render(<BreathingPlayer inhale={2} hold={0} exhale={2} rounds={1} />);
+      await act(async () => {});
+      fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+      for (let s = 0; s < 4; s++) second();
+      expect(spoken.at(-1)).toEqual({ text: 'All rounds done.', lang: 'en-US' });
+      cancel.mockClear();
+      rerender(<BreathingPlayer inhale={2} hold={0} exhale={2} rounds={1} halted />);
+      expect(cancel).toHaveBeenCalled();
+    } finally {
+      setVoiceOn(false);
+    }
+  });
 });

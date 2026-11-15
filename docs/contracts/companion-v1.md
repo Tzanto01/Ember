@@ -56,7 +56,7 @@ type PracticeStep =
 ### Voice guidance
 
 - An optional "Guide me by voice" switch ("Mit Stimme anleiten") on every practice step, below the breathing player or timer. Off by default, remembered per device (`ember.momentVoice` in localStorage, guarded), no account, no request, works offline. Calm mode and reduced motion don't affect it.
-- Shown only when the device has an offline voice for the app language (web: a `speechSynthesis` voice with `localService` whose `lang` matches; Android app: `@capacitor-community/text-to-speech` `isLanguageSupported` for en-US or de-DE, because Android System WebView has no working `speechSynthesis`). Never speaks another language.
+- Shown only when the device has an offline voice for the app language (web: a `speechSynthesis` voice with `localService` whose `lang` matches; Android app: an offline voice from `@capacitor-community/text-to-speech` `getSupportedVoices`, which is then passed explicitly to `speak` so the engine never picks a network voice, because Android System WebView has no working `speechSynthesis`). Never speaks another language.
 - Speaks text and timer steps as they appear, the breathing cues ("Breathe in", "Hold", "Breathe out") at each phase change and "All rounds done.", and "Time is up. Take your time." at a timer's end, at rate 0.9. Stops at once on Pause, on opening Urgent help, on moving off the step, on leaving the flow and on turning the switch off.
 - Android app only: one soft haptic pulse (`@capacitor/haptics`, light impact; adds the `VIBRATE` permission) at the start of each in-breath and out-breath, tied to the same switch.
 - The live-region announcements stay unchanged. Speech never turns on by itself, so screen reader users opt in.
