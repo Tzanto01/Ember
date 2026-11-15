@@ -642,6 +642,8 @@
   "habitFields.droppedMany_one": "{{times}} were taken off, since you now check in once a day.",
   "habitFields.droppedMany_other": "{{times}} were taken off, since you now check in {{count}} times a day.",
   "habitFields.name": "Name",
+  "habitFields.nameCounter_one": "{{count}} of {{max}} characters",
+  "habitFields.nameCounter_other": "{{count}} of {{max}} characters",
   "habitFields.howOften": "How often",
   "habitFields.whichDays": "Which days",
   "habitFields.allDays": "All seven days is the same as every day, so it saves as every day.",

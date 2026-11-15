@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, type KeyboardEvent, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
@@ -138,14 +139,22 @@ export function RoutineDetails({ routine, habits, routines }: RoutineDetailsProp
       </h2>
       <FormField label={t('habitFields.name')} error={nameError} id="routine-name">
         {(field) => (
-          <Input
-            {...field}
-            autoComplete="off"
-            maxLength={60}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            onBlur={() => setTouched(true)}
-          />
+          <>
+            <Input
+              {...field}
+              aria-describedby={cn(field['aria-describedby'], name.trim().length >= 40 && `${field.id}-count`) || undefined}
+              autoComplete="off"
+              maxLength={60}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              onBlur={() => setTouched(true)}
+            />
+            {name.trim().length >= 40 && (
+              <p id={`${field.id}-count`} className="self-end text-[0.875rem] text-muted-foreground">
+                {t('habitFields.nameCounter', { count: name.trim().length, max: 50 })}
+              </p>
+            )}
+          </>
         )}
       </FormField>
       <RoutineHabits

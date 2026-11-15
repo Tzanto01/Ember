@@ -642,6 +642,8 @@
   "habitFields.droppedMany_one": "{{times}} wurden entfernt, weil du jetzt einmal am Tag abhakst.",
   "habitFields.droppedMany_other": "{{times}} wurden entfernt, weil du jetzt {{count}}-mal am Tag abhakst.",
   "habitFields.name": "Name",
+  "habitFields.nameCounter_one": "{{count}} von {{max}} Zeichen",
+  "habitFields.nameCounter_other": "{{count}} von {{max}} Zeichen",
   "habitFields.howOften": "Wie oft",
   "habitFields.whichDays": "An welchen Tagen",
   "habitFields.allDays": "Alle sieben Tage sind dasselbe wie jeden Tag, deshalb wird es als „Jeden Tag“ gespeichert.",

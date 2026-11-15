@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { Plus, X } from 'lucide-react';
 import { type ReactNode, useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
@@ -257,18 +258,27 @@ export function HabitFields({
     const days = checked ? [...value.days, day] : value.days.filter((d) => d !== day);
     onChange({ ...value, days: weekdays.filter((d) => days.includes(d)) });
   }
+  const nameLength = value.name.trim().length;
   return (
     <div className="flex flex-col gap-5">
       <FormField label={t('habitFields.name')} error={nameError} {...(nameId ? { id: nameId } : {})}>
         {(field) => (
-          <Input
-            {...field}
-            autoComplete="off"
-            maxLength={120}
-            value={value.name}
-            onChange={(event) => onChange({ ...value, name: event.target.value })}
-            onBlur={onTouched}
-          />
+          <>
+            <Input
+              {...field}
+              aria-describedby={cn(field['aria-describedby'], nameLength >= 80 && `${field.id}-count`) || undefined}
+              autoComplete="off"
+              maxLength={120}
+              value={value.name}
+              onChange={(event) => onChange({ ...value, name: event.target.value })}
+              onBlur={onTouched}
+            />
+            {nameLength >= 80 && (
+              <p id={`${field.id}-count`} className="self-end text-[0.875rem] text-muted-foreground">
+                {t('habitFields.nameCounter', { count: nameLength, max: 100 })}
+              </p>
+            )}
+          </>
         )}
       </FormField>
 

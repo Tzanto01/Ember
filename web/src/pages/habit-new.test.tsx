@@ -244,6 +244,19 @@ describe('HabitNewPage', () => {
     expect(name).toHaveFocus();
     expect(fetch.all.some((call) => call.method === 'POST')).toBe(false);
   });
+  it('shows how many characters the name has once it nears the limit', async () => {
+    const fetch = mockFetch();
+    renderPage();
+    (await fetch.next('GET', '/api/habit-templates')).respond(500);
+    const name = await screen.findByLabelText('Name', { exact: true });
+
+    fireEvent.change(name, { target: { value: 'a'.repeat(79) } });
+    expect(screen.queryByText(/of 100 characters/)).toBeNull();
+    fireEvent.change(name, { target: { value: 'a'.repeat(80) } });
+    expect(screen.getByText('80 of 100 characters')).toBeInTheDocument();
+    expect(name).toHaveAccessibleDescription(expect.stringContaining('80 of 100 characters'));
+  });
+
   it('creates a habit on set weekdays several times a day', async () => {
     const user = userEvent.setup();
     const fetch = mockFetch();
