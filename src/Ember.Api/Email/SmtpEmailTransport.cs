@@ -11,7 +11,8 @@ namespace Ember.Api.Email;
 
 /// <summary>
 /// Sends through the SMTP server in <c>Smtp:Host/Port/User/Password/From</c>: TLS on connect on port 465, required STARTTLS on
-/// every other port. The optional <c>Smtp:ReplyTo</c> becomes the <c>Reply-To</c> header.
+/// every other port. The optional <c>Smtp:ReplyTo</c> becomes the <c>Reply-To</c> header. <c>Smtp:CheckCertificateRevocation</c>
+/// (default true) can be turned off for a private CA without a revocation list, such as a staging mail catcher.
 /// </summary>
 internal sealed partial class SmtpEmailTransport(IConfiguration configuration) : IEmailTransport
 {
@@ -21,7 +22,7 @@ internal sealed partial class SmtpEmailTransport(IConfiguration configuration) :
         var message = Build(Required(smtp, "From"), to, subject, textBody, smtp["ReplyTo"]);
 
         var port = smtp.GetValue("Port", 587);
-        using var client = new SmtpClient();
+        using var client = new SmtpClient { CheckCertificateRevocation = smtp.GetValue("CheckCertificateRevocation", true) };
         await client.ConnectAsync(Required(smtp, "Host"), port, port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls, cancellationToken);
         if (smtp["User"] is { Length: > 0 } user)
             await client.AuthenticateAsync(user, smtp["Password"] ?? "", cancellationToken);
