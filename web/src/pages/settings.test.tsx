@@ -165,7 +165,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
       expect.stringContaining("What's new"),
     ]);
     const reminders = list.getByRole('link', { name: 'Reminders' });
-    expect(reminders).toHaveAccessibleDescription('Where Ember reminds you, Second reminder');
+    expect(reminders).toHaveAccessibleDescription('Where Ember reminds you · Second reminder');
 
     await user.click(reminders);
     expect(router.state.location.pathname).toBe('/settings/reminders');

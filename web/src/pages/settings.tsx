@@ -690,7 +690,7 @@ export default function SettingsPage() {
                       {t(group.nameKey)}
                     </span>
                     <span id={`group-${group.slug}-summary`} className="text-[0.875rem] text-muted-foreground">
-                      {group.summaryKey ? t(group.summaryKey) : group.cards.map((card) => card.title).join(', ')}
+                      {group.summaryKey ? t(group.summaryKey) : group.cards.map((card) => card.title).join(' · ')}
                     </span>
                   </span>
                   <ChevronRight aria-hidden className="size-[18px] shrink-0 text-muted-foreground" />
