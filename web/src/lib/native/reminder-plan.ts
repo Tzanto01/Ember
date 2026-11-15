@@ -144,6 +144,11 @@ function weekMet(habit: Habit, date: LocalDateString): boolean {
   );
 }
 
+/** The local days some habit's `today` entry shows as the account's low day (low days are never in the future). */
+function lowDaysOf(habits: Habit[]): Set<LocalDateString> {
+  return new Set(habits.filter((habit) => habit.today.state === 'lowday').map((habit) => habit.today.date));
+}
+
 function pendingOn(habit: Habit, date: LocalDateString): boolean {
   if (habit.today.date === date) return habit.today.state === 'pending' || habit.today.state === 'partial';
   return scheduledOn(habit, date);
@@ -158,7 +163,7 @@ function pendingOn(habit: Habit, date: LocalDateString): boolean {
  * `habit.today`, later days when scheduled); its members' own reminders are skipped. Instants already past are
  * dropped. With `secondMinutes` above 0 each reminder gets a follow-up (`second`) that many minutes later (in the
  * account mode not for items with `serverReminders`), unless it falls on another local day or the habit's next
- * reminder time that day comes first. Sorted soonest first, capped at {@link planCap}, with ids from {@link reminderId} (a collision moves to the next free id).
+ * reminder time that day comes first. Nothing fires on a low day (from `habit.today`). Sorted soonest first, capped at {@link planCap}, with ids from {@link reminderId} (a collision moves to the next free id).
  */
 export function planReminders(
   habits: Habit[],
@@ -169,6 +174,7 @@ export function planReminders(
   target: ReminderTarget = { mode: 'local' },
 ): PlannedReminder[] {
   const today = localDate(now, timeZone);
+  const low = lowDaysOf(habits);
   const planned: Omit<PlannedReminder, 'id'>[] = [];
   const plan = (
     item: Remindable,
@@ -188,7 +194,7 @@ export function planReminders(
     if (overridden.has(habit.id)) continue;
     for (let offset = 0; offset < planDays; offset++) {
       const date = addDays(today, offset);
-      if (!scheduledOn(habit, date) || doneToday(habit, date) || weekMet(habit, date)) continue;
+      if (low.has(date) || !scheduledOn(habit, date) || doneToday(habit, date) || weekMet(habit, date)) continue;
       const instants = times.map((time) => zonedToUtc(date, time, timeZone));
       times.forEach((time, i) => {
         if (i === 0 || +instants[i] !== +instants[i - 1]) plan(habit, { habitId: habit.id, date, time, at: instants[i] }, instants[i + 1]);
@@ -200,7 +206,7 @@ export function planReminders(
     const members = habits.filter((habit) => routine.habitIds.includes(habit.id));
     for (let offset = 0; offset < planDays; offset++) {
       const date = addDays(today, offset);
-      if (!members.some((habit) => pendingOn(habit, date))) continue;
+      if (low.has(date) || !members.some((habit) => pendingOn(habit, date))) continue;
       plan(routine, {
         routineId: routine.id,
         date,

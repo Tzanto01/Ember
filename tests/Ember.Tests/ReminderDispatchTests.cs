@@ -117,6 +117,29 @@ public class ReminderDispatchTests
     }
 
     [Fact]
+    public async Task LowDay_SilencesThatDaysReminder_AdvancesIt_AndTheNextDayStillReminds()
+    {
+        var time = new FakeTimeProvider(Now);
+        await using var host = await CreateHostAsync(time, DueHabit(1, 10), DueHabit(2, 20));
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            db.DayMarks.Add(new DayMark { UserId = TestUsers.Id(10), Date = Today, Kind = DayMarkKind.LowDay });
+            await db.SaveChangesAsync();
+        });
+
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(20);
+        (await NextReminderAsync(host, 1)).Should().Be(TomorrowNineBerlin);
+
+        time.SetUtcNow(TomorrowNineBerlin);
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Where(m => m.UserId == 10).Should().ContainSingle().Which.Text.Should().Contain("Habit 1");
+    }
+
+    [Fact]
     public async Task WeekdaysAndMultiCountHabits_RemindOnlyOnScheduledDaysThatAreNotDone()
     {
         var offday = DueHabit(1, 10);

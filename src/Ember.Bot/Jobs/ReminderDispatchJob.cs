@@ -279,7 +279,7 @@ public class ReminderDispatchJob : IJob
 
     /// <summary>
     /// Sends the habit's due second reminder when the setting is on, the reminder isn't stale, the local day is the first reminder's,
-    /// and the habit is still not done, not paused and scheduled today; then drops it either way.
+    /// and the habit is still not done, not paused, scheduled today and today is no low day; then drops it either way.
     /// </summary>
     private async Task ProcessSecondAsync(int habitId, DateTime now, CancellationToken cancellationToken)
     {
@@ -302,7 +302,8 @@ public class ReminderDispatchJob : IJob
             && !HabitService.IsPausedOn(habit, today)
             && HabitService.IsScheduledOn(habit, today)
             && !await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
-            && !await IsWeekDoneAsync(habits, habit, today, cancellationToken);
+            && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
+            && !(await habits.GetLowDaysAsync(user.Id)).Contains(today);
 
         var delivery = Delivery.NotDelivered;
         if (send)
@@ -409,7 +410,8 @@ public class ReminderDispatchJob : IJob
             && !HabitService.IsPausedOn(habit, today)
             && HabitService.IsScheduledOn(habit, today)
             && !await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
-            && !await IsWeekDoneAsync(habits, habit, today, cancellationToken);
+            && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
+            && !(await habits.GetLowDaysAsync(user.Id)).Contains(today);
 
         habit.SecondReminderUtc = null;
         var delivery = Delivery.NotDelivered;

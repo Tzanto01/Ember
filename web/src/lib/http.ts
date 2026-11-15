@@ -66,7 +66,7 @@ export interface OfflineCache {
   load(url: string): Promise<unknown>;
 }
 
-const reminderInputs = /\/api\/(habits|routines)(\/|\?|$)/;
+const reminderInputs = /\/api\/(habits|routines|low-days)(\/|\?|$)/;
 const mutating = new Set<Method>(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 function isSameOrigin(url: string): boolean {
@@ -106,7 +106,7 @@ async function readJson(response: Response): Promise<unknown> {
  * token and retries once. Native: no cookies, `Authorization: Bearer` on own `/api` calls and one single-flight
  * refresh plus retry on a 401 outside `/api/auth/*`. Both: a 401 outside `/api/auth/*` while signed in ends the
  * session and routes to `/login?returnUrl=…&reason=session`; 403 `consent_required` routes to `/consent`. Those two
- * errors are marked `handled`. A successful non-GET write to `/api/habits` that isn't a replay calls `onHabitWrite`.
+ * errors are marked `handled`. A successful non-GET write to `/api/habits`, `/api/routines` or `/api/low-days` that isn't a replay calls `onHabitWrite`.
  * A request that gets no answer within its timeout ({@link requestTimeoutMs} by default) fails with status 0.
  */
 export class Http {
@@ -114,7 +114,7 @@ export class Http {
   session: HttpSession | null = null;
   /** Native build only: the token store. */
   bearer: BearerTokens | null = null;
-  /** Called after a successful habit, day or pause write (native reminder rebuild). */
+  /** Called after a successful habit, day, pause, routine or low-day write (native reminder rebuild). */
   onHabitWrite: (() => void) | null = null;
   /**
    * No-account mode: answers own `/api/` requests in process instead of `fetch` (`url` is the path with its query

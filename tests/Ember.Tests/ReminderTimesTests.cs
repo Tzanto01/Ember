@@ -134,6 +134,22 @@ public class ReminderTimesTests
     }
 
     [Fact]
+    public async Task A_low_day_marked_after_the_first_reminder_drops_the_second_reminder_unsent()
+    {
+        var time = new FakeTimeProvider(Now);
+        await using var host = await CreateHostAsync(time, 30, Habit(1, At("08:00")));
+        await RunJobAsync(host);
+        (await RemindersAsync(host, 1)).Second.Should().Be(Utc(1, 15, 7, 30));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetLowDayAsync(TestUsers.Id(DiscordUser), Today));
+
+        time.SetUtcNow(Utc(1, 15, 7, 30));
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().ContainSingle();
+        (await RemindersAsync(host, 1)).Should().Be(((DateTime?)Utc(1, 16, 7), (DateTime?)null));
+    }
+
+    [Fact]
     public void Discord_lists_all_times_and_names_the_times_a_single_time_replaced()
     {
         HabitModule.FormatReminder(Ember.Bot.BotTexts.English, At("08:00", "13:00", "20:00")).Should().Be("Reminders: 08:00, 13:00, 20:00 your time");

@@ -307,6 +307,14 @@ describe('Http habit write hook', () => {
     (await mock.next('PATCH', '/api/routines/1')).respond(200, {});
     await routine;
     expect(onHabitWrite).toHaveBeenCalledTimes(2);
+
+    const marked = http.request('PUT', '/api/low-days/2026-11-01');
+    (await mock.next('PUT', '/api/low-days/2026-11-01')).respond(204);
+    await marked;
+    const cleared = http.request('DELETE', '/api/low-days/2026-11-01');
+    (await mock.next('DELETE', '/api/low-days/2026-11-01')).respond(204);
+    await cleared;
+    expect(onHabitWrite).toHaveBeenCalledTimes(4);
   });
 });
 

@@ -122,6 +122,21 @@ describe('planReminders', () => {
     expect(dates([done]).slice(0, 2)).toEqual(['2026-11-03', '2026-11-04']);
   });
 
+  it('plans nothing on a low day, for any habit or routine, but keeps the next day', () => {
+    const low = { date: '2026-11-02', state: 'lowday' as const, completed: null, count: 0 };
+    const routine: Routine = { id: 7, name: 'Evening', reminderTime: '18:00', reminderChannels: ['mobile'], habitIds: [3] };
+
+    const plan = planReminders(
+      [habit({ id: 1, today: low }), habit({ id: 2, today: low, reminderTime: '21:00' }), habit({ id: 3, today: low })],
+      'Europe/Berlin',
+      berlinMorning,
+      [routine],
+    );
+
+    expect(plan.some((r) => r.date === '2026-11-02')).toBe(false);
+    expect(plan.filter((r) => r.date === '2026-11-03').map((r) => r.habitId ?? `r${r.routineId}`)).toEqual(['r7', 1, 2]);
+  });
+
   it('stops a weekly habit for the rest of the week once its target is met, and starts again on Monday', () => {
     const wednesday = Date.parse('2026-11-04T10:00:00Z');
     const weekly = (done: number) =>
