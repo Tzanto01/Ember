@@ -1,5 +1,8 @@
 namespace Ember.Core.Models;
 
+/// <summary>Where a <see cref="Feedback"/> report stands; stored as lowercase text. Released and declined are closed.</summary>
+public enum FeedbackStatus { Open, Planned, Implemented, Released, Declined }
+
 /// <summary>
 /// One piece of in-app feedback from the web app, the Android app or Discord. Linked to the sender's account when they were
 /// signed in and didn't choose to send anonymously (deleted with it, moved by an account merge), else anonymous. Mailed to the
@@ -29,7 +32,10 @@ public class Feedback
     /// <summary>When a digest email carried it; null while pending.</summary>
     public DateTime? DigestedAt { get; set; }
 
-    /// <summary>When the operator marked it handled (<c>--resolve-feedback</c>); null while open.</summary>
+    /// <summary>Set by the operator with <c>--feedback-status</c>.</summary>
+    public FeedbackStatus Status { get; set; }
+
+    /// <summary>When <see cref="Status"/> became released or declined; null while it is open, planned or implemented.</summary>
     public DateTime? ResolvedAt { get; set; }
 
     /// <summary>Attached pictures (signed-in and Discord senders only), in upload order by <see cref="FeedbackImage.Id"/>.</summary>

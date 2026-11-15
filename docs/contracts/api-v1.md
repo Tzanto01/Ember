@@ -572,7 +572,8 @@ Replaces the parts of "Feedback v1.13" it names; the rest stays.
 ### Storage and retention
 
 - `Feedback` gains `Title` (existing reports got the first line of their text) and `ResolvedAt` (null until handled). New table `FeedbackImages`: id (opaque UUID), report (cascade), content type, size, bytes (Postgres `bytea`).
-- Pictures are deleted 30 days after their report is marked handled, and never kept past 12 months after the report (the daily digest run deletes them; a report is deleted after 12 months as before). Deleted with the account through the report, unless the report was anonymous (it has no link to the account). An account merge moves reports with their pictures. Not part of the export. No HTTP endpoint serves pictures.
+- `Feedback` gains `Status` (text: `open`, `planned`, `implemented`, `released` or `declined`; default `open`, reports already handled became `released`). `ResolvedAt` is the closed time: set when the status becomes released or declined, cleared when it goes back. Operator-only (`--feedback-status`), no HTTP or UI change.
+- Pictures are deleted 30 days after their report is closed (released or declined), and never kept past 12 months after the report (the daily digest run deletes them; a report is deleted after 12 months as before). Deleted with the account through the report, unless the report was anonymous (it has no link to the account). An account merge moves reports with their pictures. Not part of the export. No HTTP endpoint serves pictures.
 
 ### Daily digest
 
@@ -582,9 +583,9 @@ Replaces the parts of "Feedback v1.13" it names; the rest stays.
 
 Run from the Ember compose directory on the homeserver; documented in the README:
 
-- `docker compose exec -T api dotnet Ember.Api.dll --list-feedback [--all]`: open reports (all with `--all`), oldest first, as text: id, created and resolved time (UTC), platform, version, `user {id}` or `anonymous`, quoted title and text, picture ids. Read-only.
+- `docker compose exec -T api dotnet Ember.Api.dll --list-feedback [--all]`: open, planned and implemented reports (all with `--all`), oldest first, as text: id, status, created and closed time (UTC), platform, version, `user {id}` or `anonymous`, quoted title and text, picture ids. Read-only.
 - `tools/feedback-images.sh <out-dir> <id>...` (wraps `--feedback-images <id>...`): each id is a report id or a picture id; writes `{out-dir}/{reportId}/{pictureId}.{jpg|png|webp}`. Unknown ids are named on stderr; exit 1 when nothing was found.
-- `docker compose exec -T api dotnet Ember.Api.dll --resolve-feedback <reportId>...`: marks reports handled now (a second call keeps the first time); unknown ids → exit 1.
+- `docker compose exec -T api dotnet Ember.Api.dll --feedback-status <open|planned|implemented|released|declined> <reportId>...`: sets each report's status and prints the change. Released or declined closes the report (closed time set now, kept on a later released or declined); open, planned or implemented clears it. An invalid status or unknown ids → exit 1.
 
 ## Companion v1.16
 
