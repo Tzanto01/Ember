@@ -195,7 +195,7 @@ export const guides: Record<GuideScreen, Guide> = {
         covers: [
           'web/src/lib/local/limits.ts',
           'src/Ember.Core/Services/HabitService.Routines.cs',
-          'web/src/components/routines/routine-sections.tsx',
+          'src/Ember.Core/Data/EmberDbContext.cs',
         ],
       },
     ],
@@ -275,7 +275,7 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.habitsDays.streaks.q',
         answerKey: 'guide.habitsDays.streaks.a',
         target: 'streaks',
-        covers: ['web/src/components/today/habit-row.tsx', 'web/src/components/history/stat-tiles.tsx'],
+        covers: ['web/src/components/today/habit-row.tsx', 'web/src/components/history/stat-tiles.tsx', core],
       },
       {
         id: 'habits-days-grace',
@@ -349,14 +349,18 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.privacy.helps.q',
         answerKey: 'guide.privacy.helps.a',
         target: 'helps',
-        covers: ['web/src/components/settings/helps-settings.tsx', 'web/src/pages/moment.tsx'],
+        covers: [
+          'web/src/components/settings/helps-settings.tsx',
+          'src/Ember.Core/Services/HabitService.Helps.cs',
+          'web/src/pages/moment.tsx',
+        ],
       },
       {
         id: 'privacy-export',
         questionKey: 'guide.privacy.export.q',
         answerKey: 'guide.privacy.export.a',
         target: 'export',
-        covers: [settingsPage, deviceData],
+        covers: [settingsPage, deviceData, 'src/Ember.Core/Services/ExportBuilder.cs'],
       },
       {
         id: 'privacy-delete',

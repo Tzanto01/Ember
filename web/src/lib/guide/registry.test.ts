@@ -55,7 +55,7 @@ describe('the guide registry', () => {
           (entry) =>
             `Guide entry "${entry.id}" describes ${entry.covers.join(', ')}, which changed. Re-read its answer ` +
             `(${entry.answerKey} in en.json and de.json) against the change, fix the text if needed, then run ` +
-            '`bun run guide:stamp` to update the fingerprints.',
+            `\`bun run guide:stamp ${entry.id}\`. Stamp only the entries you re-read.`,
         )
         .join('\n'),
     ).toEqual([]);

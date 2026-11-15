@@ -1,11 +1,23 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { env } from '@/lib/env';
 import { limits } from '@/lib/local/limits';
 import { applyCalm } from '@/lib/theme';
 import { inGerman } from '@/test-utils';
 import { Guide } from './guide';
+
+vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));
+const back = vi.hoisted(() => ({ handler: null as (() => void) | null, removed: 0 }));
+vi.mock('@capacitor/app', () => ({
+  App: {
+    addListener: async (_event: string, handler: () => void) => {
+      back.handler = handler;
+      return { remove: async () => void back.removed++ };
+    },
+  },
+}));
 
 function Page({ lowDayButton = true }: { lowDayButton?: boolean }) {
   return (
@@ -13,7 +25,10 @@ function Page({ lowDayButton = true }: { lowDayButton?: boolean }) {
       <Guide />
       <main id="main">
         <h1>Page</h1>
-        <button type="button" data-guide="check-in">
+        <button type="button" data-guide="check-in" aria-pressed="true">
+          Check in Read for today
+        </button>
+        <button type="button" data-guide="check-in" aria-pressed="false">
           Check in Walk for today
         </button>
         {lowDayButton && (
@@ -41,7 +56,7 @@ async function openQuestion(name: string) {
 
 function stubWide(wide: boolean) {
   window.matchMedia = (query: string) =>
-    ({ matches: wide && query === '(min-width: 48rem)', addEventListener: () => undefined, removeEventListener: () => undefined }) as unknown as MediaQueryList;
+    ({ matches: wide && query === '(min-width: 64rem)', addEventListener: () => undefined, removeEventListener: () => undefined }) as unknown as MediaQueryList;
 }
 
 describe('Guide', () => {
@@ -56,6 +71,7 @@ describe('Guide', () => {
   afterEach(() => {
     applyCalm(false);
     localStorage.clear();
+    env.native = false;
   });
 
   it('offers "How this works" on screens with a guide and nothing on the others', async () => {
@@ -106,15 +122,15 @@ describe('Guide', () => {
     await waitFor(() => expect(guideButton()).toHaveFocus());
   });
 
-  it('"Show me" closes the guide, brings the target to the middle and rings it briefly', async () => {
+  it('"Show me" closes the guide, brings the first open check-in to the middle, rings it briefly and focuses it', async () => {
     renderAt('/today');
     await openQuestion('What do “1/2” and the empty circle mean?');
 
     await userEvent.click(screen.getByRole('button', { name: 'Show me' }));
 
     expect(screen.queryByRole('dialog')).toBeNull();
-    await waitFor(() => expect(guideButton()).toHaveFocus());
     const target = screen.getByRole('button', { name: 'Check in Walk for today' });
+    await waitFor(() => expect(target).toHaveFocus());
     expect(scrolled).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' });
     expect(scrolled.mock.contexts[0]).toBe(target);
     expect(target.className).toMatch(/ring-primary/);
@@ -131,12 +147,20 @@ describe('Guide', () => {
     await waitFor(() => expect(scrolled).toHaveBeenCalledWith({ block: 'center', behavior: 'auto' }));
   });
 
-  it('leaves "Show me" out when its target is not on the page', async () => {
+  it('leaves "Show me" out until its target is on the page', async () => {
     renderAt('/today', <Page lowDayButton={false} />);
     await openQuestion('What is a low day?');
 
     expect(screen.getByText(/A low day is for days that are hard/)).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Show me' })).toBeNull();
+
+    const loaded = document.createElement('button');
+    loaded.id = 'mark-low-day';
+    document.getElementById('main')!.append(loaded);
+    await userEvent.click(screen.getByRole('button', { name: 'What is “I need a moment”?' }));
+    await userEvent.click(screen.getByRole('button', { name: 'What is a low day?' }));
+    expect(screen.getByRole('button', { name: 'Show me' })).toBeInTheDocument();
+    loaded.remove();
   });
 
   it('ends with a link to the feedback screen', async () => {
@@ -158,6 +182,58 @@ describe('Guide', () => {
 
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('lets Tab move on from the wide panel to the page', async () => {
+    stubWide(true);
+    renderAt('/today');
+    await userEvent.click(guideButton());
+    const feedback = screen.getByRole('link', { name: 'Send feedback' });
+    feedback.focus();
+
+    const tab = fireEvent.keyDown(feedback, { key: 'Tab' });
+
+    expect(tab).toBe(true);
+    expect(feedback).toHaveFocus();
+  });
+
+  it('keeps the mode it opened in when the screen narrows', async () => {
+    stubWide(true);
+    renderAt('/today');
+    await userEvent.click(guideButton());
+
+    stubWide(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Check in Walk for today' }));
+
+    expect(screen.getByRole('dialog', { name: 'Today, explained' })).toBeInTheDocument();
+  });
+
+  it('makes room beside the page for the wide panel while it is open', async () => {
+    stubWide(true);
+    renderAt('/today');
+    const main = document.getElementById('main')!;
+    const panelWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(384);
+    main.getBoundingClientRect = () => ({ right: window.innerWidth - 100 }) as DOMRect;
+
+    await userEvent.click(guideButton());
+    expect(main.style.paddingRight).toBe('calc(284px + 1.5rem)');
+
+    await userEvent.keyboard('{Escape}');
+    expect(main.style.paddingRight).toBe('');
+    panelWidth.mockRestore();
+  });
+
+  it('closes the sheet on Android Back instead of leaving the screen', async () => {
+    env.native = true;
+    back.removed = 0;
+    renderAt('/today');
+    await userEvent.click(guideButton());
+    await waitFor(() => expect(back.handler).not.toBeNull());
+
+    act(() => back.handler!());
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(back.removed).toBe(1));
   });
 
   it('speaks German in German', async () => {

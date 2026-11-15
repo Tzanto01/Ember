@@ -4,9 +4,17 @@ export const highlightRing = 'ring-2 ring-primary ring-offset-2 ring-offset-back
 /** How long {@link highlightRing} stays on, in milliseconds. */
 export const highlightMs = 1500;
 
-/** The element a guide target names: the one with that id, else the first with that `data-guide` value. */
+/**
+ * The element a guide target names: the one with that id, else the first with that `data-guide` value that isn't
+ * pressed (an open check-in before a done one), else the first with that value.
+ */
 export function findGuideTarget(target: string): HTMLElement | null {
-  return document.getElementById(target) ?? document.querySelector<HTMLElement>(`[data-guide="${target}"]`);
+  const tagged = `[data-guide="${target}"]`;
+  return (
+    document.getElementById(target) ??
+    document.querySelector<HTMLElement>(`${tagged}:not([aria-pressed="true"])`) ??
+    document.querySelector<HTMLElement>(tagged)
+  );
 }
 
 /** Scrolls `element` to the middle of the screen (at once when `instant`) and rings it for {@link highlightMs}. */
