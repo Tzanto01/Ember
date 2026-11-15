@@ -2,7 +2,8 @@ import { ChevronDown, CircleHelp, X } from 'lucide-react';
 import { Accordion, Dialog } from 'radix-ui';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
+import { TapLink } from '@/components/auth/busy-button';
 import { useReduceMotion } from '@/components/moment/use-reduce-motion';
 import { Button } from '@/components/ui/button';
 import { findGuideTarget, showTarget } from '@/lib/guide/highlight';
@@ -124,11 +125,11 @@ export function Guide() {
               </Accordion.Item>
             ))}
           </Accordion.Root>
-          <p className="text-muted-foreground">
-            {t('guide.stillUnclear')}{' '}
-            <Link to="/feedback" onClick={() => setOpen(false)}>
+          <p className="flex flex-wrap items-center gap-x-2 text-muted-foreground">
+            {t('guide.stillUnclear')}
+            <TapLink to="/feedback" onClick={() => setOpen(false)}>
               {t('guide.sendFeedback')}
-            </Link>
+            </TapLink>
           </p>
         </Dialog.Content>
       </Dialog.Portal>

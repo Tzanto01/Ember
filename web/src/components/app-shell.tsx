@@ -66,8 +66,8 @@ export function AccountButton({
 
 /**
  * Signed-in shell: sticky header with the brand, the main nav (top pills from `md`, a fixed bottom tab bar below)
- * and "Sign out" from `md` (Settings has it on phones), or "Sign in" in no-account mode, then the screen's guide; the offline-queue and
- * dropped-edit notices above the page; legal footer.
+ * and "Sign out" from `md` (Settings has it on phones), or "Sign in" in no-account mode, then the screen's guide; the
+ * offline-queue and dropped-edit notices above the page; legal footer.
  * Loads "What helps me" into memory once the account's private journal is unlocked.
  */
 export function AppShell() {
