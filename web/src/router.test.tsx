@@ -126,6 +126,27 @@ describe('router guards', () => {
     expect(month).toHaveAttribute('aria-current', 'page');
   });
 
+  it('shows a routine form its way up to Routines, then Today, with the Today tab lit throughout', async () => {
+    const user = userEvent.setup();
+    const router = await visit('/routines/new');
+    (await mock.next('GET', '/api/me')).respond(200, me);
+    (await mock.next('GET', '/api/routines')).respond(200, []);
+    (await mock.next('GET', '/api/habits')).respond(200, []);
+    const tab = (name: string) =>
+      within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name });
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'New routine' })).toBeInTheDocument();
+    expect(tab('Today')).toHaveAttribute('aria-current', 'page');
+    expect(tab('Settings')).not.toHaveAttribute('aria-current');
+
+    await user.click(screen.getByRole('link', { name: 'Back to routines' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Routines' })).toBeInTheDocument();
+    expect(url(router)).toBe('/routines');
+    expect(tab('Today')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Back to Today' })).toHaveAttribute('href', '/today');
+  });
+
   it('shows the not-found page for an unknown address in the public shell to a guest', async () => {
     await visit('/no/such/page');
     (await mock.next('GET', '/api/me')).respond(401);

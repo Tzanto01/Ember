@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/empty-state';
 import { journalKey } from '@/components/journal/day-journal';
 import { useJournal } from '@/components/journal/journal-context';
 import { LiveRegion } from '@/components/live-region';
+import { BackLink } from '@/components/back-link';
 import { PageHeader } from '@/components/page-header';
 import { UnlockForm } from '@/components/settings/journal-forms';
 import { Button } from '@/components/ui/button';
@@ -285,6 +286,7 @@ export default function MomentsPage() {
 
   return (
     <div className="flex max-w-[40rem] flex-col gap-6 2xl:mx-auto 2xl:w-full">
+      <BackLink to="/settings" label={t('title.settings')} name={t('settings.backToList')} />
       <PageHeader title={t('title.moments')} lede={t('moments.lede')} />
       {newPassphrase && state === 'unlocked' && (
         <Notice>

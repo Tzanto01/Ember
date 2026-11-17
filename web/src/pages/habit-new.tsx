@@ -17,6 +17,7 @@ import { allowDeviceReminders, canAskDevice, DeviceRemindersOff } from '@/compon
 import { ChannelChoices, phoneChoice } from '@/components/habits/habit-edit-sections';
 import { HabitPreview } from '@/components/habits/habit-preview';
 import { useReminderReach, useReminderSettingsHash } from '@/components/habits/reminder-reach';
+import { BackLink } from '@/components/back-link';
 import { PageHeader } from '@/components/page-header';
 import { Spinner } from '@/components/spinner';
 import { Button } from '@/components/ui/button';
@@ -139,6 +140,7 @@ export default function HabitNewPage() {
 
   return (
     <div ref={root} className="flex flex-col gap-6 2xl:mx-auto 2xl:w-full 2xl:max-w-[56rem]">
+      <BackLink to="/today" label={t('title.today')} name={t('habitEdit.backToToday')} />
       <PageHeader title={t('habitNew.title')} lede={lede} />
 
       {!showForm && !templates.data && (

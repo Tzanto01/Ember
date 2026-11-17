@@ -1,7 +1,7 @@
 import { CalendarDays, Flame, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { AmbientScene } from '@/components/ambient-scene';
 import { BusyButton } from '@/components/auth/busy-button';
 import { BetaBadge } from '@/components/beta-badge';
@@ -19,9 +19,9 @@ import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 const nav = [
-  { to: '/today', label: 'nav.today', icon: Flame },
-  { to: '/history', label: 'nav.history', icon: CalendarDays },
-  { to: '/settings', label: 'nav.settings', icon: SlidersHorizontal },
+  { to: '/today', label: 'nav.today', icon: Flame, under: ['/today', '/routines', '/habits'] },
+  { to: '/history', label: 'nav.history', icon: CalendarDays, under: ['/history'] },
+  { to: '/settings', label: 'nav.settings', icon: SlidersHorizontal, under: ['/settings', '/whats-new', '/moments', '/link'] },
 ] as const;
 
 const inline = 'px-[8px] min-[360px]:px-[12px] min-[380px]:px-[16px] md:px-[24px]';
@@ -83,7 +83,8 @@ export function AppShell() {
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [upgradeFailed, setUpgradeFailed] = useState(false);
   const busy = useRef(false);
-  const arriving = useArrival(useLocation().pathname);
+  const { pathname } = useLocation();
+  const arriving = useArrival(pathname);
 
   useEffect(() => {
     if (local || !userId || journalState !== 'unlocked' || turningOff) return;
@@ -119,23 +120,25 @@ export function AppShell() {
             aria-label={t('nav.main')}
             className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:static md:gap-1 md:border-0 md:bg-transparent md:p-0"
           >
-            {nav.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  cn(
+            {nav.map(({ to, label, icon: Icon, under }) => {
+              const active = under.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
                     'flex min-h-[64px] flex-1 flex-col items-center justify-center gap-0.5 text-[13px] font-medium text-muted-foreground no-underline max-md:focus-visible:-outline-offset-3',
                     'md:min-h-[44px] md:flex-none md:flex-row md:gap-2 md:rounded-full md:px-4 md:text-base md:hover:bg-accent md:hover:text-accent-foreground',
-                    isActive &&
+                    active &&
                       'font-semibold text-primary shadow-[inset_0_3px_0_var(--primary)] md:bg-secondary md:text-secondary-foreground md:shadow-none md:hover:bg-secondary md:hover:text-secondary-foreground',
-                  )
-                }
-              >
-                <Icon aria-hidden className="size-[22px] md:size-[18px]" />
-                <span>{t(label)}</span>
-              </NavLink>
-            ))}
+                  )}
+                >
+                  <Icon aria-hidden className="size-[22px] md:size-[18px]" />
+                  <span>{t(label)}</span>
+                </Link>
+              );
+            })}
           </nav>
           <div className="ml-auto flex items-center gap-1">
             {local ? (

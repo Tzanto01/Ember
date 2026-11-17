@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TapLink } from '@/components/auth/busy-button';
+import { BackLink } from '@/components/back-link';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { cardVariants } from '@/components/ui/card';
@@ -24,6 +25,7 @@ export default function WhatsNewPage() {
 
   return (
     <div className="flex max-w-[40rem] flex-col gap-6 2xl:mx-auto 2xl:w-full">
+      <BackLink to="/settings" label={t('title.settings')} name={t('settings.backToList')} />
       <PageHeader title={t('whatsNew.title')} lede={t('whatsNew.lede')} />
       {query.data ? (
         query.data.map((entry) => (

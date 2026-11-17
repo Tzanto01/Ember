@@ -1,8 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Check, ChevronRight, Sparkles } from 'lucide-react';
 import {
   type FormEvent,
-  type MouseEvent,
   type ReactNode,
   useEffect,
   useRef,
@@ -13,6 +12,7 @@ import { flushSync } from 'react-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
+import { BackLink } from '@/components/back-link';
 import { useField, type Validator, validateAll } from '@/components/auth/use-field';
 import { FormField, focusFirstInvalid } from '@/components/form-field';
 import { DestinationName, reminderDestinationsKey } from '@/components/habits/device-reminders';
@@ -650,12 +650,6 @@ export default function SettingsPage() {
     return () => cancelAnimationFrame(frame);
   }, [me, pushAvailable, location.hash, redirect]);
 
-  function backToList(event: MouseEvent<HTMLAnchorElement>): void {
-    if (!fromList) return;
-    event.preventDefault();
-    void navigate(-1);
-  }
-
   const zoneValue = zone ?? me?.timezone ?? '';
   const zoneMessage = (zoneTouched ? zoneError(zoneValue) : null) ?? zoneServerError;
   const suggestZone = !!me && isValidTimeZone(browserZone) && (!me.timezoneSet || me.timezone !== browserZone);
@@ -764,17 +758,7 @@ export default function SettingsPage() {
 
       <div className="flex min-w-0 flex-col gap-6">
         {!wide && (
-          <div>
-            <Link
-              to="/settings"
-              onClick={backToList}
-              aria-label={t('settings.backToList')}
-              className="-ml-2 inline-flex min-h-[44px] items-center gap-1 rounded-md px-2 font-medium text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground"
-            >
-              <ChevronLeft aria-hidden className="size-[18px]" />
-              {t('title.settings')}
-            </Link>
-          </div>
+          <BackLink to="/settings" label={t('title.settings')} name={t('settings.backToList')} viaHistory={fromList} />
         )}
         <PageHeader title={t(current.nameKey)} />
         {notice}

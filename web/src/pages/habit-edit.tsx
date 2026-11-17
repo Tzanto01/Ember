@@ -11,6 +11,7 @@ import {
   HabitRemindersSection,
   PauseSection,
 } from '@/components/habits/habit-edit-sections';
+import { BackLink } from '@/components/back-link';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -122,6 +123,7 @@ export default function HabitEditPage() {
 
   return (
     <div className="flex flex-col gap-6 2xl:mx-auto 2xl:w-full 2xl:max-w-[59.5rem]">
+      <BackLink to="/today" label={t('title.today')} name={t('habitEdit.backToToday')} />
       <PageHeader title={t('habitEdit.title')} lede={habit?.name} />
       {content}
     </div>

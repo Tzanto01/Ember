@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { EmptyState } from '@/components/empty-state';
+import { BackLink } from '@/components/back-link';
 import { PageHeader } from '@/components/page-header';
 import { routineHabitsKey, routinesKey } from '@/components/routines/routine-sections';
 import { routineTitle } from '@/components/routines/routine-title';
@@ -128,6 +129,7 @@ export default function RoutinesPage() {
 
   return (
     <div className="flex max-w-[40rem] flex-col gap-6 2xl:mx-auto 2xl:w-full">
+      <BackLink to="/today" label={t('title.today')} name={t('habitEdit.backToToday')} />
       <PageHeader
         title={t('routines.title')}
         lede={t('routines.lede')}

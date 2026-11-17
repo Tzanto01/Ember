@@ -1,4 +1,4 @@
-import { Download, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink } from 'lucide-react';
 import { Trans, useTranslation } from 'react-i18next';
 import { TapLink } from '@/components/auth/busy-button';
 import { PageHeader } from '@/components/page-header';
@@ -93,6 +93,12 @@ export default function DownloadPage() {
           i18nKey="download.ready"
           components={{ signup: <TapLink to="/signup" />, login: <TapLink to="/login" /> }}
         />
+      </p>
+      <p>
+        <TapLink to="/" className="gap-2">
+          <ArrowLeft aria-hidden className="size-[18px]" />
+          {t('help.back')}
+        </TapLink>
       </p>
     </div>
   );

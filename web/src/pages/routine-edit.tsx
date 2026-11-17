@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { EmptyState } from '@/components/empty-state';
 import { DriftingSpark, RemindersSection } from '@/components/habits/habit-edit-sections';
+import { BackLink } from '@/components/back-link';
 import { PageHeader } from '@/components/page-header';
 import {
   RoutineDelete,
@@ -98,6 +99,7 @@ export default function RoutineEditPage() {
 
   return (
     <div className="flex flex-col gap-6 2xl:mx-auto 2xl:w-full 2xl:max-w-[40rem]">
+      <BackLink to="/routines" label={t('title.routines')} name={t('routine.back')} />
       <PageHeader
         title={creating ? t('routine.newTitle') : t('routine.editTitle')}
         lede={creating ? t('routine.newLede') : routine?.name}
