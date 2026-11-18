@@ -7,6 +7,7 @@ import { Link, useSearchParams } from 'react-router';
 import { TapLink } from '@/components/auth/busy-button';
 import { EmptyState } from '@/components/empty-state';
 import { useReminderReach, useReminderSettingsHash } from '@/components/habits/reminder-reach';
+import { FiresideToday } from '@/components/fireside/fireside-today';
 import { isPausedOn } from '@/components/history/kept-days';
 import { DayJournal } from '@/components/journal/day-journal';
 import { DeviceNotices } from '@/components/local/device-notices';
@@ -369,6 +370,7 @@ export default function TodayPage() {
         </Notice>
       )}
       <DeviceNotices />
+      <FiresideToday />
       <WhatsNewCard />
       <TipSlot place="top" habits={data?.habits} routines={data?.routines} />
     </>

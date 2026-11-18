@@ -6,6 +6,7 @@ import { AmbientScene } from '@/components/ambient-scene';
 import { BusyButton } from '@/components/auth/busy-button';
 import { BetaBadge } from '@/components/beta-badge';
 import { BetaUpdateBanner } from '@/components/beta-update';
+import { useNavWithFireside } from '@/components/fireside/fireside-nav';
 import { FlameMark } from '@/components/flame-mark';
 import { Guide } from '@/components/guide/guide';
 import { LegalLinks } from '@/components/legal-links';
@@ -85,6 +86,7 @@ export function AppShell() {
   const busy = useRef(false);
   const { pathname } = useLocation();
   const arriving = useArrival(pathname);
+  const navItems = useNavWithFireside(nav);
 
   useEffect(() => {
     if (local || !userId || journalState !== 'unlocked' || turningOff) return;
@@ -120,7 +122,7 @@ export function AppShell() {
             aria-label={t('nav.main')}
             className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:static md:gap-1 md:border-0 md:bg-transparent md:p-0"
           >
-            {nav.map(({ to, label, icon: Icon, under }) => {
+            {navItems.map(({ to, label, icon: Icon, under }) => {
               const active = under.some((path) => pathname === path || pathname.startsWith(`${path}/`));
               return (
                 <Link

@@ -14,6 +14,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
 import { BackLink } from '@/components/back-link';
 import { useField, type Validator, validateAll } from '@/components/auth/use-field';
+import { FiresideSettings } from '@/components/fireside/fireside-settings';
 import { FormField, focusFirstInvalid } from '@/components/form-field';
 import { DestinationName, reminderDestinationsKey } from '@/components/habits/device-reminders';
 import { MoodManager } from '@/components/journal/mood-manager';
@@ -607,6 +608,7 @@ export default function SettingsPage() {
     ...(streaksShown ? [{ id: 'grace', title: t('settings.card.grace') }] : []),
     { id: 'timezone', title: t('settings.card.timezone') },
     { id: 'moods', title: t('settings.card.moods') },
+    ...(local ? [] : [{ id: 'fireside', title: t('fireside.title') }]),
     ...(local
       ? []
       : [
@@ -1226,6 +1228,12 @@ export default function SettingsPage() {
             {shown('moods') && (
               <SettingsCard id="moods" title={title('moods')}>
                 <MoodManager />
+              </SettingsCard>
+            )}
+
+            {shown('fireside') && (
+              <SettingsCard id="fireside" title={title('fireside')}>
+                <FiresideSettings />
               </SettingsCard>
             )}
 

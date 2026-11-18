@@ -218,6 +218,8 @@ export const routes: RouteObject[] = [
           { path: 'whats-new', ...page('title.whatsNew', () => import('./pages/whats-new')) },
           { path: 'moments', ...page('title.moments', () => import('./pages/moments')) },
           { path: 'link/merge', ...page('title.linkMerge', () => import('./pages/link-merge')) },
+          { path: 'fireside', ...page('title.fireside', () => import('./pages/fireside')) },
+          { path: 'fireside/:id', ...page('title.fireside', () => import('./pages/fireside-friend')) },
         ],
       },
     ],

@@ -1,4 +1,4 @@
-import { Bell, CalendarDays, LifeBuoy, type LucideIcon, Lock, MessageSquare, Palette, ShieldCheck } from 'lucide-react';
+import { Bell, CalendarDays, LifeBuoy, type LucideIcon, Lock, MessageSquare, Palette, ShieldCheck, Users } from 'lucide-react';
 import type { en } from '@/lib/i18n';
 
 type SettingsKey = keyof typeof en;
@@ -38,6 +38,7 @@ export const settingsGroups: SettingsGroup[] = [
     icon: CalendarDays,
     cards: ['routines', 'streaks', 'grace', 'timezone', 'moods'],
   },
+  { slug: 'people', nameKey: 'fireside.settings.group', icon: Users, cards: ['fireside'] },
   {
     slug: 'appearance',
     nameKey: 'settings.group.appearance',
