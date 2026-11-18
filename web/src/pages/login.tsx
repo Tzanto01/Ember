@@ -16,6 +16,7 @@ import {
   validateAll,
 } from '@/components/auth/use-field';
 import { FormField, focusFirstInvalid } from '@/components/form-field';
+import { MaintenanceNotice } from '@/components/live-notice';
 import { NoAccountLink, UpgradingNotice } from '@/components/local/upgrade-choice';
 import { PageHeader } from '@/components/page-header';
 import { CodeInput, cleanCode, codeRule, recoveryRule, wrongCodeText } from '@/components/settings/two-factor-code';
@@ -271,6 +272,7 @@ export default function LoginPage() {
           title={t('login.offline.title')}
           lede={t('login.offline.lede')}
         />
+        <MaintenanceNotice />
         {stillOffline && <Notice tone="notice">{t('login.offline.still')}</Notice>}
         <div className="flex flex-col gap-3">
           <BusyButton type="button" block busy={retrying} busyLabel={t('login.offline.retrying')} onClick={() => void retry()}>

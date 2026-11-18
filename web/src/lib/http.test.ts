@@ -568,6 +568,33 @@ describe('Http offline cache', () => {
   });
 });
 
+describe('Http maintenance fallback', () => {
+  const maintenance = { type: 'maintenance', title: 'Ember is resting', status: 503 };
+
+  it('serves the device copy and reports unreachable on the maintenance 503, but not on a plain 503', async () => {
+    const http = new Http(web);
+    http.offlineCache = { save: vi.fn(), load: vi.fn(async () => [{ id: 1 }]) };
+    const unreachable = vi.fn();
+    http.onUnreachable = unreachable;
+
+    const resting = http.request('GET', '/api/habits');
+    (await mock.next('GET', '/api/habits')).respond(503, maintenance, { 'Content-Type': 'application/problem+json' });
+    expect(await resting).toEqual([{ id: 1 }]);
+    expect(http.offlineData.get()).toBe(true);
+    expect(unreachable).toHaveBeenCalledTimes(1);
+
+    const broken = http.request('GET', '/api/habits').catch((e: unknown) => e);
+    (await mock.next('GET', '/api/habits')).respond(503, { type: 'unavailable', status: 503 });
+    expect(((await broken) as ApiError).status).toBe(503);
+    expect(unreachable).toHaveBeenCalledTimes(1);
+
+    const offline = http.request('POST', '/api/habits', { body: {} }).catch((e: unknown) => e);
+    (await mock.next('POST', '/api/habits')).fail();
+    expect(((await offline) as ApiError).status).toBe(0);
+    expect(unreachable).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('Http server requests', () => {
   it('reach fetch anonymously while the local backend answers /api, and never the local backend', async () => {
     setCookie('xsrf-1');

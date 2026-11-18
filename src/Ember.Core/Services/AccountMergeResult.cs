@@ -16,5 +16,8 @@ public enum AccountMergeResult
     JournalConflict,
 }
 
-/// <summary>What a merge of a bot-only account would move.</summary>
-public sealed record MergePreview(int Habits, int Logs, int DayMarks, IReadOnlyList<string> HabitNames);
+/// <summary>
+/// What a merge of a bot-only account would move. <c>FiresideDropped</c> counts the source's Fireside friends that would not come
+/// along (already friends with the target, or over the cap); a link between the two accounts doesn't count.
+/// </summary>
+public sealed record MergePreview(int Habits, int Logs, int DayMarks, IReadOnlyList<string> HabitNames, int FiresideDropped = 0);

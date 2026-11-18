@@ -155,4 +155,22 @@ Tap Done for each one you've done. No pressure 💙</value>
   <data name="missedday.dismiss" xml:space="preserve">
     <value>That's ok, move on</value>
   </data>
+  <data name="fireside.notify.warmth" xml:space="preserve">
+    <value>{0} sent you warmth</value>
+  </data>
+  <data name="fireside.notify.warmth.unnamed" xml:space="preserve">
+    <value>Someone sent you warmth</value>
+  </data>
+  <data name="fireside.notify.joined" xml:space="preserve">
+    <value>{0} joined your fireside</value>
+  </data>
+  <data name="fireside.notify.joined.unnamed" xml:space="preserve">
+    <value>Someone joined your fireside</value>
+  </data>
+  <data name="fireside.send-back" xml:space="preserve">
+    <value>Send some back</value>
+  </data>
+  <data name="fireside.okay" xml:space="preserve">
+    <value>Okay</value>
+  </data>
 </root>

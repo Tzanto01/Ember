@@ -8,6 +8,7 @@ import { listenForMoment, takeMomentLaunch } from './native/moment-launch';
 import { capacitorWidget } from './native/widget';
 import { applyLanguage, currentLanguage, deviceLanguage, heldLanguage, isLanguage, type Language, onLanguageChange, rememberDeviceLanguage } from './i18n';
 import { navigate } from './navigation';
+import { refreshNoticesUnreachable, startNotices } from './notices';
 import { auth, deviceStore, deviceSync, http, localMode, push } from './services';
 import { Store } from './store';
 import { applyCalm, calmMode } from './theme';
@@ -152,7 +153,7 @@ function followCalm(): void {
 /**
  * App start, called once by `main.tsx` before the first render: restores no-account mode, asks for the antiforgery
  * token without waiting for it (web, not in no-account mode; `Http` refreshes and retries on a 403 `antiforgery`),
- * starts the device sync, and on the web keeps `me` and the habit list on the device for an offline cold start (only
+ * starts the device sync and the live notices (`notices.ts`, fetched again whenever the API is unreachable), and on the web keeps `me` and the habit list on the device for an offline cold start (only
  * for a user who chose to stay signed in; the habit list is deleted when the user signs out or the session ends),
  * registers the service worker once the page has loaded (offering a reload when a new version waits), reloads (at most once a
  * minute) when a lazy chunk of a replaced version fails to load, and re-claims this browser's push subscription for whoever
@@ -165,6 +166,8 @@ export async function startApp(): Promise<void> {
   followCalm();
   if (localMode.mode.get() !== 'local') void auth.refreshAntiforgery();
   deviceSync.start();
+  http.onUnreachable = refreshNoticesUnreachable;
+  startNotices(env.native);
   await takeMomentLaunch(env.native);
   void listenForMoment(env.native, () => navigate('/moment'));
   if (env.native) return;

@@ -197,6 +197,80 @@ namespace Ember.Core.Data.Migrations
                     b.ToTable("FeedbackImages");
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.FiresideCode", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("CodeProtected")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.ToTable("FiresideCodes");
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.FiresideLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FriendId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("JoinNotifyPending")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("JoinedViaMyCode")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("KnownName")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("Muted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ShareFlame")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FriendId");
+
+                    b.HasIndex("JoinNotifyPending")
+                        .HasFilter("\"JoinNotifyPending\"");
+
+                    b.HasIndex("OwnerId", "FriendId")
+                        .IsUnique();
+
+                    b.ToTable("FiresideLinks");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.Habit", b =>
                 {
                     b.Property<int>("Id")
@@ -212,6 +286,9 @@ namespace Ember.Core.Data.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("FrequencyType")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kind")
                         .HasColumnType("integer");
 
                     b.Property<string>("Name")
@@ -298,6 +375,38 @@ namespace Ember.Core.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("HabitLogs");
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.HabitSlip", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("HabitId")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<List<string>>("Reasons")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HabitId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("HabitSlips");
                 });
 
             modelBuilder.Entity("Ember.Core.Models.JournalKey", b =>
@@ -705,6 +814,22 @@ namespace Ember.Core.Data.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("FiresideEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("FiresideJoinFailures")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("FiresideJoinWindowUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FiresideName")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("FiresideNotify")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("GraceDaysPerWeek")
                         .HasColumnType("integer");
 
@@ -768,6 +893,9 @@ namespace Ember.Core.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<DateTime?>("WarmthAskUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
@@ -799,6 +927,48 @@ namespace Ember.Core.Data.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("UserHelps");
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.Warmth", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DismissedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FromUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("NotifyPending")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ToUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NotifyPending")
+                        .HasFilter("\"NotifyPending\"");
+
+                    b.HasIndex("SentAtUtc");
+
+                    b.HasIndex("ToUserId", "FromUserId");
+
+                    b.HasIndex("FromUserId", "ToUserId", "SentAtUtc");
+
+                    b.ToTable("Warmth");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
@@ -913,6 +1083,32 @@ namespace Ember.Core.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.FiresideCode", b =>
+                {
+                    b.HasOne("Ember.Core.Models.User", null)
+                        .WithOne()
+                        .HasForeignKey("Ember.Core.Models.FiresideCode", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.FiresideLink", b =>
+                {
+                    b.HasOne("Ember.Core.Models.User", "Friend")
+                        .WithMany()
+                        .HasForeignKey("FriendId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Ember.Core.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Friend");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.Habit", b =>
                 {
                     b.HasOne("Ember.Core.Models.Routine", "Routine")
@@ -935,6 +1131,17 @@ namespace Ember.Core.Data.Migrations
                 {
                     b.HasOne("Ember.Core.Models.Habit", "Habit")
                         .WithMany("Logs")
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Habit");
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.HabitSlip", b =>
+                {
+                    b.HasOne("Ember.Core.Models.Habit", "Habit")
+                        .WithMany("Slips")
                         .HasForeignKey("HabitId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1061,6 +1268,21 @@ namespace Ember.Core.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.Warmth", b =>
+                {
+                    b.HasOne("Ember.Core.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("FromUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Ember.Core.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ToUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
                     b.HasOne("Ember.Core.Models.User", null)
@@ -1096,6 +1318,8 @@ namespace Ember.Core.Data.Migrations
             modelBuilder.Entity("Ember.Core.Models.Habit", b =>
                 {
                     b.Navigation("Logs");
+
+                    b.Navigation("Slips");
                 });
 
             modelBuilder.Entity("Ember.Core.Models.Routine", b =>

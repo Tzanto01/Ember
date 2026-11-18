@@ -97,6 +97,24 @@ public class User : IdentityUser<Guid>
     /// <summary>Tries spent on the code in <see cref="EmailCodeHash"/>; at the limit it no longer works.</summary>
     public int EmailCodeTries { get; set; }
 
+    /// <summary>Whether the account uses Fireside. Off by default.</summary>
+    public bool FiresideEnabled { get; set; }
+
+    /// <summary>The name friends see, stored trimmed (1 to 32 characters); kept when Fireside is turned off so turning it on again can prefill it.</summary>
+    public string? FiresideName { get; set; }
+
+    /// <summary>Whether new warmth and "joined your fireside" are sent to the account's reminder destinations. Off by default.</summary>
+    public bool FiresideNotify { get; set; }
+
+    /// <summary>Until when (UTC, the user's next local midnight when set) friends see "Could use some warmth today"; null when not asking.</summary>
+    public DateTime? WarmthAskUntilUtc { get; set; }
+
+    /// <summary>Failed Fireside joins in the window starting at <see cref="FiresideJoinWindowUtc"/>.</summary>
+    public int FiresideJoinFailures { get; set; }
+
+    /// <summary>Start (UTC) of the current one-hour window of <see cref="FiresideJoinFailures"/>; null before the first failure.</summary>
+    public DateTime? FiresideJoinWindowUtc { get; set; }
+
     public ICollection<IdentityUserLogin<Guid>> Logins { get; set; } = new List<IdentityUserLogin<Guid>>();
     public ICollection<Habit> Habits { get; set; } = new List<Habit>();
     public ICollection<DayMark> DayMarks { get; set; } = new List<DayMark>();

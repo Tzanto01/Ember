@@ -35,7 +35,7 @@ public class HelpModule : InteractionModuleBase<SocketInteractionContext>
             .WithColor(0xE8873A)
             .WithTitle(t.Get("help.title"))
             .WithDescription(t.Get("help.description"));
-        foreach (var section in new[] { "start", "daily", "manage", "share", "web", "privacy", "feedback" })
+        foreach (var section in new[] { "start", "daily", "manage", "share", "web", "fireside", "privacy", "feedback" })
             embed.AddField(t.Get($"help.{section}.title"), t.Get($"help.{section}.body"), inline: false);
         embed.WithFooter(t.Get("help.footer"));
 

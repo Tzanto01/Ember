@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { t } from '@/lib/i18n';
+import { firesideLimits } from '@/lib/fireside-limits';
 import { timeZoneLabel } from '@/lib/local-date';
 import type { MergePreview } from '@/lib/models';
 import { type ApiError, asApiError, problemToMessage } from '@/lib/problem';
@@ -107,6 +108,7 @@ export default function LinkMergePage() {
             {t('linkMerge.sameName')}
           </p>
           <p>{kept(preview)}</p>
+          {(preview.firesideDropped ?? 0) > 0 && <p>{t('fireside.merge.dropped', { count: preview.firesideDropped, max: firesideLimits.friends })}</p>}
         </Card>
         {problem && (
           <Notice tone="notice">

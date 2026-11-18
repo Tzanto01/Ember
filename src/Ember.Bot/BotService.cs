@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Modules;
+using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -20,20 +21,25 @@ public class BotService : IHostedService
     private readonly IConfiguration _config;
     private readonly ILogger<BotService> _logger;
     private readonly OncePerProcess _commandRegistration;
+    private readonly NoticePoller _notices;
     private Timer? _statusTimer;
+    private readonly SemaphoreSlim _statusLock = new(1, 1);
+    private string? _lastActivity;
 
     public BotService(
         DiscordSocketClient client,
         InteractionService interactions,
         IServiceProvider services,
         IConfiguration config,
-        ILogger<BotService> logger)
+        ILogger<BotService> logger,
+        NoticePoller notices)
     {
         _client = client;
         _interactions = interactions;
         _services = services;
         _config = config;
         _logger = logger;
+        _notices = notices;
         _commandRegistration = new OncePerProcess(RegisterCommandsAsync);
     }
 
@@ -50,6 +56,7 @@ public class BotService : IHostedService
 
         _client.Ready += OnReadyAsync;
         _client.InteractionCreated += OnInteractionAsync;
+        _notices.Changed += OnNoticesChangedAsync;
 
         var token = _config["BotToken"]
             ?? throw new InvalidOperationException("BotToken is not configured.");
@@ -87,7 +94,7 @@ public class BotService : IHostedService
             _logger.LogError(ex, "Failed to register slash commands; will retry on the next Ready.");
         }
 
-        await UpdateStatusAsync();
+        await UpdateStatusAsync(force: true);
         _statusTimer ??= new Timer(_ => _ = UpdateStatusAsync(), null,
             TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(30));
     }
@@ -114,28 +121,56 @@ public class BotService : IHostedService
         }
     }
 
-    private async Task UpdateStatusAsync()
+    private async Task UpdateStatusAsync(bool force = false)
     {
+        await _statusLock.WaitAsync();
         try
         {
-            using var scope = _services.CreateScope();
-            var habitCount = await scope.ServiceProvider.GetRequiredService<HabitService>().CountHabitsAsync();
-
-            var (activity, status) = habitCount switch
+            var (text, activity) = await StatusAsync(_notices.Active, async () =>
             {
-                0 => ("habits take shape 🌿", UserStatus.Online),
-                1 => ("1 habit tracked 🔥", UserStatus.Online),
-                _ => ($"{habitCount} habits tracked 🔥", UserStatus.Online),
-            };
+                using var scope = _services.CreateScope();
+                return await scope.ServiceProvider.GetRequiredService<HabitService>().CountHabitsAsync();
+            });
 
-            await _client.SetStatusAsync(status);
-            await _client.SetActivityAsync(new Game(activity, ActivityType.Watching));
+            if (!force && text == _lastActivity) return;
+            await _client.SetStatusAsync(UserStatus.Online);
+            await _client.SetActivityAsync(activity);
+            _lastActivity = text;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to update bot status.");
         }
+        finally
+        {
+            _statusLock.Release();
+        }
     }
+
+    /// <summary>
+    /// The bot's activity: the active notice as a custom status, otherwise the habit count (read only then) as "Watching".
+    /// <c>Text</c> is what the user sees, used to skip unchanged updates.
+    /// </summary>
+    internal static async Task<(string Text, IActivity Activity)> StatusAsync(Notice? notice, Func<Task<int>> countHabits)
+    {
+        if (notice is not null)
+        {
+            var status = NoticePoller.StatusText(notice);
+            return (status, new CustomStatusGame(status));
+        }
+
+        var habitCount = await countHabits();
+        var text = habitCount switch
+        {
+            0 => "habits take shape 🌿",
+            1 => "1 habit tracked 🔥",
+            _ => $"{habitCount} habits tracked 🔥",
+        };
+        return (text, new Game(text, ActivityType.Watching));
+    }
+
+    private Task OnNoticesChangedAsync()
+        => _client.ConnectionState == ConnectionState.Connected ? UpdateStatusAsync() : Task.CompletedTask;
 
     private async Task OnInteractionAsync(SocketInteraction interaction)
     {

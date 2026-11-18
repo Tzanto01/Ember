@@ -1,4 +1,6 @@
-# Ember API contract v1.21
+# Ember API contract v1.22
+
+v1.22 (2026-11-18, Nico: "one person generates an 8-digit or -letter code and the other person adds that in their app. Like that we don't even need to deal with requests."): Fireside ("Am Lagerfeuer" in German), friends who send each other one of five fixed warmth messages, added with single-use codes, off by default, no seen markers, counts or replies. See "Fireside v1.22".
 
 v1.21 (2026-11-18, Nico: "It should work both ways, helping with getting rid of a bad / unwanted habit while simultaneously helping with keeping good ones." and "Build both"): a habit is either built up or let go of; let-go habits count days free instead of a streak, a slip is one tap and never a failure, and the moment flow gains a craving practice. See "Let go habits v1.21".
 
@@ -706,3 +708,57 @@ Additive. Older clients ignore `tipsSeen`.
 ### Out of scope
 
 Limits ("at most 2 coffees a day"), insights, slip notifications to anyone.
+
+## Fireside v1.22
+
+Approved storyboard (Nico, 2026-11-18): https://claude.ai/artifact/JUckrvBQmSZSqqikn1x9jA . Screens 1 to 9 there are the target UX; this section wins where they differ.
+
+### Product rules (Nico's rulings, verbatim where quoted)
+
+- Friends send each other "warmth": one of five fixed messages. No free text, no "seen", no counts, no levels, no streaks between friends, no reply expected. Friends see only your Fireside name, plus what you choose per friend.
+- Name: "Fireside" in English, "Am Lagerfeuer" in German.
+- Adding friends: "one person generates an 8-digit or -letter code and the other person adds that in their app. Like that we don't even need to deal with requests." Codes: single use, valid 30 minutes, a new code turns the old one off. No usernames, no search, no requests.
+- The code owner sees "{name} joined your fireside" on the Fireside page, with "Okay" and "Not someone I know" (removes the friend and turns the owner's active code off). Nobody is told about a removal.
+- Notifications: "toggle this on the Fireside page. So if you want a notification you will get one, off by default."
+- Check-in flame: "Togglable per user": per friend, what that friend sees; off by default.
+- Limits: "One per friend per day seems good as a default, if someone puts a "Need warmth" after, you should be able to send another one though. 20 friends seems okay."
+- Name changes: "keep a little notice saying "Lena has changed their name to LenaABC" or something whenever someone changes their name."
+- Asking for warmth: after a moment (and from Today), a user can show "Could use some warmth today" to all friends until their local midnight. Friends never learn why.
+- Muting a friend hides their warmth; they are not told. Off by default everywhere: Fireside itself, notifications, the flame.
+- Fireside needs an account; hidden in no-account mode.
+
+### Data
+
+- `User`: `FiresideEnabled` (bool, default false), `FiresideName` (string?, stored trimmed, 1 to 32 chars, no control or format characters such as zero-width or bidi marks, not unique; escaped wherever the bot shows it), `FiresideNotify` (bool, default false), `WarmthAskUntilUtc` (DateTime?).
+- `FiresideCodes`: `UserId` (PK, one active code per user), `CodeHash` (SHA-256 of the normalized code), `ExpiresAtUtc`. Codes: 8 characters from `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (no 0, O, 1, I, L), cryptographically random, displayed `XXXX XXXX`, matched case-insensitively ignoring spaces. `CodeProtected` (nullable) holds the code encrypted with the API's Data Protection keys so `GET /api/fireside` can show it again; when it is null or can't be decrypted, `code` is `null` and the user makes a new one. The bot can't decrypt: `/fireside code` always makes a fresh code and shows it once.
+- `FiresideLinks`: one row per direction (`OwnerId`, `FriendId`, unique pair). Per row, owned by `OwnerId`: `Muted`, `ShareFlame`, `KnownName` (the friend's name the owner last acknowledged), `JoinedViaMyCode` (pending "joined your fireside" notice), `CreatedAt`. Created and deleted in pairs.
+- `Warmth`: `Id`, `FromUserId`, `ToUserId`, `Message` (`thinking` | `proud` | `easy` | `notAlone` | `blanket`), `SentAtUtc`, `DismissedAtUtc?`. Deleted after 30 days. EN texts: Thinking of you · Proud of you · Go easy on yourself today · You're not alone · Sending a warm blanket. DE texts are provisional and go to Nico.
+- Account deletion removes all of the user's codes, links (both directions) and warmth. Account merge moves links (deduplicated, cap still 20, the target keeps all its own links; the source's links fill the target's free places up to 20, oldest first, and the rest are dropped; a link between the two merged accounts or to a friend both already share is dropped) and settings (the source's Fireside settings apply only when the target has Fireside off). The merge result is reported before merging: `GET /api/account/merge` gains `firesideDropped: int` (how many friends would not come along), shown on the merge screen only when > 0; `POST /api/account/merge` stays 204. Export carries the user's own Fireside settings only (no friends, no warmth); import ignores Fireside.
+
+### API (all require a signed-in account; any foreign or unknown id → 404)
+
+- `GET /api/fireside` → `{ enabled, name, notify, askingUntil, code: { code, expiresAt } | null, friends: Friend[], warmth: Warmth[] }`. `Friend` = `{ id (the caller's link id, never a user id), name, asking, checkedInToday (bool, or null when that friend's ShareFlame for the caller is off), muted, shareFlame, renamedFrom (string or null), joinedViaMyCode, canSendWarmth }`. `warmth` = undismissed warmth from non-muted friends, newest first: `{ id, friendId, name, message, sentAt }`.
+- `PUT /api/fireside` `{ enabled, name?, notify? }` → 200 same body as GET. Enabling requires a valid `name` (400 `validation`). Disabling removes every link of the user in both directions, the code and their warmth (the client confirms first: "You'll leave everyone's fireside.").
+- `POST /api/fireside/code` → 200 `{ code, expiresAt }` (replaces any active code). `DELETE /api/fireside/code` → 204.
+- `POST /api/fireside/join` `{ code }` → 200 `Friend`. Invalid, expired, used or own code → 400 `validation` on `code` with ONE generic message (no oracle). Already friends → 200 the existing `Friend`, code still consumed. Either side at 20 friends → 409 `conflict` with one neutral message that never says which side. Fireside off for the caller → 409. More than 10 failed attempts per account per hour → 429. The count lives in the database (on the user row, inside the join transaction) so the API and the bot share it; a code over 64 characters or outside the alphabet counts as a failure. A successful join consumes the code and sets `JoinedViaMyCode` on the owner's link row.
+- `POST /api/fireside/friends/{id}/warmth` `{ message }` → 204. Allowed once per sender, friend and sender-local day, plus one more that day if the friend's ask is active when sending. Over the limit → 409 `conflict`. Sending to someone who muted you returns 204 and stores nothing visible (no oracle).
+- `PATCH /api/fireside/friends/{id}` `{ muted?, shareFlame? }` → 200 `Friend`.
+- `POST /api/fireside/friends/{id}/acknowledge` `{ rename?: bool, joined?: bool }` → 200 `Friend` (clears `renamedFrom` by setting `KnownName`, clears `joinedViaMyCode`).
+- `DELETE /api/fireside/friends/{id}?revokeCode=true|false` → 204. Removes both directions; `revokeCode=true` also deletes the caller's active code ("Not someone I know").
+- `POST /api/fireside/warmth/{id}/dismiss` → 204.
+- `PUT /api/fireside/ask` → 200 `{ askingUntil }` (end of the caller's local day, UTC). `DELETE /api/fireside/ask` → 204.
+- `checkedInToday` = the friend has at least one completed check-in today in the friend's local date (build habits only).
+- Notifications (only when the receiver's `notify` is on): new warmth and "joined your fireside" go to the receiver's existing reminder destinations: web push and Discord DM (Discord DM: embed with the message and the sender's name, buttons "Send some back" (opens a message picker) and "Okay" (removes the buttons, like closed reminders)). The Android app has no server push: it shows warmth when opened, and the Fireside page says so on Android. Never notify about removals, mutes, asks or renames.
+
+### Clients
+
+- Settings › People: the Fireside card (screen 1) with "Use Fireside" and the name field. Turning off confirms first.
+- Nav: a Fireside item appears only while Fireside is on.
+- Fireside page (screens 2 to 4, 9): your code with "New code" and the remaining minutes, "Got a code from someone?" field, friends list with Send warmth / Sent today, the rename notice ("Lena has changed their name to LenaABC", Okay), the joined notice (screen 3), the notifications switch, per-friend page (what they see, mute, remove).
+- Send sheet (screen 5), warmth card on Today (screen 6, "Send some back" and "Okay"), the ask step at the end of a moment and an ask/stop-asking control on Today (screen 7).
+- Discord: `/fireside code`, `/fireside join <code>`, `/fireside send` (pick a friend and a message with select menus), the DM delivery above. Turning Fireside on and choosing the name happen on the web or in the app; the bot says so when Fireside is off.
+- Guide: new answers for what Fireside is, what friends see, and how codes work; restamp per AGENTS.md.
+
+### Out of scope
+
+Free-text messages, friend search, group firesides, any public profile, Android server push (FCM).

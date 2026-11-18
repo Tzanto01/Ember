@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
+import { FiresideAsk } from '@/components/fireside/fireside-ask';
 import { FormField } from '@/components/form-field';
 import { LiveRegion } from '@/components/live-region';
 import { useJournal } from '@/components/journal/journal-context';
@@ -169,6 +170,7 @@ export function Reflect({
       <h1 tabIndex={-1} className="text-[1.75rem] focus:outline-none md:text-[2.25rem]">
         {heading}
       </h1>
+      <FiresideAsk />
       {saved ? (
         <>
           <div
