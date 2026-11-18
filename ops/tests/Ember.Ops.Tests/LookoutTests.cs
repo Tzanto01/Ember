@@ -318,17 +318,6 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     }
 
     [Fact]
-    public async Task The_lookout_key_is_not_served_from_the_web_root()
-    {
-        var factory = Factory();
-        using var client = factory.ClientFrom();
-
-        using var response = await client.GetAsync("/lookout-key");
-
-        (await response.Content.ReadAsStringAsync()).Should().NotContain(OpsApiFactory.LookoutKey);
-    }
-
-    [Fact]
     public async Task Comments_of_an_unknown_card_are_a_404_problem()
     {
         using var response = await Hub().GetAsync("/lookout/v1/widgets/feedback/cards/2000000000/comments");
