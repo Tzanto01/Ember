@@ -1361,7 +1361,7 @@ Ember bietet dir dann an, deine Habits von hier in dieses Konto zu übernehmen. 
     <value>**{0}**: {1}. Falls du heute ausgerutscht bist, kannst du es hier notieren.</value>
   </data>
   <data name="habit.letgo.web-only" xml:space="preserve">
-    <value>Gewohnheiten zum Loslassen legst du im Web oder in der App an und bearbeitest sie dort.</value>
+    <value>Habits zum Loslassen legst du im Web oder in der App an und bearbeitest sie dort.</value>
   </data>
   <data name="habit.letgo.stats" xml:space="preserve">
     <value>Tage frei: **{0}**

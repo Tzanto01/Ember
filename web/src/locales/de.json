@@ -1431,7 +1431,7 @@
   "guide.privacy.export.a": "Ja. Mit Konto lädst du deine Daten unter „Deine Daten“ im Web als JSON oder CSV herunter. Was in deinem privaten Tagebuch steht, bleibt darin verschlüsselt, und das Tagebuch hat einen eigenen entschlüsselten Export. Ohne Konto exportierst du unter „Auf diesem Gerät“ ein Backup.",
   "guide.privacy.delete.q": "Was wird beim Löschen entfernt?",
   "guide.privacy.delete.a": "Löschst du dein Konto, ist es mit allem darin weg, und das lässt sich nicht rückgängig machen. Ohne Konto löschst du stattdessen alles auf diesem Gerät. Sichere vorher eine Kopie, wenn du sie behalten möchtest.",
-  "letgo.kind.label": "Was für eine Gewohnheit ist es?",
+  "letgo.kind.label": "Was für ein Habit ist es?",
   "letgo.kind.build": "Etwas, das ich aufbauen möchte",
   "letgo.kind.letGo": "Etwas, das ich loslassen möchte",
   "letgo.form.checkIn": "Leiser Check-in am Abend",
