@@ -1,6 +1,6 @@
 # Ember ops dashboard
 
-A private dashboard for running Ember: live stats, a feedback board with comments, and system health. It runs on the homeserver as one container (`ember-ops`, .NET 10 API plus a React app), bound to `127.0.0.1:8096`, and is reachable only over the tailnet through Tailscale Serve.
+A private dashboard for running Ember: live stats, a feedback board with comments, live notices, and system health. It runs on the homeserver as one container (`ember-ops`, .NET 10 API plus a React app), bound to `127.0.0.1:8096`, and is reachable only over the tailnet through Tailscale Serve.
 
 It reads the production database `emberdb` as the role `ember_dashboard`, which can only read the columns the dashboard needs. Its own data (board comments, card order, reminder history) lives in the database `emberops`.
 
@@ -11,6 +11,7 @@ It reads the production database `emberdb` as the role `ember_dashboard`, which 
 | Overview | Users (total, active in the last 7 and 30 days by completed check-ins, new per week by first habit), check-ins per day (90 days), habits (build and let-go, paused, with reminder), routines, journal days, low days, streak settings, Fireside (users on, friendships, warmth per day), let-go slips per week |
 | Reminders | Reminders still open per day and channel, sent reminders per day from the dashboard's own snapshots, Discord DMs on, failing and paused, second reminders, push subscriptions and phones, overdue reminders |
 | Feedback | Kanban board with the Ember statuses (open, planned, implemented, released, declined). Drag a card or use its Move menu to change the status. Card details show the description, pictures, platform, version, send time and whether it was sent anonymously. Comments are kept per card. Filter by status and platform, search title and description |
+| Notices | Publish a live notice (info or maintenance, English and German, up to 280 characters each, optional show from and until in your local time) with a preview like the app banner and a confirm step. Lists live, scheduled and ended notices with End now and Delete. Each change is written to `NoticeLog` in `emberops` with the author |
 | System | Container states, whether reminders are advancing, `emberdb` size and latest migration, disk free, newest pre-deploy dump, deployed SHA of production and staging, CI of `main`, `test` and `v2/next`, the live notice, the published APK version |
 
 The stat pages refresh every 30 seconds. The server computes counters at most every 20 seconds and the 90-day and 12-week series at most every 5 minutes, shared by all viewers.
@@ -36,6 +37,8 @@ Every request needs a Tailscale identity, otherwise the app answers 403 (only `G
 A request passes when one of these holds:
 - `Tailscale-User-Login` is in `Ops__Access__AllowedLogins` (Tailscale Serve sets it for user-owned devices).
 - `Tailscale-App-Capabilities` contains the capability `Ops__Access__AppCapability`. Tailscale sends no login for tagged devices, and all of Nico's devices are tagged, so this is the path in use. The comment author is the capability's `author` value.
+
+Publishing a notice sends the whole `notices.json` document to `PUT https://beta.ember-glow.app/_ops/notices` with the token from `~/.config/ember-ops/notices-token`. Writes go one at a time. For 90 seconds after a write, a read that still shows the document it replaced (the edge caches reads up to 60 seconds) counts as the document it wrote, until a read shows that document; any other read, such as a change from Hosting's `publish-ember-notice.sh`, counts as live. In those 90 seconds a CLI change the edge hasn't served yet, or one that restores exactly the replaced document, can still be overwritten, since the endpoint is last writer wins.
 
 Writes also need the antiforgery token from `GET /api/session` in the `X-CSRF-TOKEN` header, and are refused when `Sec-Fetch-Site` is cross-site.
 
@@ -63,13 +66,13 @@ The dashboard is then at `https://nicos-homeserver.meteor-pauling.ts.net:8096`.
 Keep these true, or the trusted proxy address means less:
 - Serve for this port stays an HTTP proxy (`--https`), never `--tcp` or `--tls-terminated-tcp`.
 - The homeserver advertises no subnet route that covers `172.31.250.0/29` or `172.19.0.0/16` (check `tailscale debug prefs`, `AdvertiseRoutes`).
-- Nothing else on the host forwards traffic to `127.0.0.1:8096`.
+- Nothing else on the host forwards traffic to `127.0.0.1:8096`. Any local process that can reach that port can send identity headers, and with them publish notices to every Ember user.
 
 ## Run it on the homeserver
 
 ### One-time setup
 
-1. Passwords: create `~/.config/ember-ops/ember_dashboard` and `~/.config/ember-ops/emberops` (one random password each, at least 16 characters, mode 600, directory mode 700).
+1. Passwords: create `~/.config/ember-ops/ember_dashboard` and `~/.config/ember-ops/emberops` (one random password each, at least 16 characters, mode 600, directory mode 700). Hosting writes the notices token to `~/.config/ember-ops/notices-token` (mode 600); the container does not start without it. To rotate it, overwrite the file in place or run `docker compose -f ops/compose.yml up -d --force-recreate`, because the mount follows the original file.
 2. Database: a superuser runs the two scripts from the repo root. Each prints one line when done.
 
    ```bash
@@ -117,7 +120,7 @@ Everything runs from the repo root. The solution is `ops/Ember.Ops.slnx`, separa
 | Web dev server on port 4204 (proxies `/api` to 5185) | `cd ops/web && bun --bun run dev` |
 | Browser test, against a fresh test host | `cd ops/web && E2E_BASE_URL=http://localhost:5185 bunx playwright test` |
 
-The test host starts a throwaway PostgreSQL container, applies Ember's migrations and both SQL scripts, seeds synthetic data and accepts `Tailscale-User-Login: e2e@example.test` from localhost. Send that header from the browser with an extension, or use the dev server. The browser test changes the seeded board, so restart the test host before running it again.
+The test host starts a throwaway PostgreSQL container, applies Ember's migrations and both SQL scripts, seeds synthetic data and accepts `Tailscale-User-Login: e2e@example.test` from localhost. Notices go to an in-process fake endpoint with a random token, never to the real one. Send that header from the browser with an extension, or use the dev server. The browser test changes the seeded board, so restart the test host before running it again.
 
 The .NET tests run both SQL scripts on the full schema and on production's schema, check what `ember_dashboard` can and cannot read, the aggregates against a hand-counted dataset, the access rules and CSRF.
 
@@ -134,4 +137,5 @@ Set through environment variables in [compose.yml](compose.yml).
 | `Ops__Access__AppCapability` | Tailscale app capability that gets in |
 | `AllowedHosts` | Host names the app answers to |
 | `Ops__StatusFile` | The host status file |
-| `Ops__GitHubRepo`, `Ops__NoticesUrl`, `Ops__ApkUrl` | Sources for CI, the live notice and the APK version. Left empty, the section is skipped |
+| `Ops__GitHubRepo`, `Ops__NoticesUrl`, `Ops__ApkUrl` | Sources for CI, the live notice and the APK version. Left empty, the section is skipped. CI makes one GitHub request every 10 minutes with `If-None-Match` |
+| `Ops__NoticesPublishUrl`, `Ops__NoticesTokenFile` | Where notices are published (HTTPS only) and the file with its bearer token. Without a token, or unless both URLs are HTTPS, the Notices page is read-only and writes get 503 |

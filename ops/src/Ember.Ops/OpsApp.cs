@@ -35,6 +35,15 @@ public static class OpsApp
             client.DefaultRequestHeaders.UserAgent.ParseAdd("ember-ops");
         });
         services.AddSingleton<SystemInfo>();
+        services.AddHttpClient(NoticeStore.HttpClientName, client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(10);
+                client.MaxResponseContentBufferSize = 64 << 10;
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("ember-ops");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false })
+            .RedactLoggedHeaders(_ => true);
+        services.AddSingleton<NoticeStore>();
         services.AddHostedService<ReminderSnapshotService>();
         services.AddDataProtection().UseEphemeralDataProtectionProvider();
         services.AddAntiforgery(o =>
@@ -161,6 +170,17 @@ public static class OpsApp
             if (!await FeedbackStore.ExistsAsync(db.Ember, id, ct)) return Results.NotFound();
             return Results.Json(await FeedbackStore.AddCommentAsync(db.Ops, id, Author(context), body, ct), statusCode: StatusCodes.Status201Created);
         }).AddEndpointFilter(WriteGuard);
+
+        api.MapGet("/notices", (NoticeStore notices, CancellationToken ct) => notices.GetAsync(ct));
+
+        api.MapPost("/notices", (NoticeInput input, HttpContext context, NoticeStore notices, CancellationToken ct) =>
+            notices.PublishAsync(input, Author(context), ct)).AddEndpointFilter(WriteGuard);
+
+        api.MapPost("/notices/{id}/end", (string id, HttpContext context, NoticeStore notices, CancellationToken ct) =>
+            notices.EndAsync(id, Author(context), ct)).AddEndpointFilter(WriteGuard);
+
+        api.MapDelete("/notices/{id}", (string id, HttpContext context, NoticeStore notices, CancellationToken ct) =>
+            notices.DeleteAsync(id, Author(context), ct)).AddEndpointFilter(WriteGuard);
     }
 
     private static async ValueTask<object?> WriteGuard(EndpointFilterInvocationContext invocation, EndpointFilterDelegate next)

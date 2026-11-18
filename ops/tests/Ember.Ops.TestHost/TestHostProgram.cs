@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Ember.Ops.TestHost;
@@ -25,6 +26,9 @@ public static class TestHostProgram
         var statusDir = Directory.CreateTempSubdirectory("ember-ops-status-").FullName;
         var statusFile = Path.Combine(statusDir, "status.json");
         await WriteStatusAsync(statusFile);
+        var upstream = new FakeNoticesUpstream(Convert.ToHexString(RandomNumberGenerator.GetBytes(16)));
+        var tokenFile = Path.Combine(statusDir, "notices-token");
+        await File.WriteAllTextAsync(tokenFile, upstream.Token);
 
         var builder = OpsApp.CreateBuilder(["--urls", Url, .. args]);
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(database.AppSettings())
@@ -35,9 +39,14 @@ public static class TestHostProgram
             ["Ops:WebRoot"] = Path.Combine(opsRoot, "web", "dist"),
             ["Ops:StatusFile"] = statusFile,
             ["Ops:BuildSha"] = "testhost",
+            ["Ops:NoticesUrl"] = FakeNoticesUpstream.ReadUrl,
+            ["Ops:NoticesPublishUrl"] = FakeNoticesUpstream.PublishUrl,
+            ["Ops:NoticesTokenFile"] = tokenFile,
             ["Logging:LogLevel:Default"] = "Information",
             ["Logging:LogLevel:Microsoft.AspNetCore"] = "Warning",
         });
+        builder.Services.AddHttpClient(NoticeStore.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => upstream);
+        builder.Services.AddHttpClient(SystemInfo.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => upstream);
 
         await using var app = OpsApp.Build(builder);
         await OpsApp.InitializeAsync(app);

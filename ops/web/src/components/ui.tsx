@@ -1,5 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { type ReactNode, useEffect } from 'react';
+import { errorText } from '@/api/client';
 import { formatAgo } from '@/lib/format';
 import { useNow } from '@/lib/use-now';
 
@@ -85,7 +86,7 @@ export function Loaded<T>({ query, title, children }: { query: UseQueryResult<T>
       <PageHeader title={title} />
       {query.isError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg bg-card p-4 shadow-card">
-          <span>Could not load: {query.error instanceof Error ? query.error.message : 'unknown error'}</span>
+          <span>Could not load: {errorText(query.error)}</span>
           <button type="button" className="btn" onClick={() => void query.refetch()}>
             Try again
           </button>
