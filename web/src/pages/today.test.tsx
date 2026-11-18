@@ -603,6 +603,43 @@ describe('TodayPage let-go habits', () => {
     expect((await f.next('POST', '/api/habits/9/slips')).body).toEqual({ date: '2026-11-01' });
   });
 
+  it('shows the reason form again with no reason picked when the sheet is reopened after a save, and saves a second slip', async () => {
+    renderToday();
+    await answerLoad(f, [letGoHabit]);
+    const slipped = { ...letGoHabit, today: { ...letGoHabit.today, state: 'slipped' as const, slips: 1 } };
+    await userEvent.click(await screen.findByRole('button', { name: 'I slipped: Coffee' }));
+    let dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Tired' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    (await f.next('POST', '/api/habits/9/slips')).respond(200, slipped);
+    await within(dialog).findByText(/^Noted\./);
+    await userEvent.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    await userEvent.click(screen.getByRole('button', { name: 'I slipped: Coffee' }));
+    dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByText(/^Noted\./)).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Tired' })).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    expect((await f.next('POST', '/api/habits/9/slips')).body).toEqual({ date: '2026-11-01' });
+  });
+
+  it('offers no Undo when the saved slip is not the only one that day', async () => {
+    renderToday();
+    await answerLoad(f, [letGoHabit]);
+    await userEvent.click(await screen.findByRole('button', { name: 'I slipped: Coffee' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    (await f.next('POST', '/api/habits/9/slips')).respond(200, {
+      ...letGoHabit,
+      today: { ...letGoHabit.today, state: 'slipped', slips: 2 },
+    });
+
+    await within(dialog).findByText(/^Noted\./);
+    expect(within(dialog).queryByRole('button', { name: 'Undo' })).toBeNull();
+  });
+
   it('offers no slip button while the let-go habit is paused', async () => {
     renderToday();
     await answerLoad(f, [{ ...letGoHabit, pausedUntil: '2026-11-10', today: { ...letGoHabit.today, state: 'paused' } }]);
