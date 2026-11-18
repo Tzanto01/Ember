@@ -1,10 +1,12 @@
 import type { ExportFile } from '../api-client';
 import type {
   Frequency,
+  HabitKind,
   LocalDateString,
   MoodKey,
   ReminderChannel,
   SecondReminderMinutes,
+  SlipReason,
   TimeOfDay,
   TipId,
   Weekday,
@@ -14,6 +16,8 @@ import type { ThemeId } from '../theme';
 
 /** A habit as stored on the device (no-account mode). */
 export interface LocalHabit {
+  /** v1.21; missing means `build` (data saved before let-go habits). */
+  kind?: HabitKind;
   id: number;
   name: string;
   frequency: Frequency;
@@ -42,6 +46,15 @@ export interface LocalLog {
   date: LocalDateString;
   completed: boolean;
   count: number;
+}
+
+/** The slips of a let-go habit on one day (one record per habit and date, `count` at least 1). */
+export interface LocalSlip {
+  habitId: number;
+  date: LocalDateString;
+  count: number;
+  /** Distinct reason ids in the order they were first given; may be empty. */
+  reasons: SlipReason[];
 }
 
 export interface LocalRoutine {
@@ -94,6 +107,8 @@ export interface LocalData {
   profile: LocalProfile;
   habits: LocalHabit[];
   logs: LocalLog[];
+  /** v1.21; missing on data saved before let-go habits. */
+  slips?: LocalSlip[];
   lowDays: LocalDateString[];
   routines: LocalRoutine[];
   moods: LocalMood[];

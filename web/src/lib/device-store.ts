@@ -1,4 +1,4 @@
-import type { DayNoteBody, DayState, Habit, Routine } from './models';
+import type { AnyHabit, DayNoteBody, DayState, Habit, Routine } from './models';
 
 /**
  * One day edit made while offline: `completed` null means "clear the day"; `count` (v1.6) sends the absolute
@@ -42,7 +42,7 @@ export function stateForCount(count: number, timesPerDay: number): DayState {
 export interface CachedHabits {
   userId: string;
   timeZone: string;
-  habits: Habit[];
+  habits: AnyHabit[];
   /** The user's routines (v1.6); missing in entries cached before. */
   routines?: Routine[];
 }

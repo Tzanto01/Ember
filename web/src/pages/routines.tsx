@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, cardVariants } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Routine } from '@/lib/models';
+import { buildHabits, type Routine } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { api } from '@/lib/services';
 
@@ -32,7 +32,7 @@ export default function RoutinesPage() {
   const [announcement, setAnnouncement] = useState('');
   const [orderProblem, setOrderProblem] = useState<string | null>(null);
   const routines = useQuery({ queryKey: routinesKey, queryFn: () => api.listRoutines() });
-  const habits = useQuery({ queryKey: routineHabitsKey, queryFn: () => api.listHabits() });
+  const habits = useQuery({ queryKey: routineHabitsKey, queryFn: async () => buildHabits(await api.listHabits()) });
   const reorder = useMutation({
     mutationFn: (ids: number[]) => api.setRoutineOrder(ids),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['today'] }),

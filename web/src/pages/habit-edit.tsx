@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { TapLink } from '@/components/auth/busy-button';
+import { daysFreeText } from '@/components/letgo/letgo-text';
 import { EmptyState } from '@/components/empty-state';
 import {
   DeleteSection,
@@ -17,17 +18,18 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Habit } from '@/lib/models';
+import { type AnyHabit, isLetGo } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { api, auth } from '@/lib/services';
 import { useStore } from '@/lib/store';
 
-function Summary({ habit }: { habit: Habit }) {
+function Summary({ habit }: { habit: AnyHabit }) {
   const { t } = useTranslation();
-  const { streak, week } = habit.stats;
+  const { streak, week } = isLetGo(habit) ? { streak: null, week: null } : habit.stats;
   const showStreaks = useStore(auth.me)?.showStreaks !== false;
   return (
     <Card className="hidden lg:flex">
+      {isLetGo(habit) && <p className="font-semibold">{daysFreeText(habit.stats.daysFree)}</p>}
       {showStreaks && streak !== null && streak > 0 && <p className="font-semibold">{t('habit.streak', { count: streak })}</p>}
       {week && week.done > 0 && (
         <p className="font-semibold">
@@ -58,7 +60,7 @@ export default function HabitEditPage() {
   });
   const error = query.isError ? asApiError(query.error) : null;
   const habit = query.data;
-  const onChange = (updated: Habit) => queryClient.setQueryData(queryKey, updated);
+  const onChange = (updated: AnyHabit) => queryClient.setQueryData(queryKey, updated);
   const routineId = habit?.routineId ?? null;
   const routines = useQuery({
     queryKey: ['routines'],

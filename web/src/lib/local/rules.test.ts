@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DayState, LocalDateString } from '../models';
+import type { DayState, Habit, LocalDateString } from '../models';
 import { dayStats, habitDays, habitStartDate, habitView, isScheduledOn, localToday, pause, retarget, weeklySummary, writeDay } from './rules';
 import type { LocalData, LocalHabit, LocalLog } from './types';
 
@@ -61,7 +61,7 @@ function data(
 }
 
 const stats = (h: LocalHabit, logs: LocalLog[], opts: Parameters<typeof data>[2] = {}, today = TODAY) =>
-  habitView(data([h], logs, opts), h.id, today).stats;
+  (habitView(data([h], logs, opts), h.id, today) as Habit).stats;
 
 const dayOf = (h: LocalHabit, logs: LocalLog[], date: LocalDateString, opts: Parameters<typeof data>[2] = {}) =>
   habitDays(data([h], logs, opts), h.id, date, date, TODAY)[0];
@@ -221,12 +221,12 @@ describe('streak and grace days', () => {
 
   it('a gap on the Core switchover day (2026-10-11) is covered', () => {
     const logs: LocalLog[] = ['2026-10-12', '2026-10-10', '2026-10-09'].map((date) => ({ habitId: 1, date, completed: true, count: 1 }));
-    expect(habitView(data([habit()], logs, { grace: 0 }), 1, '2026-10-12').stats.streak).toBe(3);
+    expect((habitView(data([habit()], logs, { grace: 0 }), 1, '2026-10-12') as Habit).stats.streak).toBe(3);
   });
 
   it('a gap on another day near the switchover day still breaks', () => {
     const logs: LocalLog[] = ['2026-10-14', '2026-10-13', '2026-10-11', '2026-10-10'].map((date) => ({ habitId: 1, date, completed: true, count: 1 }));
-    expect(habitView(data([habit()], logs, { grace: 0 }), 1, '2026-10-14').stats.streak).toBe(2);
+    expect((habitView(data([habit()], logs, { grace: 0 }), 1, '2026-10-14') as Habit).stats.streak).toBe(2);
   });
 });
 

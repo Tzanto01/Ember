@@ -144,7 +144,7 @@ export function DayJournal({ date, className }: { date: LocalDateString; classNa
 
   if (state === 'locked' || (newPassphrase && me)) {
     return (
-      <Card className={className}>
+      <Card className={className} data-journal={date}>
         <h2 ref={headingRef} tabIndex={-1} className="text-[1.375rem] focus:outline-none">
           {heading}
         </h2>
@@ -377,7 +377,7 @@ export function DayJournal({ date, className }: { date: LocalDateString; classNa
   }
 
   return (
-    <Card className={className}>
+    <Card className={className} data-journal={date}>
       <h2 ref={headingRef} tabIndex={-1} className="text-[1.375rem] focus:outline-none">
         {heading}
       </h2>

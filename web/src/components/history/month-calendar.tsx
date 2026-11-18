@@ -27,6 +27,8 @@ export interface MonthCalendarProps {
   problem?: ReactNode;
   /** The habit's check-ins a day; partly done days show "2 of 3" when above 1. */
   timesPerDay?: number;
+  /** Draws each in-month day instead of the check-in {@link DayCell} (let-go habits). */
+  renderDay?: (day: CalendarDay) => ReactNode;
 }
 
 /**
@@ -47,6 +49,7 @@ export function MonthCalendar({
   onRewardEnd,
   problem,
   timesPerDay = 1,
+  renderDay,
 }: MonthCalendarProps) {
   const { t, i18n } = useTranslation();
   const [shortDays, longDays] = useMemo(
@@ -100,7 +103,8 @@ export function MonthCalendar({
                       className="p-0 text-center"
                       onAnimationEnd={keyword ? onRewardEnd : undefined}
                     >
-                      {day.inMonth && (
+                      {day.inMonth && renderDay?.(day)}
+                      {day.inMonth && !renderDay && (
                         <DayCell
                           state={day.state}
                           date={day.date}

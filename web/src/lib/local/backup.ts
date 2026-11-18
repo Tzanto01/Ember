@@ -1,7 +1,7 @@
 import type { ExportFile } from '../api-client';
 import { t } from '../i18n';
 import { isValidTimeZone } from '../local-date';
-import { builtinMoods, type MoodKey, type ReminderChannel, type TimeOfDay } from '../models';
+import { builtinMoods, type MoodKey, type ReminderChannel, type SlipReason, slipReasons, type TimeOfDay } from '../models';
 import { themes, type ThemeId } from '../theme';
 import {
   exportBackupFile,
@@ -15,6 +15,7 @@ import {
   parseWeekdays,
   validName,
 } from './backend';
+import { habitStartDate, localToday } from './rules';
 import type { LocalStore } from './store';
 import type {
   BackupApi,
@@ -24,6 +25,7 @@ import type {
   LocalMood,
   LocalNote,
   LocalRoutine,
+  LocalSlip,
   ParsedBackup,
 } from './types';
 
@@ -153,6 +155,8 @@ function parse(text: string): ParsedBackup {
   const habits = habitList.map((raw, index): LocalHabit => {
     const h = record(raw);
     const fileId = uniqueId(field(h, 'id'), habitSeen);
+    const kind = field(h, 'kind') ?? 'build';
+    if (kind !== 'build' && kind !== 'let_go') damaged();
     const frequency = parseFrequency(field(h, 'frequency')) ?? damaged();
     const weeklyTarget = field(h, 'weekly_target') ?? null;
     const timesPerDay = int(field(h, 'times_per_day') ?? 1, 1, frequency === 'weekly' ? 1 : limits.timesPerDay);
@@ -190,6 +194,11 @@ function parse(text: string): ParsedBackup {
       routinePosition: position === null ? null : int(position, 0, Number.MAX_SAFE_INTEGER),
     };
     if (frequency !== 'weekly' && weeklyTarget !== null) damaged();
+    if (kind === 'let_go') {
+      if (frequency !== 'daily' || timesPerDay !== 1 || reminderTimes.length > 1 || routineId !== null) damaged();
+      habit.kind = 'letGo';
+      habit.routinePosition = null;
+    }
     habitIds.set(fileId, habit);
     return habit;
   });
@@ -205,6 +214,7 @@ function parse(text: string): ParsedBackup {
   const logs = list(field(doc, 'logs'), true).map((raw): LocalLog => {
     const l = record(raw);
     const habit = habitIds.get(field(l, 'habit_id') as number) ?? damaged();
+    if (habit.kind === 'letGo') damaged();
     const date = optionalDate(field(l, 'date')) ?? damaged();
     const completed = field(l, 'completed');
     if (typeof completed !== 'boolean') damaged();
@@ -213,6 +223,23 @@ function parse(text: string): ParsedBackup {
     if (seenDays.has(key)) damaged();
     seenDays.add(key);
     return { habitId: habit.id, date, completed, count };
+  });
+
+  const today = localToday(timezone);
+  const slipDays = new Set<string>();
+  const slips = list(field(doc, 'slips')).map((raw): LocalSlip => {
+    const s = record(raw);
+    const habit = habitIds.get(field(s, 'habit_id') as number) ?? damaged();
+    if (habit.kind !== 'letGo') damaged();
+    const date = optionalDate(field(s, 'date')) ?? damaged();
+    if (date > today || date < habitStartDate(habit, timezone)) damaged();
+    const key = `${habit.id}|${date}`;
+    if (slipDays.has(key)) damaged();
+    slipDays.add(key);
+    const reasons = list(field(s, 'reasons')).map((reason) =>
+      (slipReasons as readonly unknown[]).includes(reason) ? (reason as SlipReason) : damaged(),
+    );
+    return { habitId: habit.id, date, count: int(field(s, 'count'), 1, Number.MAX_SAFE_INTEGER), reasons: [...new Set(reasons)] };
   });
 
   const lowDays = new Set<string>();
@@ -284,6 +311,7 @@ function parse(text: string): ParsedBackup {
       settings: { timezone, graceDaysPerWeek, theme: theme as ThemeId | null },
       habits,
       logs,
+      slips,
       lowDays: [...lowDays].sort(),
       routines,
       moods,
@@ -347,6 +375,7 @@ export class BackupService implements BackupApi {
           routineId: h.routineId === null ? null : h.routineId + routine,
         })),
         logs: data.logs.map((l) => ({ ...l, habitId: l.habitId + habit })),
+        slips: (data.slips ?? []).map((sl) => ({ ...sl, habitId: sl.habitId + habit, reasons: [...sl.reasons] })),
         lowDays: [...data.lowDays],
         routines: data.routines.map((r) => ({ ...r, id: r.id + routine, reminderChannels: [...r.reminderChannels] })),
         moods: data.moods.map((m) => ({ ...m, id: m.id + mood })),
