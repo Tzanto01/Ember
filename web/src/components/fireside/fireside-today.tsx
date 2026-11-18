@@ -12,8 +12,11 @@ import { firesideApi, firesideKey, isAsking, patchFireside, useFireside, warmthT
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { SendSheet } from './send-sheet';
 
+const shownWarmth = 3;
+
 /**
- * Fireside on Today: a card per warmth received (screen 6, "Send some back" and "Okay") and the "Could use some
+ * Fireside on Today: a card for each of the newest warmth received (screen 6, "Send some back" and "Okay"; "Okay to
+ * all" when more are waiting) and the "Could use some
  * warmth today" switch (screen 7) once there is a friend. Nothing while Fireside is off or in no-account mode.
  */
 export function FiresideToday() {
@@ -29,9 +32,9 @@ export function FiresideToday() {
   const asking = isAsking(data);
   const friend = data.friends.find((f) => f.id === sendTo) ?? null;
 
-  function dismiss(id: number): void {
-    patchFireside(queryClient, (old) => ({ ...old, warmth: old.warmth.filter((w) => w.id !== id) }));
-    firesideApi.dismiss(id).catch(() => queryClient.invalidateQueries({ queryKey: firesideKey }));
+  function dismiss(ids: number[]): void {
+    patchFireside(queryClient, (old) => ({ ...old, warmth: old.warmth.filter((w) => !ids.includes(w.id)) }));
+    for (const id of ids) firesideApi.dismiss(id).catch(() => queryClient.invalidateQueries({ queryKey: firesideKey }));
   }
 
   async function changeAsk(on: boolean): Promise<void> {
@@ -56,7 +59,7 @@ export function FiresideToday() {
 
   return (
     <>
-      {data.warmth.map((warmth) => {
+      {data.warmth.slice(0, shownWarmth).map((warmth) => {
         const from = data.friends.find((f) => f.id === warmth.friendId);
         return (
           <Card key={warmth.id} data-testid="fireside-warmth" className="gap-2">
@@ -76,7 +79,7 @@ export function FiresideToday() {
               <Button
                 variant="ghost"
                 aria-label={t('fireside.warmth.okayName', { name: warmth.name })}
-                onClick={() => dismiss(warmth.id)}
+                onClick={() => dismiss([warmth.id])}
               >
                 {t('fireside.okay')}
               </Button>
@@ -87,6 +90,13 @@ export function FiresideToday() {
           </Card>
         );
       })}
+      {data.warmth.length > shownWarmth && (
+        <div>
+          <Button variant="ghost" onClick={() => dismiss(data.warmth.map((w) => w.id))}>
+            {t('fireside.warmth.okayAll')}
+          </Button>
+        </div>
+      )}
       {data.friends.length > 0 && (
         <Card data-testid="fireside-ask-today" className="gap-2">
           <div className="flex min-h-[44px] items-center justify-between gap-4">

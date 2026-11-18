@@ -58,7 +58,11 @@ function FriendScreen({ fireside, id }: { fireside: Fireside; id: number }) {
   }
 
   function patch(kind: 'flame' | 'mute', body: { muted?: boolean; shareFlame?: boolean }): void {
-    void act(kind, async () => putFriend(queryClient, await firesideApi.patchFriend(id, body)));
+    void act(kind, async () => {
+      const updated = await firesideApi.patchFriend(id, body);
+      putFriend(queryClient, updated);
+      if (updated.muted) patchFireside(queryClient, (old) => ({ ...old, warmth: old.warmth.filter((w) => w.friendId !== id) }));
+    });
   }
 
   function remove(): void {

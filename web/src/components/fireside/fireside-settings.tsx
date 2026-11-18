@@ -74,7 +74,7 @@ export function FiresideSettings() {
       if (!apiError.handled) {
         const friendly = problemToMessage(apiError);
         if (friendly.fields['name']) {
-          setError(friendly.fields['name']);
+          setError(t('fireside.settings.nameInvalid', { max: firesideNameMax }));
           nameRef.current?.focus();
         } else setProblem(friendly.message);
       }
@@ -117,7 +117,6 @@ export function FiresideSettings() {
       return;
     }
     if (data?.enabled) void save('name', { enabled: true, name: value.trim() }, t('fireside.settings.nameSaved'));
-    else toggle(true);
   }
 
   const changed = data.enabled && value.trim() !== (data.name ?? '');

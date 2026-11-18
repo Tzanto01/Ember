@@ -13,6 +13,7 @@ import {
   firesideCodeLength,
   firesideKey,
   formatCode,
+  isCodeShaped,
   normalizeCode,
   patchFireside,
   putFriend,
@@ -21,6 +22,7 @@ import { firesideLimits } from '@/lib/fireside-limits';
 import { asApiError, problemToMessage } from '@/lib/problem';
 
 const minute = 60_000;
+const offDetail = 'Turn on Fireside first.';
 
 function minutesLeft(code: FiresideCode | null, now: number): number {
   return code ? Math.ceil((Date.parse(code.expiresAt) - now) / minute) : 0;
@@ -83,7 +85,7 @@ export function AddFriend({ fireside, onAnnounce }: { fireside: Fireside; onAnno
     if (joining) return;
     const value = normalizeCode(typed);
     setJoinProblem(null);
-    if (value.length !== firesideCodeLength) {
+    if (value.length !== firesideCodeLength || !isCodeShaped(value)) {
       setJoinError(t('fireside.join.format', { length: firesideCodeLength }));
       inputRef.current?.focus();
       return;
@@ -101,10 +103,14 @@ export function AddFriend({ fireside, onAnnounce }: { fireside: Fireside; onAnno
       if (apiError.handled) return;
       if (apiError.status === 400) {
         const friendly = problemToMessage(apiError);
-        setJoinError(friendly.fields['code'] ?? friendly.message);
+        setJoinError(friendly.fields['code'] ? t('fireside.join.invalid') : friendly.message);
         inputRef.current?.focus();
       } else if (apiError.status === 409) {
-        setJoinProblem(apiError.problem?.detail ?? t('fireside.join.full', { max: firesideLimits.friends }));
+        setJoinProblem(
+          apiError.problem?.detail === offDetail
+            ? t('fireside.join.off')
+            : t('fireside.join.full', { max: firesideLimits.friends }),
+        );
       } else if (apiError.status === 429) {
         setJoinProblem(t('fireside.join.tooMany'));
       } else {

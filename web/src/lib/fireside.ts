@@ -109,6 +109,8 @@ export function useFireside({ cacheOnly = false }: { cacheOnly?: boolean } = {})
     queryFn: firesideApi.get,
     enabled: available && !cacheOnly,
     gcTime: 60 * 60_000,
+    staleTime: 30_000,
+    refetchInterval: (q) => (q.state.data?.code && Date.parse(q.state.data.code.expiresAt) > Date.now() ? 60_000 : false),
     refetchOnWindowFocus: true,
   });
   return { ...query, available, data: available ? query.data : undefined };
@@ -140,6 +142,11 @@ export function isAsking(fireside: Fireside, now = Date.now()): boolean {
 export function formatCode(code: string): string {
   const bare = normalizeCode(code);
   return `${bare.slice(0, 4)} ${bare.slice(4)}`;
+}
+
+/** True when a normalized code uses only the code alphabet (no 0, O, 1, I, L). */
+export function isCodeShaped(code: string): boolean {
+  return /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]+$/.test(code);
 }
 
 /** A typed code without spaces, in upper case. */

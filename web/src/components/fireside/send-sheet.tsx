@@ -98,8 +98,8 @@ export function SendSheet({
             </>
           ) : (
             <form noValidate onSubmit={(event) => void send(event)} className="flex flex-col gap-4">
-              <Dialog.Description id={`${id}-pick`} className="text-muted-foreground [overflow-wrap:anywhere]">
-                {t('fireside.send.pick', { name })}
+              <Dialog.Description className="text-muted-foreground [overflow-wrap:anywhere]">
+                <span id={`${id}-pick`}>{t('fireside.send.pick', { name })}</span>
               </Dialog.Description>
               <RadioGroup
                 aria-labelledby={`${id}-pick`}

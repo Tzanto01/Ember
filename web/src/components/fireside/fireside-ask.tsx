@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ export function FiresideAsk() {
   const { data } = useFireside({ cacheOnly: true });
   const [state, setState] = useState<'open' | 'busy' | 'asked' | 'failed' | 'closed'>('open');
   const [shown, setShown] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
 
   const wanted = !!data?.enabled && data.friends.length > 0 && !isAsking(data);
   if (state === 'closed' || (!shown && !wanted) || !data) return null;
@@ -24,6 +25,11 @@ export function FiresideAsk() {
   const names = data.friends.slice(0, 3).map((f) => f.name);
   if (data.friends.length > 3) names.push(t('fireside.ask.others'));
   const list = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(names);
+
+  function close(): void {
+    sectionRef.current?.parentElement?.querySelector<HTMLElement>('h1')?.focus();
+    setState('closed');
+  }
 
   async function ask(): Promise<void> {
     if (state === 'busy') return;
@@ -39,6 +45,7 @@ export function FiresideAsk() {
 
   return (
     <section
+      ref={sectionRef}
       aria-labelledby="fireside-ask-heading"
       data-testid="fireside-ask"
       className="flex flex-col gap-3 rounded-lg bg-secondary p-4 text-secondary-foreground"
@@ -56,7 +63,7 @@ export function FiresideAsk() {
             <BusyButton type="button" busy={state === 'busy'} busyLabel={t('fireside.saving')} onClick={() => void ask()}>
               {t('fireside.ask.yes')}
             </BusyButton>
-            <Button type="button" variant="ghost" onClick={() => setState('closed')}>
+            <Button type="button" variant="ghost" onClick={close}>
               {t('fireside.ask.no')}
             </Button>
           </div>

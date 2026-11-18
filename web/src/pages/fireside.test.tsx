@@ -100,8 +100,9 @@ describe('FiresidePage', { timeout: 15_000 }, () => {
     });
 
     it.each([
-      [400, { type: 'validation', errors: { code: ["That code didn't work."] } }, undefined, "That code didn't work."],
-      [409, { type: 'conflict', detail: 'This did not work out.' }, undefined, 'This did not work out.'],
+      [400, { type: 'validation', errors: { code: ['Server text.'] } }, undefined, "That code didn't work. Ask for a new one."],
+      [409, { type: 'conflict', detail: 'Server text.' }, undefined, 'One of you already has 20 friends at the fireside.'],
+      [409, { type: 'conflict', detail: 'Turn on Fireside first.' }, undefined, 'Turn on Fireside first.'],
       [429, { type: 'too_many_requests' }, { 'Retry-After': '3600' }, 'Too many tries. Try again in a while.'],
     ])('answers a %i from the server with its calm message', async (status, problem, headers, text) => {
       const user = userEvent.setup();
