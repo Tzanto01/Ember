@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Ember.Ops/Ember.Ops.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Ember.Ops.TestHost/Ember.Ops.TestHost.csproj" />
+  </Folder>
+</Solution>
