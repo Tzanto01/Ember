@@ -48,6 +48,11 @@ public sealed class NoticeRulesTests
     [Fact]
     public void Rejects_a_time_without_Z() => NoticeRules.Validate([Valid(until: "2026-11-18T11:00:00+00:00")]).Should().NotBeNull();
 
+    [Theory]
+    [InlineData("2026-11-18T10:00:00Z\n")]
+    [InlineData("18 Nov 2026 10:00Z")]
+    public void Rejects_a_time_the_worker_rejects(string until) => NoticeRules.Validate([Valid(until: until)]).Should().NotBeNull();
+
     [Fact]
     public void Rejects_equal_from_and_until() =>
         NoticeRules.Validate([Valid(from: "2026-11-18T10:00:00Z", until: "2026-11-18T10:00:00Z")]).Should().NotBeNull();
@@ -134,6 +139,33 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
         database.Time.Advance(TimeSpan.FromSeconds(20));
         (await client.PostAsJsonAsync("/api/notices", Body(c))).StatusCode.Should().Be(HttpStatusCode.OK);
         fake.Notices.Select(n => n.Id).Should().BeEquivalentTo([a, b, c]);
+    }
+
+    [Fact]
+    public async Task A_delete_by_another_writer_is_listed_once_the_edge_has_served_our_write()
+    {
+        var (client, fake) = Start();
+        await client.PostAsJsonAsync("/api/notices", Body(UniqueId("gone")));
+        (await ViewAsync(await client.GetAsync("/api/notices"))).GetProperty("notices").GetArrayLength().Should().Be(1);
+
+        fake.Notices = [];
+
+        (await ViewAsync(await client.GetAsync("/api/notices"))).GetProperty("notices").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task An_odd_id_is_refused_for_a_new_notice_but_an_existing_one_does_not_block_writes()
+    {
+        var (client, fake) = Start();
+        var odd = "maintenance 2026";
+        fake.Notices = [new Notice(odd, "info", "External", "Extern")];
+
+        (await client.PostAsJsonAsync("/api/notices", Body("bad id"))).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        fake.Publishes.Should().Be(0);
+
+        var id = UniqueId("ok");
+        (await client.PostAsJsonAsync("/api/notices", Body(id))).StatusCode.Should().Be(HttpStatusCode.OK);
+        fake.Notices.Select(n => n.Id).Should().BeEquivalentTo([odd, id]);
     }
 
     [Fact]

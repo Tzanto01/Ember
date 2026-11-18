@@ -38,7 +38,7 @@ A request passes when one of these holds:
 - `Tailscale-User-Login` is in `Ops__Access__AllowedLogins` (Tailscale Serve sets it for user-owned devices).
 - `Tailscale-App-Capabilities` contains the capability `Ops__Access__AppCapability`. Tailscale sends no login for tagged devices, and all of Nico's devices are tagged, so this is the path in use. The comment author is the capability's `author` value.
 
-Publishing a notice sends the whole `notices.json` document to `PUT https://beta.ember-glow.app/_ops/notices` with the token from `~/.config/ember-ops/notices-token`. Writes go one at a time. For 90 seconds after a write, a read that still shows the document it replaced (the edge caches reads up to 60 seconds) counts as the document it wrote; any other read, such as a change from `publish-ember-notice.sh`, counts as live. A CLI change made in those 90 seconds that the edge hasn't served yet can still be overwritten, since the endpoint is last writer wins.
+Publishing a notice sends the whole `notices.json` document to `PUT https://beta.ember-glow.app/_ops/notices` with the token from `~/.config/ember-ops/notices-token`. Writes go one at a time. For 90 seconds after a write, a read that still shows the document it replaced (the edge caches reads up to 60 seconds) counts as the document it wrote, until a read shows that document; any other read, such as a change from Hosting's `publish-ember-notice.sh`, counts as live. In those 90 seconds a CLI change the edge hasn't served yet, or one that restores exactly the replaced document, can still be overwritten, since the endpoint is last writer wins.
 
 Writes also need the antiforgery token from `GET /api/session` in the `X-CSRF-TOKEN` header, and are refused when `Sec-Fetch-Site` is cross-site.
 
@@ -138,4 +138,4 @@ Set through environment variables in [compose.yml](compose.yml).
 | `AllowedHosts` | Host names the app answers to |
 | `Ops__StatusFile` | The host status file |
 | `Ops__GitHubRepo`, `Ops__NoticesUrl`, `Ops__ApkUrl` | Sources for CI, the live notice and the APK version. Left empty, the section is skipped. CI makes one GitHub request every 10 minutes with `If-None-Match` |
-| `Ops__NoticesPublishUrl`, `Ops__NoticesTokenFile` | Where notices are published (HTTPS only) and the file with its bearer token. Without a token, or without `Ops__NoticesUrl`, the Notices page is read-only and writes get 503 |
+| `Ops__NoticesPublishUrl`, `Ops__NoticesTokenFile` | Where notices are published (HTTPS only) and the file with its bearer token. Without a token, or unless both URLs are HTTPS, the Notices page is read-only and writes get 503 |

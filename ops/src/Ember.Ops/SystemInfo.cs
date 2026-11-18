@@ -150,7 +150,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
                 && response.Headers.TryGetValues("x-ratelimit-remaining", out var remaining) && remaining.FirstOrDefault() == "0"
                 && response.Headers.TryGetValues("x-ratelimit-reset", out var reset) && long.TryParse(reset.FirstOrDefault(), out var resetAt)
                 && resetAt > 0 && resetAt < DateTimeOffset.MaxValue.ToUnixTimeSeconds())
-                Volatile.Write(ref ciRateLimitedUntil, resetAt);
+                Volatile.Write(ref ciRateLimitedUntil, Math.Min(resetAt, time.GetUtcNow().AddHours(1).ToUnixTimeSeconds()));
             response.EnsureSuccessStatusCode();
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
             var list = doc.RootElement.GetProperty("workflow_runs");

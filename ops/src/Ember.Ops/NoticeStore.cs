@@ -80,7 +80,7 @@ public static class NoticeRules
     public static string State(Notice notice, DateTimeOffset now) =>
         ParseTime(notice.ShowFrom) > now ? "scheduled" : ParseTime(notice.ShowUntil) <= now ? "ended" : "live";
 
-    private static readonly Regex TimeFormat = new(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$", RegexOptions.CultureInvariant);
+    private static readonly Regex TimeFormat = new(@"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?Z\z", RegexOptions.CultureInvariant);
 
     private static string? Text(string? text, string name)
     {
@@ -250,6 +250,8 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
     {
         var (upstream, error) = await ReadAsync(o, ct);
         if (upstream is null) return (null, null, error);
+        if (memory is { Replaced.Count: > 0 } caughtUp && caughtUp.Written.SequenceEqual(upstream))
+            Interlocked.CompareExchange(ref memory, caughtUp with { Replaced = [] }, caughtUp);
         return (memory is { } m && m.Replaced.Any(r => now - r.At < StaleReadWindow && r.Notices.SequenceEqual(upstream)) ? m.Written : upstream, upstream, null);
     }
 
@@ -291,7 +293,9 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
     }
 
     private static bool Configured(OpsOptions o) =>
-        !string.IsNullOrWhiteSpace(o.NoticesUrl) && Uri.TryCreate(o.NoticesPublishUrl, UriKind.Absolute, out var publish) && publish.Scheme == Uri.UriSchemeHttps;
+        Https(o.NoticesUrl) && Https(o.NoticesPublishUrl);
+
+    private static bool Https(string? url) => Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
 
     private static NoticesView View(IReadOnlyList<Notice> notices, DateTimeOffset now, bool publishing) =>
         new(publishing, notices.Select(n => new NoticeView(n.Id, n.Kind, n.En, n.De, n.ShowFrom, n.ShowUntil, NoticeRules.State(n, now))).ToList());
