@@ -30,14 +30,14 @@ public static class OpsApp
         services.AddMemoryCache();
         services.AddHttpClient(SystemInfo.HttpClientName, client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(5);
+            client.Timeout = TimeSpan.FromSeconds(3);
             client.MaxResponseContentBufferSize = 1 << 20;
             client.DefaultRequestHeaders.UserAgent.ParseAdd("ember-ops");
         });
         services.AddSingleton<SystemInfo>();
         services.AddHttpClient(NoticeStore.HttpClientName, client =>
             {
-                client.Timeout = TimeSpan.FromSeconds(10);
+                client.Timeout = TimeSpan.FromSeconds(4);
                 client.MaxResponseContentBufferSize = 64 << 10;
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("ember-ops");
             })
@@ -76,8 +76,11 @@ public static class OpsApp
             return next(context);
         });
 
+        app.Use(Lookout.LookoutApi.Gate(options, refused));
+
         app.Use((context, next) =>
         {
+            if (context.Request.Path.StartsWithSegments("/lookout")) return next(context);
             if (HttpMethods.IsGet(context.Request.Method) && context.Request.Path == "/healthz") return next(context);
             var author = OpsAccess.Resolve(context.Connection.RemoteIpAddress, context.Request.Headers, options.Value.Access);
             if (author is null)
@@ -99,11 +102,12 @@ public static class OpsApp
 
         app.MapGet("/healthz", () => "ok");
         MapApi(app.MapGroup("/api"));
+        Lookout.LookoutApi.Map(app.MapGroup("/lookout/v1"));
 
         var index = Path.Combine(webRoot, "index.html");
         app.MapFallback(async context =>
         {
-            if (context.Request.Path.StartsWithSegments("/api") || !(HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+            if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/lookout") || !(HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
                 || !File.Exists(index))
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -129,21 +133,11 @@ public static class OpsApp
         api.MapGet("/session", (HttpContext context, IAntiforgery antiforgery) =>
             new Session(Author(context), antiforgery.GetAndStoreTokens(context).RequestToken!));
 
-        api.MapGet("/overview", async (IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-        {
-            var features = await Cached(cache, "ember:features", FeaturesCache, () => EmberFeatures.DetectAsync(db.Ember, ct));
-            return Overview.From(
-                await Cached(cache, "overview:counters", CounterCache, () => OverviewQueries.CountersAsync(db.Ember, features, time, ct)),
-                await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, features, time, ct)));
-        });
+        api.MapGet("/overview", (IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) => OverviewAsync(cache, db, time, ct));
 
-        api.MapGet("/reminders", async (IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-            Reminders.From(
-                await Cached(cache, ReminderCountersKey, CounterCache, () => ReminderQueries.CountersAsync(db.Ember, time, ct)),
-                await Cached(cache, "reminders:history", SeriesCache, () => ReminderQueries.HistoryAsync(db.Ops, time, ct))));
+        api.MapGet("/reminders", (IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) => RemindersAsync(cache, db, time, ct));
 
-        api.MapGet("/system", (IMemoryCache cache, SystemInfo system, CancellationToken ct) =>
-            Cached(cache, "system", CounterCache, () => system.GetAsync(ct)));
+        api.MapGet("/system", (IMemoryCache cache, SystemInfo system, CancellationToken ct) => SystemAsync(cache, system, ct));
 
         api.MapGet("/feedback", (OpsDatabases db, CancellationToken ct) => FeedbackStore.ListAsync(db, ct));
 
@@ -182,6 +176,33 @@ public static class OpsApp
         api.MapDelete("/notices/{id}", (string id, HttpContext context, NoticeStore notices, CancellationToken ct) =>
             notices.DeleteAsync(id, Author(context), ct)).AddEndpointFilter(WriteGuard);
     }
+
+    internal static async Task<OverviewCounters> OverviewCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
+    {
+        var features = await FeaturesAsync(cache, db, ct);
+        return await Cached(cache, "overview:counters", CounterCache, () => OverviewQueries.CountersAsync(db.Ember, features, time, ct));
+    }
+
+    internal static async Task<Overview> OverviewAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
+    {
+        var counters = await OverviewCountersAsync(cache, db, time, ct);
+        var features = await FeaturesAsync(cache, db, ct);
+        return Overview.From(counters, await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, features, time, ct)));
+    }
+
+    internal static Task<ReminderCounters> ReminderCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, ReminderCountersKey, CounterCache, () => ReminderQueries.CountersAsync(db.Ember, time, ct));
+
+    internal static async Task<Reminders> RemindersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Reminders.From(
+            await ReminderCountersAsync(cache, db, time, ct),
+            await Cached(cache, "reminders:history", SeriesCache, () => ReminderQueries.HistoryAsync(db.Ops, time, ct)));
+
+    internal static Task<SystemReport> SystemAsync(IMemoryCache cache, SystemInfo system, CancellationToken ct) =>
+        Cached(cache, "system", CounterCache, () => system.GetAsync(ct));
+
+    private static Task<EmberFeatures> FeaturesAsync(IMemoryCache cache, OpsDatabases db, CancellationToken ct) =>
+        Cached(cache, "ember:features", FeaturesCache, () => EmberFeatures.DetectAsync(db.Ember, ct));
 
     private static async ValueTask<object?> WriteGuard(EndpointFilterInvocationContext invocation, EndpointFilterDelegate next)
     {

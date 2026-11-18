@@ -1,6 +1,7 @@
 # Ember ops dashboard. Build and run from the repo root of a clean checkout:
 #   BUILD_SHA=$(git rev-parse --short HEAD) docker compose -f ops/compose.yml up -d --build
 # Needs ~/.config/ember-ops/{ember_dashboard,emberops,notices-token} (mode 600) and the ops-status timer writing ~/.local/state/ember-ops.
+# Lookout needs its key ~/.config/lookout/providers/ember.key (mode 600) and the external network lookout-net, both created by Lookout.
 services:
   ops:
     build:
@@ -27,7 +28,7 @@ services:
       Ops__EmberPasswordFile: /run/secrets/ember_dashboard
       Ops__OpsConnection: Host=postgres;Port=5432;Database=emberops;Username=emberops;GSS Encryption Mode=Disable;Command Timeout=10
       Ops__OpsPasswordFile: /run/secrets/emberops
-      AllowedHosts: nicos-homeserver.meteor-pauling.ts.net;localhost;127.0.0.1
+      AllowedHosts: nicos-homeserver.meteor-pauling.ts.net;localhost;127.0.0.1;172.31.250.19
       Ops__Access__TrustedProxies__0: 172.31.250.1
       Ops__Access__AppCapability: nicowoellnitz.de/cap/ember-ops
       Ops__Access__AllowedLogins__0: ""
@@ -37,12 +38,15 @@ services:
       Ops__NoticesPublishUrl: https://beta.ember-glow.app/_ops/notices
       Ops__NoticesTokenFile: /run/secrets/notices_token
       Ops__ApkUrl: https://beta.ember-glow.app/download/latest.json
+      Ops__Lookout__HubAddress: 172.31.250.18
+      Ops__Lookout__KeyFile: /run/secrets/lookout_key
       Logging__LogLevel__Default: Information
       Logging__LogLevel__Microsoft.AspNetCore: Warning
     secrets:
       - ember_dashboard
       - emberops
       - notices_token
+      - lookout_key
     volumes:
       - ${HOME}/.local/state/ember-ops:/status:ro
     ports:
@@ -51,6 +55,8 @@ services:
       ember-ops-edge:
         gw_priority: 1
       homeserver-net: {}
+      lookout-net:
+        ipv4_address: 172.31.250.19
     healthcheck:
       test: ["CMD", "dotnet", "/app/Ember.Ops.dll", "--healthcheck"]
       interval: 30s
@@ -65,6 +71,8 @@ secrets:
     file: ${HOME}/.config/ember-ops/emberops
   notices_token:
     file: ${HOME}/.config/ember-ops/notices-token
+  lookout_key:
+    file: ${HOME}/.config/lookout/providers/ember.key
 
 networks:
   ember-ops-edge:
@@ -75,4 +83,6 @@ networks:
         - subnet: 172.31.250.0/29
           gateway: 172.31.250.1
   homeserver-net:
+    external: true
+  lookout-net:
     external: true

@@ -21,6 +21,8 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     public const string UntrustedIp = "10.9.9.9";
     public const string Login = "operator@example.test";
     public const string Capability = "example.test/cap/ember-ops";
+    public const string HubIp = "10.7.7.7";
+    public const string LookoutKey = "synthetic-lookout-key-for-tests-0123456789";
 
     private readonly DatabaseFixture _database;
     private readonly string[] _trusted;
@@ -29,17 +31,24 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     private readonly string? _allowedHosts;
     private readonly HttpMessageHandler? _notices;
     private readonly string _noticesTokenFile;
+    private readonly string? _hubAddress;
+    private readonly string _lookoutKeyFile;
+    private readonly string _keyDirectory = Directory.CreateTempSubdirectory("ember-ops-key-").FullName;
     private readonly string _webRoot = Directory.CreateTempSubdirectory("ember-ops-web-").FullName;
 
     /// <summary>The host status file the dashboard reads; missing unless a test writes it before the first request.</summary>
     public string StatusFile => Path.Combine(_webRoot, "missing-status.json");
 
     public OpsApiFactory(DatabaseFixture database, string[]? trusted = null, string[]? logins = null, string? capability = Capability, string? allowedHosts = null,
-        HttpMessageHandler? notices = null, string? noticesToken = "synthetic-test-token\n")
+        HttpMessageHandler? notices = null, string? noticesToken = "synthetic-test-token\n",
+        string? hubAddress = null, string? lookoutKey = null)
     {
         (_database, _trusted, _logins, _capability, _allowedHosts, _notices) = (database, trusted ?? [TrustedIp], logins ?? [Login], capability, allowedHosts, notices);
         _noticesTokenFile = Path.Combine(_webRoot, "notices-token");
         if (noticesToken is not null) File.WriteAllText(_noticesTokenFile, noticesToken);
+        _hubAddress = hubAddress;
+        _lookoutKeyFile = Path.Combine(_keyDirectory, "lookout-key");
+        if (lookoutKey is not null) File.WriteAllText(_lookoutKeyFile, lookoutKey);
         File.WriteAllText(Path.Combine(_webRoot, "index.html"), "<html><body>ember-ops-spa</body></html>");
     }
 
@@ -54,6 +63,11 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
             for (var i = 0; i < _logins.Length; i++) settings[$"Ops:Access:AllowedLogins:{i}"] = _logins[i];
             if (_capability is not null) settings["Ops:Access:AppCapability"] = _capability;
             if (_allowedHosts is not null) settings["AllowedHosts"] = _allowedHosts;
+            if (_hubAddress is not null)
+            {
+                settings["Ops:Lookout:HubAddress"] = _hubAddress;
+                settings["Ops:Lookout:KeyFile"] = _lookoutKeyFile;
+            }
             if (_notices is not null)
             {
                 settings["Ops:NoticesUrl"] = FakeNoticesUpstream.ReadUrl;
@@ -74,7 +88,9 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (disposing && Directory.Exists(_webRoot)) Directory.Delete(_webRoot, recursive: true);
+        if (!disposing) return;
+        foreach (var directory in new[] { _webRoot, _keyDirectory })
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
     }
 
     /// <summary>A cookie-keeping client that arrives from <paramref name="remoteIp"/> with the given identity headers.</summary>
