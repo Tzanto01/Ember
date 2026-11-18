@@ -35,11 +35,12 @@ import { env } from '@/lib/env';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/local-date';
 import {
-  type Habit,
+  type AnyHabit,
   type HabitPatch,
   type LocalDateString,
   type ReminderChannel,
   type ReminderDestination,
+  isLetGo,
   reminderTimesOf,
   type Routine,
 } from '@/lib/models';
@@ -64,9 +65,9 @@ function failure(error: unknown): FriendlyProblem | null {
 }
 
 export interface SectionProps {
-  habit: Habit;
+  habit: AnyHabit;
   /** Called with the habit the server returned after a change. */
-  onChange: (habit: Habit) => void;
+  onChange: (habit: AnyHabit) => void;
 }
 
 /**
@@ -160,6 +161,7 @@ export function DetailsSection({ habit, onChange, routine = null }: SectionProps
         onTouched={() => setTouched(true)}
         errors={fieldErrors}
         savedTimesPerDay={habit.frequency === 'weekly' ? undefined : habit.timesPerDay}
+        kindLocked
         showReminder={!localWeb}
         silent={habit.reminderChannels?.length === 0}
         reminderNote={
@@ -167,21 +169,25 @@ export function DetailsSection({ habit, onChange, routine = null }: SectionProps
           t('habitEdit.routineReminder', { routine: routineTitle(routine.name), time: routine.reminderTime })
         }
       />
-      <p className="text-[0.875rem] text-muted-foreground">
-        <Trans t={t} i18nKey="habitEdit.graceDays" components={{ anchor: <Link to="/settings" /> }} />
-      </p>
-      <p className="text-[0.875rem] text-muted-foreground">
-        {routine ? (
-          <Trans
-            t={t}
-            i18nKey="habitEdit.partOf"
-            values={{ routine: routineTitle(routine.name) }}
-            components={{ anchor: <Link to={`/routines/${routine.id}/edit`} /> }}
-          />
-        ) : (
-          <Trans t={t} i18nKey="habitEdit.shareReminder" components={{ anchor: <Link to="/routines" /> }} />
-        )}
-      </p>
+      {!isLetGo(habit) && (
+        <>
+          <p className="text-[0.875rem] text-muted-foreground">
+            <Trans t={t} i18nKey="habitEdit.graceDays" components={{ anchor: <Link to="/settings" /> }} />
+          </p>
+          <p className="text-[0.875rem] text-muted-foreground">
+            {routine ? (
+              <Trans
+                t={t}
+                i18nKey="habitEdit.partOf"
+                values={{ routine: routineTitle(routine.name) }}
+                components={{ anchor: <Link to={`/routines/${routine.id}/edit`} /> }}
+              />
+            ) : (
+              <Trans t={t} i18nKey="habitEdit.shareReminder" components={{ anchor: <Link to="/routines" /> }} />
+            )}
+          </p>
+        </>
+      )}
       {feedback && <Notice tone={feedback.tone}>{feedback.text}</Notice>}
       {deviceOff && <DeviceRemindersOff />}
       <Button type="submit" block aria-disabled={save.isPending || undefined}>
@@ -623,7 +629,7 @@ export function PauseSection({ habit, onChange }: SectionProps) {
 }
 
 /** "Delete habit" with an inline confirm: Escape or "Keep it" cancels (not while deleting); success goes to `/today`. */
-export function DeleteSection({ habit }: { habit: Habit }) {
+export function DeleteSection({ habit }: { habit: AnyHabit }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const deleting = useRef(false);

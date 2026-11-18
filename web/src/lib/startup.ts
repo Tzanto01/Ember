@@ -3,7 +3,7 @@ import { type DeviceStore, withDayEdit } from './device-store';
 import { env } from './env';
 import { deviceToday, forgetUnreachable, rememberMe } from './guards';
 import type { OfflineCache } from './http';
-import type { Habit, Me } from './models';
+import { type AnyHabit, isLetGo, type Me } from './models';
 import { listenForMoment, takeMomentLaunch } from './native/moment-launch';
 import { capacitorWidget } from './native/widget';
 import { applyLanguage, currentLanguage, deviceLanguage, heldLanguage, isLanguage, type Language, onLanguageChange, rememberDeviceLanguage } from './i18n';
@@ -32,7 +32,7 @@ export function habitsCache(
       const user = me();
       if (url !== '/api/habits' || !user || !Array.isArray(body)) return;
       void store
-        .saveHabits({ userId: user.id, timeZone: user.timezone, habits: body as Habit[] })
+        .saveHabits({ userId: user.id, timeZone: user.timezone, habits: body as AnyHabit[] })
         .then(() => (me()?.id === user.id ? undefined : store.deleteHabits(user.id)))
         .catch(() => undefined);
     },
@@ -44,7 +44,7 @@ export function habitsCache(
       const today = deviceToday(cached.timeZone);
       if (!today || cached.habits.some((habit) => habit.today.date !== today)) return undefined;
       const queued = await store.edits(user.id).catch(() => []);
-      return cached.habits.map((habit) => queued.reduce(withDayEdit, habit));
+      return cached.habits.map((habit) => (isLetGo(habit) ? habit : queued.reduce(withDayEdit, habit)));
     },
   };
 }

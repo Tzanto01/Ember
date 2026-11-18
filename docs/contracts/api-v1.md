@@ -2,6 +2,8 @@
 
 v1.22 (2026-11-18, Nico: "one person generates an 8-digit or -letter code and the other person adds that in their app. Like that we don't even need to deal with requests."): Fireside ("Am Lagerfeuer" in German), friends who send each other one of five fixed warmth messages, added with single-use codes, off by default, no seen markers, counts or replies. See "Fireside v1.22".
 
+v1.21 (2026-11-18, Nico: "It should work both ways, helping with getting rid of a bad / unwanted habit while simultaneously helping with keeping good ones." and "Build both"): a habit is either built up or let go of; let-go habits count days free instead of a streak, a slip is one tap and never a failure, and the moment flow gains a craving practice. See "Let go habits v1.21".
+
 v1.20 (2026-11-18, user feedback: the order of routines sets the focus when opening the app): users choose the order of their routines. See "Routine order v1.20".
 
 v1.19 (2026-11-18, user feedback: browser reminders should say which habit they are about): each browser can opt in to reminders that name the habit or routine, off by default. See "Browser reminder names v1.19".
@@ -664,6 +666,48 @@ Additive. Older clients ignore `tipsSeen`.
 - `PUT /api/routines/order` `{ ids: int[] }` sets the order: `ids` must list each of the caller's routines exactly once → 204. Missing `ids` or a repeated id → 400 `validation` on `ids`. Any other set (a routine left out, an unknown or foreign id) → 409 `conflict`, nothing changed.
 - Import keeps the file's routine order. A merge puts the moved routines after the target's own, in their order.
 - The web app's Routines page moves a routine with Move up / Move down buttons and saves the whole list; Today shows routines in this order.
+
+## Let go habits v1.21
+
+### Product (Nico's words: "It should work both ways, helping with getting rid of a bad / unwanted habit while simultaneously helping with keeping good ones.")
+
+- A habit is either **build up** (every habit today) or **let go of** (something the user wants to stop or do less).
+- A let-go habit never shows a streak to protect. It shows **days free** (since the last slip, or since its start), the **longest stretch**, and **free days this month**. A slip never erases those numbers and is never called a failure.
+- "I slipped" is one tap. An optional reason can be picked from a fixed list; anything longer goes into the day's journal (the existing journal, so the private-journal encryption still applies). No free-text field on the slip itself.
+- No reminders by default. One optional quiet evening check-in time.
+- The moment flow gains a craving practice (urge surfing).
+
+### Data
+
+- `Habit.Kind`: `Build` (default, all existing rows) | `LetGo`. Set at creation, never changed (PATCH with a different `kind` → 400 `validation` on `kind`).
+- Let-go constraints (POST/PATCH → 400 `validation` on the field): `frequency` must be `daily`, `timesPerDay` 1, `weeklyTarget`/`days` null, at most 1 reminder time, no routine (`routineId` must be null; adding a let-go habit to a routine → 400).
+- New table `HabitSlips`: `Id`, `HabitId` (FK, cascade), `Date` (user-local `DateOnly`), `Count` (≥1, one row per habit and date, unique index), `Reasons` (list of reason ids, may be empty), `UpdatedAt`.
+- Reason ids: `stressed`, `bored`, `tired`, `lonely`, `aroundOthers`, `other`. EN labels: Stressed, Bored, Tired, Lonely, Around others, Something else. DE labels are provisional and go to Nico.
+- Let-go habits have no `HabitLog` rows. Pauses apply (paused days are neither free nor slipped and do not count toward "free days this month"; days free keeps counting from the last slip but skips paused days). Low days and grace days do not apply. The streaks setting (`showStreaks`) does not hide days free.
+
+### API
+
+- `Habit` gains `kind: "build" | "letGo"`. For `letGo` habits, `stats` is `{ daysFree, longestStretch, freeDaysThisMonth, slipDaysLast30 }` (ints) and `today` is `{ date, state: "free" | "slipped" | "paused" | "beforestart", slips: int }`. Build habits keep today's shape exactly.
+- `POST /api/habits` accepts `kind` (default `build`).
+- `GET /api/habits/{id}/slips?from&to` → `[{ date, count, reasons }]`, oldest first, same range rules as `/days`.
+- `POST /api/habits/{id}/slips` `{ date: "yyyy-MM-dd", reason?: id }` → 200 `Habit`. Adds one slip that day (count+1, reason appended if new). Date after the user's local today or before the habit's start → 400. A build habit → 400.
+- `DELETE /api/habits/{id}/slips/{date}` → 200 `Habit`. Removes that day's slips (undo).
+- Every place that counts check-ins ignores let-go habits: Today's done counts, `/stats/weekly`, `/stats/days` (year view), routines, the Android widget, weekly Discord recap counts, "all habits" history.
+- Reminder for a let-go habit (only if the user set a time): text "A quiet check-in for {name}. If anything happened today, you can note it in Ember." No Done/Skip/Snooze buttons on any channel; tapping opens the habit. Never a second reminder.
+- Export v2 carries `kind` and `slips`; import restores them; account merge moves them. No-account mode (`web/src/lib/local/backend.ts`) supports let-go habits the same way.
+
+### Clients
+
+- Habit form: a first choice "Build up" / "Let go of" (EN wording provisional: "Something to build up" / "Something to let go of").
+- Today: let-go habits in their own section below build habits. Row: name, "{n} days free", button "I slipped". The slip sheet: optional reason chips, "Add a note to today's journal" link, Save. After saving: a gentle line that names the longest stretch, never a broken-streak animation.
+- History for a let-go habit: month calendar marks slip days softly (no red); tiles: days free, longest stretch, free days this month. The year view's habit picker leaves let-go habits out.
+- Moment: a feeling option for cravings and an urge-surfing practice (notice the urge, breathe, watch it rise and fall, it passes). Works offline and without an account like every practice.
+- Discord bot: let-go habits appear in the habit list and menus with "{n} days free" and an "I slipped" button (no reason picker needed in Discord); they are created and edited on the web or in the app only (the bot says so). The weekly recap mentions let-go habits only as days free, never slip counts.
+- Guide: new answers for what a let-go habit is and how a slip counts; restamp per AGENTS.md.
+
+### Out of scope
+
+Limits ("at most 2 coffees a day"), insights, slip notifications to anyone.
 
 ## Fireside v1.22
 

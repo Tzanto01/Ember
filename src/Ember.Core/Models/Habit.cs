@@ -4,6 +4,9 @@ namespace Ember.Core.Models;
 
 public enum FrequencyType { Daily, Weekly, Weekdays }
 
+/// <summary>Build = a habit to build up (check-ins, streaks). LetGo = something to stop or do less (slips, days free); set at creation, never changed.</summary>
+public enum HabitKind { Build, LetGo }
+
 /// <summary>
 /// The server channels the bot dispatches by (<see cref="Discord"/>, <see cref="WebPush"/>) and the names of the deprecated
 /// <c>reminderChannels</c> field (v1.14 derives them, <see cref="Services.ReminderDestinations.LegacyChannels"/>).
@@ -24,6 +27,12 @@ public class Habit
     public int Id { get; set; }
     public Guid UserId { get; set; }
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the habit is built up or let go of. A <see cref="HabitKind.LetGo"/> habit is daily, once a day, has at most one reminder
+    /// time, no routine and no <see cref="Logs"/>; it records <see cref="Slips"/> instead.
+    /// </summary>
+    public HabitKind Kind { get; set; } = HabitKind.Build;
 
     /// <summary>
     /// Times of day to send the reminder, in the user's local time, sorted ascending without repeats; at most
@@ -83,4 +92,5 @@ public class Habit
     public User User { get; set; } = null!;
     public Routine? Routine { get; set; }
     public ICollection<HabitLog> Logs { get; set; } = new List<HabitLog>();
+    public ICollection<HabitSlip> Slips { get; set; } = new List<HabitSlip>();
 }

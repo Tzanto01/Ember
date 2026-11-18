@@ -113,6 +113,28 @@ public class ReminderMessageTests
     }
 
     [Fact]
+    public async Task A_let_go_habits_check_in_is_one_quiet_message_with_no_action_buttons_never_remembered_and_never_followed_by_a_second_reminder()
+    {
+        var time = new FakeTimeProvider(Now);
+        var letGo = DueHabit(1);
+        letGo.Kind = HabitKind.LetGo;
+        await using var host = await CreateHostAsync(time, 30, letGo);
+
+        await RunJobAsync(host);
+
+        var dm = host.Discord.Messages.Should().ContainSingle().Subject;
+        dm.Text.Should().Be("A quiet check-in for Habit 1. If anything happened today, you can note it in Ember.");
+        ButtonIds(dm.Components).Should().Equal($"discordreminders:stop:{DiscordUser}");
+        (await OpenMessagesAsync(host)).Should().BeEmpty();
+        (await SecondReminderAsync(host, 1)).Should().BeNull();
+
+        time.Advance(TimeSpan.FromMinutes(31));
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task A_remembered_reminder_is_deleted_with_its_habit()
     {
         await using var host = await CreateHostAsync(new FakeTimeProvider(Now), 0, DueHabit(1));

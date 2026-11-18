@@ -146,10 +146,11 @@ public class MissedDayReflectionJob : IJob
 
     /// <summary>
     /// Whether a daily or weekdays habit is active, scheduled and unpaused on <paramref name="date"/> but not logged as done yet
-    /// (a partial day is still open).
+    /// (a partial day is still open). Never for a let-go habit.
     /// </summary>
     internal static bool IsOpenDaily(Ember.Core.Models.Habit habit, DateOnly date, TimeZoneInfo tz)
-        => habit.FrequencyType != Ember.Core.Models.FrequencyType.Weekly
+        => habit.Kind != Ember.Core.Models.HabitKind.LetGo
+            && habit.FrequencyType != Ember.Core.Models.FrequencyType.Weekly
             && HabitService.IsScheduledOn(habit, date)
             && HabitService.IsActiveOn(habit, date, tz)
             && !HabitService.IsPausedOn(habit, date)

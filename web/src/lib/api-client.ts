@@ -1,39 +1,44 @@
 import { type DayEdit, type NoteEdit, withDayEdit } from './device-store';
 import { type Http, longRequestTimeoutMs } from './http';
 import { currentLanguage } from './i18n';
-import type {
-  Credentials,
-  DayEntry,
-  DayNoteBody,
-  DayStat,
-  DeleteAccountRequest,
-  EmailCode,
-  ExportFormat,
-  FeedbackRequest,
-  Habit,
-  HabitPatch,
-  HabitTemplate,
-  JournalKey,
-  JournalKeyPut,
-  LocalDateString,
-  Me,
-  MePatch,
-  MergePreview,
-  MoodPatchBody,
-  NewHabit,
-  NewMoodBody,
-  NewRoutine,
-  PushSubscriptionRequest,
-  ReminderDestination,
-  ResetPasswordRequest,
-  Routine,
-  RoutinePatch,
-  StoredDayNote,
-  StoredMood,
-  TipId,
-  TwoFactorSetup,
-  TwoFactorStatus,
-  WeeklyStats,
+import {
+  type AnyHabit,
+  type Credentials,
+  type DayEntry,
+  type DayNoteBody,
+  type DayStat,
+  type DeleteAccountRequest,
+  type EmailCode,
+  type ExportFormat,
+  type FeedbackRequest,
+  type Habit,
+  isLetGo,
+  type HabitPatch,
+  type HabitTemplate,
+  type JournalKey,
+  type JournalKeyPut,
+  type LetGoHabit,
+  type LocalDateString,
+  type Me,
+  type MePatch,
+  type MergePreview,
+  type MoodPatchBody,
+  type NewHabit,
+  type NewMoodBody,
+  type NewRoutine,
+  type PushSubscriptionRequest,
+  type ReminderDestination,
+  type ResetPasswordRequest,
+  type Routine,
+  type RoutinePatch,
+  type SlipDay,
+  type SlipReason,
+  type StoredDayNote,
+  type StoredMood,
+  type TipId,
+  type TwoFactorSetup,
+  type TwoFactorStatus,
+  type WeeklyStats,
 } from './models';
 import type { OfflineQueue } from './offline-queue';
 import { asApiError, problemToMessage } from './problem';
@@ -77,8 +82,9 @@ export class ApiClient {
     private readonly offline: OfflineQueue,
   ) {}
 
-  private remember(habit: Habit): Habit {
-    this.known.set(habit.id, habit);
+  private remember<T extends AnyHabit>(habit: T): T {
+    const any: AnyHabit = habit;
+    if (!isLetGo(any)) this.known.set(any.id, any);
     return habit;
   }
 
@@ -244,23 +250,23 @@ export class ApiClient {
   }
 
   /** `GET /api/habits`. */
-  async listHabits(): Promise<Habit[]> {
-    const habits = await this.http.request<Habit[]>('GET', '/api/habits');
+  async listHabits(): Promise<AnyHabit[]> {
+    const habits = await this.http.request<AnyHabit[]>('GET', '/api/habits');
     return habits.map((habit) => this.remember(habit));
   }
 
   /** `GET /api/habits/{id}`. */
-  async getHabit(id: number): Promise<Habit> {
-    return this.remember(await this.http.request<Habit>('GET', `/api/habits/${id}`));
+  async getHabit(id: number): Promise<AnyHabit> {
+    return this.remember(await this.http.request<AnyHabit>('GET', `/api/habits/${id}`));
   }
 
   /** `POST /api/habits`: 409 `habit_limit`, 403 `consent_required`. */
-  createHabit(body: NewHabit): Promise<Habit> {
+  createHabit(body: NewHabit): Promise<AnyHabit> {
     return this.http.request('POST', '/api/habits', { body });
   }
 
   /** `PATCH /api/habits/{id}`. */
-  updateHabit(id: number, patch: HabitPatch): Promise<Habit> {
+  updateHabit(id: number, patch: HabitPatch): Promise<AnyHabit> {
     return this.http.request('PATCH', `/api/habits/${id}`, { body: patch });
   }
 
@@ -270,13 +276,28 @@ export class ApiClient {
   }
 
   /** `POST /api/habits/{id}/pause`: `until` null resumes. */
-  pauseHabit(id: number, until: LocalDateString | null): Promise<Habit> {
+  pauseHabit(id: number, until: LocalDateString | null): Promise<AnyHabit> {
     return this.http.request('POST', `/api/habits/${id}/pause`, { body: { until } });
   }
 
   /** `GET /api/habits/{id}/days`, oldest first. Default: 14 days ending today; at most 366 per call. */
   getDays(id: number, from?: LocalDateString, to?: LocalDateString): Promise<DayEntry[]> {
     return this.http.request('GET', `/api/habits/${id}/days`, { params: range(from, to) });
+  }
+
+  /** `GET /api/habits/{id}/slips` (v1.21), oldest first, days with slips only; same range rules as `getDays`. */
+  getSlips(id: number, from?: LocalDateString, to?: LocalDateString): Promise<SlipDay[]> {
+    return this.http.request('GET', `/api/habits/${id}/slips`, { params: range(from, to) });
+  }
+
+  /** `POST /api/habits/{id}/slips` (v1.21): one more slip on `date` (start day to today), with an optional reason. */
+  addSlip(id: number, date: LocalDateString, reason?: SlipReason): Promise<LetGoHabit> {
+    return this.http.request('POST', `/api/habits/${id}/slips`, { body: reason ? { date, reason } : { date } });
+  }
+
+  /** `DELETE /api/habits/{id}/slips/{date}` (v1.21): removes every slip that day; fine when there are none. */
+  clearSlips(id: number, date: LocalDateString): Promise<LetGoHabit> {
+    return this.http.request('DELETE', `/api/habits/${id}/slips/${seg(date)}`);
   }
 
   /**

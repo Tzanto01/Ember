@@ -32,13 +32,13 @@ public partial class HabitService
 
     /// <summary>
     /// The routine members a reminder on the user's local <paramref name="today"/> is for: those whose day (<see cref="DayOn"/>)
-    /// is pending or partial, in <see cref="Habit.RoutinePosition"/> order. Done, offday, paused, low and not-started days are left out.
+    /// is pending or partial, in <see cref="Habit.RoutinePosition"/> order. Done, offday, paused, low and not-started days and let-go habits are left out.
     /// Needs each habit's log of <paramref name="today"/> loaded, if there is one.
     /// </summary>
     public static List<Habit> PendingRoutineHabits(IEnumerable<Habit> members, DateOnly today, TimeZoneInfo tz, IReadOnlySet<DateOnly> lowDays)
         => members
             .OrderBy(h => h.RoutinePosition)
-            .Where(h => DayOn(h, today, today, tz, lowDays).State is DayState.Pending or DayState.Partial)
+            .Where(h => h.Kind == HabitKind.Build && DayOn(h, today, today, tz, lowDays).State is DayState.Pending or DayState.Partial)
             .ToList();
 
     /// <summary>The user's routines in their chosen order (<see cref="Routine.Position"/>) with their member habits ordered by <see cref="Habit.RoutinePosition"/>.</summary>
@@ -54,6 +54,7 @@ public partial class HabitService
     /// Creates a routine at the end of the user's list. <paramref name="habitIds"/> (ordered) become its members,
     /// moving them out of any other routine.
     /// </summary>
+    /// <exception cref="ArgumentException">One of <paramref name="habitIds"/> is a let-go habit; nothing is written.</exception>
     public async Task<(RoutineWriteResult Result, Routine? Routine)> AddRoutineAsync(Guid userId, string name, TimeOnly? reminderTime,
         IReadOnlyCollection<string>? reminderExclusions, IReadOnlyList<int>? habitIds)
     {
@@ -83,6 +84,7 @@ public partial class HabitService
     /// <see cref="Routine.ReminderExclusions"/>. <paramref name="habitIds"/> (ordered) replaces the members:
     /// listed habits move into this routine, members not listed leave it.
     /// </summary>
+    /// <exception cref="ArgumentException">One of <paramref name="habitIds"/> is a let-go habit; nothing is written.</exception>
     public async Task<RoutineWriteResult> EditRoutineAsync(Guid userId, int routineId, string? name, TimeOnly? reminderTime,
         bool clearReminder, IReadOnlyCollection<string>? reminderExclusions, IReadOnlyList<int>? habitIds)
     {
@@ -176,12 +178,15 @@ public partial class HabitService
     /// Makes <paramref name="habitIds"/> the routine's members in that order. Members of a tracked routine must be loaded.
     /// False, changing nothing, when any id isn't one of the user's habits.
     /// </summary>
+    /// <exception cref="ArgumentException">One of the habits is a let-go habit, which can't be in a routine; nothing is changed.</exception>
     private async Task<bool> SetRoutineHabitsAsync(Guid userId, Routine routine, IReadOnlyList<int> habitIds)
     {
         var listed = await _db.Habits
             .Where(h => h.UserId == userId && habitIds.Contains(h.Id))
             .ToDictionaryAsync(h => h.Id);
         if (habitIds.Any(id => !listed.ContainsKey(id))) return false;
+        if (listed.Values.Any(h => h.Kind == HabitKind.LetGo))
+            throw new ArgumentException("Let-go habits can't be in a routine.", nameof(habitIds));
 
         foreach (var member in routine.Habits.Where(h => !listed.ContainsKey(h.Id)).ToList())
             routine.Habits.Remove(member);

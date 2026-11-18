@@ -12,6 +12,7 @@ import { MonthCalendar } from '@/components/history/month-calendar';
 import { StatTiles } from '@/components/history/stat-tiles';
 import { HistoryViewSwitch } from '@/components/history/view-switch';
 import { DayJournal } from '@/components/journal/day-journal';
+import { LetGoHistory } from '@/components/letgo/letgo-history';
 import { TipSlot } from '@/components/tips/tip-slot';
 import { LiveRegion } from '@/components/live-region';
 import { PageHeader } from '@/components/page-header';
@@ -24,7 +25,7 @@ import { NativeSelect } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { buildMonth, canGoNext, canGoPrevious, monthRange } from '@/lib/calendar';
 import { addMonths, formatDate, monthLabel, startOfMonth } from '@/lib/local-date';
-import type { Habit, LocalDateString } from '@/lib/models';
+import { type AnyHabit, buildHabits, isLetGo, type LocalDateString } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth } from '@/lib/services';
@@ -33,7 +34,7 @@ import { useStore } from '@/lib/store';
 const habitsKey = ['history', 'habits'] as const;
 const longDate: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
 
-async function loadHabits(): Promise<Habit[]> {
+async function loadHabits(): Promise<AnyHabit[]> {
   await loadFreshMe().catch(() => null);
   return api.listHabits();
 }
@@ -84,7 +85,7 @@ export default function HistoryPage() {
       ]);
       return { days, lowDays };
     },
-    enabled: !!selected && !!month && !!today,
+    enabled: !!selected && !isLetGo(selected) && !!month && !!today,
   });
 
   const windowFrom = selected && today ? windowStart(selected, today, 30) : null;
@@ -98,7 +99,7 @@ export default function HistoryPage() {
       ]);
       return { days, lowDays };
     },
-    enabled: !!selected && selected.frequency !== 'weekly' && !!today && !!windowFrom && windowFrom <= today,
+    enabled: !!selected && !isLetGo(selected) && selected.frequency !== 'weekly' && !!today && !!windowFrom && windowFrom <= today,
   });
   const kept = (window: number) =>
     windowQuery.data && selected && today
@@ -193,7 +194,7 @@ export default function HistoryPage() {
           action === 'clear'
             ? await api.clearDay(habit.id, date)
             : await api.setDay(habit.id, date, action === 'done');
-        queryClient.setQueryData<Habit[]>(habitsKey, (list) =>
+        queryClient.setQueryData<AnyHabit[]>(habitsKey, (list) =>
           list?.map((h) => (h.id === updated.id ? updated : h)),
         );
         const key =
@@ -216,7 +217,7 @@ export default function HistoryPage() {
     void runEdit(
       async () => {
         const updated = await api.setDayCount(habit.id, date, count);
-        queryClient.setQueryData<Habit[]>(habitsKey, (list) =>
+        queryClient.setQueryData<AnyHabit[]>(habitsKey, (list) =>
           list?.map((h) => (h.id === updated.id ? updated : h)),
         );
         return t('history.announce.count', { date: formatDate(date, longDate), count, total: habit.timesPerDay });
@@ -234,6 +235,22 @@ export default function HistoryPage() {
       return t(day.lowDay ? 'history.announce.lowDayOff' : 'history.announce.lowDayOn', { date: formatDate(day.date, longDate) });
     });
   }
+
+  const picker =
+    selected && habits && habits.length > 1 ? (
+      <div className="flex flex-col gap-2 2xl:max-w-[40rem]">
+        <Label htmlFor="habit-picker">{t('history.habit')}</Label>
+        <NativeSelect id="habit-picker" value={selected.id} onChange={choose}>
+          {habits.map((h) => (
+            <option key={h.id} value={h.id}>
+              {h.name}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+    ) : (
+      <p className="text-muted-foreground">{selected?.name}</p>
+    );
 
   let content: ReactNode;
   if (!habits) {
@@ -285,26 +302,15 @@ export default function HistoryPage() {
         </Button>
       </Notice>
     );
+  } else if (isLetGo(selected)) {
+    content = <LetGoHistory key={selected.id} habit={selected} picker={picker} />;
   } else {
     const monthError =
       daysQuery.isError && !daysQuery.data && !daysQuery.isFetching ? asApiError(daysQuery.error) : null;
     content = (
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="flex min-w-0 flex-col gap-6 max-lg:contents">
-          {habits.length > 1 ? (
-            <div className="flex flex-col gap-2 2xl:max-w-[40rem]">
-              <Label htmlFor="habit-picker">{t('history.habit')}</Label>
-              <NativeSelect id="habit-picker" value={selected.id} onChange={choose}>
-                {habits.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-          ) : (
-            <p className="text-muted-foreground">{selected.name}</p>
-          )}
+          {picker}
           <MonthCalendar
             title={monthLabel(month)}
             weeks={weeks}
@@ -354,7 +360,7 @@ export default function HistoryPage() {
             </Card>
           )}
           {openDay && <DayJournal date={openDay.date} />}
-          {openDay && <TipSlot place="journal" habits={habits} />}
+          {openDay && <TipSlot place="journal" habits={buildHabits(habits)} />}
           <StatTiles
             habit={selected}
             monthName={formatDate(month, { month: 'long' })}

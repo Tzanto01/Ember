@@ -1,8 +1,19 @@
 import { t } from '../i18n';
 import { addDays, fromParts, startOfWeek, toParts, weekdayIndex } from '../local-date';
 import { reminderTimesOf, weekdays } from '../models';
-import type { DayEntry, DayStat, DayState, Habit, HabitStats, LocalDateString, WeeklyStats } from '../models';
-import type { LocalData, LocalHabit, LocalLog } from './types';
+import type {
+  AnyHabit,
+  DayEntry,
+  DayStat,
+  DayState,
+  HabitStats,
+  LetGoDayState,
+  LetGoStats,
+  LetGoToday,
+  LocalDateString,
+  WeeklyStats,
+} from '../models';
+import type { LocalData, LocalHabit, LocalLog, LocalSlip } from './types';
 
 const OPEN_DAYS = 2;
 const SWITCHOVER = '2026-10-11';
@@ -103,6 +114,63 @@ export function habitDays(
   return days;
 }
 
+/** True for a let-go habit; a missing `kind` is a build habit. */
+export function isLocalLetGo(habit: LocalHabit): boolean {
+  return habit.kind === 'letGo';
+}
+
+function slipsOf(data: LocalData, habitId: number): Map<LocalDateString, LocalSlip> {
+  const slips = new Map<LocalDateString, LocalSlip>();
+  for (const slip of data.slips ?? []) if (slip.habitId === habitId) slips.set(slip.date, slip);
+  return slips;
+}
+
+function letGoDayOn(
+  habit: LocalHabit,
+  date: LocalDateString,
+  start: LocalDateString,
+  slip: LocalSlip | undefined,
+): LetGoToday {
+  const state: LetGoDayState =
+    date < start ? 'beforestart'
+    : slip ? 'slipped'
+    : isPausedOn(habit, date) ? 'paused'
+    : 'free';
+  return { date, state, slips: state === 'slipped' ? slip!.count : 0 };
+}
+
+/** A let-go habit's days, oldest first, inclusive (Core `LetGoDayOn`). */
+export function letGoDays(data: LocalData, habitId: number, from: LocalDateString, to: LocalDateString): LetGoToday[] {
+  const habit = findHabit(data, habitId);
+  const slips = slipsOf(data, habitId);
+  const start = habitStartDate(habit, data.profile.timezone);
+  const days: LetGoToday[] = [];
+  for (let date = from; date <= to; date = addDays(date, 1)) days.push(letGoDayOn(habit, date, start, slips.get(date)));
+  return days;
+}
+
+/** A let-go habit's stats on `today` (Core `LetGoStatsOn`): paused days neither count nor break a stretch. */
+export function letGoStats(data: LocalData, habitId: number, today: LocalDateString): LetGoStats {
+  const start = habitStartDate(findHabit(data, habitId), data.profile.timezone);
+  const monthStart = `${today.slice(0, 8)}01`;
+  const windowStart = addDays(today, -29);
+  let run = 0;
+  let longestStretch = 0;
+  let freeDaysThisMonth = 0;
+  let slipDaysLast30 = 0;
+  for (const day of start <= today ? letGoDays(data, habitId, start, today) : []) {
+    if (day.state === 'slipped') {
+      run = 0;
+      if (day.date >= windowStart) slipDaysLast30++;
+    } else if (day.state === 'free') {
+      run++;
+      longestStretch = Math.max(longestStretch, run);
+      if (day.date >= monthStart) freeDaysThisMonth++;
+    }
+  }
+  return { daysFree: run, longestStretch, freeDaysThisMonth, slipDaysLast30 };
+}
+
 interface StreakInput {
   habit: LocalHabit;
   completed: Set<number>;
@@ -188,8 +256,31 @@ function weeklyProgress(habit: LocalHabit, logs: Map<LocalDateString, LocalLog>,
 }
 
 /** The full API `Habit` DTO (today, stats, pausedToday, startDate, routineId, reminderChannels, days, timesPerDay, …). */
-export function habitView(data: LocalData, habitId: number, today: LocalDateString): Habit {
+export function habitView(data: LocalData, habitId: number, today: LocalDateString): AnyHabit {
   const habit = findHabit(data, habitId);
+  if (isLocalLetGo(habit)) {
+    const start = habitStartDate(habit, data.profile.timezone);
+    return {
+      kind: 'letGo',
+      id: habit.id,
+      name: habit.name,
+      frequency: 'daily',
+      weeklyTarget: null,
+      reminderTime: habit.reminderTime,
+      reminderTimes: reminderTimesOf(habit),
+      pausedFrom: habit.pausedFrom,
+      pausedUntil: habit.pausedUntil,
+      pausedToday: isPausedOn(habit, today),
+      createdAt: habit.createdAt,
+      startDate: start,
+      today: letGoDayOn(habit, today, start, slipsOf(data, habitId).get(today)),
+      stats: letGoStats(data, habitId, today),
+      reminderChannels: habit.reminderChannels,
+      days: null,
+      timesPerDay: 1,
+      routineId: null,
+    };
+  }
   const logs = logsOf(data, habitId);
   const lowDays = new Set(data.lowDays);
   const start = habitStartDate(habit, data.profile.timezone);
@@ -204,6 +295,7 @@ export function habitView(data: LocalData, habitId: number, today: LocalDateStri
     stats = { streak, graceUsed, bestStreak: bestStreak(input, todayNumber), last7, week: null };
   }
   return {
+    kind: 'build',
     id: habit.id,
     name: habit.name,
     frequency: habit.frequency,
@@ -228,7 +320,9 @@ export function habitView(data: LocalData, habitId: number, today: LocalDateStri
 export function dayStats(data: LocalData, from: LocalDateString, to: LocalDateString, _today: LocalDateString): DayStat[] {
   const logs = new Map<string, LocalLog>();
   for (const log of data.logs) if (log.date >= from && log.date <= to) logs.set(`${log.habitId}|${log.date}`, log);
-  const habits = data.habits.map((habit) => ({ habit, start: habitStartDate(habit, data.profile.timezone) }));
+  const habits = data.habits
+    .filter((habit) => !isLocalLetGo(habit))
+    .map((habit) => ({ habit, start: habitStartDate(habit, data.profile.timezone) }));
   const result: DayStat[] = [];
   for (let date = from; date <= to; date = addDays(date, 1)) {
     let scheduled = 0;
@@ -284,7 +378,8 @@ export function weeklySummary(data: LocalData, today: LocalDateString): WeeklySt
   const from = addDays(weekEnd, -6);
   const lowDays = new Set(data.lowDays);
   const todayNumber = dayNumber(today);
-  const habits = [...data.habits]
+  const habits = data.habits
+    .filter((habit) => !isLocalLetGo(habit))
     .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
     .map((habit) => {
       const logs = logsOf(data, habit.id);

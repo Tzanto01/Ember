@@ -284,5 +284,17 @@ describe('DeviceSync', () => {
       expect(paths).toEqual(['/today?habit=1', '/today', '/today']);
       expect(fetch.all.filter((call) => call.method !== 'GET')).toEqual([]);
     });
+
+    it("opens the habit's History on a tap on a let-go check-in, writing nothing", async () => {
+      const { fetch, paths } = await setup();
+
+      native.listeners.get('localNotificationActionPerformed')?.({
+        actionId: 'tap',
+        notification: { id: 1, extra: { ...today, habitId: 9, letGo: true } },
+      });
+
+      await vi.waitFor(() => expect(paths).toEqual(['/history/9']));
+      expect(fetch.all.filter((call) => call.method !== 'GET')).toEqual([]);
+    });
   });
 });

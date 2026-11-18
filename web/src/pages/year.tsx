@@ -25,7 +25,7 @@ import {
 } from '@/components/year/year-data';
 import { YearHeatmap, YearLegend } from '@/components/year/year-heatmap';
 import { formatDate } from '@/lib/local-date';
-import type { DayEntry, DayStat, Habit, LocalDateString } from '@/lib/models';
+import { buildHabits, type DayEntry, type DayStat, type Habit, type LocalDateString } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth } from '@/lib/services';
@@ -35,7 +35,7 @@ const longDate: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', 
 
 async function loadHabits(): Promise<Habit[]> {
   await loadFreshMe().catch(() => null);
-  return api.listHabits();
+  return buildHabits(await api.listHabits());
 }
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);

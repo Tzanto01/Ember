@@ -37,6 +37,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 
     internal static string FrequencyLabel(Texts t, Habit h)
     {
+        if (h.Kind == HabitKind.LetGo) return t.Get("habit.letgo.label");
         var times = h.TimesPerDay > 1 ? " · " + t.Format("habit.freq.per-day", h.TimesPerDay) : "";
         return h.FrequencyType switch
         {
@@ -59,6 +60,25 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             : "⬜";
     }
 
+    /// <summary>"{n} days free" of a let-go habit.</summary>
+    internal static string DaysFreeText(Texts t, int daysFree) => t.Plural("habit.letgo.days-free", daysFree);
+
+    /// <summary>The gentle line after "I slipped": the longest stretch so far, or a new start while there was none.</summary>
+    internal static string SlipNotedText(Texts t, int longestStretch)
+        => longestStretch == 0 ? t.Get("habit.letgo.noted.first") : t.Plural("habit.letgo.noted", longestStretch);
+
+    /// <summary>The reply wherever Discord would create or edit a let-go habit: that happens on the web or in the app.</summary>
+    internal static string LetGoWebOnlyText(Texts t) => t.Get("habit.letgo.web-only");
+
+    /// <summary>A let-go day's soft mark: 🌿 free, 🍂 a slip noted, ⏸️ paused, ▫️ before the start.</summary>
+    internal static string LetGoMark(LetGoDayState state) => state switch
+    {
+        LetGoDayState.Free    => "🌿",
+        LetGoDayState.Slipped => "🍂",
+        LetGoDayState.Paused  => "⏸️",
+        _                     => "▫️",
+    };
+
     /// <summary>
     /// The reply after a check-in that added one: <paramref name="doneText"/> once the day is done (with the count for
     /// multi-count habits), else the count so far, for today or for <paramref name="dayLabel"/>.
@@ -79,7 +99,9 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         Texts t,
         IReadOnlyList<Habit> habits,
         string action,
-        string placeholder)
+        string placeholder,
+        DateOnly today = default,
+        TimeZoneInfo? tz = null)
     {
         var menu = new SelectMenuBuilder()
             .WithCustomId($"habit:select:{action}")
@@ -92,11 +114,18 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             var label = h.Name.Length > SelectMenuOptionBuilder.MaxSelectLabelLength
                 ? h.Name[..SelectMenuOptionBuilder.MaxSelectLabelLength]
                 : h.Name;
-            menu.AddOption(label, h.Id.ToString(), FrequencyLabel(t, h));
+            menu.AddOption(label, h.Id.ToString(), h.Kind == HabitKind.LetGo && tz is not null
+                ? DaysFreeText(t, HabitService.LetGoStatsOn(h, today, tz).DaysFree)
+                : FrequencyLabel(t, h));
         }
 
         return menu;
     }
+
+    /// <summary><see cref="BuildHabitSelectMenu"/> for the user of this interaction, with days free on let-go habits.</summary>
+    private async Task<SelectMenuBuilder> HabitMenuAsync(Texts t, IReadOnlyList<Habit> habits, string action, string placeholder)
+        => BuildHabitSelectMenu(t, habits, action, placeholder,
+            await _habits.GetLocalTodayAsync(Context.User.Id), await _habits.GetUserTzAsync(Context.User.Id));
 
     // ── /habit add ────────────────────────────────────────────────────────────
 
@@ -190,7 +219,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 
             foreach (var h in slice)
             {
-                var todayMark    = DayMark(h, today);
+                var todayMark    = h.Kind == HabitKind.LetGo ? LetGoMark(HabitService.LetGoDayOn(h, today, tz).State) : DayMark(h, today);
                 var reminderStr  = FormatReminder(t, h.ReminderTimes);
                 var pauseStr     = h.PausedUntil.HasValue && h.PausedUntil >= today
                     ? " · " + t.Format("habit.list.paused", h.PausedUntil.Value.ToString(t.Get("date.month-day"), t.Culture)) : "";
@@ -204,12 +233,28 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             }
 
             embed.WithFooter(t.Get("habit.list.footer"));
+            var slips = SlipButtons(t, slice);
 
             if (page == 0)
-                await RespondAsync(embed: embed.Build(), ephemeral: true);
+                await RespondAsync(embed: embed.Build(), components: slips, ephemeral: true);
             else
-                await FollowupAsync(embed: embed.Build(), ephemeral: true);
+                await FollowupAsync(embed: embed.Build(), components: slips, ephemeral: true);
         }
+    }
+
+    /// <summary>One "I slipped: {name}" button per let-go habit in <paramref name="habits"/> (<c>letgo:slip:{habitId}</c>), null without any.</summary>
+    internal static MessageComponent? SlipButtons(Texts t, IReadOnlyList<Habit> habits)
+    {
+        var letGo = habits.Where(h => h.Kind == HabitKind.LetGo).Take(25).ToList();
+        if (letGo.Count == 0) return null;
+        var builder = new ComponentBuilder();
+        for (var i = 0; i < letGo.Count; i++)
+        {
+            var label = t.Format("habit.letgo.slip-button.named", letGo[i].Name);
+            if (label.Length > ButtonBuilder.MaxButtonLabelLength) label = label[..(ButtonBuilder.MaxButtonLabelLength - 1)] + "…";
+            builder.WithButton(label, $"letgo:slip:{letGo[i].Id}", ButtonStyle.Secondary, row: i / 5);
+        }
+        return builder.Build();
     }
 
     // ── /habit checkin ────────────────────────────────────────────────────────
@@ -227,7 +272,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = BuildHabitSelectMenu(t, habits, "checkin", t.Get("habit.checkin.placeholder"));
+        var menu = await HabitMenuAsync(t, habits, "checkin", t.Get("habit.checkin.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.checkin.prompt"), components: components, ephemeral: true);
     }
@@ -247,7 +292,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = BuildHabitSelectMenu(t, habits, "history", t.Get("habit.history.placeholder"));
+        var menu = await HabitMenuAsync(t, habits, "history", t.Get("habit.history.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.history.prompt"), components: components, ephemeral: true);
     }
@@ -303,7 +348,12 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             foreach (var h in slice)
             {
                 string statsText;
-                if (h.FrequencyType == FrequencyType.Weekly)
+                if (h.Kind == HabitKind.LetGo)
+                {
+                    var stats = HabitService.LetGoStatsOn(h, today, tz);
+                    statsText = t.Format("habit.letgo.stats", stats.DaysFree, stats.LongestStretch, stats.FreeDaysThisMonth);
+                }
+                else if (h.FrequencyType == FrequencyType.Weekly)
                 {
                     var (done, target) = HabitService.WeeklyProgress(h, today);
                     var total  = h.Logs.Count(l => l.Completed);
@@ -328,7 +378,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
                 }
 
                 embed.AddField(
-                    $"🔥 {h.Name} _({FrequencyLabel(t, h)})_",
+                    $"{(h.Kind == HabitKind.LetGo ? "🌿" : "🔥")} {h.Name} _({FrequencyLabel(t, h)})_",
                     statsText,
                     inline: true);
             }
@@ -343,6 +393,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     /// <summary>The <c>/habit list</c> progress line of <paramref name="h"/>; without <paramref name="showStreaks"/> it has no streak.</summary>
     internal static string ListProgress(Texts t, Habit h, DateOnly today, int grace, IReadOnlySet<DateOnly> lowDays, TimeZoneInfo tz, bool showStreaks)
     {
+        if (h.Kind == HabitKind.LetGo) return DaysFreeText(t, HabitService.LetGoStatsOn(h, today, tz).DaysFree);
         if (h.FrequencyType == FrequencyType.Weekly)
         {
             var (done, target) = HabitService.WeeklyProgress(h, today);
@@ -371,7 +422,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = BuildHabitSelectMenu(t, habits, "share", t.Get("habit.share.prompt"));
+        var menu = await HabitMenuAsync(t, habits, "share", t.Get("habit.share.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.share.prompt"), components: components, ephemeral: true);
     }
@@ -391,7 +442,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = BuildHabitSelectMenu(t, habits, "delete", t.Get("habit.delete.placeholder"));
+        var menu = await HabitMenuAsync(t, habits, "delete", t.Get("habit.delete.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.delete.prompt"), components: components, ephemeral: true);
     }
@@ -411,7 +462,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = BuildHabitSelectMenu(t, habits, "edit", t.Get("habit.edit.prompt"));
+        var menu = await HabitMenuAsync(t, habits, "edit", t.Get("habit.edit.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.edit.prompt"), components: components, ephemeral: true);
     }
@@ -431,7 +482,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = BuildHabitSelectMenu(t, habits, "frequency", t.Get("habit.frequency.placeholder"));
+        var menu = await HabitMenuAsync(t, habits, "frequency", t.Get("habit.frequency.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.frequency.prompt"), components: components, ephemeral: true);
     }
@@ -451,7 +502,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = BuildHabitSelectMenu(t, habits, "pause", t.Get("habit.pause.prompt"));
+        var menu = await HabitMenuAsync(t, habits, "pause", t.Get("habit.pause.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.pause.prompt"), components: components, ephemeral: true);
     }

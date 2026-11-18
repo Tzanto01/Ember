@@ -14,4 +14,7 @@ public enum ReminderActionResult
 
     /// <summary>The user hasn't agreed to the current health-data consent; the token stays unused.</summary>
     ConsentRequired,
+
+    /// <summary>The token's habit is a let-go habit, which takes no check-ins; the token stays unused.</summary>
+    LetGoHabit,
 }

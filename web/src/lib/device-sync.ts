@@ -127,7 +127,8 @@ export class DeviceSync {
     const me = this.auth.me.get() ?? (await this.auth.loadMe().catch(() => null));
     const name = me && extra ? await this.reminders?.checkIn(me.id, me.timezone, extra, this.queue) : null;
     const habitId = me && tapped ? checkInTarget(tapped, me.id)?.habitId : undefined;
-    navigate(habitId ? `/today?habit=${habitId}` : '/today');
+    const letGo = !!habitId && (tapped as { letGo?: unknown }).letGo === true;
+    navigate(letGo ? `/history/${habitId}` : habitId ? `/today?habit=${habitId}` : '/today');
     if (name) this.nativeCheckIn.set({ name });
   }
 }

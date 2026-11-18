@@ -32,6 +32,21 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
         var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
 
+        if (habit.Kind == HabitKind.LetGo)
+        {
+            var daysFree = HabitService.LetGoStatsOn(habit, await _habits.GetLocalTodayAsync(Context.User.Id),
+                await _habits.GetUserTzAsync(Context.User.Id)).DaysFree;
+            await ((SocketMessageComponent)Context.Interaction)
+                .UpdateAsync(m =>
+                {
+                    m.Content    = t.Format("habit.letgo.question", habit.Name, HabitModule.DaysFreeText(t, daysFree));
+                    m.Components = new ComponentBuilder()
+                        .WithButton(t.Get("habit.letgo.slip-button"), $"habitaction:slip:{habitId}", ButtonStyle.Secondary)
+                        .Build();
+                });
+            return;
+        }
+
         var components = new ComponentBuilder()
             .WithButton(t.Get("habit.checkin.done-button"), $"habitaction:checkin:done:{habitId}", ButtonStyle.Success)
             .WithButton(Ember.Bot.Services.DiscordDmReminderChannel.SkipLabel(t), $"habitaction:checkin:skip:{habitId}", ButtonStyle.Secondary)
@@ -63,7 +78,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         var today = await _habits.GetLocalTodayAsync(Context.User.Id);
         var embed = BuildShareEmbed(t, habit, grace, Context.User.Username, today, await _habits.GetLowDaysAsync(Context.User.Id),
-            await _habits.GetShowStreaksAsync(Context.User.Id));
+            await _habits.GetShowStreaksAsync(Context.User.Id), await _habits.GetUserTzAsync(Context.User.Id));
         var component = (SocketMessageComponent)Context.Interaction;
 
         await component.DeferAsync();
@@ -119,6 +134,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
+        if (habit.Kind == HabitKind.LetGo) { await LetGoWebOnlyAsync(t); return; }
 
         var components = new ComponentBuilder()
             .WithButton(t.Get("habit.edit.rename"),          $"habitaction:edit:rename:{habitId}",   ButtonStyle.Primary, new Emoji("✏️"))
@@ -175,6 +191,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
+        if (habit.Kind == HabitKind.LetGo) { await LetGoWebOnlyAsync(t); return; }
 
         var components = FrequencyComponents(t, habitId);
 
@@ -208,9 +225,27 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     private async Task NotFoundAsync(Texts t) =>
         await RespondAsync(t.Get("common.not-found"), ephemeral: true);
 
+    private async Task LetGoWebOnlyAsync(Texts t) =>
+        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+        {
+            m.Content    = HabitModule.LetGoWebOnlyText(t);
+            m.Components = new ComponentBuilder().Build();
+        });
+
     private static EmbedBuilder BuildShareEmbedBase(Texts t, Habit habit, int grace, string username, DateOnly today, IReadOnlySet<DateOnly> lowDays,
-        bool showStreaks)
+        bool showStreaks, TimeZoneInfo? tz)
     {
+        if (habit.Kind == HabitKind.LetGo)
+        {
+            var stats = HabitService.LetGoStatsOn(habit, today, tz ?? TimeZoneInfo.Utc);
+            return new EmbedBuilder()
+                .WithColor(0xE8873A)
+                .WithTitle($"🌿 {habit.Name} _({HabitModule.FrequencyLabel(t, habit)})_")
+                .WithDescription($"**{HabitModule.DaysFreeText(t, stats.DaysFree)}**\n\n{t.Format("habit.letgo.share.stats", stats.LongestStretch, stats.FreeDaysThisMonth)}")
+                .WithFooter(t.Format("habit.share.footer", username))
+                .WithTimestamp(DateTimeOffset.UtcNow);
+        }
+
         var from  = today.AddDays(-29);
 
         var completed = habit.Logs
@@ -269,7 +304,8 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             .WithTimestamp(DateTimeOffset.UtcNow);
     }
 
+    /// <summary>The public share card; a let-go habit's card shows days free, longest stretch and free days this month in <paramref name="tz"/> (UTC when null), never a streak.</summary>
     internal static Embed BuildShareEmbed(Texts t, Habit habit, int grace, string username, DateOnly today, IReadOnlySet<DateOnly> lowDays,
-        bool showStreaks) =>
-        BuildShareEmbedBase(t, habit, grace, username, today, lowDays, showStreaks).Build();
+        bool showStreaks, TimeZoneInfo? tz = null) =>
+        BuildShareEmbedBase(t, habit, grace, username, today, lowDays, showStreaks, tz).Build();
 }

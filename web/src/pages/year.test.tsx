@@ -1,11 +1,11 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeJournal, renderWithJournal } from '@/components/journal/fake-journal';
 import { addDays } from '@/lib/local-date';
-import type { DayStat } from '@/lib/models';
+import type { AnyHabit, DayStat } from '@/lib/models';
 import { auth } from '@/lib/services';
-import { type FetchMock, habit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/lib/test-support';
 import YearPage from './year';
 
 const localToday = '2026-11-04';
@@ -15,7 +15,7 @@ function stat(date: string, showedUp: boolean, done = showedUp ? 1 : 0, schedule
   return { date, scheduled, done, partial: 0, showedUp };
 }
 
-async function answerStats(f: FetchMock, stats: DayStat[], habits = [habit]) {
+async function answerStats(f: FetchMock, stats: DayStat[], habits: AnyHabit[] = [habit]) {
   (await f.next('GET', '/api/me')).respond(200, { ...me, localToday });
   (await f.next('GET', '/api/habits')).respond(200, habits);
   (await f.next('GET', `/api/stats/days?from=${yearFrom}&to=${localToday}`)).respond(200, stats);
@@ -102,6 +102,17 @@ describe('YearPage', { timeout: 15_000 }, () => {
     await waitFor(() => expect(screen.getByText('You showed up 1 of the last 30 days.')).toBeInTheDocument());
     expect(document.querySelector('button[data-date="2026-09-30"]')).toBeNull();
     expect(document.querySelector('button[data-date="2026-10-01"]')).not.toBeNull();
+  });
+
+  it('leaves let-go habits out of the habit picker', async () => {
+    renderWithJournal(<YearPage />, fakeJournal());
+    const read = { ...habit, id: 2, name: 'Read' };
+    await answerStats(f, [stat('2026-11-03', false)], [habit, letGoHabit, read]);
+    await dayButton('no check-ins');
+
+    const options = within(screen.getByRole('combobox', { name: 'Show' })).getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual(expect.arrayContaining(['Walk', 'Read']));
+    expect(options.map((o) => o.textContent)).not.toContain('Coffee');
   });
 
   it('closes the open day with Escape and returns focus to its cell', async () => {

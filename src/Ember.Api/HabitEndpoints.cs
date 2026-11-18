@@ -12,19 +12,24 @@ internal static class HabitEndpoints
     public sealed record DayDto(DateOnly Date, string State, bool? Completed, int Count);
     public sealed record WeekDto(int Done, int Target);
     public sealed record StatsDto(int? Streak, int? GraceUsed, int? BestStreak, int Last7, WeekDto? Week);
+    public sealed record LetGoDayDto(DateOnly Date, string State, int Slips);
+    public sealed record LetGoStatsDto(int DaysFree, int LongestStretch, int FreeDaysThisMonth, int SlipDaysLast30);
+    public sealed record SlipDto(DateOnly Date, int Count, List<string> Reasons);
 
+    /// <summary>A habit. <c>Today</c> is a <see cref="DayDto"/> and <c>Stats</c> a <see cref="StatsDto"/> for a build habit, a <see cref="LetGoDayDto"/> and a <see cref="LetGoStatsDto"/> for a let-go habit.</summary>
     public sealed record HabitDto(
         int Id, string Name, string Frequency, int? WeeklyTarget, string? ReminderTime,
         DateOnly? PausedFrom, DateOnly? PausedUntil, bool PausedToday, DateTime CreatedAt, DateOnly StartDate,
-        DayDto Today, StatsDto Stats, List<string> ReminderChannels, List<string>? Days, int TimesPerDay, int? RoutineId,
-        List<string> ReminderTimes, List<string> ReminderExclusions, bool ServerReminders);
+        object Today, object Stats, List<string> ReminderChannels, List<string>? Days, int TimesPerDay, int? RoutineId,
+        List<string> ReminderTimes, List<string> ReminderExclusions, bool ServerReminders, string Kind);
 
     public sealed record TemplateDto(string Key, string Name, string Description, string SuggestedReminderTime, string Frequency, int? WeeklyTarget);
 
     public sealed record CreateHabitRequest(string? Name, string? ReminderTime, string? Frequency, int? WeeklyTarget,
-        string?[]? Days, int? TimesPerDay, string?[]? ReminderTimes, string?[]? ReminderExclusions);
+        string?[]? Days, int? TimesPerDay, string?[]? ReminderTimes, string?[]? ReminderExclusions, string? Kind);
     public sealed record UpdateHabitRequest(string? Name, string? ReminderTime, bool? ClearReminder, string? Frequency, int? WeeklyTarget,
-        string?[]? ReminderExclusions, string?[]? Days, int? TimesPerDay, string?[]? ReminderTimes);
+        string?[]? ReminderExclusions, string?[]? Days, int? TimesPerDay, string?[]? ReminderTimes, string? Kind);
+    public sealed record SlipRequest(string? Date, string? Reason);
     public sealed record PauseRequest(string? Until);
     public sealed record DayRequest(bool? Completed, int? Count);
 
@@ -55,6 +60,10 @@ internal static class HabitEndpoints
             var days = ValidateDays(request.Days, frequency, null, errors);
             var timesPerDay = ValidateTimesPerDay(request.TimesPerDay ?? 1, frequency, errors);
             var reminderTimes = ParseReminderTimes(request.ReminderTimes, timesPerDay, errors);
+            var kind = ParseKind(request.Kind);
+            if (kind is null) errors["kind"] = [KindMessage];
+            else if (kind == HabitKind.LetGo)
+                ValidateLetGo(frequency, request.TimesPerDay, request.WeeklyTarget, request.Days, request.ReminderTimes?.Length, errors);
             var userId = principal.UserId();
             var exclusions = await ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
@@ -63,7 +72,7 @@ internal static class HabitEndpoints
             try
             {
                 habit = await habits.AddHabitAsync(userId, name!, reminder, frequency!.Value, request.WeeklyTarget,
-                    exclusions, days, timesPerDay, reminderTimes);
+                    exclusions, days, timesPerDay, reminderTimes, kind!.Value);
             }
             catch (ConsentRequiredException)
             {
@@ -98,6 +107,9 @@ internal static class HabitEndpoints
             var timesPerDay = ValidateTimesPerDay(
                 request.TimesPerDay ?? (newFrequency == FrequencyType.Weekly ? 1 : habit.TimesPerDay), newFrequency, errors);
             var reminderTimes = ParseReminderTimes(request.ReminderTimes, timesPerDay, errors);
+            if (request.Kind is not null && ParseKind(request.Kind) != habit.Kind) errors["kind"] = ["Can't be changed."];
+            if (habit.Kind == HabitKind.LetGo)
+                ValidateLetGo(frequency, request.TimesPerDay, request.WeeklyTarget, request.Days, request.ReminderTimes?.Length, errors);
             var exclusions = await ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
@@ -131,17 +143,10 @@ internal static class HabitEndpoints
         api.MapGet("/habits/{id:int}/days", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits) =>
         {
             var userId = principal.UserId();
-            var today = await habits.GetLocalTodayAsync(userId);
-            var errors = new Dictionary<string, string[]>();
-            var end = Formats.DateOr(to, today, "to", errors);
-            var start = Formats.DateOr(from, Formats.DaysBefore(end, 13), "from", errors);
-            if (errors.Count == 0)
-            {
-                if (end > today) errors["to"] = ["Can't be after today."];
-                else if (start > end) errors["from"] = ["Can't be after to."];
-                else if (end.DayNumber - start.DayNumber + 1 > MaxDaysPerRequest) errors["from"] = [$"At most {MaxDaysPerRequest} days per request."];
-            }
+            var (start, end, errors) = DayRange(from, to, await habits.GetLocalTodayAsync(userId));
             if (errors.Count > 0) return Problems.Validation(errors);
+            if ((await habits.GetHabitKindsAsync(userId)).GetValueOrDefault(id) == HabitKind.LetGo)
+                return Problems.DayEdit(DayEditResult.LetGoHabit)!;
 
             var days = await habits.GetHabitDaysAsync(userId, id, start, end);
             return days is null ? Problems.NotFound() : Results.Ok(days.Select(ToDayDto).ToList());
@@ -175,6 +180,36 @@ internal static class HabitEndpoints
                 ?? await HabitResult(habits, userId, id);
         });
 
+        api.MapGet("/habits/{id:int}/slips", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits) =>
+        {
+            var userId = principal.UserId();
+            var (start, end, errors) = DayRange(from, to, await habits.GetLocalTodayAsync(userId));
+            if (errors.Count > 0) return Problems.Validation(errors);
+
+            var slips = await habits.GetSlipsAsync(userId, id, start, end);
+            return slips is null ? Problems.NotFound() : Results.Ok(slips.Select(s => new SlipDto(s.Date, s.Count, s.Reasons)).ToList());
+        });
+
+        api.MapPost("/habits/{id:int}/slips", async (int id, SlipRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        {
+            var errors = new Dictionary<string, string[]>();
+            if (!Formats.TryParseDate(request.Date, out var day)) errors["date"] = [Formats.DateMessage];
+            if (request.Reason is not null && !HabitSlip.ReasonIds.Contains(request.Reason))
+                errors["reason"] = [$"Must be one of {string.Join(", ", HabitSlip.ReasonIds)}."];
+            if (errors.Count > 0) return Problems.Validation(errors);
+
+            var userId = principal.UserId();
+            return SlipProblem(await habits.AddSlipAsync(userId, id, day, request.Reason)) ?? await HabitResult(habits, userId, id);
+        });
+
+        api.MapDelete("/habits/{id:int}/slips/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits) =>
+        {
+            if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
+
+            var userId = principal.UserId();
+            return SlipProblem(await habits.RemoveSlipsAsync(userId, id, day)) ?? await HabitResult(habits, userId, id);
+        });
+
         return api;
     }
 
@@ -190,6 +225,33 @@ internal static class HabitEndpoints
 
     internal const string FrequencyMessage = "Must be daily, weekly or weekdays.";
 
+    internal const string KindMessage = "Must be build or letGo.";
+
+    /// <summary>The <c>from</c>/<c>to</c> range of a per-day read: <c>to</c> defaults to today and can't be after it, <c>from</c> defaults to 13 days before <c>to</c>, at most <see cref="MaxDaysPerRequest"/> days.</summary>
+    private static (DateOnly Start, DateOnly End, Dictionary<string, string[]> Errors) DayRange(string? from, string? to, DateOnly today)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var end = Formats.DateOr(to, today, "to", errors);
+        var start = Formats.DateOr(from, Formats.DaysBefore(end, 13), "from", errors);
+        if (errors.Count == 0)
+        {
+            if (end > today) errors["to"] = ["Can't be after today."];
+            else if (start > end) errors["from"] = ["Can't be after to."];
+            else if (end.DayNumber - start.DayNumber + 1 > MaxDaysPerRequest) errors["from"] = [$"At most {MaxDaysPerRequest} days per request."];
+        }
+        return (start, end, errors);
+    }
+
+    private static IResult? SlipProblem(SlipResult result) => result switch
+    {
+        SlipResult.Saved => null,
+        SlipResult.HabitNotFound => Problems.NotFound(),
+        SlipResult.NotLetGo => Problems.Validation("kind", "Only for let-go habits."),
+        SlipResult.InFuture => Problems.Validation("date", "Can't be after today."),
+        SlipResult.BeforeHabitStart => Problems.Validation("date", "Can't be before the habit's start."),
+        _ => throw new ArgumentOutOfRangeException(nameof(result), result, null),
+    };
+
     private static async Task<IResult> HabitResult(HabitService habits, Guid userId, int id)
         => await habits.GetHabitAsync(userId, id) is { } habit
             ? Results.Ok(ToDto(habit, await LoadUserDays(habits, userId)))
@@ -204,8 +266,20 @@ internal static class HabitEndpoints
 
     private static HabitDto ToDto(Habit habit, UserDays user)
     {
-        var s = HabitService.StatsOn(habit, user.Today, user.GraceDays, user.LowDays, user.Tz);
-        var stats = new StatsDto(s.Streak, s.GraceUsed, s.BestStreak, s.Last7, s.Week is { } week ? new WeekDto(week.Done, week.Target) : null);
+        object today, stats;
+        if (habit.Kind == HabitKind.LetGo)
+        {
+            var day = HabitService.LetGoDayOn(habit, user.Today, user.Tz);
+            var l = HabitService.LetGoStatsOn(habit, user.Today, user.Tz);
+            today = new LetGoDayDto(day.Date, Lower(day.State), day.Slips);
+            stats = new LetGoStatsDto(l.DaysFree, l.LongestStretch, l.FreeDaysThisMonth, l.SlipDaysLast30);
+        }
+        else
+        {
+            var s = HabitService.StatsOn(habit, user.Today, user.GraceDays, user.LowDays, user.Tz);
+            today = ToDayDto(HabitService.DayOn(habit, user.Today, user.Today, user.Tz, user.LowDays));
+            stats = new StatsDto(s.Streak, s.GraceUsed, s.BestStreak, s.Last7, s.Week is { } week ? new WeekDto(week.Done, week.Target) : null);
+        }
         var targets = ReminderDestinations.Resolve(user.Destinations, habit.ReminderExclusions);
 
         return new HabitDto(
@@ -213,11 +287,12 @@ internal static class HabitEndpoints
             habit.ReminderTime is { } time ? Formats.Time(time) : null,
             habit.PausedFrom, habit.PausedUntil, HabitService.IsPausedOn(habit, user.Today),
             DateTime.SpecifyKind(habit.CreatedAt, DateTimeKind.Utc), HabitService.StartDate(habit, user.Tz),
-            ToDayDto(HabitService.DayOn(habit, user.Today, user.Today, user.Tz, user.LowDays)), stats,
+            today, stats,
             ReminderDestinations.LegacyChannels(targets),
             habit.FrequencyType == FrequencyType.Weekdays && habit.Days is { } days ? ScheduleDayNames.ToNames(days) : null,
             habit.TimesPerDay, habit.RoutineId, habit.ReminderTimes.Select(Formats.Time).ToList(),
-            habit.ReminderExclusions.Where(user.DestinationIds.Contains).ToList(), targets.Any);
+            habit.ReminderExclusions.Where(user.DestinationIds.Contains).ToList(), targets.Any,
+            habit.Kind == HabitKind.LetGo ? "letGo" : "build");
     }
 
     private static DayDto ToDayDto(HabitDay day) => new(day.Date, Lower(day.State), day.Completed, day.Count);
@@ -277,6 +352,28 @@ internal static class HabitEndpoints
         if (values.All(v => v is not null && ids.Contains(v))) return values.Select(v => v!).Distinct().ToList();
         errors["reminderExclusions"] = ["Each must be the id of one of your reminder destinations."];
         return null;
+    }
+
+    /// <summary>The habit kind of a request's <c>kind</c>: <c>build</c> (also when missing) or <c>letGo</c>; null when unknown.</summary>
+    internal static HabitKind? ParseKind(string? value) => value switch
+    {
+        null or "build" => HabitKind.Build,
+        "letGo" => HabitKind.LetGo,
+        _ => null,
+    };
+
+    /// <summary>
+    /// The let-go constraints: daily, <paramref name="timesPerDay"/> 1 when given, no <paramref name="weeklyTarget"/> or
+    /// <paramref name="days"/>, at most one of <paramref name="reminderTimes"/>. Each violation replaces the field's error.
+    /// </summary>
+    internal static void ValidateLetGo(FrequencyType? frequency, int? timesPerDay, int? weeklyTarget, string?[]? days, int? reminderTimes,
+        Dictionary<string, string[]> errors)
+    {
+        if (frequency is not null and not FrequencyType.Daily) errors["frequency"] = ["Let-go habits are daily."];
+        if (timesPerDay is not null and not 1) errors["timesPerDay"] = ["Always 1 for let-go habits."];
+        if (weeklyTarget is not null) errors["weeklyTarget"] = ["Not for let-go habits."];
+        if (days is not null) errors["days"] = ["Not for let-go habits."];
+        if (reminderTimes > 1) errors["reminderTimes"] = ["At most one for let-go habits."];
     }
 
     internal static FrequencyType? ParseFrequency(string? value) => value switch

@@ -1,0 +1,746 @@
+{
+  "version": 1,
+  "about": "Let-go habit rules (API v1.21) shared by Core and the no-account client. Days run from `from` through `today` (user-local, timezone UTC, the habit's start day is startDate). State precedence: beforestart, slipped, paused, free. daysFree counts free days after the last slip (or from the start) through today, skipping paused days; longestStretch is the longest such run ever; freeDaysThisMonth counts free days of today's calendar month; slipDaysLast30 counts slipped days in the 30 days ending today.",
+  "cases": [
+    {
+      "name": "fresh habit without slips counts every day so far, today included",
+      "today": "2027-03-14",
+      "from": "2027-03-10",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-03-10",
+        "pausedFrom": null,
+        "pausedUntil": null,
+        "slips": []
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 5,
+          "longestStretch": 5,
+          "freeDaysThisMonth": 5,
+          "slipDaysLast30": 0
+        },
+        "today": {
+          "date": "2027-03-14",
+          "state": "free",
+          "slips": 0
+        },
+        "days": [
+          {
+            "date": "2027-03-10",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-11",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-12",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-13",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-14",
+            "state": "free",
+            "slips": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "a slip resets days free but keeps the longest stretch; month and 30-day window",
+      "today": "2027-03-14",
+      "from": "2027-02-18",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-02-20",
+        "pausedFrom": null,
+        "pausedUntil": null,
+        "slips": [
+          {
+            "date": "2027-02-25",
+            "count": 2,
+            "reasons": [
+              "stressed"
+            ]
+          },
+          {
+            "date": "2027-03-05",
+            "count": 1,
+            "reasons": []
+          }
+        ]
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 9,
+          "longestStretch": 9,
+          "freeDaysThisMonth": 13,
+          "slipDaysLast30": 2
+        },
+        "today": {
+          "date": "2027-03-14",
+          "state": "free",
+          "slips": 0
+        },
+        "days": [
+          {
+            "date": "2027-02-18",
+            "state": "beforestart",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-19",
+            "state": "beforestart",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-20",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-21",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-22",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-23",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-24",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-25",
+            "state": "slipped",
+            "slips": 2
+          },
+          {
+            "date": "2027-02-26",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-27",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-02-28",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-01",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-02",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-03",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-04",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-05",
+            "state": "slipped",
+            "slips": 1
+          },
+          {
+            "date": "2027-03-06",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-07",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-08",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-09",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-10",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-11",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-12",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-13",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-14",
+            "state": "free",
+            "slips": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "slipped today; a pause neither breaks nor extends a stretch",
+      "today": "2027-03-14",
+      "from": "2027-03-01",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-03-01",
+        "pausedFrom": "2027-03-04",
+        "pausedUntil": "2027-03-06",
+        "slips": [
+          {
+            "date": "2027-03-10",
+            "count": 1,
+            "reasons": [
+              "bored"
+            ]
+          },
+          {
+            "date": "2027-03-14",
+            "count": 3,
+            "reasons": [
+              "tired",
+              "lonely"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 0,
+          "longestStretch": 6,
+          "freeDaysThisMonth": 9,
+          "slipDaysLast30": 2
+        },
+        "today": {
+          "date": "2027-03-14",
+          "state": "slipped",
+          "slips": 3
+        },
+        "days": [
+          {
+            "date": "2027-03-01",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-02",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-03",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-04",
+            "state": "paused",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-05",
+            "state": "paused",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-06",
+            "state": "paused",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-07",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-08",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-09",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-10",
+            "state": "slipped",
+            "slips": 1
+          },
+          {
+            "date": "2027-03-11",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-12",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-13",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-14",
+            "state": "slipped",
+            "slips": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "paused today keeps days free from before the pause",
+      "today": "2027-03-14",
+      "from": "2027-03-01",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-03-01",
+        "pausedFrom": "2027-03-13",
+        "pausedUntil": "2027-03-20",
+        "slips": [
+          {
+            "date": "2027-03-08",
+            "count": 1,
+            "reasons": []
+          }
+        ]
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 4,
+          "longestStretch": 7,
+          "freeDaysThisMonth": 11,
+          "slipDaysLast30": 1
+        },
+        "today": {
+          "date": "2027-03-14",
+          "state": "paused",
+          "slips": 0
+        },
+        "days": [
+          {
+            "date": "2027-03-01",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-02",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-03",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-04",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-05",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-06",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-07",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-08",
+            "state": "slipped",
+            "slips": 1
+          },
+          {
+            "date": "2027-03-09",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-10",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-11",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-12",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-13",
+            "state": "paused",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-14",
+            "state": "paused",
+            "slips": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "a slip on a paused day still counts as a slip",
+      "today": "2027-03-05",
+      "from": "2027-03-01",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-03-01",
+        "pausedFrom": "2027-03-03",
+        "pausedUntil": "2027-03-03",
+        "slips": [
+          {
+            "date": "2027-03-03",
+            "count": 1,
+            "reasons": [
+              "aroundOthers"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 2,
+          "longestStretch": 2,
+          "freeDaysThisMonth": 4,
+          "slipDaysLast30": 1
+        },
+        "today": {
+          "date": "2027-03-05",
+          "state": "free",
+          "slips": 0
+        },
+        "days": [
+          {
+            "date": "2027-03-01",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-02",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-03",
+            "state": "slipped",
+            "slips": 1
+          },
+          {
+            "date": "2027-03-04",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-05",
+            "state": "free",
+            "slips": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "a pause without a start covers every day up to its end",
+      "today": "2027-03-05",
+      "from": "2027-03-01",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-03-01",
+        "pausedFrom": null,
+        "pausedUntil": "2027-03-02",
+        "slips": []
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 3,
+          "longestStretch": 3,
+          "freeDaysThisMonth": 3,
+          "slipDaysLast30": 0
+        },
+        "today": {
+          "date": "2027-03-05",
+          "state": "free",
+          "slips": 0
+        },
+        "days": [
+          {
+            "date": "2027-03-01",
+            "state": "paused",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-02",
+            "state": "paused",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-03",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-04",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-05",
+            "state": "free",
+            "slips": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "slips older than 30 days leave the 30-day count",
+      "today": "2027-03-31",
+      "from": "2027-03-01",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-01-15",
+        "pausedFrom": null,
+        "pausedUntil": null,
+        "slips": [
+          {
+            "date": "2027-03-01",
+            "count": 1,
+            "reasons": [
+              "other"
+            ]
+          },
+          {
+            "date": "2027-03-02",
+            "count": 1,
+            "reasons": []
+          }
+        ]
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 29,
+          "longestStretch": 45,
+          "freeDaysThisMonth": 29,
+          "slipDaysLast30": 1
+        },
+        "today": {
+          "date": "2027-03-31",
+          "state": "free",
+          "slips": 0
+        },
+        "days": [
+          {
+            "date": "2027-03-01",
+            "state": "slipped",
+            "slips": 1
+          },
+          {
+            "date": "2027-03-02",
+            "state": "slipped",
+            "slips": 1
+          },
+          {
+            "date": "2027-03-03",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-04",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-05",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-06",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-07",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-08",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-09",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-10",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-11",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-12",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-13",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-14",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-15",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-16",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-17",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-18",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-19",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-20",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-21",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-22",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-23",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-24",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-25",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-26",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-27",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-28",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-29",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-30",
+            "state": "free",
+            "slips": 0
+          },
+          {
+            "date": "2027-03-31",
+            "state": "free",
+            "slips": 0
+          }
+        ]
+      }
+    }
+  ]
+}

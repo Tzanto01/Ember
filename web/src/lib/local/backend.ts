@@ -12,6 +12,8 @@ import {
   type Routine,
   secondReminderChoices,
   type SecondReminderMinutes,
+  type SlipReason,
+  slipReasons,
   type TimeOfDay,
   type TipId,
   tipIds,
@@ -25,6 +27,7 @@ import {
   habitDays,
   habitStartDate,
   habitView,
+  isLocalLetGo,
   localToday,
   pause,
   retarget,
@@ -33,7 +36,7 @@ import {
 } from './rules';
 import type { LocalStore } from './store';
 import { habitTemplates } from './templates';
-import type { LocalData, LocalRoutine } from './types';
+import type { LocalData, LocalHabit, LocalRoutine } from './types';
 import { limits } from './limits';
 
 export { limits };
@@ -57,6 +60,8 @@ const invalid = (errors: Errors) => new Problem(400, 'validation', undefined, er
 const invalidField = (field: string, message: string) => invalid({ [field]: [message] });
 const notFound = () => new Problem(404, 'not_found');
 const dateMessage = 'Must be a date as yyyy-MM-dd.';
+const letGoOnly = 'Only for let-go habits.';
+const noCheckIns = 'Let-go habits record slips, not check-ins.';
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 const channelNames: readonly ReminderChannel[] = ['discord', 'webpush', 'mobile'];
 const themeIds: readonly string[] = themes.map((theme) => theme.id);
@@ -118,6 +123,7 @@ export function exportDocument(data: LocalData, journal = true): Record<string, 
     },
     habits: data.habits.map((h) => ({
       id: h.id,
+      kind: h.kind === 'letGo' ? 'let_go' : 'build',
       name: h.name,
       frequency: h.frequency,
       weekly_target: h.weeklyTarget,
@@ -141,6 +147,10 @@ export function exportDocument(data: LocalData, journal = true): Record<string, 
         completed: log.completed,
         count: Math.min(log.count, timesPerDay.get(log.habitId)!),
       })),
+    slips: (data.slips ?? [])
+      .filter((slip) => order.has(slip.habitId))
+      .sort((a, b) => order.get(a.habitId)! - order.get(b.habitId)! || a.date.localeCompare(b.date))
+      .map((slip) => ({ habit_id: slip.habitId, date: slip.date, count: slip.count, reasons: slip.reasons })),
     day_marks: [...data.lowDays].sort().map((date) => ({ date, kind: 'low_day' })),
     routines: data.routines.map((r) => ({
       id: r.id,
@@ -254,6 +264,19 @@ function timesPerDayField(value: unknown, frequency: Frequency | null, errors: E
   return times;
 }
 
+function given(value: unknown): boolean {
+  return value !== null && value !== undefined;
+}
+
+function letGoFields(b: Body, errors: Errors): void {
+  if (given(b['frequency']) && b['frequency'] !== 'daily') errors['frequency'] = ['Let-go habits are always daily.'];
+  if (given(b['timesPerDay']) && b['timesPerDay'] !== 1) errors['timesPerDay'] = ['Always 1 for let-go habits.'];
+  if (given(b['weeklyTarget'])) errors['weeklyTarget'] = ['Only for weekly habits.'];
+  if (given(b['days'])) errors['days'] = ['Only for weekdays habits.'];
+  if (Array.isArray(b['reminderTimes']) && new Set(b['reminderTimes']).size > 1)
+    errors['reminderTimes'] = ['At most 1 for let-go habits.'];
+}
+
 function habitIdsField(value: unknown, errors: Errors): number[] | null {
   if (value === null || value === undefined) return null;
   if (!Array.isArray(value) || !value.every((id) => Number.isInteger(id))) {
@@ -311,6 +334,8 @@ function routineDto(data: LocalData, routine: LocalRoutine): Routine {
 
 function setMembers(data: LocalData, routineId: number, habitIds: number[]): void {
   if (habitIds.some((id) => !data.habits.some((h) => h.id === id))) throw notFound();
+  if (data.habits.some((h) => isLocalLetGo(h) && habitIds.includes(h.id)))
+    throw invalidField('habitIds', "Let-go habits can't be part of a routine.");
   for (const habit of data.habits) {
     const position = habitIds.indexOf(habit.id);
     if (position >= 0) {
@@ -391,6 +416,9 @@ export class LocalBackend {
       ['DELETE', /^\/api\/habits\/(\d+)$/, (m) => this.deleteHabit(id(m))],
       ['POST', /^\/api\/habits\/(\d+)\/pause$/, (m, _q, b) => this.pauseHabit(id(m), bodyOf(b))],
       ['GET', /^\/api\/habits\/(\d+)\/days$/, (m, q) => this.habitDays(id(m), q)],
+      ['GET', /^\/api\/habits\/(\d+)\/slips$/, (m, q) => this.listSlips(id(m), q)],
+      ['POST', /^\/api\/habits\/(\d+)\/slips$/, (m, _q, b) => this.addSlip(id(m), bodyOf(b))],
+      ['DELETE', /^\/api\/habits\/(\d+)\/slips\/([^/]+)$/, (m) => this.clearSlips(id(m), date(m, 2))],
       ['PUT', /^\/api\/habits\/(\d+)\/days\/([^/]+)$/, (m, _q, b) => this.writeDay(id(m), date(m, 2), bodyOf(b))],
       ['DELETE', /^\/api\/habits\/(\d+)\/days\/([^/]+)$/, (m) => this.writeDay(id(m), date(m, 2), null)],
       ['GET', /^\/api\/routines$/, async () => this.listRoutines()],
@@ -541,6 +569,9 @@ export class LocalBackend {
 
   private async createHabit(b: Body): Promise<Response> {
     const errors: Errors = {};
+    const kind = b['kind'] ?? 'build';
+    if (kind !== 'build' && kind !== 'letGo') errors['kind'] = ['Must be build or letGo.'];
+    const letGo = kind === 'letGo';
     const name = validName(b['name'], limits.habitName);
     if (name === null) errors['name'] = [`Must be 1 to ${limits.habitName} characters.`];
     const reminder = reminderField(b['reminderTime'], errors);
@@ -553,6 +584,7 @@ export class LocalBackend {
       reminderTimesField(b['reminderTimes'], frequency === 'weekly' ? 1 : timesPerDay, errors) ??
       (reminder ? [reminder] : []);
     const channels = channelsField(b['reminderChannels'], errors);
+    if (letGo) letGoFields(b, errors);
     if (Object.keys(errors).length) throw invalid(errors);
 
     let created = 0;
@@ -560,6 +592,7 @@ export class LocalBackend {
       if (d.habits.length >= limits.habits) throw new Problem(409, 'habit_limit');
       created = d.profile.nextIds.habit++;
       d.habits.push({
+        ...(letGo ? { kind: 'letGo' as const } : {}),
         id: created,
         name: name!,
         frequency: frequency!,
@@ -584,6 +617,9 @@ export class LocalBackend {
     const habit = (await this.data()).habits.find((h) => h.id === id);
     if (!habit) throw notFound();
     const errors: Errors = {};
+    const letGo = isLocalLetGo(habit);
+    if (given(b['kind']) && b['kind'] !== (letGo ? 'letGo' : 'build')) errors['kind'] = ["A habit's kind can't change."];
+    if (letGo) letGoFields(b, errors);
     const nameGiven = b['name'] !== null && b['name'] !== undefined;
     const name = nameGiven ? validName(b['name'], limits.habitName) : null;
     if (nameGiven && name === null) errors['name'] = [`Must be 1 to ${limits.habitName} characters.`];
@@ -638,6 +674,7 @@ export class LocalBackend {
       if (!d.habits.some((h) => h.id === id)) throw notFound();
       d.habits = d.habits.filter((h) => h.id !== id);
       d.logs = d.logs.filter((log) => log.habitId !== id);
+      d.slips = (d.slips ?? []).filter((slip) => slip.habitId !== id);
       return d;
     });
     return empty();
@@ -661,8 +698,65 @@ export class LocalBackend {
     const data = await this.data();
     const today = this.today(data);
     const { from, to } = rangeOf(query, today, 13, { notAfterToday: true });
-    if (!data.habits.some((h) => h.id === id)) throw notFound();
+    const habit = data.habits.find((h) => h.id === id);
+    if (!habit) throw notFound();
+    if (isLocalLetGo(habit)) throw invalidField('kind', noCheckIns);
     return json(200, habitDays(data, id, from, to, today));
+  }
+
+  private async listSlips(id: number, query: URLSearchParams): Promise<Response> {
+    const data = await this.data();
+    const { from, to } = rangeOf(query, this.today(data), 13, { notAfterToday: true });
+    const habit = data.habits.find((h) => h.id === id);
+    if (!habit) throw notFound();
+    if (!isLocalLetGo(habit)) return json(200, []);
+    return json(
+      200,
+      (data.slips ?? [])
+        .filter((slip) => slip.habitId === id && slip.date >= from && slip.date <= to)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((slip) => ({ date: slip.date, count: slip.count, reasons: slip.reasons })),
+    );
+  }
+
+  private slipHabit(d: LocalData, id: number, date: string, inRange = true): LocalHabit {
+    const habit = d.habits.find((h) => h.id === id);
+    if (!habit) throw notFound();
+    if (!isLocalLetGo(habit)) throw invalidField('kind', letGoOnly);
+    if (!isDate(date)) throw invalidField('date', dateMessage);
+    if (!inRange) return habit;
+    if (date > this.today(d)) throw invalidField('date', "Can't be after today.");
+    if (date < habitStartDate(habit, d.profile.timezone)) throw invalidField('date', "Can't be before the habit's start.");
+    return habit;
+  }
+
+  private async addSlip(id: number, b: Body): Promise<Response> {
+    const date = b['date'];
+    const reason = b['reason'];
+    const data = await this.update((d) => {
+      if (given(reason) && !(slipReasons as readonly unknown[]).includes(reason))
+        throw invalidField('reason', `Must be one of ${slipReasons.join(', ')}.`);
+      this.slipHabit(d, id, typeof date === 'string' ? date : '');
+      const slips = (d.slips ??= []);
+      const slip = slips.find((x) => x.habitId === id && x.date === date);
+      const reasons = given(reason) ? [reason as SlipReason] : [];
+      if (!slip) slips.push({ habitId: id, date: date as string, count: 1, reasons });
+      else {
+        slip.count++;
+        slip.reasons = [...new Set([...slip.reasons, ...reasons])];
+      }
+      return d;
+    });
+    return this.habitResult(data, id);
+  }
+
+  private async clearSlips(id: number, date: string): Promise<Response> {
+    const data = await this.update((d) => {
+      this.slipHabit(d, id, date, false);
+      d.slips = (d.slips ?? []).filter((slip) => slip.habitId !== id || slip.date !== date);
+      return d;
+    });
+    return this.habitResult(data, id);
   }
 
   private async writeDay(id: number, date: string, b: Body | null): Promise<Response> {
@@ -683,6 +777,7 @@ export class LocalBackend {
     const data = await this.update((d) => {
       const habit = d.habits.find((h) => h.id === id);
       if (!habit) throw notFound();
+      if (isLocalLetGo(habit)) throw invalidField('kind', noCheckIns);
       if (typeof count === 'number' && (count < 0 || count > habit.timesPerDay))
         throw invalidField('count', `Must be between 0 and ${habit.timesPerDay}.`);
       if (date > this.today(d)) throw new Problem(422, 'in_future');
@@ -987,6 +1082,7 @@ export function newLocalData(profile: Pick<LocalData['profile'], 'timezone' | 't
     },
     habits: [],
     logs: [],
+    slips: [],
     lowDays: [],
     routines: [],
     moods: [],

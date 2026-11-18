@@ -20,7 +20,7 @@ import practicesEn from './practices.en.json';
 const languages = ['en', 'de'] as const;
 const practiceFiles = { en: practicesEn as Practice[], de: practicesDe as Practice[] };
 const crisisFiles = { en: crisisLinesEn as CrisisLine[], de: crisisLinesDe as CrisisLine[] };
-const states: MomentState[] = ['rejected', 'overloaded', 'racing', 'replaying', 'unsure'];
+const states: MomentState[] = ['rejected', 'overloaded', 'racing', 'replaying', 'craving', 'unsure'];
 const claims = /\b(treat|cure|therap|heal|clinical|diagnos|prevent|reliev|relief|reduc|proven)\w*/i;
 const germanClaims =
   /(?<!\p{L})(behand|heil|geheilt|therap|klini|diagnos|vorbeug|vorgebeugt|verhind|lindr|linder|reduzi|bewiesen|nachgewiesen|nachweislich)\p{L}*/iu;

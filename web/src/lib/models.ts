@@ -118,6 +118,8 @@ export interface HabitStats {
 }
 
 export interface Habit {
+  /** v1.21: absent on older servers and caches, which means `build`. */
+  kind?: 'build';
   id: number;
   name: string;
   frequency: Frequency;
@@ -148,8 +150,64 @@ export interface Habit {
   serverReminders?: boolean;
 }
 
+/** v1.21 habit kinds: `build` (every habit before v1.21) or `letGo` (something to stop or do less). */
+export type HabitKind = 'build' | 'letGo';
+
+/** v1.21 slip reason ids, in the order the slip sheet offers them. */
+export const slipReasons = ['stressed', 'bored', 'tired', 'lonely', 'aroundOthers', 'other'] as const;
+export type SlipReason = (typeof slipReasons)[number];
+
+/** A let-go day: `beforestart` wins over `slipped`, which wins over `paused`, else `free`. */
+export type LetGoDayState = 'free' | 'slipped' | 'paused' | 'beforestart';
+
+/** `today` of a let-go habit. */
+export interface LetGoToday {
+  date: LocalDateString;
+  state: LetGoDayState;
+  /** Slips recorded that day. */
+  slips: number;
+}
+
+/** `stats` of a let-go habit. Paused days are neither free nor slipped. */
+export interface LetGoStats {
+  /** Free days since the last slip (or the start), today included while it is free. */
+  daysFree: number;
+  longestStretch: number;
+  freeDaysThisMonth: number;
+  slipDaysLast30: number;
+}
+
+/** `GET /api/habits/{id}/slips` item: one day with at least one slip. */
+export interface SlipDay {
+  date: LocalDateString;
+  count: number;
+  reasons: SlipReason[];
+}
+
+/** A v1.21 let-go habit: no check-ins, no streak, no schedule; `frequency` is always `daily` and `timesPerDay` 1. */
+export interface LetGoHabit extends Omit<Habit, 'kind' | 'today' | 'stats'> {
+  kind: 'letGo';
+  today: LetGoToday;
+  stats: LetGoStats;
+}
+
+/** What the API returns for a habit: a build {@link Habit} or a {@link LetGoHabit}. */
+export type AnyHabit = Habit | LetGoHabit;
+
+/** True for a let-go habit; anything else (including a missing `kind`) is a build habit. */
+export function isLetGo(habit: AnyHabit): habit is LetGoHabit {
+  return habit.kind === 'letGo';
+}
+
+/** The build habits of `habits`, the only ones that count check-ins. */
+export function buildHabits(habits: readonly AnyHabit[]): Habit[] {
+  return habits.filter((habit): habit is Habit => !isLetGo(habit));
+}
+
 /** `POST /api/habits` body. */
 export interface NewHabit {
+  /** v1.21, default `build`. */
+  kind?: HabitKind;
   /** 1 to 100 characters after trimming. */
   name: string;
   reminderTime?: TimeOfDay | null;

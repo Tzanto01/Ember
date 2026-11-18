@@ -4,7 +4,7 @@ import { type DeviceStore, withDayEdit } from '../device-store';
 import { currentLanguage, t } from '../i18n';
 import { addDays, isLocalDate } from '../local-date';
 import { localModeOn } from '../local/mode';
-import type { Habit, LocalDateString, ReminderDestination, Routine } from '../models';
+import { type AnyHabit, isLetGo, type LocalDateString, type ReminderDestination, type Routine } from '../models';
 import type { OfflineQueue } from '../offline-queue';
 import { asApiError } from '../problem';
 import { notificationColor } from '../theme';
@@ -18,6 +18,9 @@ import { capacitorWidget, type EmberWidgetPlugin, widgetSnapshot } from './widge
 export const reminderBody = () => t('reminders.body');
 /** Body of the second reminder (contract v1.8). */
 export const secondReminderBody = () => t('reminders.secondBody');
+/** Body of a let-go habit's quiet check-in (v1.21); names the habit only when reminder names are on. */
+export const letGoReminderBody = (name: string | null) =>
+  name ? t('letgo.reminder.body', { name }) : t('letgo.reminder.bodyNameless');
 /** The notification action type carrying the "Done" button (single-habit reminders, with or without names). */
 export const doneActionType = 'ember-done';
 /** The `actionId` of the "Done" button. */
@@ -187,7 +190,7 @@ export class Reminders {
       const habit = (await this.load(userId, timeZone))?.habits.find(
         ({ id }) => id === target.habitId,
       );
-      if (!habit) return null;
+      if (!habit || isLetGo(habit)) return null;
       const count =
         habit.today.date === target.date
           ? habit.today.count
@@ -210,7 +213,7 @@ export class Reminders {
   private async load(
     userId: string,
     timeZone: string,
-  ): Promise<{ habits: Habit[]; routines: Routine[]; live: boolean } | null> {
+  ): Promise<{ habits: AnyHabit[]; routines: Routine[]; live: boolean } | null> {
     try {
       const habits = await this.api.listHabits();
       const routines = await this.api
@@ -224,7 +227,7 @@ export class Reminders {
       if (!cached) return null;
       const queued = await this.store.edits(userId).catch(() => []);
       return {
-        habits: cached.habits.map((habit) => queued.reduce(withDayEdit, habit)),
+        habits: cached.habits.map((habit) => (isLetGo(habit) ? habit : queued.reduce(withDayEdit, habit))),
         routines: cached.routines ?? [],
         live: false,
       };
@@ -294,12 +297,17 @@ export class Reminders {
       return {
         id: reminder.id,
         title: named ? name : 'Ember',
-        body: reminder.second ? secondReminderBody() : reminderBody(),
+        body: reminder.letGo
+          ? letGoReminderBody(named ? name : null)
+          : reminder.second
+            ? secondReminderBody()
+            : reminderBody(),
         channelId,
         iconColor,
-        actionTypeId: reminder.habitId !== undefined ? doneActionType : undefined,
-        extra:
-          reminder.habitId !== undefined
+        actionTypeId: reminder.habitId !== undefined && !reminder.letGo ? doneActionType : undefined,
+        extra: reminder.letGo
+          ? { userId, habitId: reminder.habitId, date: reminder.date, letGo: true }
+          : reminder.habitId !== undefined
             ? { userId, habitId: reminder.habitId, date: reminder.date }
             : { userId, routineId: reminder.routineId, date: reminder.date },
         schedule: { at: new Date(reminder.at), allowWhileIdle: true },

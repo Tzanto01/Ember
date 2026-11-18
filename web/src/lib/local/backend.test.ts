@@ -328,6 +328,79 @@ describe('LocalBackend through ApiClient', () => {
     expect(doc.logs).toEqual([{ habit_id: 1, date: '2026-10-25', completed: true, count: 2 }]);
   });
 
+  describe('let-go habits', () => {
+    const letGo = (id = 1) => localHabit(id, { kind: 'letGo' });
+
+    it('creates a let-go habit as daily and records, counts, merges and undoes slips without fetch', async () => {
+      await store.replace(seed());
+
+      const created = await api.createHabit({ name: 'Coffee', kind: 'letGo', frequency: 'daily' });
+      expect(created).toMatchObject({ kind: 'letGo', frequency: 'daily', timesPerDay: 1 });
+
+      await api.addSlip(created.id, '2026-11-01', 'tired');
+      const after = await api.addSlip(created.id, '2026-11-01', 'bored');
+      expect(after.kind === 'letGo' && after.today).toMatchObject({ date: today, state: 'slipped', slips: 2 });
+      expect(await api.getSlips(created.id, '2026-10-30', today)).toEqual([
+        { date: today, count: 2, reasons: ['tired', 'bored'] },
+      ]);
+
+      const undone = await api.clearSlips(created.id, today);
+      expect(undone.kind === 'letGo' && undone.today.state).toBe('free');
+      expect(await api.getSlips(created.id, '2026-10-30', today)).toEqual([]);
+      expect((await api.clearSlips(created.id, today)).id).toBe(created.id);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('answers a bad slip with a validation problem on the field at fault', async () => {
+      await store.replace(seed([letGo(1), localHabit(2)]));
+
+      const reason = await rejection(api.addSlip(1, today, 'angry' as never));
+      expect(reason.status).toBe(400);
+      expect(reason.type).toBe('validation');
+      expect(reason.problem?.errors?.['reason']).toBeTruthy();
+      expect((await rejection(api.addSlip(1, '2026-11-02'))).problem?.errors?.['date']).toBeTruthy();
+      expect((await rejection(api.addSlip(1, '2026-10-19'))).problem?.errors?.['date']).toBeTruthy();
+      expect((await rejection(api.addSlip(2, today))).problem?.errors?.['kind']).toBeTruthy();
+      expect((await rejection(api.clearSlips(2, today))).problem?.errors?.['kind']).toBeTruthy();
+      expect((await rejection(api.addSlip(99, today))).type).toBe('not_found');
+      expect(await api.getSlips(2, '2026-10-30', today)).toEqual([]);
+      expect((await store.load())?.slips ?? []).toEqual([]);
+    });
+
+    it('refuses check-ins on a let-go habit with a problem on kind', async () => {
+      await store.replace(seed([letGo()]));
+
+      expect((await rejection(api.setDay(1, today, true))).problem?.errors?.['kind']).toBeTruthy();
+    });
+
+    it('refuses a schedule, a second reminder time or a routine for a let-go habit, naming the field', async () => {
+      await store.replace(seed([letGo(1), localHabit(2)]));
+
+      const field = async (body: Parameters<typeof api.createHabit>[0]) =>
+        Object.keys((await rejection(api.createHabit(body))).problem?.errors ?? {});
+      expect(await field({ name: 'A', kind: 'letGo', frequency: 'weekly', weeklyTarget: 2 })).toContain('frequency');
+      expect(await field({ name: 'A', kind: 'letGo', frequency: 'daily', timesPerDay: 2 })).toEqual(['timesPerDay']);
+      expect(await field({ name: 'A', kind: 'letGo', frequency: 'daily', weeklyTarget: 2 })).toEqual(['weeklyTarget']);
+      expect(await field({ name: 'A', kind: 'letGo', frequency: 'daily', reminderTimes: ['08:00', '20:00'] })).toEqual(['reminderTimes']);
+      expect((await rejection(api.updateHabit(1, { timesPerDay: 3 }))).problem?.errors?.['timesPerDay']).toBeTruthy();
+      expect((await rejection(api.updateHabit(2, { kind: 'letGo' } as never))).problem?.errors?.['kind']).toBeTruthy();
+      expect((await rejection(api.createRoutine({ name: 'Night', habitIds: [1] }))).problem?.errors?.['habitIds']).toBeTruthy();
+    });
+
+    it('exports kind let_go and its slips, and drops the slips with the habit', async () => {
+      const data = seed([letGo(1), localHabit(2)]);
+      data.slips = [{ habitId: 1, date: '2026-10-25', count: 2, reasons: ['lonely'] }];
+      await store.replace(data);
+
+      const doc = JSON.parse(await (await api.exportData('json')).blob.text());
+      expect(doc.habits.map((h: { kind: string }) => h.kind)).toEqual(['let_go', 'build']);
+      expect(doc.slips).toEqual([{ habit_id: 1, date: '2026-10-25', count: 2, reasons: ['lonely'] }]);
+
+      await api.deleteHabit(1);
+      expect(JSON.parse(await (await api.exportData('json')).blob.text()).slips).toEqual([]);
+    });
+  });
+
   it.each([
     [false, []],
     [true, ['mobile']],

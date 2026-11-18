@@ -16,6 +16,7 @@ namespace Ember.Bot.Jobs;
 /// Sunday <see cref="LocalSendHour"/>:00, unless their DMs are paused.
 /// Sends a DM recapping the 7-day window ending the user's local yesterday (the last complete day):
 /// per-habit check-in counts, current streaks (only with <see cref="User.ShowStreaks"/>), a tone-appropriate line and, with <c>Ember:WebOrigin</c> set, a link to the web app.
+/// Let-go habits add one "{name}: {n} days free" line each (<see cref="WeeklySummaryService.LetGoLine"/>), never slip counts.
 ///
 /// Users with zero check-ins in the window still get a DM (only the soft headline and footer, no per-habit numbers) — a gentle nudge, not
 /// silence: Ember's philosophy is soft re-engagement, and going quiet at exactly the
@@ -99,6 +100,9 @@ public class WeeklySummaryJob : IJob
 
         if (_config[LinkModule.WebOriginKey] is { Length: > 0 } origin)
             headline += "\n\n" + t.Format("weekly.link", $"{origin.TrimEnd('/')}/today");
+
+        if (summary.LetGo.Count > 0)
+            headline += "\n\n" + string.Join("\n", summary.LetGo.Select(l => "🌿 " + WeeklySummaryService.LetGoLine(l.Habit.Name, l.DaysFree, t)));
 
         var embed = new EmbedBuilder()
             .WithColor(0xE8873A)

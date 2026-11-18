@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Habit, Me } from './models';
+import type { Habit, LetGoHabit, Me } from './models';
 import type { SecureStore } from './native/token-store';
 
 /** One request seen by {@link mockFetch}, answered by the test. */
@@ -136,4 +136,14 @@ export const habit: Habit = {
   startDate: '2026-01-01',
   today: { date: '2026-11-01', state: 'pending', completed: null, count: 0 },
   stats: { streak: 0, graceUsed: 0, bestStreak: 0, last7: 0, week: null },
+};
+
+/** Synthetic let-go habit, free today (2026-11-01) with 4 days free. */
+export const letGoHabit: LetGoHabit = {
+  ...habit,
+  id: 9,
+  name: 'Coffee',
+  kind: 'letGo',
+  today: { date: '2026-11-01', state: 'free', slips: 0 },
+  stats: { daysFree: 4, longestStretch: 12, freeDaysThisMonth: 1, slipDaysLast30: 2 },
 };

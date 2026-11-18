@@ -117,6 +117,24 @@ public class ReminderDispatchTests
     }
 
     [Fact]
+    public async Task ALetGoReminder_IsSentEvenWithoutAnyLogAndSkippedOnAPausedDay_AndBothAdvanceToTheNextDay()
+    {
+        var quiet = DueHabit(1, 10);
+        quiet.Kind = HabitKind.LetGo;
+        var paused = DueHabit(2, 20);
+        paused.Kind = HabitKind.LetGo;
+        paused.PausedUntil = Today;
+        await using var host = await CreateHostAsync(new FakeTimeProvider(Now), quiet, paused);
+
+        await RunJobAsync(host);
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(10);
+        (await NextReminderAsync(host, 1)).Should().Be(TomorrowNineBerlin);
+        (await NextReminderAsync(host, 2)).Should().Be(TomorrowNineBerlin);
+    }
+
+    [Fact]
     public async Task LowDay_SilencesThatDaysReminder_AdvancesIt_AndTheNextDayStillReminds()
     {
         var time = new FakeTimeProvider(Now);

@@ -81,6 +81,18 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
     private async Task RenderAsync(Texts t, int habitId)
     {
         var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        if (habit?.Kind == Ember.Core.Models.HabitKind.LetGo)
+        {
+            var today = await _habits.GetLocalTodayAsync(Context.User.Id);
+            var tz = await _habits.GetUserTzAsync(Context.User.Id);
+            await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+            {
+                m.Content = t.Format("history.letgo.grid", habit.Name, Days,
+                    HabitModule.DaysFreeText(t, HabitService.LetGoStatsOn(habit, today, tz).DaysFree));
+                m.Components = BuildLetGoGrid(t, habit, today, tz);
+            });
+            return;
+        }
         var days = await _habits.GetHabitDaysAsync(Context.User.Id, habitId, Days);
         if (habit is null || days is null)
         {
@@ -150,6 +162,24 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
                 lowDays.Contains(day.Date) ? t.Get("history.low.marked") : null);
 
         return builder.WithSelectMenu(menu, row: (days.Count + 4) / 5).Build();
+    }
+
+    /// <summary>The last <see cref="Days"/> local days of a let-go habit as read-only buttons with soft marks (<see cref="HabitModule.LetGoMark"/>), oldest first.</summary>
+    internal static MessageComponent BuildLetGoGrid(Texts t, Core.Models.Habit habit, DateOnly today, TimeZoneInfo tz)
+    {
+        var builder = new ComponentBuilder();
+        for (var i = 0; i < Days; i++)
+        {
+            var day = HabitService.LetGoDayOn(habit, today.AddDays(i + 1 - Days), tz);
+            var date = day.Date.ToString(t.Get("date.button"), t.Culture);
+            builder.WithButton(
+                day.State == LetGoDayState.BeforeStart ? date : $"{date} {HabitModule.LetGoMark(day.State)}",
+                $"history:letgo:{habit.Id}:{day.Date.ToString(DateFormat, CultureInfo.InvariantCulture)}",
+                ButtonStyle.Secondary,
+                disabled: true,
+                row: i / 5);
+        }
+        return builder.Build();
     }
 
     private static string DayLabel(Texts t, HabitDay day)

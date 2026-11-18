@@ -10,6 +10,7 @@ import { useReminderReach, useReminderSettingsHash } from '@/components/habits/r
 import { FiresideToday } from '@/components/fireside/fireside-today';
 import { isPausedOn } from '@/components/history/kept-days';
 import { DayJournal } from '@/components/journal/day-journal';
+import { LetGoSection } from '@/components/letgo/letgo-section';
 import { DeviceNotices } from '@/components/local/device-notices';
 import { LiveRegion } from '@/components/live-region';
 import { MomentDoor } from '@/components/moment/moment-door';
@@ -30,7 +31,16 @@ import { isOffday } from '@/lib/calendar';
 import { highlightMs } from '@/lib/guide/highlight';
 import { t } from '@/lib/i18n';
 import { addDays, formatDate } from '@/lib/local-date';
-import type { DayState, Habit, LocalDateString, Routine, WeeklyStats } from '@/lib/models';
+import {
+  buildHabits,
+  type DayState,
+  type Habit,
+  isLetGo,
+  type LetGoHabit,
+  type LocalDateString,
+  type Routine,
+  type WeeklyStats,
+} from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth, deviceSync } from '@/lib/services';
@@ -38,7 +48,9 @@ import { useStore } from '@/lib/store';
 import { useCalmMode } from '@/lib/theme';
 
 interface TodayData {
+  /** The build habits; every count on Today reads these only. */
   habits: Habit[];
+  letGo: LetGoHabit[];
   /** Null when the low-day lookup failed; the low-day action is hidden then. */
   lowDayToday: boolean | null;
   weekly: WeeklyStats | null;
@@ -107,7 +119,8 @@ async function loadToday(): Promise<TodayData> {
   ]);
   if (habits.status === 'rejected') throw habits.reason;
   return {
-    habits: habits.value,
+    habits: buildHabits(habits.value),
+    letGo: habits.value.filter(isLetGo),
     lowDayToday: lowDays.status === 'fulfilled' && today ? lowDays.value.includes(today) : null,
     weekly: weekly.status === 'fulfilled' ? weekly.value : null,
     routines: routines.status === 'fulfilled' ? routines.value : null,
@@ -298,7 +311,7 @@ export default function TodayPage() {
       setData((d) => ({ ...d, lowDayToday: marking }));
       setAnnouncement(marking ? t('today.lowDay.marked') : t('today.lowDay.cleared'));
       const habits = await api.listHabits().catch(() => null);
-      if (habits) setData((d) => ({ ...d, habits }));
+      if (habits) setData((d) => ({ ...d, habits: buildHabits(habits), letGo: habits.filter(isLetGo) }));
     } catch (error) {
       const apiError = asApiError(error);
       if (!apiError.handled) {
@@ -405,7 +418,7 @@ export default function TodayPage() {
         </div>
       </div>
     );
-  } else if (!hasHabits) {
+  } else if (!hasHabits && !data.letGo.length) {
     body = (
       <div className={columns}>
         <div className="flex min-w-0 flex-col gap-6">
@@ -491,6 +504,7 @@ export default function TodayPage() {
               </section>
             ))
           )}
+          <LetGoSection habits={data.letGo} />
           {data.lowDayToday === false && (
             <Button
               id="mark-low-day"

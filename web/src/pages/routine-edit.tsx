@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Routine } from '@/lib/models';
+import { buildHabits, type Routine } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { api } from '@/lib/services';
 
@@ -28,7 +28,7 @@ export default function RoutineEditPage() {
   const valid = creating || (Number.isInteger(id) && id > 0);
   const queryClient = useQueryClient();
   const routines = useQuery({ queryKey: routinesKey, queryFn: () => api.listRoutines(), enabled: valid });
-  const habits = useQuery({ queryKey: routineHabitsKey, queryFn: () => api.listHabits(), enabled: valid });
+  const habits = useQuery({ queryKey: routineHabitsKey, queryFn: async () => buildHabits(await api.listHabits()), enabled: valid });
   const routine = creating ? null : (routines.data?.find((r) => r.id === id) ?? null);
   const failed = [routines, habits].find((q) => q.isError && !q.data);
   const error = failed ? asApiError(failed.error) : null;

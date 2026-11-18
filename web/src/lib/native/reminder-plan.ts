@@ -1,5 +1,14 @@
 import { addDays, startOfWeek, weekdayIndex } from '../local-date';
-import { type Habit, type LocalDateString, reminderTimesOf, type Routine, weekdays } from '../models';
+import {
+  type AnyHabit,
+  buildHabits,
+  type Habit,
+  isLetGo,
+  type LocalDateString,
+  reminderTimesOf,
+  type Routine,
+  weekdays,
+} from '../models';
 import type { ReminderPhone } from './phone';
 
 /** One local notification to schedule: for one habit (`habitId`) or for a routine's pending habits (`routineId`). */
@@ -15,6 +24,8 @@ export interface PlannedReminder {
   time: string;
   /** True for the follow-up planned `secondReminderMinutes` after the first reminder. */
   second?: boolean;
+  /** True for a let-go habit's quiet check-in: no Done action, never a second reminder. */
+  letGo?: boolean;
 }
 
 /**
@@ -113,7 +124,7 @@ function offset(utc: number, timeZone: string): number {
   return Date.UTC(y, m - 1, d, 0, wall.minutes) - Math.floor(utc / 60_000) * 60_000;
 }
 
-function pausedOn(habit: Habit, date: LocalDateString): boolean {
+function pausedOn(habit: Pick<Habit, 'pausedFrom' | 'pausedUntil'>, date: LocalDateString): boolean {
   return (
     habit.pausedUntil !== null &&
     date <= habit.pausedUntil &&
@@ -163,10 +174,12 @@ function pendingOn(habit: Habit, date: LocalDateString): boolean {
  * `habit.today`, later days when scheduled); its members' own reminders are skipped. Instants already past are
  * dropped. With `secondMinutes` above 0 each reminder gets a follow-up (`second`) that many minutes later (in the
  * account mode not for items with `serverReminders`), unless it falls on another local day or the habit's next
- * reminder time that day comes first. Nothing fires on a low day (from `habit.today`). Sorted soonest first, capped at {@link planCap}, with ids from {@link reminderId} (a collision moves to the next free id).
+ * reminder time that day comes first. Nothing fires on a low day (from `habit.today`). A let-go habit gets one quiet
+ * check-in (`letGo`) at its first reminder time on each day from its start while not paused, low days included, never
+ * a second one. Sorted soonest first, capped at {@link planCap}, with ids from {@link reminderId} (a collision moves to the next free id).
  */
 export function planReminders(
-  habits: Habit[],
+  all: AnyHabit[],
   timeZone: string,
   now: number,
   routines: Routine[] = [],
@@ -174,6 +187,7 @@ export function planReminders(
   target: ReminderTarget = { mode: 'local' },
 ): PlannedReminder[] {
   const today = localDate(now, timeZone);
+  const habits = buildHabits(all);
   const low = lowDaysOf(habits);
   const planned: Omit<PlannedReminder, 'id'>[] = [];
   const plan = (
@@ -199,6 +213,16 @@ export function planReminders(
       times.forEach((time, i) => {
         if (i === 0 || +instants[i] !== +instants[i - 1]) plan(habit, { habitId: habit.id, date, time, at: instants[i] }, instants[i + 1]);
       });
+    }
+  }
+  for (const habit of all) {
+    const time = reminderTimesOf(habit)[0];
+    if (!isLetGo(habit) || !time || !remindsHere(habit, target)) continue;
+    for (let offset = 0; offset < planDays; offset++) {
+      const date = addDays(today, offset);
+      const at = zonedToUtc(date, time, timeZone);
+      if (date >= habit.startDate && !pausedOn(habit, date) && at > now)
+        planned.push({ habitId: habit.id, date, time, at, letGo: true });
     }
   }
   for (const routine of routines) {

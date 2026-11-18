@@ -13,6 +13,8 @@ namespace Ember.Bot.Modules;
 /// Custom ID patterns:
 ///   habitaction:checkin:done:{habitId}
 ///   habitaction:checkin:skip:{habitId}
+///   habitaction:slip:{habitId}  (a let-go habit's "I slipped" from /habit checkin: today's slip, then the gentle line in place)
+///   letgo:slip:{habitId}  (the same from a /habit list button, answered as a new ephemeral message)
 ///   habitaction:delete:confirm:{habitId}
 ///   habitaction:delete:cancel
 ///   habitaction:edit:rename:{habitId}
@@ -157,6 +159,44 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             .UpdateAsync(m =>
             {
                 m.Content    = t.Get("common.skipped-today");
+                m.Components = new ComponentBuilder().Build();
+            });
+    }
+
+    // ── habitaction:slip:{habitId} / letgo:slip:{habitId} ──────────────────────
+
+    [ComponentInteraction("habitaction:slip:*")]
+    public async Task OnSlipAsync(string habitIdStr) => await SlipAsync(habitIdStr, inPlace: true);
+
+    [ComponentInteraction("letgo:slip:*")]
+    public async Task OnListSlipAsync(string habitIdStr) => await SlipAsync(habitIdStr, inPlace: false);
+
+    /// <summary>Records one slip without a reason on the user's local today and answers with <see cref="HabitModule.SlipNotedText"/>.</summary>
+    private async Task SlipAsync(string habitIdStr, bool inPlace)
+    {
+        var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
+
+        var today = await _habits.GetLocalTodayAsync(Context.User.Id);
+        if (await _habits.AddSlipAsync(Context.User.Id, habitId, today) != SlipResult.Saved
+            || await _habits.GetHabitAsync(Context.User.Id, habitId) is not { } habit)
+        {
+            await NotFoundAsync(t);
+            return;
+        }
+
+        var text = HabitModule.SlipNotedText(t,
+            HabitService.LetGoStatsOn(habit, today, await _habits.GetUserTzAsync(Context.User.Id)).LongestStretch);
+        if (!inPlace)
+        {
+            await RespondAsync(text, ephemeral: true);
+            return;
+        }
+
+        await ((SocketMessageComponent)Context.Interaction)
+            .UpdateAsync(m =>
+            {
+                m.Content    = text;
                 m.Components = new ComponentBuilder().Build();
             });
     }

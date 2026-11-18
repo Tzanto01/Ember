@@ -28,6 +28,8 @@ namespace Ember.Bot.Jobs;
 /// A delivered regular (not snoozed) reminder schedules one second reminder <see cref="User.SecondReminderMinutes"/> later when that
 /// is on, falls on the same local day and comes before the habit's next regular reminder; it is sent like the first only if the day
 /// (and a weekly habit's week) is still open then, and never followed by another.
+/// A <see cref="Core.Models.HabitKind.LetGo"/> habit's reminder is its quiet check-in (<see cref="Reminder.LetGo"/>): sent at its time
+/// unless stale or paused that day (no done, weekly or low-day checks), never snoozed and never followed by a second reminder.
 /// Each run then closes the open Discord reminder messages whose habits are done for their day, or whose buttons expired
 /// (<see cref="IsExpired"/>), and for each web push reminder delivered for an item that is now done for its day sends the clear push
 /// (<see cref="WebPushReminderChannel.SendClearAsync"/>) to the user's push subscriptions that are targets of that item; then forgets
@@ -273,9 +275,10 @@ public class ReminderDispatchJob : IJob
             && await habits.GetRoutineWithUserAsync(routineId, cancellationToken) is { } routine
             && IsRoutineDone(routine, message.Date);
 
-    /// <summary>True when the routine has members and every one of them is done on <paramref name="date"/>. Needs that day's logs loaded.</summary>
+    /// <summary>True when the routine has build members and every one of them is done on <paramref name="date"/>. Needs that day's logs loaded.</summary>
     private static bool IsRoutineDone(Routine routine, DateOnly date)
-        => routine.Habits.Count > 0 && routine.Habits.All(h => h.Logs.Any(l => l.Date == date && l.Completed));
+        => routine.Habits.Where(h => h.Kind != Core.Models.HabitKind.LetGo).ToList() is { Count: > 0 } members
+            && members.All(h => h.Logs.Any(l => l.Date == date && l.Completed));
 
     /// <summary>
     /// Sends the habit's due second reminder when the setting is on, the reminder isn't stale, the local day is the first reminder's,
@@ -294,6 +297,7 @@ public class ReminderDispatchJob : IJob
         var discordId = user.DiscordId();
         var (targets, pushIds) = Targets(user, habit.ReminderExclusions);
         var send = targets.Count > 0
+            && habit.Kind != Core.Models.HabitKind.LetGo
             && user.SecondReminderMinutes > 0
             && habit.ReminderTime is not null
             && habit.Routine?.ReminderTime is null
@@ -404,18 +408,25 @@ public class ReminderDispatchJob : IJob
         var user = habit.User;
         var discordId = user.DiscordId();
         var (targets, pushIds) = Targets(user, habit.ReminderExclusions);
+        var letGo = habit.Kind == Core.Models.HabitKind.LetGo;
         var send = targets.Count > 0
             && habit.Routine?.ReminderTime is null
             && now - dueAt <= StaleAfter
             && !HabitService.IsPausedOn(habit, today)
             && HabitService.IsScheduledOn(habit, today)
-            && !await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
-            && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
-            && !await habits.IsLowDayStoredAsync(user.Id, today);
+            && (letGo
+                || (!await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
+                    && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
+                    && !await habits.IsLowDayStoredAsync(user.Id, today)));
 
         habit.SecondReminderUtc = null;
         var delivery = Delivery.NotDelivered;
-        if (send)
+        if (send && letGo)
+        {
+            delivery = await DeliverAsync(targets, new Reminder(user.Id, discordId, habit.Id, habit.Name, 0, false, today,
+                PushSubscriptionIds: pushIds, Language: user.Language, LetGo: true), user, now, (HabitKind, habit.Id, dueAt), cancellationToken);
+        }
+        else if (send)
         {
             var weekAgo = today.AddDays(-7);
             var recent = await habits.CountCompletedBetweenAsync(habit.Id, weekAgo, today, cancellationToken);

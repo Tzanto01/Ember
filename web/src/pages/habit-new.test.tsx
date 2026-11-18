@@ -204,6 +204,64 @@ describe('HabitNewPage', () => {
     });
   });
 
+  describe('something to let go of', () => {
+    it('starts from the picker with no schedule fields and sends a daily let-go habit without a reminder', async () => {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      (await fetch.next('GET', '/api/habit-templates')).respond(200, [template]);
+
+      await user.click(await screen.findByRole('button', { name: 'Something to let go of' }));
+      expect(screen.queryByRole('radio', { name: 'A few times a week' })).toBeNull();
+      expect(screen.queryByLabelText('Times a day')).toBeNull();
+      expect(screen.queryByLabelText('Times per week')).toBeNull();
+      await user.type(screen.getByLabelText('Name', { exact: true }), '  Coffee after 3pm ');
+      await user.click(screen.getByRole('button', { name: 'Create habit' }));
+
+      const create = await fetch.next('POST', '/api/habits');
+      expect(create.body).toEqual({ name: 'Coffee after 3pm', kind: 'letGo', frequency: 'daily', timesPerDay: 1 });
+    });
+
+    it('drops a weekly schedule and extra times when the kind is switched to let go, keeping one check-in time', async () => {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      (await fetch.next('GET', '/api/habit-templates')).respond(200, []);
+
+      await user.type(await screen.findByLabelText('Name', { exact: true }), 'Scrolling');
+      await user.click(screen.getByRole('radio', { name: 'A few times a week' }));
+      await user.click(screen.getByRole('radio', { name: 'Something to let go of' }));
+      expect(screen.queryByRole('radio', { name: 'A few times a week' })).toBeNull();
+      expect(screen.queryByLabelText('Times per week')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Add another time' })).toBeNull();
+      fireEvent.change(screen.getByLabelText(/Quiet evening check-in/), { target: { value: '21:00' } });
+      await user.click(screen.getByRole('button', { name: 'Create habit' }));
+
+      const create = await fetch.next('POST', '/api/habits');
+      expect(create.body).toEqual({
+        name: 'Scrolling',
+        kind: 'letGo',
+        frequency: 'daily',
+        timesPerDay: 1,
+        reminderTimes: ['21:00'],
+      });
+    });
+
+    it('does not send a kind for a build habit', async () => {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      (await fetch.next('GET', '/api/habit-templates')).respond(200, []);
+
+      await user.type(await screen.findByLabelText('Name', { exact: true }), 'Walk');
+      await user.click(screen.getByRole('radio', { name: 'Something to let go of' }));
+      await user.click(screen.getByRole('radio', { name: 'Something to build up' }));
+      await user.click(screen.getByRole('button', { name: 'Create habit' }));
+
+      expect((await fetch.next('POST', '/api/habits')).body).not.toHaveProperty('kind');
+    });
+  });
+
   it('creates a habit from scratch with the trimmed name and weekly target, then lands on /today', async () => {
     const user = userEvent.setup();
     const fetch = mockFetch();

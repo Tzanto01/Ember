@@ -23,9 +23,13 @@ public enum DeliveryOutcome
 /// <param name="Second">True for the one second reminder that follows a sent regular reminder.</param>
 /// <param name="PushSubscriptionIds">The push subscriptions the reminder may go to (<see cref="ReminderTargets.PushSubscriptionIds"/>); null or empty sends no web push.</param>
 /// <param name="Language">The user's language (<see cref="User.Language"/>) the reminder is written in.</param>
+/// <param name="LetGo">
+/// True for a <see cref="HabitKind.LetGo"/> habit's quiet check-in: the <c>letgo.reminder</c> text without Done, Skip or Snooze
+/// buttons, push actions or action tokens, never recorded for closing.
+/// </param>
 public sealed record Reminder(Guid UserId, ulong? DiscordUserId, int HabitId, string HabitName, int RecentCompletions, bool Snoozed,
     DateOnly Day, IReadOnlyList<RoutineHabit>? PendingHabits = null, bool Second = false, IReadOnlyList<int>? PushSubscriptionIds = null,
-    string Language = Languages.English);
+    string Language = Languages.English, bool LetGo = false);
 
 /// <summary>A member habit listed in a routine reminder.</summary>
 public sealed record RoutineHabit(int Id, string Name);

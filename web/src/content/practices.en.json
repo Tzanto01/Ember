@@ -144,5 +144,37 @@
     ],
     "a11y": { "motion": "none", "languageLevel": "plain" },
     "basis": "labelling and worry postponement"
+  },
+  {
+    "id": "urge-surfing",
+    "version": 1,
+    "title": "Surf the urge",
+    "states": ["craving"],
+    "type": "urge-surfing",
+    "minutes": 4,
+    "steps": [
+      {
+        "kind": "text",
+        "text": "A craving is like a wave. It builds, peaks and falls again, even if you do nothing about it."
+      },
+      {
+        "kind": "text",
+        "text": "Notice where you feel the urge in your body. Your mouth, chest, hands, stomach? Just notice it."
+      },
+      { "kind": "breath", "inhale": 4, "hold": 0, "exhale": 6, "rounds": 4 },
+      {
+        "kind": "timer",
+        "seconds": 90,
+        "text": "Watch the urge for 90 seconds. Notice it rise, change and fall. You don't have to act on it."
+      },
+      {
+        "kind": "text",
+        "text": "Notice how the urge is now. Whatever it's doing is okay. It passes, even if it comes back later."
+      },
+      { "kind": "text", "text": "If this feels like too much, you can stop at any time." },
+      { "kind": "text", "text": "If you feel dizzy, breathe normally." }
+    ],
+    "a11y": { "motion": "gentle", "languageLevel": "plain" },
+    "basis": "urge surfing"
   }
 ]

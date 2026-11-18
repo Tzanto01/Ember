@@ -79,6 +79,7 @@ internal static class Problems
         DayEditResult.BeforeHabitStart => Problem(StatusCodes.Status422UnprocessableEntity, "before_habit_start"),
         DayEditResult.InFuture => Problem(StatusCodes.Status422UnprocessableEntity, "in_future"),
         DayEditResult.ConsentRequired => ConsentRequired(),
+        DayEditResult.LetGoHabit => Validation("kind", "Let-go habits record slips, not check-ins."),
         _ => throw new ArgumentOutOfRangeException(nameof(result), result, null),
     };
 

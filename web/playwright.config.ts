@@ -26,7 +26,7 @@ export default defineConfig({
     {
       name: 'phone',
       use: { ...devices['Pixel 7'] },
-      testMatch: ['navigation.spec.ts', 'routines.spec.ts', 'signup-first-habit.spec.ts', 'schedules-checkins.spec.ts'],
+      testMatch: ['navigation.spec.ts', 'routines.spec.ts', 'signup-first-habit.spec.ts', 'schedules-checkins.spec.ts', 'letgo.spec.ts'],
     },
   ],
   webServer: baseURL

@@ -13,10 +13,21 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { NativeSelect } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { formatTime, weekdayLabels } from '@/lib/local-date';
-import { type Frequency, type Habit, reminderTimesOf, type TimeOfDay, type Weekday, weekdays } from '@/lib/models';
+import {
+  type AnyHabit,
+  type Frequency,
+  type Habit,
+  type HabitKind,
+  reminderTimesOf,
+  type TimeOfDay,
+  type Weekday,
+  weekdays,
+} from '@/lib/models';
 
 /** What the create and edit form holds; fields that don't fit the chosen schedule are kept but not sent. */
 export interface HabitFormState {
+  /** `letGo` ignores the schedule fields and keeps at most one reminder time (the evening check-in). */
+  kind: HabitKind;
   name: string;
   frequency: Frequency;
   weeklyTarget: number;
@@ -44,6 +55,7 @@ export interface HabitFormValue {
 
 
 export const emptyHabitForm: HabitFormState = {
+  kind: 'build',
   name: '',
   frequency: 'daily',
   weeklyTarget: 3,
@@ -53,8 +65,9 @@ export const emptyHabitForm: HabitFormState = {
 };
 
 /** The form filled from a saved habit. */
-export function habitToForm(habit: Habit): HabitFormState {
+export function habitToForm(habit: AnyHabit): HabitFormState {
   return {
+    kind: habit.kind === 'letGo' ? 'letGo' : 'build',
     name: habit.name,
     frequency: habit.frequency,
     weeklyTarget: habit.weeklyTarget ?? 3,
@@ -74,7 +87,7 @@ export function habitNameError(name: string): string | null {
 
 /** Null when the chosen weekdays are fine (at least one, when the schedule is set weekdays). */
 export function habitDaysError(state: HabitFormState): string | null {
-  return state.frequency === 'weekdays' && state.days.length === 0 ? t('habitFields.daysMissing') : null;
+  return state.kind === 'build' && state.frequency === 'weekdays' && state.days.length === 0 ? t('habitFields.daysMissing') : null;
 }
 
 /** "Every day", "Mon, Wed, Fri", "Once a week" or "3 times a week", with ", 3 times a day" when more than once. */
@@ -129,6 +142,16 @@ export function weeklySchedule(time: TimeOfDay, weeklyTarget: number): string {
 }
 
 export function habitFormValue(state: HabitFormState): HabitFormValue {
+  if (state.kind === 'letGo') {
+    return {
+      name: state.name.trim(),
+      frequency: 'daily',
+      weeklyTarget: null,
+      days: null,
+      timesPerDay: 1,
+      reminderTimes: sortedTimes(state.reminderTimes).slice(0, 1),
+    };
+  }
   const allDays = state.frequency === 'weekdays' && state.days.length === weekdays.length;
   const frequency = allDays ? 'daily' : state.frequency;
   return {
@@ -146,6 +169,11 @@ const frequencies = [
   { value: 'weekdays', label: 'habitFields.frequency.weekdays' },
   { value: 'weekly', label: 'habitFields.frequency.weekly' },
 ] as const satisfies readonly { value: Frequency; label: string }[];
+
+const kinds = [
+  { value: 'build', label: 'letgo.kind.build' },
+  { value: 'letGo', label: 'letgo.kind.letGo' },
+] as const satisfies readonly { value: HabitKind; label: string }[];
 
 const targets = [1, 2, 3, 4, 5, 6];
 const perDayOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -171,6 +199,8 @@ export interface HabitFieldsProps {
   showReminder?: boolean;
   /** True when every reminder channel is off, so the times stay quiet and the form says so. */
   silent?: boolean;
+  /** Edit: the kind is shown but can't change. */
+  kindLocked?: boolean;
 }
 
 /**
@@ -189,6 +219,7 @@ export function HabitFields({
   reminderNote,
   showReminder = true,
   silent = false,
+  kindLocked = false,
 }: HabitFieldsProps) {
   const { t } = useTranslation();
   const id = useId();
@@ -197,7 +228,8 @@ export function HabitFields({
   const timesId = `${id}-times`;
   const timesRef = useRef<HTMLDivElement>(null);
   const [dropped, setDropped] = useState<TimeOfDay[]>([]);
-  const limit = value.frequency === 'weekly' ? 1 : value.timesPerDay;
+  const letGo = value.kind === 'letGo';
+  const limit = letGo || value.frequency === 'weekly' ? 1 : value.timesPerDay;
   const times = sortedTimes(value.reminderTimes);
   const timesError = errors['reminderTimes'] ?? errors['reminderTime'] ?? null;
   const schedule = silent
@@ -249,6 +281,7 @@ export function HabitFields({
     focusTime(Math.min(index, value.reminderTimes.length - 2));
   }
   const legendId = `${id}-often`;
+  const kindId = `${id}-kind`;
   const daysId = `${id}-days`;
   const nameError = (touched ? habitNameError(value.name) : null) ?? errors['name'] ?? null;
   const daysError = (touched ? habitDaysError(value) : null) ?? errors['days'] ?? null;
@@ -259,8 +292,40 @@ export function HabitFields({
     onChange({ ...value, days: weekdays.filter((d) => days.includes(d)) });
   }
   const nameLength = value.name.trim().length;
+  function changeKind(kind: HabitKind): void {
+    setDropped([]);
+    onChange(
+      kind === 'letGo'
+        ? { ...value, kind, frequency: 'daily', timesPerDay: 1, reminderTimes: [''] }
+        : { ...value, kind },
+    );
+  }
   return (
     <div className="flex flex-col gap-5">
+      {kindLocked ? (
+        <p className="text-muted-foreground">{t(letGo ? 'letgo.kind.letGo' : 'letgo.kind.build')}</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p id={kindId} className="font-medium">
+            {t('letgo.kind.label')}
+          </p>
+          <RadioGroup
+            aria-labelledby={kindId}
+            value={value.kind}
+            onValueChange={(kind) => changeKind(kind as HabitKind)}
+            className="sm:grid-cols-2"
+          >
+            {kinds.map((option) => (
+              <Label key={option.value} htmlFor={`${id}-kind-${option.value}`} className={optionClass}>
+                <RadioGroupItem id={`${id}-kind-${option.value}`} value={option.value} />
+                {t(option.label)}
+              </Label>
+            ))}
+          </RadioGroup>
+          {errors['kind'] && <p className="text-[0.875rem] text-destructive">{errors['kind']}</p>}
+        </div>
+      )}
+
       <FormField label={t('habitFields.name')} error={nameError} {...(nameId ? { id: nameId } : {})}>
         {(field) => (
           <>
@@ -282,27 +347,29 @@ export function HabitFields({
         )}
       </FormField>
 
-      <div data-guide="frequency" className="flex flex-col gap-2">
-        <p id={legendId} className="font-medium">
-          {t('habitFields.howOften')}
-        </p>
-        <RadioGroup
-          aria-labelledby={legendId}
-          value={value.frequency}
-          onValueChange={(frequency) => changeSchedule({ ...value, frequency: frequency as Frequency })}
-          className="sm:grid-cols-3"
-        >
-          {frequencies.map((option) => (
-            <Label key={option.value} htmlFor={`${id}-${option.value}`} className={optionClass}>
-              <RadioGroupItem id={`${id}-${option.value}`} value={option.value} />
-              {t(option.label)}
-            </Label>
-          ))}
-        </RadioGroup>
-        {errors['frequency'] && <p className="text-[0.875rem] text-destructive">{errors['frequency']}</p>}
-      </div>
+      {!letGo && (
+        <div data-guide="frequency" className="flex flex-col gap-2">
+          <p id={legendId} className="font-medium">
+            {t('habitFields.howOften')}
+          </p>
+          <RadioGroup
+            aria-labelledby={legendId}
+            value={value.frequency}
+            onValueChange={(frequency) => changeSchedule({ ...value, frequency: frequency as Frequency })}
+            className="sm:grid-cols-3"
+          >
+            {frequencies.map((option) => (
+              <Label key={option.value} htmlFor={`${id}-${option.value}`} className={optionClass}>
+                <RadioGroupItem id={`${id}-${option.value}`} value={option.value} />
+                {t(option.label)}
+              </Label>
+            ))}
+          </RadioGroup>
+          {errors['frequency'] && <p className="text-[0.875rem] text-destructive">{errors['frequency']}</p>}
+        </div>
+      )}
 
-      {value.frequency === 'weekdays' && (
+      {!letGo && value.frequency === 'weekdays' && (
         <div className="flex flex-col gap-2">
           <p id={daysId} className="font-medium">
             {t('habitFields.whichDays')}
@@ -344,7 +411,7 @@ export function HabitFields({
         </div>
       )}
 
-      {value.frequency !== 'weekly' && (
+      {!letGo && value.frequency !== 'weekly' && (
         <FormField
           label={t('habitFields.timesPerDay')}
           hint={t('habitFields.timesPerDayHint')}
@@ -372,7 +439,7 @@ export function HabitFields({
         </FormField>
       )}
 
-      {value.frequency === 'weekly' && (
+      {!letGo && value.frequency === 'weekly' && (
         <FormField label={t('habitFields.timesPerWeek')} error={errors['weeklyTarget'] ?? null}>
           {(field) => (
             <NativeSelect
@@ -395,10 +462,12 @@ export function HabitFields({
         <>
           {limit === 1 ? (
             <FormField
-              label={t('habitFields.reminderTime')}
+              label={t(letGo ? 'letgo.form.checkIn' : 'habitFields.reminderTime')}
               optional
               hint={
-                value.frequency === 'weekly' && times[0] && !silent
+                letGo
+                  ? t('letgo.form.checkInHint')
+                  : value.frequency === 'weekly' && times[0] && !silent
                   ? weeklySchedule(times[0], value.weeklyTarget)
                   : t('habitFields.reminderTimeHint')
               }

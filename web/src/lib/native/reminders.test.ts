@@ -5,9 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vite
 import { ApiClient } from '../api-client';
 import { DeviceStore } from '../device-store';
 import { Http } from '../http';
-import type { Habit, ReminderDestination, Routine } from '../models';
+import type { AnyHabit, Habit, ReminderDestination, Routine } from '../models';
 import { OfflineQueue } from '../offline-queue';
-import { type FetchMock, habit, mockFetch } from '../test-support';
+import { type FetchMock, habit, letGoHabit, mockFetch } from '../test-support';
 import { applyTheme } from '../theme';
 import { reminderNames } from './reminder-names';
 import { planDays } from './reminder-plan';
@@ -92,7 +92,7 @@ describe('Reminders', () => {
     return call;
   }
 
-  async function rebuildOnline(habits: Habit[], routines: unknown[] = []) {
+  async function rebuildOnline(habits: AnyHabit[], routines: unknown[] = []) {
     const done = reminders.rebuild('u1', zone);
     (await mock.next('GET', '/api/habits')).respond(200, habits);
     (await mock.next('GET', '/api/routines')).respond(200, routines);
@@ -311,6 +311,45 @@ describe('Reminders', () => {
     expect(second.id).not.toBe(first.id);
     expect(second.schedule?.at?.toISOString()).toBe('2026-11-01T19:30:00.000Z');
     expect(reminders.wasIssued(second.id, second.extra)).toBe(true);
+  });
+
+  it('gives a let-go habit one quiet check-in a day with no Done action and no second reminder', async () => {
+    reminderNames.set(true);
+    const coffee = { ...letGoHabit, reminderTime: '21:00', reminderChannels: ['mobile'] };
+    const done = reminders.rebuild('u1', zone, 30);
+    (await mock.next('GET', '/api/habits')).respond(200, [coffee]);
+    (await mock.next('GET', '/api/routines')).respond(200, []);
+    await phoneRegistered();
+    await done;
+    const notifications = schedule.mock.calls[0][0].notifications;
+
+    expect(notifications).toHaveLength(planDays);
+    expect(notifications[0]).toMatchObject({
+      title: 'Coffee',
+      body: 'A quiet check-in for Coffee. If anything happened today, you can note it in Ember.',
+      extra: { userId: 'u1', habitId: 9, date: '2026-11-01', letGo: true },
+    });
+    expect(notifications.every((n) => n.actionTypeId === undefined)).toBe(true);
+    expect(new Set(notifications.map((n) => (n.extra as { date: string }).date)).size).toBe(planDays);
+    expect(reminders.wasIssued(notifications[0].id, notifications[0].extra)).toBe(false);
+  });
+
+  it('keeps the habit name out of a let-go check-in while "Show habit names" is off', async () => {
+    const [first] = await rebuildOnline([{ ...letGoHabit, reminderTime: '21:00', reminderChannels: ['mobile'] }]);
+
+    expect(first.title).toBe('Ember');
+    expect(first.body).toBe('A quiet check-in. If anything happened today, you can note it in Ember.');
+    expect(JSON.stringify(first)).not.toContain('Coffee');
+  });
+
+  it('schedules nothing for a let-go habit without a check-in time', async () => {
+    const done = reminders.rebuild('u1', zone);
+    (await mock.next('GET', '/api/habits')).respond(200, [letGoHabit]);
+    (await mock.next('GET', '/api/routines')).respond(200, []);
+    await phoneRegistered();
+    await done;
+
+    expect(schedule).not.toHaveBeenCalled();
   });
 
   it('remembers which "Done" notifications it issued, for that exact extra only', async () => {

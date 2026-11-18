@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Feather, Plus } from 'lucide-react';
 import { type FormEvent, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Trans, useTranslation } from 'react-i18next';
@@ -26,7 +26,7 @@ import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { env } from '@/lib/env';
 import { templateDescription, templateName } from '@/lib/local/templates';
-import type { HabitTemplate, NewHabit } from '@/lib/models';
+import type { HabitKind, HabitTemplate, NewHabit } from '@/lib/models';
 import { asApiError, type FriendlyProblem, problemToMessage } from '@/lib/problem';
 import { api, localMode } from '@/lib/services';
 import { useStore } from '@/lib/store';
@@ -79,7 +79,7 @@ export default function HabitNewPage() {
   const hasTemplates = (templates.data?.length ?? 0) > 0;
   const showForm = chosen || templates.isError || templates.data?.length === 0;
 
-  function startForm(template: HabitTemplate | null): void {
+  function startForm(template: HabitTemplate | null, kind: HabitKind = 'build'): void {
     flushSync(() => {
       setForm(
         template
@@ -90,7 +90,7 @@ export default function HabitNewPage() {
               weeklyTarget: template.weeklyTarget ?? 3,
               reminderTimes: [template.suggestedReminderTime],
             }
-          : emptyHabitForm,
+          : { ...emptyHabitForm, kind },
       );
       setTouched(false);
       setPicked(template ? templateName(template) : null);
@@ -119,6 +119,7 @@ export default function HabitNewPage() {
     }
     const value = habitFormValue(form);
     const body: NewHabit = { name: value.name, frequency: value.frequency };
+    if (form.kind === 'letGo') body.kind = 'letGo';
     if (value.days !== null) body.days = value.days;
     if (value.frequency !== 'weekly') body.timesPerDay = value.timesPerDay;
     if (value.weeklyTarget !== null) body.weeklyTarget = value.weeklyTarget;
@@ -159,6 +160,10 @@ export default function HabitNewPage() {
           <Button type="button" variant="secondary" block onClick={() => startForm(null)}>
             <Plus aria-hidden />
             {t('habitNew.scratch')}
+          </Button>
+          <Button type="button" variant="secondary" block onClick={() => startForm(null, 'letGo')}>
+            <Feather aria-hidden />
+            {t('letgo.kind.letGo')}
           </Button>
           <ul className="grid gap-3 md:grid-cols-2">
             {templates.data.map((template) => (
@@ -258,7 +263,11 @@ export default function HabitNewPage() {
           <HabitPreview
             className="hidden lg:flex"
             name={form.name}
-            cadence={cadenceText(preview.frequency, preview.weeklyTarget, preview.days, preview.timesPerDay)}
+            cadence={
+              form.kind === 'letGo'
+                ? t('letgo.kind.letGo')
+                : cadenceText(preview.frequency, preview.weeklyTarget, preview.days, preview.timesPerDay)
+            }
           />
         </div>
       )}

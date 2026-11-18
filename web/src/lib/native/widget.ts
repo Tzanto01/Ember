@@ -1,6 +1,6 @@
 import { type PluginListenerHandle, registerPlugin } from '@capacitor/core';
 import type { Language } from '../i18n';
-import type { Habit, LocalDateString } from '../models';
+import { type AnyHabit, buildHabits, type LocalDateString } from '../models';
 import { scheduledOn } from './reminder-plan';
 
 /** A habit's state on the widget: `rest` is a low day, never "missed". */
@@ -52,16 +52,16 @@ const hidden = new Set(['offday', 'beforestart', 'paused']);
 
 /**
  * The snapshot for `date`: habits scheduled that day in list order (from `habit.today` when it is for `date`,
- * else from the schedule, as open). Names only go to the app-private widget, never to a notification.
+ * else from the schedule, as open); let-go habits are left out. Names only go to the app-private widget, never to a notification.
  */
 export function widgetSnapshot(
   userId: string,
   timeZone: string,
   date: LocalDateString,
-  habits: Habit[],
+  habits: AnyHabit[],
 ): WidgetSnapshot {
   const shown: WidgetHabit[] = [];
-  for (const habit of habits) {
+  for (const habit of buildHabits(habits)) {
     const timesPerDay = habit.timesPerDay ?? 1;
     const fresh = habit.today.date === date;
     if (fresh ? hidden.has(habit.today.state) : !scheduledOn(habit, date)) continue;

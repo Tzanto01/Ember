@@ -183,6 +183,79 @@ describe('BackupService', () => {
     expect(result.data.habits[0]).toMatchObject({ reminderTime: '07:30', reminderTimes: ['07:30'] });
   });
 
+  describe('let-go habits', () => {
+    function withLetGo(): LocalData {
+      const data = sample();
+      data.habits.push(habit(4, { kind: 'letGo', createdAt: '2026-10-01T08:00:00.000Z' }));
+      data.slips = [{ habitId: 4, date: '2026-10-12', count: 2, reasons: ['stressed', 'tired'] }];
+      data.profile.nextIds.habit = 5;
+      return data;
+    }
+
+    it('writes kind let_go with its slips and restores both, with ids remapped to this device', async () => {
+      const current = sample();
+      current.profile.nextIds = { habit: 10, routine: 5, mood: 7 };
+      await store.replace(current);
+      const doc = exportDocument(withLetGo());
+      expect((doc['habits'] as { kind: string }[]).map((h) => h.kind)).toEqual(['build', 'build', 'build', 'let_go']);
+      expect(doc['slips']).toEqual([{ habit_id: 4, date: '2026-10-12', count: 2, reasons: ['stressed', 'tired'] }]);
+
+      await backup.restoreBackup(parsed(backup.parseBackup(fileText(doc))));
+      const restored = (await store.load())!;
+
+      expect(restored.habits[3]).toMatchObject({ id: 13, kind: 'letGo', frequency: 'daily', routineId: null });
+      expect(restored.habits[0].kind).toBeUndefined();
+      expect(restored.slips).toEqual([{ habitId: 13, date: '2026-10-12', count: 2, reasons: ['stressed', 'tired'] }]);
+    });
+
+    it('reads a file with no kind as a build habit and no slips', () => {
+      const doc = exportDocument(sample());
+      for (const h of doc['habits'] as Record<string, unknown>[]) delete h['kind'];
+      delete doc['slips'];
+
+      const result = parsed(backup.parseBackup(fileText(doc)));
+
+      expect(result.data.habits.every((h) => h.kind !== 'letGo')).toBe(true);
+      expect(result.data.slips ?? []).toEqual([]);
+    });
+
+    it.each([
+      ['a slip on a build habit', (slip: Record<string, unknown>) => (slip['habit_id'] = 1)],
+      ['a slip for an unknown habit', (slip: Record<string, unknown>) => (slip['habit_id'] = 99)],
+      ['a slip count below 1', (slip: Record<string, unknown>) => (slip['count'] = 0)],
+      ['an unknown reason', (slip: Record<string, unknown>) => (slip['reasons'] = ['angry'])],
+      ['a slip before the habit started', (slip: Record<string, unknown>) => (slip['date'] = '2026-09-30')],
+      ['a slip in the future', (slip: Record<string, unknown>) => (slip['date'] = '2999-01-01')],
+    ])('refuses the whole file for %s and leaves this device untouched', async (_, damage) => {
+      const original = sample();
+      await store.replace(original);
+      const doc = exportDocument(withLetGo());
+      damage((doc['slips'] as Record<string, unknown>[])[0]);
+
+      const result = backup.parseBackup(fileText(doc));
+
+      expect('error' in result).toBe(true);
+      expect((await store.load())!.habits).toEqual(original.habits);
+    });
+
+    it('refuses a repeated slip day and a let-go habit with a weekly schedule or two reminder times', () => {
+      const repeated = exportDocument(withLetGo());
+      const slips = repeated['slips'] as Record<string, unknown>[];
+      slips.push({ ...slips[0] });
+      expect('error' in backup.parseBackup(fileText(repeated))).toBe(true);
+
+      for (const damage of [
+        (h: Record<string, unknown>) => (h['frequency'] = 'weekly'),
+        (h: Record<string, unknown>) => (h['reminder_times'] = ['08:00:00', '20:00:00']),
+        (h: Record<string, unknown>) => (h['kind'] = 'nonsense'),
+      ]) {
+        const doc = exportDocument(withLetGo());
+        damage((doc['habits'] as Record<string, unknown>[])[3]);
+        expect('error' in backup.parseBackup(fileText(doc))).toBe(true);
+      }
+    });
+  });
+
   it('rejects text that is too big or not an Ember backup', () => {
     expect(backup.parseBackup(' '.repeat(5 * 1024 * 1024 + 1))).toEqual({
       error: 'This file is too big to be an Ember backup.',

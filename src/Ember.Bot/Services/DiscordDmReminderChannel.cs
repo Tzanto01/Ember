@@ -10,7 +10,8 @@ namespace Ember.Bot.Services;
 
 /// <summary>
 /// Sends reminders as Discord DMs with Done / Skip / Snooze buttons; routine reminders list the pending habits with a Done button each.
-/// Every reminder DM also carries a Stop Discord reminders button.
+/// Every reminder DM also carries a Stop Discord reminders button. A let-go habit's reminder (<see cref="Reminder.LetGo"/>) is the quiet
+/// check-in text with only that button, and is not remembered.
 /// Every delivered reminder is remembered as a <see cref="ReminderMessage"/> until it is closed; a second reminder deletes the
 /// earlier messages of the same habit or routine and day (closing them when deleting fails).
 /// </summary>
@@ -44,14 +45,19 @@ public class DiscordDmReminderChannel : IReminderChannel
     public async Task<DeliveryOutcome> SendAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
         if (reminder.DiscordUserId is not { } discordUserId) return DeliveryOutcome.UserNotFound;
-        var (message, components) = reminder.PendingHabits is { } pending
+        var (message, components) = reminder.LetGo
+            ? LetGoMessage(BotTexts.For(reminder.Language), reminder.HabitName, discordUserId)
+            : reminder.PendingHabits is { } pending
             ? RoutineMessage(BotTexts.For(reminder.Language), reminder.HabitName, pending, reminder.Second, discordUserId)
             : HabitMessage(reminder, discordUserId);
 
         var sent = await _discord.SendTrackedMessageAsync(discordUserId, message, components, cancellationToken);
-        if (sent.Outcome == DeliveryOutcome.Delivered) await TrackAsync(reminder, sent);
+        if (sent.Outcome == DeliveryOutcome.Delivered && !reminder.LetGo) await TrackAsync(reminder, sent);
         return sent.Outcome;
     }
+
+    private static (string, MessageComponent) LetGoMessage(Texts t, string name, ulong discordUserId)
+        => (t.Format("letgo.reminder", name), new ComponentBuilder().WithButton(DiscordRemindersModule.StopButton(t, discordUserId)).Build());
 
     private (string, MessageComponent) HabitMessage(Reminder reminder, ulong discordUserId)
     {

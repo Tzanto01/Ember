@@ -14,13 +14,14 @@ internal static class ImportEndpoints
 
     public sealed record ImportDocument(int? FormatVersion, ImportSettings? Settings, List<ImportHabit?>? Habits, List<ImportLog?>? Logs,
         List<ImportDayMark?>? DayMarks, List<ImportRoutine?>? Routines, List<ImportMood?>? Moods, List<ImportDayNote?>? DayNotes,
-        JournalEndpoints.JournalKeyRequest? JournalKey);
+        JournalEndpoints.JournalKeyRequest? JournalKey, List<ImportSlip?>? Slips);
     public sealed record ImportSettings(int? GraceDaysPerWeek, string? Theme, int? SecondReminderMinutes, bool? ShowStreaks,
         string? Language, bool? CalmMode, List<string?>? TipsSeen);
     public sealed record ImportHabit(int? Id, string? Name, string? Frequency, int? WeeklyTarget, TimeOnly? ReminderTime,
         DateOnly? PausedUntil, DateOnly? PausedFrom, DateTimeOffset? CreatedAt, string?[]? Days,
-        int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes);
+        int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind);
     public sealed record ImportLog(int? HabitId, DateOnly? Date, bool? Completed, int? Count);
+    public sealed record ImportSlip(int? HabitId, DateOnly? Date, int? Count, List<string?>? Reasons);
     public sealed record ImportDayMark(DateOnly? Date, string? Kind);
     public sealed record ImportRoutine(int? Id, string? Name, TimeOnly? ReminderTime);
     public sealed record ImportMood(int? Id, string? Label, string? Emoji, bool? Archived, JournalEndpoints.EncryptedDto? Encrypted);
@@ -121,10 +122,18 @@ internal static class ImportEndpoints
             var reminderTimes = h.ReminderTimes ?? (h.ReminderTime is { } single ? [single] : []);
             var timesTarget = frequency == FrequencyType.Weekly ? 1 : timesPerDay;
             if (reminderTimes.Distinct().Count() > timesTarget) local["reminder_times"] = [$"At most {timesTarget}, the habit's times_per_day."];
+            HabitKind? kind = h.Kind switch { null or "build" => HabitKind.Build, "let_go" => HabitKind.LetGo, _ => null };
+            if (kind is null) local["kind"] = ["Must be build or let_go."];
+            else if (kind == HabitKind.LetGo)
+            {
+                HabitEndpoints.ValidateLetGo(frequency, h.TimesPerDay, h.WeeklyTarget, h.Days, reminderTimes.Distinct().Count(), local);
+                if (h.RoutineId is not null) local["routine_id"] = ["Let-go habits can't be in a routine."];
+            }
 
             var habit = new Habit
             {
                 Name = name ?? "",
+                Kind = kind ?? HabitKind.Build,
                 ReminderTimes = HabitService.NormalizeReminderTimes(reminderTimes, timesTarget),
                 PausedFrom = h.PausedFrom,
                 PausedUntil = h.PausedUntil,
@@ -148,6 +157,8 @@ internal static class ImportEndpoints
             Habit? habit = null;
             if (l.HabitId is not { } habitId || !habitById.TryGetValue(habitId, out habit))
                 local["habit_id"] = ["Must be the id of a habit in this file."];
+            else if (habit.Kind == HabitKind.LetGo)
+                local["habit_id"] = ["Let-go habits have slips, not logs."];
             if (l.Date is not { } date) local["date"] = [Formats.DateMessage];
             else if (date > today) local["date"] = ["Can't be after today."];
             else if (habit is not null && date < HabitService.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
@@ -158,6 +169,31 @@ internal static class ImportEndpoints
             var completed = l.Completed == true || count >= target;
             if (completed && count == 0) local["completed"] = ["Must be false when count is 0."];
             habit?.Logs.Add(new HabitLog { Date = l.Date ?? default, Count = count, Completed = completed });
+            Nest(errors, path, local);
+        }
+
+        var slipped = new HashSet<(Habit, DateOnly)>();
+        foreach (var (sl, path) in Items(doc.Slips, "slips", errors))
+        {
+            Habit? habit = null;
+            if (sl.HabitId is not { } habitId || !habitById.TryGetValue(habitId, out habit))
+                local["habit_id"] = ["Must be the id of a habit in this file."];
+            else if (habit.Kind != HabitKind.LetGo)
+                local["habit_id"] = ["Only let-go habits have slips."];
+            if (sl.Date is not { } date) local["date"] = [Formats.DateMessage];
+            else if (date > today) local["date"] = ["Can't be after today."];
+            else if (habit is not null && date < HabitService.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
+            else if (habit is not null && !slipped.Add((habit, date))) local["date"] = ["Only one slip entry per habit and day."];
+            if (sl.Count is not >= 1) local["count"] = ["Must be at least 1."];
+            if (sl.Reasons?.Any(r => r is null || !HabitSlip.ReasonIds.Contains(r)) == true)
+                local["reasons"] = [$"Each must be one of {string.Join(", ", HabitSlip.ReasonIds)}."];
+            habit?.Slips.Add(new HabitSlip
+            {
+                Date = sl.Date ?? default,
+                Count = sl.Count ?? 0,
+                Reasons = sl.Reasons?.OfType<string>().Distinct().ToList() ?? [],
+                UpdatedAt = now,
+            });
             Nest(errors, path, local);
         }
 
