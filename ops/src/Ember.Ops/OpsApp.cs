@@ -30,14 +30,14 @@ public static class OpsApp
         services.AddMemoryCache();
         services.AddHttpClient(SystemInfo.HttpClientName, client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(5);
+            client.Timeout = TimeSpan.FromSeconds(3);
             client.MaxResponseContentBufferSize = 1 << 20;
             client.DefaultRequestHeaders.UserAgent.ParseAdd("ember-ops");
         });
         services.AddSingleton<SystemInfo>();
         services.AddHttpClient(NoticeStore.HttpClientName, client =>
             {
-                client.Timeout = TimeSpan.FromSeconds(10);
+                client.Timeout = TimeSpan.FromSeconds(4);
                 client.MaxResponseContentBufferSize = 64 << 10;
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("ember-ops");
             })
