@@ -1,0 +1,268 @@
+using Npgsql;
+
+namespace Ember.Ops.TestHost;
+
+/// <summary>
+/// Synthetic data for the dashboard, inserted as superuser with plain SQL so it works on both the production and the v2 schema:
+/// required columns not set here get a neutral value, and v2-only tables and columns are filled only when they exist.
+/// </summary>
+public static class OpsSeed
+{
+    /// <summary>A 1x1 PNG.</summary>
+    public static readonly byte[] Png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+
+    public const int Users = 12;
+
+    /// <summary>Fills emberdb with a dozen users and their habits, logs, notes, reminders, devices and feedback.</summary>
+    public static async Task SeedEmberAsync(string superuserEmberConnection, DateTime utcNow, CancellationToken ct = default)
+    {
+        var random = new Random(42);
+        var today = DateOnly.FromDateTime(utcNow);
+        await using var connection = new NpgsqlConnection(superuserEmberConnection);
+        await connection.OpenAsync(ct);
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        var rows = new RowWriter(connection, transaction);
+
+        var v2 = await rows.HasColumnAsync("Habits", "Kind", ct);
+        var users = new List<Guid>();
+        for (var i = 0; i < Users; i++)
+        {
+            var id = Guid.CreateVersion7();
+            users.Add(id);
+            var user = new Dictionary<string, object?>
+            {
+                ["Id"] = id,
+                ["UserName"] = $"seed-user-{i}",
+                ["ShowStreaks"] = i % 3 != 0,
+                ["GraceDaysPerWeek"] = i % 3,
+                ["SecondReminderMinutes"] = new[] { 0, 15, 30, 60, 120 }[i % 5],
+                ["DmFailureCount"] = i == 4 ? 2 : 0,
+                ["DmRemindersPausedAt"] = i == 5 ? utcNow.AddDays(-2) : null,
+                ["DiscordReminders"] = i % 2 == 0 ? true : i % 3 == 0 ? false : null,
+                ["Timezone"] = "Europe/Berlin",
+                ["Language"] = "en",
+            };
+            if (v2) user["FiresideEnabled"] = i < 6;
+            await rows.InsertAsync("AspNetUsers", user, ct);
+        }
+
+        var routines = new List<(int Id, Guid User)>();
+        for (var i = 0; i < 4; i++)
+            routines.Add(((int)(await rows.InsertAsync("Routines", new()
+            {
+                ["UserId"] = users[i],
+                ["Name"] = $"Seed routine {i}",
+                ["CreatedAt"] = utcNow.AddDays(-60),
+                ["NextReminderUtc"] = utcNow.AddHours(1 + i),
+                ["SecondReminderUtc"] = i == 0 ? utcNow.AddMinutes(20) : null,
+                ["Position"] = 0,
+            }, ct))!, users[i]));
+
+        var buildHabits = new List<(int Id, Guid User)>();
+        var letGoHabits = new List<int>();
+        for (var i = 0; i < Users; i++)
+        {
+            var firstDay = 5 + i * 6;
+            var count = 1 + i % 3;
+            for (var h = 0; h < count; h++)
+            {
+                var letGo = v2 && h == 0 && i < 5;
+                var habit = new Dictionary<string, object?>
+                {
+                    ["UserId"] = users[i],
+                    ["Name"] = $"Seed habit {i}.{h}",
+                    ["CreatedAt"] = utcNow.AddDays(-firstDay + h),
+                    ["RoutineId"] = h == 1 && i < 4 ? routines[i].Id : null,
+                    ["PausedUntil"] = i == 7 && h == 0 ? today.AddDays(5) : null,
+                    ["NextReminderUtc"] = h == 2 ? null : utcNow.AddHours(2 + h),
+                    ["SecondReminderUtc"] = i == 1 && h == 0 ? utcNow.AddMinutes(10) : null,
+                    ["TimesPerDay"] = 1,
+                };
+                if (v2) habit["Kind"] = letGo ? 1 : 0;
+                var id = (int)(await rows.InsertAsync("Habits", habit, ct))!;
+                if (letGo) letGoHabits.Add(id);
+                else buildHabits.Add((id, users[i]));
+            }
+        }
+
+        foreach (var (habit, _) in buildHabits)
+            for (var d = 0; d < 90; d++)
+                if (random.NextDouble() < 0.6)
+                    await rows.InsertAsync("HabitLogs", new()
+                    {
+                        ["HabitId"] = habit, ["Date"] = today.AddDays(-d), ["Completed"] = random.NextDouble() < 0.85, ["Count"] = 1,
+                    }, ct, returning: null);
+
+        foreach (var habit in letGoHabits)
+            for (var d = 0; d < 84; d++)
+                if (random.NextDouble() < 0.15)
+                    await rows.InsertAsync("HabitSlips", new()
+                    {
+                        ["HabitId"] = habit, ["Date"] = today.AddDays(-d), ["Count"] = 1 + random.Next(3), ["UpdatedAt"] = utcNow,
+                    }, ct, returning: null);
+
+        for (var i = 0; i < Users; i++)
+            for (var d = 0; d < 90; d++)
+            {
+                if (random.NextDouble() < 0.2)
+                    await rows.InsertAsync("DayNotes", new() { ["UserId"] = users[i], ["Date"] = today.AddDays(-d), ["Text"] = "synthetic note" }, ct, returning: null);
+                if (random.NextDouble() < 0.05)
+                    await rows.InsertAsync("DayMarks", new() { ["UserId"] = users[i], ["Date"] = today.AddDays(-d), ["Kind"] = 0 }, ct, returning: null);
+            }
+
+        var messageId = 1_000_000m;
+        for (var d = 0; d < 14; d++)
+            foreach (var (habit, user) in buildHabits.Where((_, n) => n % 3 == d % 3))
+            {
+                await rows.InsertAsync("ReminderMessages", new()
+                {
+                    ["UserId"] = user, ["HabitId"] = habit, ["Date"] = today.AddDays(-d), ["ChannelId"] = 42m, ["MessageId"] = messageId++,
+                }, ct, returning: null);
+                if (random.NextDouble() < 0.5)
+                    await rows.InsertAsync("PushReminders", new() { ["UserId"] = user, ["HabitId"] = habit, ["Date"] = today.AddDays(-d) }, ct, returning: null);
+            }
+
+        for (var i = 0; i < 5; i++)
+            await rows.InsertAsync("PushSubscriptions", new()
+            {
+                ["UserId"] = users[i], ["Endpoint"] = $"https://push.example.test/{i}", ["P256dh"] = "synthetic", ["Auth"] = "synthetic",
+                ["Enabled"] = i != 3, ["CreatedAt"] = utcNow.AddDays(-10),
+            }, ct, returning: null);
+
+        for (var i = 0; i < 3; i++)
+            await rows.InsertAsync("ReminderPhones", new()
+            {
+                ["UserId"] = users[i + 5], ["InstallId"] = $"seed-install-{i}", ["Enabled"] = i != 2, ["CreatedAt"] = utcNow.AddDays(-7),
+            }, ct, returning: null);
+
+        if (await rows.HasColumnAsync("FiresideLinks", "Id", ct))
+        {
+            foreach (var (a, b) in new[] { (0, 1), (0, 2), (1, 3) })
+            foreach (var (owner, friend) in new[] { (a, b), (b, a) })
+                await rows.InsertAsync("FiresideLinks", new()
+                {
+                    ["OwnerId"] = users[owner], ["FriendId"] = users[friend], ["CreatedAt"] = utcNow.AddDays(-20), ["ShareFlame"] = true,
+                }, ct, returning: null);
+            for (var w = 0; w < 20; w++)
+                await rows.InsertAsync("Warmth", new()
+                {
+                    ["FromUserId"] = users[w % 2], ["ToUserId"] = users[w % 2 + 1], ["SentAtUtc"] = utcNow.AddHours(-w * 30),
+                }, ct, returning: null);
+        }
+
+        var feedback = new (string Status, string Platform, bool Anonymous, string? Version, int Images)[]
+        {
+            ("open", "web", false, "1.21.0", 1), ("open", "android", true, "1.20.3", 0), ("planned", "discord", false, null, 0),
+            ("planned", "web", false, "1.21.0", 2), ("implemented", "android", false, "1.19.0", 0), ("released", "web", true, "1.18.2", 0),
+            ("declined", "discord", false, null, 0), ("open", "web", false, "1.21.0", 0),
+        };
+        for (var f = 0; f < feedback.Length; f++)
+        {
+            var (status, platform, anonymous, version, images) = feedback[f];
+            var created = utcNow.AddDays(-2 * f - 1);
+            var id = (int)(await rows.InsertAsync("Feedback", new()
+            {
+                ["UserId"] = anonymous ? null : users[f],
+                ["Platform"] = platform,
+                ["Version"] = version,
+                ["Title"] = $"Synthetic report {f + 1}",
+                ["Text"] = $"Synthetic feedback text {f + 1}.\nSecond line.",
+                ["CreatedAt"] = created,
+                ["Status"] = status,
+                ["ResolvedAt"] = status is "released" or "declined" ? created.AddDays(1) : null,
+            }, ct))!;
+            for (var n = 0; n < images; n++)
+                await rows.InsertAsync("FeedbackImages", new()
+                {
+                    ["Id"] = Guid.CreateVersion7(), ["FeedbackId"] = id, ["ContentType"] = "image/png", ["Size"] = Png.Length, ["Data"] = Png,
+                }, ct, returning: null);
+        }
+
+        await transaction.CommitAsync(ct);
+    }
+
+    /// <summary>Adds hourly reminder snapshots for the past week and a few comments to emberops.</summary>
+    public static async Task SeedOpsAsync(string superuserOpsConnection, DateTime utcNow, CancellationToken ct = default)
+    {
+        await using var connection = new NpgsqlConnection(superuserOpsConnection);
+        await connection.OpenAsync(ct);
+        await using var batch = new NpgsqlBatch(connection)
+        {
+            BatchCommands =
+            {
+                new("""
+                    INSERT INTO reminder_counters (at, discord_max_id, push_max_id)
+                    SELECT $1 - make_interval(hours => h), 1000 - h * 3, 500 - h * 2 FROM generate_series(1, 168) h
+                    ON CONFLICT DO NOTHING
+                    """) { Parameters = { new() { Value = utcNow } } },
+                new("""
+                    INSERT INTO comments (feedback_id, author, body, created_at) VALUES
+                        (1, 'e2e@example.test', 'Synthetic first comment.', $1 - interval '2 hours'),
+                        (1, 'tailnet', 'Synthetic reply.', $1 - interval '1 hour'),
+                        (4, 'e2e@example.test', 'Synthetic note on a planned card.', $1 - interval '30 minutes')
+                    """) { Parameters = { new() { Value = utcNow } } },
+            },
+        };
+        await batch.ExecuteNonQueryAsync(ct);
+    }
+
+    private sealed record EmptyArray;
+
+    private sealed class RowWriter(NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        private readonly Dictionary<string, List<(string Name, string Type)>> _required = [];
+
+        public async Task<bool> HasColumnAsync(string table, string column, CancellationToken ct)
+        {
+            await using var command = new NpgsqlCommand(
+                "SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2)",
+                connection, transaction) { Parameters = { new() { Value = table }, new() { Value = column } } };
+            return (bool)(await command.ExecuteScalarAsync(ct))!;
+        }
+
+        public async Task<object?> InsertAsync(string table, Dictionary<string, object?> values, CancellationToken ct, string? returning = "Id")
+        {
+            foreach (var (name, type) in await RequiredAsync(table, ct))
+                values.TryAdd(name, Neutral(type));
+
+            var columns = values.Keys.ToList();
+            var parameters = columns.Where(c => values[c] is not EmptyArray).ToList();
+            var sql = $"INSERT INTO \"{table}\" ({string.Join(", ", columns.Select(c => $"\"{c}\""))}) VALUES ({string.Join(", ", columns.Select(c => values[c] is EmptyArray ? "'{}'" : $"${parameters.IndexOf(c) + 1}"))})"
+                + (returning is null ? "" : $" RETURNING \"{returning}\"");
+            await using var command = new NpgsqlCommand(sql, connection, transaction);
+            foreach (var column in parameters) command.Parameters.Add(new NpgsqlParameter { Value = values[column] ?? DBNull.Value });
+            return await command.ExecuteScalarAsync(ct);
+        }
+
+        private async Task<List<(string Name, string Type)>> RequiredAsync(string table, CancellationToken ct)
+        {
+            if (_required.TryGetValue(table, out var known)) return known;
+            await using var command = new NpgsqlCommand("""
+                SELECT column_name, data_type FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = $1 AND is_nullable = 'NO' AND column_default IS NULL AND is_identity = 'NO'
+                """, connection, transaction) { Parameters = { new() { Value = table } } };
+            var required = new List<(string, string)>();
+            await using (var reader = await command.ExecuteReaderAsync(ct))
+                while (await reader.ReadAsync(ct)) required.Add((reader.GetString(0), reader.GetString(1)));
+            return _required[table] = required;
+        }
+
+        private static object Neutral(string type) => type switch
+        {
+            "boolean" => false,
+            "integer" => 0,
+            "smallint" => (short)0,
+            "bigint" => 0L,
+            "numeric" => 0m,
+            "double precision" => 0d,
+            "text" or "character varying" => string.Empty,
+            "timestamp with time zone" => DateTime.UtcNow,
+            "date" => DateOnly.FromDateTime(DateTime.UtcNow),
+            "time without time zone" => TimeOnly.MinValue,
+            "uuid" => Guid.NewGuid(),
+            "bytea" => Array.Empty<byte>(),
+            "ARRAY" => new EmptyArray(),
+            _ => throw new NotSupportedException($"No neutral value for {type}"),
+        };
+    }
+}

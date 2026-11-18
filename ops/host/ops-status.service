@@ -1,0 +1,7 @@
+[Unit]
+Description=Ember ops dashboard host status
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/ember-ops/ops/host/ops-status.sh
