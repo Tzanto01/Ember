@@ -613,7 +613,8 @@ describe('TodayPage let-go habits', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
     (await f.next('POST', '/api/habits/9/slips')).respond(200, slipped);
     await within(dialog).findByText(/^Noted\./);
-    await userEvent.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]);
+    expect(within(dialog).getAllByRole('button', { name: 'Close' })).toHaveLength(1);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
     await userEvent.click(screen.getByRole('button', { name: 'I slipped: Coffee' }));

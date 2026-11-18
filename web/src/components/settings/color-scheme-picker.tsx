@@ -39,8 +39,12 @@ export function ColorSchemePicker() {
             htmlFor={`color-scheme-${choice.id}`}
             className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border-[length:max(1px,var(--border-width))] border-border px-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent has-[[data-state=checked]]:text-accent-foreground has-[[data-state=checked]]:ring-1 has-[[data-state=checked]]:ring-primary"
           >
-            <RadioGroupItem id={`color-scheme-${choice.id}`} value={choice.id} />
-            {t(choice.label)}
+            <RadioGroupItem
+              id={`color-scheme-${choice.id}`}
+              value={choice.id}
+              aria-labelledby={`color-scheme-${choice.id}-name`}
+            />
+            <span id={`color-scheme-${choice.id}-name`}>{t(choice.label)}</span>
           </label>
         ))}
       </RadioGroup>

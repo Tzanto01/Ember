@@ -223,10 +223,11 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
   }
 
   const { daysFree, longestStretch, freeDaysThisMonth } = habit.stats;
-  const tiles: Tile[] = [{ label: t('letgo.stats.daysFree'), value: daysFreeText(daysFree) }];
-  if (longestStretch > 0) tiles.push({ label: t('letgo.stats.longest'), value: t('stats.days', { count: longestStretch }) });
-  if (freeDaysThisMonth > 0)
-    tiles.push({ label: t('letgo.stats.month'), value: t('stats.days', { count: freeDaysThisMonth }) });
+  const tiles: Tile[] = [
+    { label: t('letgo.stats.daysFree'), value: daysFreeText(daysFree) },
+    { label: t('letgo.stats.longest'), value: t('stats.days', { count: longestStretch }) },
+    { label: t('letgo.stats.month'), value: t('stats.days', { count: freeDaysThisMonth }) },
+  ];
 
   return (
     <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
@@ -320,12 +321,7 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
           </Card>
         )}
         {openDay && <DayJournal date={openDay.date} />}
-        <dl
-          className={cn(
-            'grid gap-2',
-            tiles.length === 3 ? 'grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))]' : 'grid-cols-2',
-          )}
-        >
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))] gap-2">
           {tiles.map((tile) => (
             <div key={tile.label} className={cn(cardVariants({ variant: 'stat' }), 'min-w-0')}>
               <dt className="text-[0.875rem]">{tile.label}</dt>

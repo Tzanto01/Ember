@@ -40,8 +40,8 @@ export function LanguagePicker({
             lang={choice.id}
             className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border-[length:max(1px,var(--border-width))] border-border px-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent has-[[data-state=checked]]:text-accent-foreground has-[[data-state=checked]]:ring-1 has-[[data-state=checked]]:ring-primary"
           >
-            <RadioGroupItem id={`language-${choice.id}`} value={choice.id} />
-            {choice.label}
+            <RadioGroupItem id={`language-${choice.id}`} value={choice.id} aria-labelledby={`language-${choice.id}-name`} />
+            <span id={`language-${choice.id}-name`}>{choice.label}</span>
           </label>
         ))}
       </RadioGroup>

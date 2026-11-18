@@ -228,6 +228,7 @@ export function HabitFields({
   const timesId = `${id}-times`;
   const timesRef = useRef<HTMLDivElement>(null);
   const [dropped, setDropped] = useState<TimeOfDay[]>([]);
+  const nameEdited = useRef(false);
   const letGo = value.kind === 'letGo';
   const limit = letGo || value.frequency === 'weekly' ? 1 : value.timesPerDay;
   const times = sortedTimes(value.reminderTimes);
@@ -317,8 +318,12 @@ export function HabitFields({
           >
             {kinds.map((option) => (
               <Label key={option.value} htmlFor={`${id}-kind-${option.value}`} className={optionClass}>
-                <RadioGroupItem id={`${id}-kind-${option.value}`} value={option.value} />
-                {t(option.label)}
+                <RadioGroupItem
+                  id={`${id}-kind-${option.value}`}
+                  value={option.value}
+                  aria-labelledby={`${id}-kind-${option.value}-name`}
+                />
+                <span id={`${id}-kind-${option.value}-name`}>{t(option.label)}</span>
               </Label>
             ))}
           </RadioGroup>
@@ -335,8 +340,11 @@ export function HabitFields({
               autoComplete="off"
               maxLength={120}
               value={value.name}
-              onChange={(event) => onChange({ ...value, name: event.target.value })}
-              onBlur={onTouched}
+              onChange={(event) => {
+                nameEdited.current = true;
+                onChange({ ...value, name: event.target.value });
+              }}
+              onBlur={() => nameEdited.current && onTouched()}
             />
             {nameLength >= 80 && (
               <p id={`${field.id}-count`} className="self-end text-[0.875rem] text-muted-foreground">
@@ -360,8 +368,8 @@ export function HabitFields({
           >
             {frequencies.map((option) => (
               <Label key={option.value} htmlFor={`${id}-${option.value}`} className={optionClass}>
-                <RadioGroupItem id={`${id}-${option.value}`} value={option.value} />
-                {t(option.label)}
+                <RadioGroupItem id={`${id}-${option.value}`} value={option.value} aria-labelledby={`${id}-${option.value}-name`} />
+                <span id={`${id}-${option.value}-name`}>{t(option.label)}</span>
               </Label>
             ))}
           </RadioGroup>
@@ -474,13 +482,21 @@ export function HabitFields({
               error={timesError}
             >
               {(field) => (
-                <Input
-                  {...field}
-                  type="time"
-                  className="max-w-[12rem]"
-                  value={value.reminderTimes[0] ?? ''}
-                  onChange={(event) => setTime(0, event.target.value)}
-                />
+                <div className="flex items-center gap-3">
+                  <Input
+                    {...field}
+                    aria-describedby={cn(field['aria-describedby'], !value.reminderTimes[0] && `${field.id}-off`) || undefined}
+                    type="time"
+                    className="max-w-[12rem]"
+                    value={value.reminderTimes[0] ?? ''}
+                    onChange={(event) => setTime(0, event.target.value)}
+                  />
+                  {!value.reminderTimes[0] && (
+                    <span id={`${field.id}-off`} className="text-muted-foreground">
+                      {t('settings.second.off')}
+                    </span>
+                  )}
+                </div>
               )}
             </FormField>
           ) : (

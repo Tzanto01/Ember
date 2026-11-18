@@ -247,6 +247,25 @@ describe('HabitNewPage', () => {
       });
     });
 
+    it('waits for a save before asking for a name the user never typed, and says the check-in is off until a time is picked', async () => {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      (await fetch.next('GET', '/api/habit-templates')).respond(200, [template]);
+
+      await user.click(await screen.findByRole('button', { name: 'Something to let go of' }));
+      expect(screen.getByLabelText('Name', { exact: true })).toHaveFocus();
+      await user.click(screen.getByRole('radio', { name: 'Something to let go of' }));
+      expect(screen.queryByText('Give your habit a short name.')).toBeNull();
+      const checkIn = screen.getByLabelText(/Quiet evening check-in/);
+      expect(checkIn).toHaveAccessibleDescription(/Off$/);
+
+      fireEvent.change(checkIn, { target: { value: '21:00' } });
+      expect(checkIn).not.toHaveAccessibleDescription(/Off$/);
+      await user.click(screen.getByRole('button', { name: 'Create habit' }));
+      expect(screen.getByText('Give your habit a short name.')).toBeInTheDocument();
+    });
+
     it('does not send a kind for a build habit', async () => {
       const user = userEvent.setup();
       const fetch = mockFetch();

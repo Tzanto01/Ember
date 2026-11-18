@@ -61,7 +61,7 @@ test('a slip is noted with a reason, can be undone, and the sheet reopens clean'
 
   await sheet.getByRole('button', { name: 'Undo' }).click();
   await expect(sheet.getByRole('status')).toHaveText('Taken back. Today has no slips noted.');
-  await sheet.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await sheet.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(sheet).toHaveCount(0);
   await expect(row.getByText('1 day free')).toBeVisible();
 
@@ -69,7 +69,7 @@ test('a slip is noted with a reason, can be undone, and the sheet reopens clean'
   await sheet.getByRole('button', { name: 'Tired', exact: true }).click();
   await sheet.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(sheet.getByRole('status')).toContainText(/^Noted\./);
-  await sheet.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await sheet.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(sheet).toHaveCount(0);
   await expect(row.getByText('Starting again, gently')).toBeVisible();
 
@@ -101,7 +101,7 @@ test('history shows days free, longest stretch and free days, marks a slip softl
   await row.getByRole('button', { name: 'I slipped: Late snacks' }).click();
   await slipDialog(page).getByRole('button', { name: 'Save', exact: true }).click();
   await expect(slipDialog(page).getByRole('status')).toContainText(/^Noted\./);
-  await slipDialog(page).getByRole('button', { name: 'Close', exact: true }).last().click();
+  await slipDialog(page).getByRole('button', { name: 'Done', exact: true }).click();
 
   await page.getByRole('banner').getByRole('link', { name: 'History' }).click();
   await showMonthOf(page, today);

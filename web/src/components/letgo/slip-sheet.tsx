@@ -141,7 +141,7 @@ export function SlipSheet({ habit, open, onOpenChange, onChange }: SlipSheetProp
               <div className="flex flex-col gap-3 sm:flex-row-reverse">
                 <Dialog.Close asChild>
                   <Button block className="sm:w-auto">
-                    {t('letgo.sheet.close')}
+                    {t('letgo.sheet.done')}
                   </Button>
                 </Dialog.Close>
                 {!undone && saved.today.slips === 1 && (

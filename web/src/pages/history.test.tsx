@@ -218,6 +218,16 @@ describe('HistoryPage for a let-go habit', () => {
     expect(f.all.some((c) => c.url.includes('/days') || c.url.includes('/low-days'))).toBe(false);
   });
 
+  it('keeps all three tiles on a fresh start with nothing counted yet', async () => {
+    renderHistory('/history/9');
+    await answerHabits(f, [{ ...coffee, stats: { ...coffee.stats, daysFree: 0, longestStretch: 0, freeDaysThisMonth: 0 } }]);
+    await answerSlips();
+
+    expect((await screen.findByText('Days free')).nextSibling).toHaveTextContent('Starting again, gently');
+    expect(screen.getByText('Longest stretch').nextSibling).toHaveTextContent('0 days');
+    expect(screen.getByText('Free days this month').nextSibling).toHaveTextContent('0 days');
+  });
+
   it('marks days with a slip and lets a past day get a slip added and removed', async () => {
     const container = renderHistory('/history/9');
     await answerHabits(f, [coffee]);

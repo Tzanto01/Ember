@@ -113,8 +113,8 @@ export function SendSheet({
                     htmlFor={`${id}-${option}`}
                     className="flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border-[length:max(1px,var(--border-width))] border-border px-4 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent has-[[data-state=checked]]:text-accent-foreground"
                   >
-                    <RadioGroupItem id={`${id}-${option}`} value={option} />
-                    {warmthText(option)}
+                    <RadioGroupItem id={`${id}-${option}`} value={option} aria-labelledby={`${id}-${option}-name`} />
+                    <span id={`${id}-${option}-name`}>{warmthText(option)}</span>
                   </label>
                 ))}
               </RadioGroup>
