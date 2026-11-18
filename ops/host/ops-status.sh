@@ -9,7 +9,7 @@ command -v jq >/dev/null || { echo "ops-status: jq is required" >&2; exit 1; }
 out_dir="${HOME}/.local/state/ember-ops"
 mkdir -p "$out_dir"
 
-disks=$(df -B1 -l --output=source,fstype,avail,size,target | tail -n +2 | awk '
+disks=$({ df -B1 -l --output=source,fstype,avail,size,target 2>/dev/null || true; } | tail -n +2 | awk '
   $1 ~ /^\/dev\// && $2 ~ /^(ext[234]|xfs|btrfs|f2fs)$/ {
     t = $0; for (i = 0; i < 4; i++) sub(/^ *[^ ]+ +/, "", t)
     if (t !~ /^\/(var\/lib\/docker|snap|boot)(\/|$)/ && !seen[$1]++) printf "%s\t%s\t%s\n", t, $3, $4
