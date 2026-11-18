@@ -457,7 +457,7 @@ for (const { code, strings } of languages) {
         .first()
         .click();
       await page.getByRole('button', { name: tr('journalSettings.lock') }).click();
-      await expect(page.getByText(tr('journalSettings.locked'))).toBeVisible();
+      await expect(page.getByText(tr('journalSettings.lockedDone'))).toBeVisible();
       await go(page, '/moments', tr('title.moments'));
       await expect(page.getByText(tr('moments.locked'))).toBeVisible();
       await snap('/moments', 'locked');
