@@ -123,4 +123,19 @@
   <data name="timezone.show.description" xml:space="preserve">
     <value>Show your current timezone setting</value>
   </data>
+  <data name="fireside.description" xml:space="preserve">
+    <value>Send and get warmth from friends at your fireside</value>
+  </data>
+  <data name="fireside.code.description" xml:space="preserve">
+    <value>Get a code a friend can use to join your fireside</value>
+  </data>
+  <data name="fireside.join.description" xml:space="preserve">
+    <value>Join a friend's fireside with their code</value>
+  </data>
+  <data name="fireside.join.code.description" xml:space="preserve">
+    <value>The code you got</value>
+  </data>
+  <data name="fireside.send.description" xml:space="preserve">
+    <value>Send warmth to a friend</value>
+  </data>
 </root>

@@ -57,6 +57,7 @@ public static class AppHost
 
                 services.AddSingleton(TimeProvider.System);
                 services.AddScoped<HabitService>();
+                services.AddScoped<FiresideService>();
 
                 services.AddQuartz(q =>
                 {
@@ -89,6 +90,12 @@ public static class AppHost
                         .ForJob(UnconfirmedAccountCleanupJob.Key)
                         .WithIdentity("unconfirmed-account-cleanup-trigger", "accounts")
                         .WithCronSchedule("0 30 3 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc)));
+
+                    q.AddJob<FiresideNotifyJob>(opts => opts.WithIdentity(FiresideNotifyJob.Key).StoreDurably());
+                    q.AddTrigger(opts => opts
+                        .ForJob(FiresideNotifyJob.Key)
+                        .WithIdentity("fireside-notify-trigger", "fireside")
+                        .WithCronSchedule("15 * * * * ?", x => x.InTimeZone(TimeZoneInfo.Utc)));
                 });
                 services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
                 services.AddSingleton<IReminderChannel, DiscordDmReminderChannel>();

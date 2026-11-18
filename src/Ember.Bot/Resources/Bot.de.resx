@@ -647,6 +647,15 @@ Habits sind ein Teil davon: ohne schlechtes Gewissen, ohne Druck.</value>
     <value>`/export`: deine Habits, Check-ins und Einstellungen per DM bekommen
 `/privacy delete`: alle deine Ember-Daten endgültig löschen</value>
   </data>
+  <data name="help.fireside.title" xml:space="preserve">
+    <value>Am Lagerfeuer</value>
+  </data>
+  <data name="help.fireside.body" xml:space="preserve">
+    <value>`/fireside code`: einen Code holen, mit dem jemand an dein Lagerfeuer kommt
+`/fireside join`: mit einem Code an ein Lagerfeuer kommen
+`/fireside send`: jemandem etwas Wärme schicken
+Schalte Am Lagerfeuer in der Ember-App oder im Web ein.</value>
+  </data>
   <data name="help.feedback.title" xml:space="preserve">
     <value>Feedback</value>
   </data>
@@ -1323,5 +1332,63 @@ Ember bietet dir dann an, deine Habits von hier in dieses Konto zu übernehmen. 
   </data>
   <data name="time.suggested" xml:space="preserve">
     <value>HH:mm</value>
+  </data>
+  <data name="fireside.off" xml:space="preserve">
+    <value>Am Lagerfeuer ist für dein Konto noch aus. Schalte es in der Ember-App oder im Web ein und wähl dort deinen Namen.</value>
+  </data>
+  <data name="fireside.code" xml:space="preserve">
+    <value>Dein Code: **{0}**
+Gilt einmal, für 30 Minuten.</value>
+  </data>
+  <data name="fireside.joined" xml:space="preserve">
+    <value>Du bist jetzt am Lagerfeuer von {0}. {0} sieht deinen Namen, sonst nichts.</value>
+  </data>
+  <data name="fireside.invalid-code" xml:space="preserve">
+    <value>Der Code hat nicht geklappt. Frag nach einem neuen.</value>
+  </data>
+  <data name="fireside.too-many" xml:space="preserve">
+    <value>Zu viele Versuche. Probier es später noch mal.</value>
+  </data>
+  <data name="fireside.full" xml:space="preserve">
+    <value>Jemand von euch hat schon 20 Leute am Lagerfeuer.</value>
+  </data>
+  <data name="fireside.unavailable" xml:space="preserve">
+    <value>Das ist nicht mehr verfügbar.</value>
+  </data>
+  <data name="fireside.no-friends" xml:space="preserve">
+    <value>An deinem Lagerfeuer ist noch niemand. Teil einen Code mit /fireside code.</value>
+  </data>
+  <data name="fireside.pick-friend" xml:space="preserve">
+    <value>Wer soll etwas Wärme bekommen?</value>
+  </data>
+  <data name="fireside.pick-friend.placeholder" xml:space="preserve">
+    <value>Wähl eine Person</value>
+  </data>
+  <data name="fireside.pick-message" xml:space="preserve">
+    <value>Welche Nachricht?</value>
+  </data>
+  <data name="fireside.pick-message.placeholder" xml:space="preserve">
+    <value>Wähl eine Nachricht</value>
+  </data>
+  <data name="fireside.sent" xml:space="preserve">
+    <value>Gesendet.</value>
+  </data>
+  <data name="fireside.limit" xml:space="preserve">
+    <value>Du hast heute schon Wärme geschickt.</value>
+  </data>
+  <data name="fireside.message.thinking" xml:space="preserve">
+    <value>Ich denk an dich</value>
+  </data>
+  <data name="fireside.message.proud" xml:space="preserve">
+    <value>Ich bin stolz auf dich</value>
+  </data>
+  <data name="fireside.message.easy" xml:space="preserve">
+    <value>Sei heute sanft zu dir</value>
+  </data>
+  <data name="fireside.message.notAlone" xml:space="preserve">
+    <value>Du bist nicht allein</value>
+  </data>
+  <data name="fireside.message.blanket" xml:space="preserve">
+    <value>Ich schick dir eine warme Decke</value>
   </data>
 </root>

@@ -9,7 +9,8 @@ namespace Ember.Api;
 internal static class MergeEndpoints
 {
     public sealed record KeptDto(string Timezone, int GraceDaysPerWeek);
-    public sealed record MergePreviewDto(int Habits, int Logs, int DayMarks, IReadOnlyList<string> HabitNames, KeptDto Kept);
+    public sealed record MergePreviewDto(int Habits, int Logs, int DayMarks, IReadOnlyList<string> HabitNames, KeptDto Kept,
+        int FiresideDropped);
 
     public static RouteGroupBuilder MapMerge(this RouteGroupBuilder api)
     {
@@ -19,11 +20,11 @@ internal static class MergeEndpoints
             if (user is null) return Problems.Unauthenticated();
 
             if (PendingMerge.Read(http, user) is not { } pending
-                || await habits.GetMergePreviewAsync(pending.SourceUserId, pending.DiscordId) is not { } preview)
+                || await habits.GetMergePreviewAsync(user.Id, pending.SourceUserId, pending.DiscordId) is not { } preview)
                 return Problems.NotFound();
 
             return Results.Ok(new MergePreviewDto(preview.Habits, preview.Logs, preview.DayMarks, preview.HabitNames,
-                new KeptDto(user.Timezone, user.GraceDaysPerWeek)));
+                new KeptDto(user.Timezone, user.GraceDaysPerWeek), preview.FiresideDropped));
         });
 
         api.MapPost("/account/merge", async (HttpContext http, UserManager<User> users, SignInManager<User> signIn,
