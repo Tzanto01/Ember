@@ -10,8 +10,8 @@ namespace Ember.Bot.Modules;
 /// Fireside in Discord: <c>/fireside code</c>, <c>/fireside join</c>, <c>/fireside send</c> and the buttons of the Fireside DMs.
 /// Turning Fireside on and choosing the name happen in the app or on the web. Custom IDs carry the clicking user's own link id, never a
 /// user id: fireside:to (friend select, link id values), fireside:msg:{linkId} (message select), fireside:back:{linkId} ("Send some
-/// back") and fireside:ok:{linkId} ("Okay", removes the buttons). Every handler checks that the link belongs to the clicking user's
-/// account and otherwise answers <c>fireside.unavailable</c>. Every name is escaped with <see cref="Format.Sanitize"/>.
+/// back") and fireside:ok:{linkId} ("Okay", always removes the buttons). Every other handler checks that the link belongs to the clicking
+/// user's account and otherwise answers <c>fireside.unavailable</c>. Handlers that read the database defer first. Every name is escaped with <see cref="Format.Sanitize"/>.
 /// </summary>
 [Group("fireside", "Send and get warmth from friends at your fireside")]
 public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
@@ -46,25 +46,27 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("code", "Get a code a friend can use to join your fireside")]
     public async Task CodeAsync()
     {
+        await DeferAsync(ephemeral: true);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var code = userId == Guid.Empty ? null : await _fireside.CreateCodeAsync(userId);
-        await RespondAsync(code is null ? t.Get("fireside.off") : t.Format("fireside.code", FiresideService.DisplayCode(code.Code)), ephemeral: true);
+        await FollowupAsync(code is null ? t.Get("fireside.off") : t.Format("fireside.code", FiresideService.DisplayCode(code.Code)), ephemeral: true);
     }
 
     [SlashCommand("join", "Join a friend's fireside with their code")]
     public async Task JoinAsync([Summary("code", "The code you got")] string code)
     {
+        await DeferAsync(ephemeral: true);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         if (userId == Guid.Empty)
         {
-            await RespondAsync(t.Get("fireside.off"), ephemeral: true);
+            await FollowupAsync(t.Get("fireside.off"), ephemeral: true);
             return;
         }
 
         var (result, friend, _) = await _fireside.JoinAsync(userId, code);
-        await RespondAsync(result switch
+        await FollowupAsync(result switch
         {
             FiresideJoinResult.Joined when friend is not null => t.Format("fireside.joined", Format.Sanitize(friend.Name)),
             FiresideJoinResult.Off => t.Get("fireside.off"),
@@ -77,16 +79,17 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("send", "Send warmth to a friend")]
     public async Task SendAsync()
     {
+        await DeferAsync(ephemeral: true);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         if (userId == Guid.Empty || await _fireside.GetStateAsync(userId) is not { Enabled: true } state)
         {
-            await RespondAsync(t.Get("fireside.off"), ephemeral: true);
+            await FollowupAsync(t.Get("fireside.off"), ephemeral: true);
             return;
         }
         if (state.Friends.Count == 0)
         {
-            await RespondAsync(t.Get("fireside.no-friends"), ephemeral: true);
+            await FollowupAsync(t.Get("fireside.no-friends"), ephemeral: true);
             return;
         }
 
@@ -95,12 +98,13 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
             .WithPlaceholder(t.Get("fireside.pick-friend.placeholder"));
         foreach (var friend in state.Friends.Take(FiresideService.MaxFriends))
             menu.AddOption(friend.Name.Length is > 0 and <= 100 ? friend.Name : "…", friend.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        await RespondAsync(t.Get("fireside.pick-friend"), components: new ComponentBuilder().WithSelectMenu(menu).Build(), ephemeral: true);
+        await FollowupAsync(t.Get("fireside.pick-friend"), components: new ComponentBuilder().WithSelectMenu(menu).Build(), ephemeral: true);
     }
 
     [ComponentInteraction("fireside:to", ignoreGroupNames: true)]
     public async Task PickFriendAsync(string[] values)
     {
+        await DeferAsync();
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (await OwnLinkAsync(values.FirstOrDefault()) is not { } linkId)
         {
@@ -113,6 +117,7 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction("fireside:msg:*", ignoreGroupNames: true)]
     public async Task PickMessageAsync(string link, string[] values)
     {
+        await DeferAsync();
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var result = int.TryParse(link, out var linkId) && userId != Guid.Empty
@@ -129,26 +134,19 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction("fireside:back:*", ignoreGroupNames: true)]
     public async Task SendBackAsync(string link)
     {
+        await DeferAsync(ephemeral: true);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (await OwnLinkAsync(link) is not { } linkId)
         {
-            await RespondAsync(t.Get("fireside.unavailable"), ephemeral: true);
+            await FollowupAsync(t.Get("fireside.unavailable"), ephemeral: true);
             return;
         }
-        await RespondAsync(t.Get("fireside.pick-message"), components: MessageMenu(t, linkId), ephemeral: true);
+        await FollowupAsync(t.Get("fireside.pick-message"), components: MessageMenu(t, linkId), ephemeral: true);
     }
 
     [ComponentInteraction("fireside:ok:*", ignoreGroupNames: true)]
     public async Task OkayAsync(string link)
-    {
-        if (await OwnLinkAsync(link) is null)
-        {
-            var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-            await RespondAsync(t.Get("fireside.unavailable"), ephemeral: true);
-            return;
-        }
-        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m => m.Components = new ComponentBuilder().Build());
-    }
+        => await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m => m.Components = new ComponentBuilder().Build());
 
     /// <summary>The link id when <paramref name="value"/> is one of the clicking user's own links, else null.</summary>
     private async Task<int?> OwnLinkAsync(string? value)
@@ -159,7 +157,7 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     private async Task UpdateAsync(string text, MessageComponent components) =>
-        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+        await ((SocketMessageComponent)Context.Interaction).ModifyOriginalResponseAsync(m =>
         {
             m.Content = text;
             m.Components = components;

@@ -156,10 +156,10 @@ Tipp bei allem, was du geschafft hast, auf Erledigt. Kein Druck 💙</value>
     <value>Passt schon, weiter</value>
   </data>
   <data name="fireside.notify.warmth" xml:space="preserve">
-    <value>{0} hat dir Wärme geschickt</value>
+    <value>{0} schickt dir Wärme</value>
   </data>
   <data name="fireside.notify.warmth.unnamed" xml:space="preserve">
-    <value>Jemand hat dir Wärme geschickt</value>
+    <value>Jemand schickt dir Wärme</value>
   </data>
   <data name="fireside.notify.joined" xml:space="preserve">
     <value>{0} sitzt jetzt an deinem Lagerfeuer</value>
@@ -168,7 +168,7 @@ Tipp bei allem, was du geschafft hast, auf Erledigt. Kein Druck 💙</value>
     <value>Jemand sitzt jetzt an deinem Lagerfeuer</value>
   </data>
   <data name="fireside.send-back" xml:space="preserve">
-    <value>Etwas zurückschicken</value>
+    <value>Wärme zurückschicken</value>
   </data>
   <data name="fireside.okay" xml:space="preserve">
     <value>Okay</value>

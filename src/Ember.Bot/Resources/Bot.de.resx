@@ -1341,7 +1341,7 @@ Ember bietet dir dann an, deine Habits von hier in dieses Konto zu übernehmen. 
 Gilt einmal, für 30 Minuten.</value>
   </data>
   <data name="fireside.joined" xml:space="preserve">
-    <value>Du bist jetzt am Lagerfeuer von {0}. {0} sieht deinen Namen, sonst nichts.</value>
+    <value>Du sitzt jetzt mit {0} am Lagerfeuer. {0} sieht deinen Namen, sonst nichts.</value>
   </data>
   <data name="fireside.invalid-code" xml:space="preserve">
     <value>Der Code hat nicht geklappt. Frag nach einem neuen.</value>
@@ -1350,7 +1350,7 @@ Gilt einmal, für 30 Minuten.</value>
     <value>Zu viele Versuche. Probier es später noch mal.</value>
   </data>
   <data name="fireside.full" xml:space="preserve">
-    <value>Jemand von euch hat schon 20 Leute am Lagerfeuer.</value>
+    <value>Eine Person von euch hat schon 20 Leute am Lagerfeuer.</value>
   </data>
   <data name="fireside.unavailable" xml:space="preserve">
     <value>Das ist nicht mehr verfügbar.</value>
@@ -1371,7 +1371,7 @@ Gilt einmal, für 30 Minuten.</value>
     <value>Wähl eine Nachricht</value>
   </data>
   <data name="fireside.sent" xml:space="preserve">
-    <value>Gesendet.</value>
+    <value>Geschickt.</value>
   </data>
   <data name="fireside.limit" xml:space="preserve">
     <value>Du hast heute schon Wärme geschickt.</value>

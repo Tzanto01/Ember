@@ -122,7 +122,7 @@ public class FiresideService
     {
         var trimmed = name?.Trim();
         if (string.IsNullOrEmpty(trimmed) || trimmed.Length > MaxNameLength) return null;
-        return trimmed.Any(c => char.IsControl(c) || char.GetUnicodeCategory(c) == UnicodeCategory.Format) ? null : trimmed;
+        return trimmed.EnumerateRunes().Any(r => Rune.IsControl(r) || Rune.GetUnicodeCategory(r) == UnicodeCategory.Format) ? null : trimmed;
     }
 
     /// <summary>The code without whitespace, upper-cased, when it is <see cref="CodeLength"/> characters of <see cref="CodeAlphabet"/>; else null.</summary>
@@ -161,6 +161,9 @@ public class FiresideService
             .Select(u => new { u.FiresideEnabled, u.FiresideName, u.FiresideNotify, u.WarmthAskUntilUtc })
             .FirstOrDefaultAsync(cancellationToken);
         if (user is null) return null;
+
+        if (!user.FiresideEnabled)
+            return new FiresideState(false, user.FiresideName, user.FiresideNotify, null, null, null, [], []);
 
         var code = await _db.FiresideCodes.AsNoTracking()
             .Where(c => c.UserId == userId && c.ExpiresAtUtc > now)
@@ -211,7 +214,7 @@ public class FiresideService
         var todays = rows.Where(r => r.FlameShared).ToDictionary(r => r.FriendId, r => TimezoneHelper.LocalToday(r.Timezone, _time));
         var ids = todays.Keys.ToList();
         var dates = todays.Values.Distinct().ToList();
-        var done = (await _db.HabitLogs.AsNoTracking()
+        HashSet<Guid> done = ids.Count == 0 ? [] : (await _db.HabitLogs.AsNoTracking()
                 .Where(l => l.Completed && ids.Contains(l.Habit.UserId) && dates.Contains(l.Date))
                 .Select(l => new { l.Habit.UserId, l.Date })
                 .Distinct()
@@ -434,16 +437,15 @@ public class FiresideService
     public async Task<FiresideFriend?> AcknowledgeAsync(Guid userId, int linkId, bool rename, bool joined,
         CancellationToken cancellationToken = default)
     {
-        var link = await _db.FiresideLinks.Include(l => l.Friend).FirstOrDefaultAsync(l => l.Id == linkId && l.OwnerId == userId, cancellationToken);
+        var link = await _db.FiresideLinks.Where(l => l.Id == linkId && l.OwnerId == userId)
+            .Select(l => new { l.Friend.FiresideName }).FirstOrDefaultAsync(cancellationToken);
         if (link is null) return null;
-        if (rename) link.KnownName = link.Friend.FiresideName ?? link.KnownName;
-        if (joined)
-        {
-            link.JoinedViaMyCode = false;
-            link.JoinNotifyPending = false;
-        }
-        await _db.SaveChangesAsync(cancellationToken);
-        _db.ChangeTracker.Clear();
+        var known = rename ? link.FiresideName : null;
+        if (await _db.FiresideLinks.Where(l => l.Id == linkId && l.OwnerId == userId).ExecuteUpdateAsync(s => s
+                .SetProperty(l => l.KnownName, l => known ?? l.KnownName)
+                .SetProperty(l => l.JoinedViaMyCode, l => !joined && l.JoinedViaMyCode)
+                .SetProperty(l => l.JoinNotifyPending, l => !joined && l.JoinNotifyPending), cancellationToken) == 0)
+            return null;
         return await GetFriendAsync(userId, linkId, cancellationToken);
     }
 
