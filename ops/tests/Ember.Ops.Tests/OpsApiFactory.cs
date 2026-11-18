@@ -25,11 +25,12 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     private readonly string[] _trusted;
     private readonly string[] _logins;
     private readonly string? _capability;
+    private readonly string? _allowedHosts;
     private readonly string _webRoot = Directory.CreateTempSubdirectory("ember-ops-web-").FullName;
 
-    public OpsApiFactory(DatabaseFixture database, string[]? trusted = null, string[]? logins = null, string? capability = Capability)
+    public OpsApiFactory(DatabaseFixture database, string[]? trusted = null, string[]? logins = null, string? capability = Capability, string? allowedHosts = null)
     {
-        (_database, _trusted, _logins, _capability) = (database, trusted ?? [TrustedIp], logins ?? [Login], capability);
+        (_database, _trusted, _logins, _capability, _allowedHosts) = (database, trusted ?? [TrustedIp], logins ?? [Login], capability, allowedHosts);
         File.WriteAllText(Path.Combine(_webRoot, "index.html"), "<html><body>ember-ops-spa</body></html>");
     }
 
@@ -43,6 +44,7 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
             for (var i = 0; i < _trusted.Length; i++) settings[$"Ops:Access:TrustedProxies:{i}"] = _trusted[i];
             for (var i = 0; i < _logins.Length; i++) settings[$"Ops:Access:AllowedLogins:{i}"] = _logins[i];
             if (_capability is not null) settings["Ops:Access:AppCapability"] = _capability;
+            if (_allowedHosts is not null) settings["AllowedHosts"] = _allowedHosts;
             config.AddInMemoryCollection(settings);
         });
         builder.ConfigureTestServices(services =>
@@ -60,9 +62,9 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     }
 
     /// <summary>A cookie-keeping client that arrives from <paramref name="remoteIp"/> with the given identity headers.</summary>
-    public HttpClient ClientFrom(string remoteIp = TrustedIp, string? login = Login, string? capabilities = null)
+    public HttpClient ClientFrom(string remoteIp = TrustedIp, string? login = Login, string? capabilities = null, string scheme = "https")
     {
-        var client = CreateClient();
+        var client = CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri($"{scheme}://localhost") });
         client.DefaultRequestHeaders.Add(RemoteIpHeader, remoteIp);
         if (login is not null) client.DefaultRequestHeaders.Add("Tailscale-User-Login", login);
         if (capabilities is not null) client.DefaultRequestHeaders.Add("Tailscale-App-Capabilities", capabilities);

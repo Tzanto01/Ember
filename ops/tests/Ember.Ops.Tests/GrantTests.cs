@@ -12,7 +12,7 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
         string[] reads =
         [
             """SELECT "Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "FiresideEnabled" FROM "AspNetUsers" """,
-            """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "Kind" FROM "Habits" """,
+            """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "Kind" FROM "Habits" """,
             """SELECT "HabitId", "Date", "Completed" FROM "HabitLogs" """,
             """SELECT "Date" FROM "DayNotes" """,
             """SELECT "Date", "Kind" FROM "DayMarks" """,

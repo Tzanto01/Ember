@@ -28,6 +28,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
 {
     public const string HttpClientName = "outbound";
     public static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(5);
+    public static readonly TimeSpan FailureCache = TimeSpan.FromSeconds(30);
     private static readonly string[] DefaultBranches = ["main", "test", "v2/next"];
 
     private sealed record Fetched<T>(T? Value, string? Error);
@@ -50,7 +51,9 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         int? overdue = null;
         try
         {
-            (database, overdue) = await DatabaseAsync(ct);
+            database = await DatabaseAsync(ct);
+            var counters = await OpsApp.Cached(cache, OpsApp.ReminderCountersKey, OpsApp.CounterCache, () => ReminderQueries.CountersAsync(db.Ember, time, ct));
+            overdue = counters.Overdue.Habits + counters.Overdue.Routines;
         }
         catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -95,30 +98,27 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         return null;
     }
 
-    private async Task<(DatabaseInfo, int)> DatabaseAsync(CancellationToken ct)
+    private async Task<DatabaseInfo> DatabaseAsync(CancellationToken ct)
     {
         await using var connection = await db.Ember.OpenConnectionAsync(ct);
         await using var reader = await Db.RunAsync(connection,
         [
-            Db.Command($"""
-                SELECT pg_database_size(current_database()),
-                       (SELECT count(*) FROM "Habits" WHERE "NextReminderUtc" < now() - interval '{ReminderQueries.OverdueAfter}')::int
-                     + (SELECT count(*) FROM "Routines" WHERE "NextReminderUtc" < now() - interval '{ReminderQueries.OverdueAfter}')::int
-                """),
+            Db.Command("SELECT pg_database_size(current_database())"),
             Db.Command("""SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId" DESC LIMIT 1"""),
         ], ct);
         await reader.RowAsync(ct);
-        var (size, overdue) = (reader.GetInt64(0), reader.GetInt32(1));
+        var size = reader.GetInt64(0);
         await reader.NextResultAsync(ct);
         var latest = await reader.ReadAsync(ct) ? reader.GetString(0) : null;
-        return (new(size, latest), overdue);
+        return new(size, latest);
     }
 
     private async Task<Fetched<T>> Cached<T>(string key, TimeSpan ttl, Func<Task<Fetched<T>>> load) =>
-        (await cache.GetOrCreateAsync(key, e =>
+        (await cache.GetOrCreateAsync(key, async e =>
         {
-            e.AbsoluteExpirationRelativeToNow = ttl;
-            return load();
+            var fetched = await load();
+            e.AbsoluteExpirationRelativeToNow = fetched.Error is null ? ttl : FailureCache;
+            return fetched;
         }))!;
 
     private async Task<Fetched<IReadOnlyList<CiRun>>> CiAsync(OpsOptions o, CancellationToken ct)

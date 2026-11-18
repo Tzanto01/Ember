@@ -5,6 +5,9 @@
 
 \set ON_ERROR_STOP on
 \set QUIET on
+SET log_statement = 'none';
+SET log_min_duration_statement = -1;
+SET log_min_error_statement = 'panic';
 \getenv ops_pw OPS_PW
 \if :{?ops_pw}
 \else
@@ -14,9 +17,6 @@ SELECT length(:'ops_pw') < 16 AS ops_pw_short \gset
 \if :ops_pw_short
 DO $$ BEGIN RAISE EXCEPTION 'OPS_PW must be at least 16 characters'; END $$;
 \endif
-
-SET log_statement = 'none';
-SET log_min_error_statement = 'panic';
 
 BEGIN;
 SELECT format('CREATE ROLE emberops LOGIN PASSWORD %L', :'ops_pw')

@@ -42,9 +42,8 @@ public static class OverviewQueries
     public const int SeriesWeeks = 12;
     public const int WarmthDays = 30;
 
-    public static async Task<OverviewCounters> CountersAsync(NpgsqlDataSource ember, TimeProvider time, CancellationToken ct)
+    public static async Task<OverviewCounters> CountersAsync(NpgsqlDataSource ember, EmberFeatures features, TimeProvider time, CancellationToken ct)
     {
-        var features = await EmberFeatures.DetectAsync(ember, ct);
         var today = OpsCalendar.Today(time);
         var generatedAt = time.GetUtcNow().UtcDateTime;
 
@@ -63,7 +62,7 @@ public static class OverviewQueries
                 """, today),
             Db.Command($"""
                 SELECT {(features.HabitKind ? "count(*) FILTER (WHERE \"Kind\" = 0)::int, count(*) FILTER (WHERE \"Kind\" = 1)::int" : "count(*)::int, NULL::int")},
-                       count(*) FILTER (WHERE "PausedUntil" >= $1)::int, count(*) FILTER (WHERE "NextReminderUtc" IS NOT NULL)::int
+                       count(*) FILTER (WHERE "PausedUntil" >= $1 AND ("PausedFrom" IS NULL OR "PausedFrom" <= $1))::int, count(*) FILTER (WHERE "NextReminderUtc" IS NOT NULL)::int
                 FROM "Habits"
                 """, today),
             Db.Command("""SELECT count(*)::int, count(DISTINCT "UserId")::int FROM "Routines" """),
@@ -98,9 +97,8 @@ public static class OverviewQueries
         return new(generatedAt, users, active7, active30, habits, routines, new(users, showStreaks, grace), firesideOn, friendships);
     }
 
-    public static async Task<OverviewSeries> SeriesAsync(NpgsqlDataSource ember, TimeProvider time, CancellationToken ct)
+    public static async Task<OverviewSeries> SeriesAsync(NpgsqlDataSource ember, EmberFeatures features, TimeProvider time, CancellationToken ct)
     {
-        var features = await EmberFeatures.DetectAsync(ember, ct);
         var today = OpsCalendar.Today(time);
         var generatedAt = time.GetUtcNow().UtcDateTime;
         var from = today.AddDays(-(SeriesDays - 1));
@@ -122,7 +120,7 @@ public static class OverviewQueries
         if (features.Fireside)
             commands.Add(Db.Command("""
                 SELECT ("SentAtUtc" AT TIME ZONE 'Europe/Berlin')::date, count(*)::int FROM "Warmth"
-                WHERE ("SentAtUtc" AT TIME ZONE 'Europe/Berlin')::date BETWEEN $1 AND $2 GROUP BY 1
+                WHERE "SentAtUtc" >= ($1::date)::timestamp AT TIME ZONE 'Europe/Berlin' AND "SentAtUtc" < (($2::date + 1)::timestamp AT TIME ZONE 'Europe/Berlin') GROUP BY 1
                 """, warmthFrom, today));
         if (features.HabitSlips)
             commands.Add(Db.Command("""

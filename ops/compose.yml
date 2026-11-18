@@ -11,6 +11,8 @@ services:
     restart: unless-stopped
     user: "1000:1000"
     read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     tmpfs:
       - /tmp
     mem_limit: 256m
@@ -24,7 +26,8 @@ services:
       Ops__EmberPasswordFile: /run/secrets/ember_dashboard
       Ops__OpsConnection: Host=postgres;Port=5432;Database=emberops;Username=emberops;GSS Encryption Mode=Disable;Command Timeout=10
       Ops__OpsPasswordFile: /run/secrets/emberops
-      Ops__Access__TrustedProxies__0: 172.19.0.1
+      AllowedHosts: nicos-homeserver.meteor-pauling.ts.net;localhost;127.0.0.1
+      Ops__Access__TrustedProxies__0: 172.31.250.1
       Ops__Access__AppCapability: nicowoellnitz.de/cap/ember-ops
       Ops__Access__AllowedLogins__0: ""
       Ops__StatusFile: /status/status.json
@@ -41,7 +44,9 @@ services:
     ports:
       - "127.0.0.1:8096:8080"
     networks:
-      - homeserver-net
+      ember-ops-edge:
+        gw_priority: 1
+      homeserver-net: {}
     healthcheck:
       test: ["CMD", "dotnet", "/app/Ember.Ops.dll", "--healthcheck"]
       interval: 30s
@@ -56,5 +61,12 @@ secrets:
     file: ${HOME}/.config/ember-ops/emberops
 
 networks:
+  ember-ops-edge:
+    name: ember-ops-edge
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.250.0/29
+          gateway: 172.31.250.1
   homeserver-net:
     external: true

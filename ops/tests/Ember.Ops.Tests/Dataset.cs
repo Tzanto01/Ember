@@ -53,24 +53,24 @@ public sealed class Dataset
         await rows.AddAsync("Routines", new() { ["UserId"] = data.UserIds[0], ["CreatedAt"] = now, ["NextReminderUtc"] = now.AddHours(-2), ["Position"] = 1 });
         await rows.AddAsync("Routines", new() { ["UserId"] = data.UserIds[1], ["CreatedAt"] = now, ["SecondReminderUtc"] = now.AddMinutes(5), ["Position"] = 0 });
 
-        // (user index, created days ago, letGo, paused, next reminder, second reminder)
-        var habits = new (int User, int Ago, bool LetGo, bool Paused, DateTime? Next, DateTime? Second)[]
+        // (user index, created days ago, letGo, pause from/until, next reminder, second reminder)
+        var habits = new (int User, int Ago, bool LetGo, (DateOnly? From, DateOnly Until)? Pause, DateTime? Next, DateTime? Second)[]
         {
-            (0, 1, false, false, now.AddHours(1), null),    // h1: u1 first habit, week of 2026-11-16
-            (1, 10, false, false, now.AddHours(-1), null),  // h2: u2 first habit, week of 2026-11-02; overdue
-            (1, 3, false, false, null, null),               // h3
-            (2, 10, true, false, null, null),               // h4: u3 first habit, let go
-            (2, 2, false, false, now.AddHours(1), now.AddMinutes(10)), // h5
-            (3, 100, false, false, null, null),             // h6: u4, older than 12 weeks
-            (4, 20, false, true, null, null),               // h7: u5 first habit, week of 2026-10-26; paused
-            (4, 15, true, false, null, null),               // h8: let go
+            (0, 1, false, null, now.AddHours(1), null),     // h1: u1 first habit, week of 2026-11-16
+            (1, 10, false, null, now.AddHours(-1), null),   // h2: u2 first habit, week of 2026-11-02; overdue
+            (1, 3, false, (today.AddDays(1), today.AddDays(5)), null, null), // h3: pause starts tomorrow
+            (2, 10, true, null, null, null),                // h4: u3 first habit, let go
+            (2, 2, false, null, now.AddHours(1), now.AddMinutes(10)), // h5
+            (3, 100, false, null, null, null),              // h6: u4, older than 12 weeks
+            (4, 20, false, (null, today.AddDays(3)), null, null), // h7: u5 first habit, week of 2026-10-26; paused
+            (4, 15, true, null, null, null),                // h8: let go
         };
         var ids = new List<int>();
         foreach (var h in habits)
         {
             var habit = new Dictionary<string, object?>
             {
-                ["UserId"] = data.UserIds[h.User], ["Name"] = "Synthetic habit", ["CreatedAt"] = At(h.Ago), ["PausedUntil"] = h.Paused ? today.AddDays(3) : null,
+                ["UserId"] = data.UserIds[h.User], ["Name"] = "Synthetic habit", ["CreatedAt"] = At(h.Ago), ["PausedFrom"] = h.Pause?.From, ["PausedUntil"] = h.Pause?.Until,
                 ["NextReminderUtc"] = h.Next, ["SecondReminderUtc"] = h.Second, ["TimesPerDay"] = 1,
             };
             if (includeV2) habit["Kind"] = h.LetGo ? 1 : 0;

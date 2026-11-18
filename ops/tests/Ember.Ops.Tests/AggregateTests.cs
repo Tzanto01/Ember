@@ -11,9 +11,10 @@ public sealed class AggregateTests(V2DatabaseFixture fixture)
     private async Task<Overview> OverviewAsync()
     {
         await using var db = fixture.OpenOpsDatabases();
+        var features = await EmberFeatures.DetectAsync(db.Ember, default);
         return Overview.From(
-            await OverviewQueries.CountersAsync(db.Ember, fixture.Time, default),
-            await OverviewQueries.SeriesAsync(db.Ember, fixture.Time, default));
+            await OverviewQueries.CountersAsync(db.Ember, features, fixture.Time, default),
+            await OverviewQueries.SeriesAsync(db.Ember, features, fixture.Time, default));
     }
 
     [Fact]

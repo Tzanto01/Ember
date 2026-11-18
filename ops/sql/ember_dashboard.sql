@@ -5,6 +5,9 @@
 
 \set ON_ERROR_STOP on
 \set QUIET on
+SET log_statement = 'none';
+SET log_min_duration_statement = -1;
+SET log_min_error_statement = 'panic';
 \getenv dash_pw DASH_PW
 \if :{?dash_pw}
 \else
@@ -16,13 +19,12 @@ DO $$ BEGIN RAISE EXCEPTION 'DASH_PW must be at least 16 characters'; END $$;
 \endif
 
 BEGIN;
-SET LOCAL log_statement = 'none';
-SET LOCAL log_min_error_statement = 'panic';
-
 SELECT format('CREATE ROLE ember_dashboard LOGIN PASSWORD %L', :'dash_pw')
 WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ember_dashboard') \gexec
 ALTER ROLE ember_dashboard WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 5 PASSWORD :'dash_pw';
 ALTER ROLE ember_dashboard SET statement_timeout = '5s';
+ALTER ROLE ember_dashboard SET lock_timeout = '2s';
+ALTER ROLE ember_dashboard SET idle_in_transaction_session_timeout = '10s';
 
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ember_dashboard;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ember_dashboard;
@@ -32,7 +34,7 @@ GRANT USAGE ON SCHEMA public TO ember_dashboard;
 
 GRANT SELECT ("Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders")
     ON "AspNetUsers" TO ember_dashboard;
-GRANT SELECT ("Id", "UserId", "CreatedAt", "RoutineId", "PausedUntil", "NextReminderUtc", "SecondReminderUtc") ON "Habits" TO ember_dashboard;
+GRANT SELECT ("Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc") ON "Habits" TO ember_dashboard;
 GRANT SELECT ("HabitId", "Date", "Completed") ON "HabitLogs" TO ember_dashboard;
 GRANT SELECT ("Id", "UserId", "NextReminderUtc", "SecondReminderUtc") ON "Routines" TO ember_dashboard;
 GRANT SELECT ("Date") ON "DayNotes" TO ember_dashboard;

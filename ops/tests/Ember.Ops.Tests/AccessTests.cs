@@ -110,4 +110,28 @@ public sealed class AccessTests(V2DatabaseFixture database) : IDisposable
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync()).Should().Be("ok");
     }
+
+    [Fact]
+    public async Task Refuses_a_host_name_outside_allowed_hosts_but_answers_the_container_health_check()
+    {
+        using var factory = new OpsApiFactory(database, allowedHosts: "ops.example.test;localhost;127.0.0.1");
+        using var client = factory.ClientFrom();
+
+        using var foreign = new HttpRequestMessage(HttpMethod.Get, "/api/overview") { Headers = { Host = "attacker.example" } };
+        (await client.SendAsync(foreign)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        using var health = new HttpRequestMessage(HttpMethod.Get, "/healthz") { Headers = { Host = "127.0.0.1:8080" } };
+        (await client.SendAsync(health)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await client.GetAsync("/api/overview")).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Issues_the_csrf_cookie_secure_only_even_when_the_proxy_forwards_plain_http()
+    {
+        using var client = _factory.ClientFrom(scheme: "http");
+
+        var response = await client.GetAsync("/api/session");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.GetValues("Set-Cookie").Should().ContainSingle(c => c.StartsWith("ember-ops-csrf=")).Which.Should().Contain("secure");
+    }
 }

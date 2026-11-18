@@ -16,6 +16,8 @@ public static class OpsApp
     public const string CsrfHeader = "X-CSRF-TOKEN";
     public static readonly TimeSpan CounterCache = TimeSpan.FromSeconds(20);
     public static readonly TimeSpan SeriesCache = TimeSpan.FromMinutes(5);
+    public static readonly TimeSpan FeaturesCache = TimeSpan.FromSeconds(60);
+    public const string ReminderCountersKey = "reminders:counters";
     private const string AuthorItem = "ops.author";
 
     public static WebApplicationBuilder CreateBuilder(string[] args)
@@ -41,6 +43,7 @@ public static class OpsApp
             o.Cookie.Name = "ember-ops-csrf";
             o.Cookie.HttpOnly = true;
             o.Cookie.SameSite = SameSiteMode.Strict;
+            o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             o.SuppressXFrameOptionsHeader = true;
         });
         return builder;
@@ -75,6 +78,7 @@ public static class OpsApp
                 return Task.CompletedTask;
             }
             context.Items[AuthorItem] = author;
+            context.Request.Scheme = Uri.UriSchemeHttps;
             return next(context);
         });
 
@@ -117,13 +121,16 @@ public static class OpsApp
             new Session(Author(context), antiforgery.GetAndStoreTokens(context).RequestToken!));
 
         api.MapGet("/overview", async (IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-            Overview.From(
-                await Cached(cache, "overview:counters", CounterCache, () => OverviewQueries.CountersAsync(db.Ember, time, ct)),
-                await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, time, ct))));
+        {
+            var features = await Cached(cache, "ember:features", FeaturesCache, () => EmberFeatures.DetectAsync(db.Ember, ct));
+            return Overview.From(
+                await Cached(cache, "overview:counters", CounterCache, () => OverviewQueries.CountersAsync(db.Ember, features, time, ct)),
+                await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, features, time, ct)));
+        });
 
         api.MapGet("/reminders", async (IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
             Reminders.From(
-                await Cached(cache, "reminders:counters", CounterCache, () => ReminderQueries.CountersAsync(db.Ember, time, ct)),
+                await Cached(cache, ReminderCountersKey, CounterCache, () => ReminderQueries.CountersAsync(db.Ember, time, ct)),
                 await Cached(cache, "reminders:history", SeriesCache, () => ReminderQueries.HistoryAsync(db.Ops, time, ct))));
 
         api.MapGet("/system", (IMemoryCache cache, SystemInfo system, CancellationToken ct) =>
@@ -166,7 +173,7 @@ public static class OpsApp
         return await next(invocation);
     }
 
-    private static async Task<T> Cached<T>(IMemoryCache cache, string key, TimeSpan ttl, Func<Task<T>> load) =>
+    internal static async Task<T> Cached<T>(IMemoryCache cache, string key, TimeSpan ttl, Func<Task<T>> load) =>
         (await cache.GetOrCreateAsync(key, entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = ttl;
