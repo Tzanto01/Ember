@@ -142,6 +142,24 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Merging_moves_a_bot_users_let_go_habit_with_its_slips()
+    {
+        var user = await Host.SignedInAsync();
+        var bot = await BotOnlyAsync([]);
+        var habit = await Host.Service(s => s.AddHabitAsync(bot.UserId, "Coffee", null, kind: HabitKind.LetGo));
+        await Host.Run(s => s.AddSlipAsync(bot.UserId, habit.Id, Host.Today, "stressed"));
+        await StartMergeAsync(user, bot.DiscordId);
+
+        await (await user.Post(MergeUrl)).Expect(HttpStatusCode.NoContent);
+
+        var moved = (await (await user.Get("/api/habits")).ExpectJson()).EnumerateArray().Single();
+        moved.GetProperty("kind").GetString().Should().Be("letGo");
+        moved.GetProperty("today").GetProperty("slips").GetInt32().Should().Be(1);
+        var slips = await (await user.Get($"/api/habits/{habit.Id}/slips")).ExpectJson();
+        slips.EnumerateArray().Single().GetProperty("reasons").EnumerateArray().Select(r => r.GetString()).Should().Equal("stressed");
+    }
+
+    [DockerFact]
     public async Task Merging_reschedules_moved_reminders_in_the_signed_in_accounts_timezone()
     {
         var user = await Host.SignedInAsync();

@@ -60,6 +60,37 @@ public class WeeklySummaryServiceTests
         summary.TotalPossible.Should().Be(14); // two long-established daily habits × 7 days
     }
 
+    // ---- Let-go habits ----
+
+    private static Habit LetGo(int createdAtDaysAgo = 30, int? pausedUntilDaysAgo = null, params int[] slipDaysAgo)
+    {
+        var habit = HabitFactory.Make(createdAtDaysAgo, pausedUntilDaysAgo, FrequencyType.Daily, null);
+        habit.Kind = HabitKind.LetGo;
+        foreach (var daysAgo in slipDaysAgo)
+            habit.Slips.Add(new HabitSlip { Date = Today.AddDays(-daysAgo), Count = 4 });
+        return habit;
+    }
+
+    [Fact]
+    public void LetGoHabits_AreLeftOutOfTheTotals_AndListedWithDaysFreeOnlyWhileStartedAndNotPaused()
+    {
+        var build = HabitFactory.Make((1, true));
+        var slipped = LetGo(slipDaysAgo: 3);
+        var paused = LetGo(pausedUntilDaysAgo: -2);
+        var notStarted = LetGo(createdAtDaysAgo: -2);
+
+        var summary = WeeklySummaryService.Build(UserWith(build, slipped, paused, notStarted), WeekEnd);
+
+        summary.Habits.Should().ContainSingle();
+        summary.TotalDone.Should().Be(1);
+        summary.TotalPossible.Should().Be(7);
+        summary.LetGo.Should().ContainSingle().Which.Should().Match<WeeklySummaryService.LetGoSummary>(l => l.Habit == slipped && l.DaysFree == 3);
+    }
+
+    [Fact]
+    public void ALetGoOnlyUser_HasNothingToSummarise()
+        => WeeklySummaryService.Build(UserWith(LetGo(slipDaysAgo: 2)), WeekEnd).HasSummarableWeek.Should().BeFalse();
+
     // ---- Possible days: creation date, pauses, weekly targets ----
 
     [Fact]

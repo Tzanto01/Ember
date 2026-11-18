@@ -58,6 +58,39 @@ public class JobIntegrationTests
     }
 
     [Fact]
+    public async Task WeeklySummaryJob_LetGoHabit_AppearsAsADaysFreeLineWithoutSlipCounts_AndALetGoOnlyUserGetsNoRecap()
+    {
+        await using var host = await IntegrationTestHost.CreateAsync(time: new FakeTimeProvider(SundayMorningUtc));
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var today = DateOnly.FromDateTime(SundayMorningUtc.UtcDateTime);
+            var mixed = new User { Id = TestUsers.Id(56), Logins = TestUsers.Discord(56), Timezone = "UTC" };
+            var meditate = new Habit { UserId = mixed.Id, Name = "Meditate", CreatedAt = SundayMorningUtc.UtcDateTime.AddDays(-8) };
+            meditate.Logs.Add(new HabitLog { Date = today.AddDays(-1), Completed = true });
+            var coffee = new Habit { UserId = mixed.Id, Name = "Coffee", Kind = HabitKind.LetGo, CreatedAt = SundayMorningUtc.UtcDateTime.AddDays(-20) };
+            coffee.Slips.Add(new HabitSlip { Date = today.AddDays(-3), Count = 7 });
+            mixed.Habits.Add(meditate);
+            mixed.Habits.Add(coffee);
+            var onlyLetGo = new User { Id = TestUsers.Id(57), Logins = TestUsers.Discord(57), Timezone = "UTC" };
+            onlyLetGo.Habits.Add(new Habit { UserId = onlyLetGo.Id, Name = "Smoking", Kind = HabitKind.LetGo, CreatedAt = SundayMorningUtc.UtcDateTime.AddDays(-20) });
+            db.Users.AddRange(mixed, onlyLetGo);
+            await db.SaveChangesAsync();
+        });
+
+        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
+        await scheduler.TriggerJob(WeeklySummaryJob.Key);
+        await host.WaitForDmCountAsync(1);
+        await Task.Delay(300);
+
+        var message = host.Discord.Messages.Should().ContainSingle().Subject;
+        message.UserId.Should().Be(56);
+        message.Embed!.Description.Should().Contain("**1 check-in**").And.Contain("🌿 Coffee: 3 days free")
+            .And.NotContain("7").And.NotContainEquivalentOf("slip");
+        message.Embed.Fields.Should().ContainSingle().Which.Name.Should().Be("Meditate");
+    }
+
+    [Fact]
     public async Task WeeklySummaryJob_ZeroActivityUser_GetsGentleNudge_UsersWithNothingToSummarise_AreSkipped()
     {
         // Deliberate zero-activity handling (documented here per acceptance criteria):

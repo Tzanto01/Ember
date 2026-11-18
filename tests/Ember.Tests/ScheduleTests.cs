@@ -117,6 +117,17 @@ public class ScheduleTests
     }
 
     [Fact]
+    public void Reflection_IsNeverOfferedForALetGoHabit()
+    {
+        var habit = HabitFactory.Make(createdAtDaysAgo: 30, null, FrequencyType.Daily, null);
+        MissedDayReflectionJob.IsOpenDaily(habit, Today.AddDays(-2), TimeZoneInfo.Utc).Should().BeTrue();
+
+        habit.Kind = HabitKind.LetGo;
+
+        MissedDayReflectionJob.IsOpenDaily(habit, Today.AddDays(-2), TimeZoneInfo.Utc).Should().BeFalse();
+    }
+
+    [Fact]
     public void DayStatsOn_CountsAWeeklyHabitOnlyOnADayItWasCheckedIn()
     {
         var weekly = HabitFactory.Make(createdAtDaysAgo: 30, null, FrequencyType.Weekly, 3);

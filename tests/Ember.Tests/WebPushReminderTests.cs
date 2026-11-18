@@ -25,7 +25,7 @@ public class WebPushReminderTests
 
     /// <summary>A user with one habit due now. <paramref name="Discord"/>/<paramref name="Push"/> false exclude Discord or every browser from the habit.</summary>
     private sealed record Seed(long Id, string[] Endpoints, bool Discord = true, bool Push = true, bool HasDiscordLogin = true,
-        bool? DiscordAnswer = true);
+        bool? DiscordAnswer = true, bool LetGo = false);
 
     private sealed record PushRequest(string Endpoint, string? Authorization, string ContentEncoding, string? Ttl, int BodyLength);
 
@@ -99,6 +99,7 @@ public class WebPushReminderTests
                     Id = (int)seed.Id, UserId = user.Id, Name = $"Habit {seed.Id}", ReminderTime = new TimeOnly(9, 0),
                     NextReminderUtc = Now.UtcDateTime, CreatedAt = Now.UtcDateTime.AddDays(-30),
                     ReminderExclusions = seed.Discord ? [] : [ReminderDestinations.Discord],
+                    Kind = seed.LetGo ? HabitKind.LetGo : HabitKind.Build,
                 });
                 foreach (var endpoint in seed.Endpoints)
                 {
@@ -305,6 +306,32 @@ public class WebPushReminderTests
             await db.PushSubscriptions.Where(s => s.UserId == session.UserId && (endpoint == null || s.Endpoint == endpoint))
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.SessionId, session.Id));
         });
+
+    [Fact]
+    public async Task A_let_go_habits_push_opens_its_history_with_no_done_action_and_is_not_remembered_or_repeated()
+    {
+        var (host, push, time) = await CreateAsync(
+            new Seed(30, [Endpoint("build")], Discord: false),
+            new Seed(40, [Endpoint("letgo")], Discord: false, LetGo: true));
+        await using var hostScope = host;
+        await LinkLiveSessionAsync(host, 30);
+        await LinkLiveSessionAsync(host, 40);
+        await SetSecondReminderAsync(host, 40, 15);
+
+        await RunJobAsync(host);
+        time.Advance(TimeSpan.FromMinutes(16));
+        await RunJobAsync(host);
+
+        push.Endpoints.Should().Equal(Endpoint("build"), Endpoint("letgo"));
+        var length = (string endpoint) => push.Requests.Single(r => r.Endpoint == Endpoint(endpoint)).BodyLength;
+        var expected = WebPushReminderChannel.BuildPayload(Ember.Bot.BotTexts.English.Get("letgo.reminder.nameless"),
+            tag: WebPushReminderChannel.HabitTag(40), url: "/history/40").Length;
+        var build = WebPushReminderChannel.BuildPayload(Ember.Bot.BotTexts.English.Get("push.reminder.first"),
+            new string('x', 43), WebPushReminderChannel.HabitTag(30)).Length;
+        (length("letgo") - length("build")).Should().Be(expected - build);
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().ReminderActionTokens.CountAsync())).Should().Be(1);
+        (await PushRemindersAsync(host)).Should().Be(1);
+    }
 
     [Fact]
     public async Task Only_subscriptions_of_a_live_session_get_the_done_token()

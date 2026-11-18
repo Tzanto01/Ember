@@ -143,6 +143,74 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         Comparable(reexported).Should().Be(expected);
     }
 
+    private static object LetGoItem(int id, string name = "Coffee")
+        => new { id, name, kind = "let_go", frequency = "daily", times_per_day = 1, created_at = "2026-10-20T08:00:00Z" };
+
+    private static JsonElement WithSlips(object doc, params object[] slips)
+    {
+        var node = JsonSerializer.SerializeToNode(doc)!;
+        node["slips"] = JsonSerializer.SerializeToNode(slips);
+        return JsonSerializer.SerializeToElement(node);
+    }
+
+    [DockerFact]
+    public async Task A_let_go_habit_and_its_slips_survive_an_export_and_import_into_a_fresh_account()
+    {
+        var source = await Host.SignedInAsync();
+        var id = (await (await source.Post("/api/habits", new { name = "Coffee", kind = "letGo", frequency = "daily" })).ExpectJson(HttpStatusCode.Created))
+            .GetProperty("id").GetInt32();
+        await Host.Db(db => db.Habits.ExecuteUpdateAsync(s => s.SetProperty(h => h.CreatedAt, h => h.CreatedAt.AddDays(-10))));
+        var today = Host.Today;
+        await (await source.Post($"/api/habits/{id}/slips", new { date = today.AddDays(-3).Iso(), reason = "tired" })).ExpectJson();
+        await (await source.Post($"/api/habits/{id}/slips", new { date = today.AddDays(-3).Iso(), reason = "bored" })).ExpectJson();
+        await (await source.Post($"/api/habits/{id}/slips", new { date = today.Iso() })).ExpectJson();
+        var exported = await (await source.Get("/api/me/export?format=json")).ExpectJson();
+
+        exported.GetProperty("habits").EnumerateArray().Single().GetProperty("kind").GetString().Should().Be("let_go");
+        exported.GetProperty("slips").EnumerateArray().Select(s => (s.GetProperty("habit_id").GetInt32(), s.GetProperty("count").GetInt32()))
+            .Should().Equal((id, 2), (id, 1));
+
+        var target = await Host.SignedInAsync();
+        await (await Import(target, exported)).Expect(HttpStatusCode.NoContent);
+
+        var habit = (await (await target.Get("/api/habits")).ExpectJson()).EnumerateArray().Single();
+        habit.GetProperty("kind").GetString().Should().Be("letGo");
+        habit.GetProperty("today").GetProperty("state").GetString().Should().Be("slipped");
+        habit.GetProperty("stats").GetProperty("slipDaysLast30").GetInt32().Should().Be(2);
+        var slips = await (await target.Get($"/api/habits/{habit.GetProperty("id").GetInt32()}/slips?from={today.AddDays(-5).Iso()}")).ExpectJson();
+        slips.EnumerateArray().Select(s => (s.GetProperty("date").GetString(), s.GetProperty("count").GetInt32(), string.Join(",", s.GetProperty("reasons").EnumerateArray().Select(r => r.GetString()))))
+            .Should().Equal((today.AddDays(-3).Iso(), 2, "tired,bored"), (today.Iso(), 1, ""));
+    }
+
+    [DockerFact]
+    public async Task Import_refuses_slips_on_a_build_habit_and_logs_on_a_let_go_habit_and_writes_nothing()
+    {
+        var user = await Host.SignedInAsync();
+        var slip = new { habit_id = 1, date = "2026-10-25", count = 1, reasons = Array.Empty<string>() };
+
+        var slipOnBuild = await ErrorsAsync(await Import(user, WithSlips(Doc(habits: [HabitItem(1)]), slip)));
+        var logOnLetGo = await ErrorsAsync(await Import(user, Doc(habits: [LetGoItem(1)],
+            logs: [new { habit_id = 1, date = "2026-10-25", completed = true, count = 1 }])));
+        var badSlips = await ErrorsAsync(await Import(user, WithSlips(Doc(habits: [LetGoItem(1)]),
+            new { habit_id = 1, date = "2026-10-25", count = 0, reasons = Array.Empty<string>() },
+            new { habit_id = 1, date = "2026-10-26", count = 1, reasons = new[] { "hungry" } },
+            new { habit_id = 1, date = "2026-10-19", count = 1, reasons = Array.Empty<string>() },
+            new { habit_id = 1, date = "2026-12-25", count = 1, reasons = Array.Empty<string>() },
+            new { habit_id = 9, date = "2026-10-27", count = 1, reasons = Array.Empty<string>() })));
+        var invalidLetGo = await ErrorsAsync(await Import(user, Doc(habits: [new { id = 1, name = "Coffee", kind = "let_go", frequency = "weekly", weekly_target = 2, created_at = "2026-10-20T08:00:00Z" }])));
+
+        slipOnBuild.Has("slips[0].habit_id").Should().BeTrue();
+        logOnLetGo.Has("logs[0].habit_id").Should().BeTrue();
+        badSlips.Has("slips[0].count").Should().BeTrue();
+        badSlips.Has("slips[1].reasons").Should().BeTrue();
+        badSlips.Has("slips[2].date").Should().BeTrue();
+        badSlips.Has("slips[3].date").Should().BeTrue();
+        badSlips.Has("slips[4].habit_id").Should().BeTrue();
+        invalidLetGo.Has("habits[0].frequency").Should().BeTrue();
+        (await HabitCountAsync(await user.IdAsync())).Should().Be(0);
+        (await Host.Db(db => db.HabitSlips.CountAsync())).Should().Be(0);
+    }
+
     [DockerFact]
     public async Task An_account_with_data_is_a_409_and_keeps_its_data()
     {

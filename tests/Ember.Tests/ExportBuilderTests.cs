@@ -113,6 +113,37 @@ public class ExportBuilderTests
         rows.Should().ContainSingle(r => r["record_type"] == "day_mark" && r["date"] == "2025-06-16" && r["kind"] == "low_day");
     }
 
+    private static User UserWithLetGoHabit()
+    {
+        var user = SampleUser();
+        var letGo = new Habit { Id = 12, Name = "Coffee", Kind = HabitKind.LetGo, CreatedAt = new DateTime(2025, 5, 1, 8, 0, 0, DateTimeKind.Utc) };
+        letGo.Slips.Add(new HabitSlip { Date = new DateOnly(2025, 6, 10), Count = 2, Reasons = ["stressed", "bored"] });
+        letGo.Slips.Add(new HabitSlip { Date = new DateOnly(2025, 6, 2), Count = 1, Reasons = [] });
+        user.Habits.Add(letGo);
+        return user;
+    }
+
+    [Fact]
+    public void Export_CarriesTheHabitKindAndEachLetGoHabitsSlipsOldestFirst_InJsonAndCsv()
+    {
+        var user = UserWithLetGoHabit();
+
+        var json = JsonDocument.Parse(ExportBuilder.BuildJson(user)).RootElement;
+        var rows = Rows(ExportBuilder.BuildCsv(user));
+
+        json.GetProperty("habits").EnumerateArray().ToDictionary(h => h.GetProperty("id").GetInt32(), h => h.GetProperty("kind").GetString())
+            .Should().BeEquivalentTo(new Dictionary<int, string?> { [10] = "build", [11] = "build", [12] = "let_go" });
+        var slips = json.GetProperty("slips").EnumerateArray().ToList();
+        slips.Select(sl => sl.GetProperty("date").GetString()).Should().Equal("2025-06-02", "2025-06-10");
+        slips.Select(sl => sl.GetProperty("habit_id").GetInt32()).Should().OnlyContain(id => id == 12);
+        slips[1].GetProperty("count").GetInt32().Should().Be(2);
+        slips[1].GetProperty("reasons").EnumerateArray().Select(r => r.GetString()).Should().Equal("stressed", "bored");
+        rows.Should().ContainSingle(r => r["record_type"] == "habit" && r["habit_id"] == "12" && r["kind"] == "let_go");
+        rows.Should().ContainSingle(r => r["record_type"] == "slip" && r["habit_id"] == "12" && r["date"] == "2025-06-10"
+            && r["count"] == "2" && r["reasons"] == "stressed;bored");
+        rows.Count(r => r["record_type"] == "slip").Should().Be(2);
+    }
+
     [Fact]
     public void Csv_NeutralizesFormulaInjectionInHabitNames()
     {

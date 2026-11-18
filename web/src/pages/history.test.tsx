@@ -3,9 +3,9 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DayEntry, Habit } from '@/lib/models';
+import type { AnyHabit, DayEntry } from '@/lib/models';
 import { auth } from '@/lib/services';
-import { type FetchMock, habit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/lib/test-support';
 import HistoryPage from './history';
 
 const localToday = '2026-11-04';
@@ -27,7 +27,7 @@ function renderHistory(path = '/history') {
   return view.container;
 }
 
-async function answerHabits(f: FetchMock, habits: Habit[]) {
+async function answerHabits(f: FetchMock, habits: AnyHabit[]) {
   (await f.next('GET', '/api/me')).respond(200, { ...me, localToday });
   (await f.next('GET', '/api/habits')).respond(200, habits);
 }
@@ -172,5 +172,83 @@ describe('HistoryPage', () => {
 
     expect((await screen.findByText('Last 7 days')).nextSibling).toHaveTextContent('Kept 2 of 7');
     expect(screen.getByText('Last 30 days').nextSibling).toHaveTextContent('Kept 3 of 30');
+  });
+});
+
+describe('HistoryPage for a let-go habit', () => {
+  let f: FetchMock;
+  const coffee = { ...letGoHabit, startDate: '2026-10-01' };
+
+  beforeEach(() => {
+    f = mockFetch();
+    auth.setMe({ ...me, showStreaks: false });
+  });
+
+  afterEach(() => {
+    clearInterval(refetchTimer);
+    vi.unstubAllGlobals();
+    auth.clearSession();
+  });
+
+  async function answerSlips(slips: { date: string; count: number; reasons: string[] }[] = []) {
+    (await f.next('GET', `/api/habits/9/slips?from=2026-11-01&to=2026-11-04`)).respond(200, slips);
+  }
+
+  let refetchTimer: ReturnType<typeof setInterval> | undefined;
+  function answerRefetches(slips: { date: string; count: number; reasons: string[] }[]) {
+    clearInterval(refetchTimer);
+    const timer = (refetchTimer = setInterval(() => {
+      for (const call of f.pending.filter((c) => c.url.startsWith('/api/habits/9/slips?'))) {
+        f.pending.splice(f.pending.indexOf(call), 1);
+        call.respond(200, slips);
+      }
+    }, 5));
+    setTimeout(() => clearInterval(timer), 1500);
+  }
+
+  it('shows days free, longest stretch and free days this month even with streaks off, and no check-in requests', async () => {
+    renderHistory('/history/9');
+    await answerHabits(f, [coffee]);
+    await answerSlips();
+
+    expect(await screen.findByText('Days free')).toBeInTheDocument();
+    expect(screen.getByText('4 days free')).toBeInTheDocument();
+    expect(screen.getByText('Longest stretch').nextSibling).toHaveTextContent('12 days');
+    expect(screen.getByText('Free days this month').nextSibling).toHaveTextContent('1 day');
+    expect(f.all.some((c) => c.url.includes('/days') || c.url.includes('/low-days'))).toBe(false);
+  });
+
+  it('marks days with a slip and lets a past day get a slip added and removed', async () => {
+    const container = renderHistory('/history/9');
+    await answerHabits(f, [coffee]);
+    await answerSlips([{ date: '2026-11-02', count: 1, reasons: ['tired'] }]);
+
+    const slipped = await waitFor(() => {
+      const b = container.querySelector<HTMLButtonElement>('#day-2026-11-02');
+      expect(b).not.toBeNull();
+      return b!;
+    });
+    await waitFor(() => expect(slipped).toHaveAttribute('data-state', 'slipped'));
+    expect(slipped).toHaveAccessibleName(/one slip noted/);
+    const free = container.querySelector<HTMLButtonElement>('#day-2026-11-03')!;
+    expect(free).toHaveAttribute('data-state', 'free');
+
+    await userEvent.click(free);
+    const panel = container.querySelector<HTMLElement>('#day-panel')!;
+    expect(within(panel).queryByRole('button', { name: "Remove this day's slips" })).toBeNull();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Note a slip on this day' }));
+    const post = await f.next('POST', '/api/habits/9/slips');
+    expect(post.body).toEqual({ date: '2026-11-03' });
+    post.respond(200, coffee);
+    answerRefetches([
+      { date: '2026-11-02', count: 1, reasons: ['tired'] },
+      { date: '2026-11-03', count: 1, reasons: [] },
+    ]);
+    await waitFor(() => expect(container.querySelector('#day-2026-11-03')).toHaveAttribute('data-state', 'slipped'));
+
+    await userEvent.click(await within(panel).findByRole('button', { name: "Remove this day's slips" }));
+    (await f.next('DELETE', '/api/habits/9/slips/2026-11-03')).respond(200, coffee);
+    answerRefetches([{ date: '2026-11-02', count: 1, reasons: ['tired'] }]);
+    await waitFor(() => expect(container.querySelector('#day-2026-11-03')).toHaveAttribute('data-state', 'free'));
   });
 });

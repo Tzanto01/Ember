@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Habit, ReminderDestination, Routine } from '@/lib/models';
 import { localMode } from '@/lib/services';
-import { type FetchMock, habit, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, letGoHabit, mockFetch } from '@/lib/test-support';
 import RoutineEditPage from './routine-edit';
 
 vi.mock('@/lib/services', async (original) => {
@@ -51,6 +51,17 @@ describe('RoutineEditPage (new)', () => {
     await load(f);
 
     expect(screen.queryByLabelText(/Reminder time/)).toBeNull();
+  });
+
+  it('offers only build habits to put in a routine', async () => {
+    const f = mockFetch();
+    renderNew();
+    (await f.next('GET', '/api/routines')).respond(200, []);
+    (await f.next('GET', '/api/habits')).respond(200, [habit, letGoHabit]);
+    await screen.findByRole('heading', { name: 'Details' });
+
+    expect(await screen.findByRole('button', { name: 'Add Walk' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Coffee' })).toBeNull();
   });
 
   it('creates a routine with its habits in the chosen order, then lands on /routines', async () => {

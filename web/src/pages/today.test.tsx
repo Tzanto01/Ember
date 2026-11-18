@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Habit, ReminderDestination, Routine, WeeklyStats } from '@/lib/models';
+import type { AnyHabit, Habit, ReminderDestination, Routine, WeeklyStats } from '@/lib/models';
 import { auth, backup, deviceSync, localMode } from '@/lib/services';
-import { type FetchMock, habit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/lib/test-support';
 import TodayPage from './today';
 
 vi.mock('@/lib/services', async (original) => {
@@ -46,7 +46,7 @@ function renderToday(entry = '/today') {
 
 async function answerLoad(
   f: FetchMock,
-  habits: Habit[],
+  habits: AnyHabit[],
   {
     localToday = '2026-11-01',
     stats = weekly,
@@ -525,5 +525,89 @@ describe('TodayPage', () => {
     await answerLoad(f, [doneHabit, { ...habit, id: 2, name: 'Swim', frequency: 'weekly', weeklyTarget: 2 }]);
 
     expect((await screen.findAllByText(/That's everything for today/)).length).toBeGreaterThan(0);
+  });
+});
+
+describe('TodayPage let-go habits', () => {
+  let f: FetchMock;
+
+  beforeEach(() => {
+    f = mockFetch();
+    auth.setMe(me);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    auth.clearSession();
+    localMode.mode.set('account');
+  });
+
+  it('lists a let-go habit in its own section without touching the build counts', async () => {
+    renderToday();
+    await answerLoad(f, [doneHabit, letGoHabit]);
+
+    const section = (await screen.findByRole('heading', { name: 'Letting go' })).closest('section')!;
+    expect(within(section).getByText('Coffee')).toBeInTheDocument();
+    expect(within(section).getByText('4 days free')).toBeInTheDocument();
+    expect(within(section).getByRole('button', { name: 'I slipped: Coffee' })).toBeInTheDocument();
+    expect(section).not.toContainElement(screen.getByRole('button', { name: /Walk/ }));
+    expect((await screen.findAllByText(/^1 checked in today/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText('2 checked in today')).toBeNull();
+    expect(screen.getAllByText(/That's everything for today\./).length).toBeGreaterThan(0);
+  });
+
+  it('shows the let-go section for an account with only let-go habits, not the empty state', async () => {
+    renderToday();
+    await answerLoad(f, [letGoHabit]);
+
+    expect(await screen.findByText('4 days free')).toBeInTheDocument();
+    expect(screen.queryByText('Ready when you are.')).toBeNull();
+  });
+
+  it('saves a slip with the picked reason, names the longest stretch and undoes it', async () => {
+    renderToday();
+    await answerLoad(f, [letGoHabit]);
+    await userEvent.click(await screen.findByRole('button', { name: 'I slipped: Coffee' }));
+
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Tired' }));
+    expect(within(dialog).getByRole('button', { name: 'Tired' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    const post = await f.next('POST', '/api/habits/9/slips');
+    expect(post.body).toEqual({ date: '2026-11-01', reason: 'tired' });
+    post.respond(200, {
+      ...letGoHabit,
+      today: { ...letGoHabit.today, state: 'slipped', slips: 1 },
+      stats: { ...letGoHabit.stats, daysFree: 0 },
+    });
+
+    const line = await within(dialog).findByText('Noted. Your longest stretch so far is 12 days.');
+    expect(line).toBeInTheDocument();
+    expect(dialog.textContent ?? '').not.toMatch(/fail|broke|lost|streak/i);
+    expect(await screen.findByText('Starting again, gently')).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Undo' }));
+    const del = await f.next('DELETE', '/api/habits/9/slips/2026-11-01');
+    del.respond(200, letGoHabit);
+    expect(await within(dialog).findByText('Taken back. Today has no slips noted.')).toBeInTheDocument();
+    expect(await screen.findByText('4 days free')).toBeInTheDocument();
+  });
+
+  it('saves a slip without a reason as just the date', async () => {
+    renderToday();
+    await answerLoad(f, [letGoHabit]);
+    await userEvent.click(await screen.findByRole('button', { name: 'I slipped: Coffee' }));
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Save' }));
+
+    expect((await f.next('POST', '/api/habits/9/slips')).body).toEqual({ date: '2026-11-01' });
+  });
+
+  it('offers no slip button while the let-go habit is paused', async () => {
+    renderToday();
+    await answerLoad(f, [{ ...letGoHabit, pausedUntil: '2026-11-10', today: { ...letGoHabit.today, state: 'paused' } }]);
+
+    expect(await screen.findByText('Coffee')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'I slipped: Coffee' })).toBeNull();
   });
 });

@@ -7,7 +7,7 @@ import { DeviceStore } from '../device-store';
 import { Http } from '../http';
 import type { Habit } from '../models';
 import { OfflineQueue } from '../offline-queue';
-import { type FetchMock, habit, mockFetch } from '../test-support';
+import { type FetchMock, habit, letGoHabit, mockFetch } from '../test-support';
 import { reminderNames } from './reminder-names';
 import { Reminders } from './reminders';
 import { type EmberWidgetPlugin, widgetSnapshot } from './widget';
@@ -99,6 +99,14 @@ describe('widget snapshot', () => {
         more: 1,
       },
     });
+  });
+
+  it('leaves let-go habits out of the rows and the more count', () => {
+    const snapshot = widgetSnapshot('u1', 'Europe/Berlin', '2026-11-01', [habit, letGoHabit]);
+
+    expect(snapshot.habits.map((h) => h.id)).toEqual([1]);
+    expect(snapshot.more).toBe(0);
+    expect(JSON.stringify(snapshot)).not.toContain('Coffee');
   });
 
   it('shows four rows and counts the rest as more', () => {
