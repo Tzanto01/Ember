@@ -70,6 +70,7 @@ public partial class HabitService
             DayEditResult.Saved => ReminderActionResult.Logged,
             DayEditResult.HabitNotFound => ReminderActionResult.Unknown,
             DayEditResult.ConsentRequired => ReminderActionResult.ConsentRequired,
+            DayEditResult.LetGoHabit => ReminderActionResult.LetGoHabit,
             _ => ReminderActionResult.Expired,
         };
     }

@@ -214,6 +214,9 @@ namespace Ember.Core.Data.Migrations
                     b.Property<int>("FrequencyType")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -298,6 +301,38 @@ namespace Ember.Core.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("HabitLogs");
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.HabitSlip", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("HabitId")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<List<string>>("Reasons")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HabitId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("HabitSlips");
                 });
 
             modelBuilder.Entity("Ember.Core.Models.JournalKey", b =>
@@ -942,6 +977,17 @@ namespace Ember.Core.Data.Migrations
                     b.Navigation("Habit");
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.HabitSlip", b =>
+                {
+                    b.HasOne("Ember.Core.Models.Habit", "Habit")
+                        .WithMany("Slips")
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Habit");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.JournalKey", b =>
                 {
                     b.HasOne("Ember.Core.Models.User", "User")
@@ -1096,6 +1142,8 @@ namespace Ember.Core.Data.Migrations
             modelBuilder.Entity("Ember.Core.Models.Habit", b =>
                 {
                     b.Navigation("Logs");
+
+                    b.Navigation("Slips");
                 });
 
             modelBuilder.Entity("Ember.Core.Models.Routine", b =>

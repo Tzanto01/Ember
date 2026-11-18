@@ -101,10 +101,12 @@ public partial class HabitService
     /// <paramref name="days"/> is stored for <see cref="FrequencyType.Weekdays"/> habits only; weekly habits always get <paramref name="timesPerDay"/> 1.
     /// <paramref name="reminderTimes"/>, when given, replaces <paramref name="reminderTime"/> and is kept as <see cref="NormalizeReminderTimes"/> does.
     /// </remarks>
+    /// <exception cref="ArgumentException">A <see cref="HabitKind.LetGo"/> habit that isn't daily, once a day, without weekly target or days and with at most one reminder time.</exception>
     public async Task<Habit> AddHabitAsync(Guid userId, string name, TimeOnly? reminderTime,
         FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null, IReadOnlyCollection<string>? reminderExclusions = null,
-        ScheduleDays? days = null, int timesPerDay = 1, IReadOnlyCollection<TimeOnly>? reminderTimes = null)
+        ScheduleDays? days = null, int timesPerDay = 1, IReadOnlyCollection<TimeOnly>? reminderTimes = null, HabitKind kind = HabitKind.Build)
     {
+        GuardLetGo(kind, frequency, timesPerDay, weeklyTarget, days, reminderTimes?.Distinct().Count() ?? 0);
         if (!await HasHealthDataConsentAsync(userId))
             throw new ConsentRequiredException();
         if (await _db.Habits.CountAsync(h => h.UserId == userId) >= MaxHabitsPerUser)
@@ -114,6 +116,7 @@ public partial class HabitService
         {
             UserId = userId,
             Name = name,
+            Kind = kind,
             ReminderTime = reminderTime,
             FrequencyType = frequency,
             WeeklyTarget = frequency == FrequencyType.Weekly ? (weeklyTarget ?? 3) : null,
@@ -134,6 +137,8 @@ public partial class HabitService
     {
         return await _db.Habits
             .Include(h => h.Logs)
+            .Include(h => h.Slips)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
     }
 
@@ -142,6 +147,8 @@ public partial class HabitService
         return await _db.Habits
             .Where(h => h.UserId == userId)
             .Include(h => h.Logs)
+            .Include(h => h.Slips)
+            .AsSplitQuery()
             .OrderBy(h => h.CreatedAt)
             .ToListAsync();
     }
@@ -357,13 +364,13 @@ public partial class HabitService
     /// that day (from their <see cref="StartDate"/>, not paused, <see cref="IsScheduledOn"/>; low days don't change it, and a weekly
     /// habit counts only on a day it has a check-in, since any day can serve its target), <c>Done</c> and <c>Partial</c> the habits
     /// whose log reached each state (offdays included),
-    /// and <c>ShowedUp</c> is true when any habit has a check-in that day.
+    /// and <c>ShowedUp</c> is true when any habit has a check-in that day. <see cref="HabitKind.LetGo"/> habits are left out.
     /// </summary>
     public static DayStats DayStatsOn(IEnumerable<Habit> habits, DateOnly date, TimeZoneInfo tz)
     {
         int scheduled = 0, done = 0, partial = 0;
         var showedUp = false;
-        foreach (var habit in habits)
+        foreach (var habit in habits.Where(h => h.Kind == HabitKind.Build))
         {
             var log = habit.Logs.FirstOrDefault(l => l.Date == date);
             if (date >= StartDate(habit, tz) && !IsPausedOn(habit, date) && IsScheduledOn(habit, date)
@@ -388,6 +395,7 @@ public partial class HabitService
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
 
         if (habit is null) return (null, DayEditResult.HabitNotFound);
+        if (habit.Kind == HabitKind.LetGo) return (null, DayEditResult.LetGoHabit);
         if (date > TimezoneHelper.LocalToday(habit.User.Timezone, _time)) return (null, DayEditResult.InFuture);
         if (date < StartDate(habit, TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc)) return (null, DayEditResult.BeforeHabitStart);
         return (habit, DayEditResult.Saved);
@@ -550,7 +558,7 @@ public partial class HabitService
     /// new target are dropped, keeping the earliest. Null when the habit isn't the user's.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timesPerDay"/> is outside 1 to <see cref="MaxTimesPerDay"/>.</exception>
-    /// <exception cref="ArgumentException">A weekdays habit without any <paramref name="days"/>.</exception>
+    /// <exception cref="ArgumentException">A weekdays habit without any <paramref name="days"/>, or a let-go habit that wouldn't stay daily once a day.</exception>
     public async Task<Habit?> SetScheduleAsync(Guid userId, int habitId, FrequencyType type, int? weeklyTarget, ScheduleDays? days,
         int timesPerDay)
     {
@@ -563,6 +571,7 @@ public partial class HabitService
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
 
         if (habit is null) return null;
+        GuardLetGo(habit.Kind, type, timesPerDay, null, null, 0);
 
         var target = type == FrequencyType.Weekly ? 1 : timesPerDay;
         var recompute = target != habit.TimesPerDay;
@@ -609,6 +618,7 @@ public partial class HabitService
     /// <see cref="NormalizeReminderTimes"/> does. <paramref name="reminderExclusions"/> replaces <see cref="Habit.ReminderExclusions"/>.
     /// Null when the habit isn't the user's.
     /// </summary>
+    /// <exception cref="ArgumentException">More than one reminder time for a let-go habit; nothing is written.</exception>
     public async Task<Habit?> EditHabitAsync(Guid userId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder,
         IReadOnlyCollection<string>? reminderExclusions = null, IReadOnlyCollection<TimeOnly>? newReminderTimes = null)
     {
@@ -616,6 +626,8 @@ public partial class HabitService
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
 
         if (habit is null) return null;
+        if (!clearReminder && newReminderTimes is not null)
+            GuardLetGo(habit.Kind, FrequencyType.Daily, 1, null, null, newReminderTimes.Distinct().Count());
 
         if (newName is not null) habit.Name = newName;
         if (reminderExclusions is not null) habit.ReminderExclusions = reminderExclusions.Distinct().ToList();
@@ -644,7 +656,7 @@ public partial class HabitService
     public static readonly TimeSpan SnoozeWindow = TimeSpan.FromHours(24);
 
     /// <summary>
-    /// Delays the habit's next reminder by <see cref="SnoozeDelay"/> and drops its pending second reminder. Returns false when the habit isn't the user's or has no reminder,
+    /// Delays the habit's next reminder by <see cref="SnoozeDelay"/> and drops its pending second reminder. Returns false when the habit isn't the user's, is a let-go habit or has no reminder,
     /// when the reminder was sent (<paramref name="sentAtUtc"/>) more than <see cref="SnoozeWindow"/> ago, so an old DM can't displace the schedule,
     /// or when the snoozed reminder would land on a later local day than the one the reminder was sent on.
     /// </summary>
@@ -658,7 +670,7 @@ public partial class HabitService
             return false;
 
         var habit = await _db.Habits
-            .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId && h.ReminderTimes.Count > 0);
+            .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId && h.Kind == HabitKind.Build && h.ReminderTimes.Count > 0);
 
         if (habit is null) return false;
 
@@ -878,7 +890,7 @@ public partial class HabitService
     }
 
     /// <summary>
-    /// The user with their logins, push subscriptions, phones, every habit, log, day mark, routine, journal entry and own mood, and the
+    /// The user with their logins, push subscriptions, phones, every habit, log, slip, day mark, routine, journal entry and own mood, and the
     /// journal key and "What helps me" list (untracked), or null when Ember stores nothing about them.
     /// </summary>
     public Task<User?> GetUserForExportAsync(Guid userId)
@@ -886,6 +898,7 @@ public partial class HabitService
             .AsNoTracking()
             .Include(u => u.Logins)
             .Include(u => u.Habits).ThenInclude(h => h.Logs)
+            .Include(u => u.Habits).ThenInclude(h => h.Slips)
             .Include(u => u.DayMarks)
             .Include(u => u.PushSubscriptions)
             .Include(u => u.ReminderPhones)
@@ -914,8 +927,8 @@ public partial class HabitService
     }
 
     /// <summary>
-    /// The given users (tracked) with their logins, habits, logs and day marks; with <paramref name="logsSince"/> only the logs on or
-    /// after that day.
+    /// The given users (tracked) with their logins, habits, logs, slips and day marks; with <paramref name="logsSince"/> only the logs on or
+    /// after that day (slips are always all loaded, since days free can reach back to a habit's start).
     /// </summary>
     public Task<List<User>> GetUsersWithHabitsAsync(List<Guid> userIds, CancellationToken cancellationToken = default,
         DateOnly? logsSince = null)
@@ -924,6 +937,7 @@ public partial class HabitService
             ? _db.Users.Include(u => u.Logins).Include(u => u.Habits).ThenInclude(h => h.Logs.Where(l => l.Date >= since))
             : _db.Users.Include(u => u.Logins).Include(u => u.Habits).ThenInclude(h => h.Logs);
         return users
+            .Include(u => u.Habits).ThenInclude(h => h.Slips)
             .Include(u => u.DayMarks)
             .AsSplitQuery()
             .Where(u => userIds.Contains(u.Id))

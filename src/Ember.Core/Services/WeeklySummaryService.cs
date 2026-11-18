@@ -22,7 +22,14 @@ public static class WeeklySummaryService
         int GraceUsed,
         string DotString);
 
-    public sealed record UserSummary(IReadOnlyList<HabitSummary> Habits, int TotalDone, int TotalPossible)
+    /// <summary>A let-go habit in the recap: only its days free (<see cref="HabitService.LetGoStatsOn"/>), never slip counts.</summary>
+    public sealed record LetGoSummary(Habit Habit, int DaysFree);
+
+    /// <summary>
+    /// <c>Habits</c> and the totals cover build habits only; <c>LetGo</c> lists the let-go habits started and not paused on the day after
+    /// the window, oldest first.
+    /// </summary>
+    public sealed record UserSummary(IReadOnlyList<HabitSummary> Habits, int TotalDone, int TotalPossible, IReadOnlyList<LetGoSummary> LetGo)
     {
         /// <summary>
         /// False when no habit had a single countable day in the window (every habit
@@ -38,11 +45,19 @@ public static class WeeklySummaryService
         var lowDays = user.DayMarks.Where(m => m.Kind == DayMarkKind.LowDay).Select(m => m.Date).ToHashSet();
 
         var habits = user.Habits
+            .Where(h => h.Kind == HabitKind.Build)
             .OrderBy(h => h.CreatedAt)
             .Select(h => BuildHabit(h, user.GraceDaysPerWeek, from, weekEnd, tz, lowDays))
             .ToList();
 
-        return new UserSummary(habits, habits.Sum(h => h.Done), habits.Sum(h => h.Possible));
+        var today = weekEnd.AddDays(1);
+        var letGo = user.Habits
+            .Where(h => h.Kind == HabitKind.LetGo && HabitService.StartDate(h, tz) <= today && !HabitService.IsPausedOn(h, today))
+            .OrderBy(h => h.CreatedAt)
+            .Select(h => new LetGoSummary(h, HabitService.LetGoStatsOn(h, today, tz).DaysFree))
+            .ToList();
+
+        return new UserSummary(habits, habits.Sum(h => h.Done), habits.Sum(h => h.Possible), letGo);
     }
 
     private static HabitSummary BuildHabit(Habit habit, int graceDays, DateOnly from, DateOnly weekEnd, TimeZoneInfo tz,
@@ -95,6 +110,9 @@ public static class WeeklySummaryService
         var pct = (int)Math.Round(100.0 * totalDone / totalPossible);
         return (t.Format("weekly.tone.some.headline", checkIns), t.Get(pct >= 50 ? "weekly.tone.half.footer" : "weekly.tone.small.footer"));
     }
+
+    /// <summary>The recap line of a let-go habit, "{name}: {n} days free", in <paramref name="t"/>; <paramref name="name"/> as the caller wants it shown.</summary>
+    public static string LetGoLine(string name, int daysFree, Texts t) => t.Plural("weekly.letgo.days-free", daysFree, name);
 
     /// <summary>
     /// Builds a 7-dot string like ✅⬜✅🔸▫️✅✅ for the window, oldest→newest: ✅ done, 🔸 partial,

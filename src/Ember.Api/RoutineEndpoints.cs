@@ -33,7 +33,7 @@ internal static class RoutineEndpoints
             var reminder = HabitEndpoints.ParseReminder(request.ReminderTime, errors);
             var userId = principal.UserId();
             var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
-            ValidateHabitIds(request.HabitIds, errors);
+            await ValidateHabitIdsAsync(request.HabitIds, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var (result, routine) = await habits.AddRoutineAsync(userId, name!, reminder, exclusions, request.HabitIds);
@@ -55,7 +55,7 @@ internal static class RoutineEndpoints
                 errors["reminderTime"] = ["Can't be combined with clearReminder."];
             var userId = principal.UserId();
             var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
-            ValidateHabitIds(request.HabitIds, errors);
+            await ValidateHabitIdsAsync(request.HabitIds, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             if (await habits.EditRoutineAsync(userId, id, name, reminder, request.ClearReminder == true, exclusions, request.HabitIds)
@@ -83,10 +83,17 @@ internal static class RoutineEndpoints
         return api;
     }
 
-    private static void ValidateHabitIds(int[]? habitIds, Dictionary<string, string[]> errors)
+    private static async Task ValidateHabitIdsAsync(int[]? habitIds, HabitService habits, Guid userId, Dictionary<string, string[]> errors)
     {
-        if (habitIds is not null && habitIds.Distinct().Count() != habitIds.Length)
+        if (habitIds is not { Length: > 0 }) return;
+        if (habitIds.Distinct().Count() != habitIds.Length)
+        {
             errors["habitIds"] = ["Each habit can be listed once."];
+            return;
+        }
+        var kinds = await habits.GetHabitKindsAsync(userId);
+        if (habitIds.Any(id => kinds.GetValueOrDefault(id) == HabitKind.LetGo))
+            errors["habitIds"] = ["Let-go habits can't be in a routine."];
     }
 
     private static async Task<(User User, HashSet<string> Ids)> LoadDestinations(HabitService habits, Guid userId)

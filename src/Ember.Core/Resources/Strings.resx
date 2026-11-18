@@ -40,4 +40,13 @@ Whenever you're ready, your habits are here waiting.</value>
   <data name="weekly.checkins.other" xml:space="preserve">
     <value>{0} check-ins</value>
   </data>
+  <data name="weekly.letgo.days-free.one" xml:space="preserve">
+    <value>{1}: {0} day free</value>
+  </data>
+  <data name="weekly.letgo.days-free.other" xml:space="preserve">
+    <value>{1}: {0} days free</value>
+  </data>
+  <data name="letgo.reminder" xml:space="preserve">
+    <value>A quiet check-in for {0}. If anything happened today, you can note it in Ember.</value>
+  </data>
 </root>

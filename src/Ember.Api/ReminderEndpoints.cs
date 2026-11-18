@@ -23,6 +23,7 @@ internal static class ReminderEndpoints
                 ReminderActionResult.Logged => Results.NoContent(),
                 ReminderActionResult.Expired => Problems.Expired(),
                 ReminderActionResult.ConsentRequired => Problems.ConsentRequired(),
+                ReminderActionResult.LetGoHabit => Problems.DayEdit(DayEditResult.LetGoHabit)!,
                 _ => Problems.NotFound(),
             };
         }).RequireRateLimiting(RateLimits.AuthPolicy);

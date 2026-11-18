@@ -17,4 +17,7 @@ public enum DayEditResult
 
     /// <summary>The user hasn't agreed to the current health-data consent.</summary>
     ConsentRequired,
+
+    /// <summary>The habit is a let-go habit, which records slips (<see cref="HabitService.AddSlipAsync(Guid, int, DateOnly, string?)"/>), not check-ins. Nothing was written.</summary>
+    LetGoHabit,
 }

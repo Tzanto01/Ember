@@ -5,7 +5,7 @@ namespace Ember.Core.Services;
 
 /// <summary>
 /// The validated, not yet saved content of an export file for <see cref="HabitService.ImportAsync"/>. Habits reference their
-/// routine through <see cref="Habit.Routine"/> and carry their <see cref="Habit.Logs"/>; a day note whose mood is one of the
+/// routine through <see cref="Habit.Routine"/> and carry their <see cref="Habit.Logs"/> and <see cref="Habit.Slips"/>; a day note whose mood is one of the
 /// imported own moods has a null <see cref="DayNote.Mood"/> and that mood as <c>CustomMood</c>. Null settings stay unchanged.
 /// </summary>
 public sealed record ImportData(
