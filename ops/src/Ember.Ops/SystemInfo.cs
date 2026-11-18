@@ -8,6 +8,7 @@ namespace Ember.Ops;
 public sealed record ServiceState(string Name, bool Ok, string? Detail);
 public sealed record DatabaseInfo(long SizeBytes, string? LatestMigration);
 public sealed record DiskInfo(long FreeBytes, long TotalBytes);
+public sealed record HostDisk(string Mount, long FreeBytes, long TotalBytes);
 public sealed record BackupInfo(string Name, DateTime At, double AgeHours, long SizeBytes);
 public sealed record DeployedShas(string? Production, string? Staging);
 public sealed record CiRun(string Branch, string Status, string? Conclusion, string Url, DateTime At, string Sha);
@@ -15,12 +16,13 @@ public sealed record ApkInfo(string VersionName, long VersionCode);
 
 /// <summary><c>GET /api/system</c>. A failing part is null and named in <see cref="Errors"/>; it never fails the whole call.</summary>
 public sealed record SystemReport(
-    DateTime GeneratedAt, DateTime? StatusWrittenAt, IReadOnlyList<ServiceState> Services, DatabaseInfo? Database, DiskInfo? Disk,
+    DateTime GeneratedAt, DateTime? StatusWrittenAt, IReadOnlyList<ServiceState> Services, DatabaseInfo? Database, IReadOnlyList<HostDisk>? Disks,
     BackupInfo? Backup, DeployedShas? Deployed, IReadOnlyList<CiRun>? Ci, JsonElement? Notice, ApkInfo? Apk, string? DashboardSha,
     IReadOnlyDictionary<string, string> Errors);
 
-/// <summary>The status file <c>ops/host/ops-status.sh</c> writes every minute.</summary>
-public sealed record HostStatus(DateTime WrittenAt, DiskInfo? Disk, HostBackup? Backup, DeployedShas? Deployed, IReadOnlyList<HostContainer>? Containers);
+/// <summary>The status file <c>ops/host/ops-status.sh</c> writes every minute. <see cref="Disk"/> is the single <c>/home</c> disk of files written before <see cref="Disks"/>.</summary>
+public sealed record HostStatus(DateTime WrittenAt, DiskInfo? Disk, HostBackup? Backup, DeployedShas? Deployed, IReadOnlyList<HostContainer>? Containers,
+    IReadOnlyList<HostDisk>? Disks = null);
 public sealed record HostBackup(string Name, DateTime At, long SizeBytes);
 public sealed record HostContainer(string Name, string State, string? Health);
 
@@ -86,7 +88,8 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         if (apk.Error is not null) errors["apk"] = apk.Error;
 
         var backup = status?.Backup is { } b ? new BackupInfo(b.Name, b.At, Math.Round((now - b.At).TotalHours, 1), b.SizeBytes) : null;
-        return new(now, status?.WrittenAt, services, database, status?.Disk, backup, status?.Deployed, ci.Value, notice.Value, apk.Value,
+        IReadOnlyList<HostDisk>? disks = status?.Disks ?? (status?.Disk is { } d ? [new("/home", d.FreeBytes, d.TotalBytes)] : null);
+        return new(now, status?.WrittenAt, services, database, disks, backup, status?.Deployed, ci.Value, notice.Value, apk.Value,
             string.IsNullOrWhiteSpace(o.BuildSha) ? null : o.BuildSha, errors);
     }
 

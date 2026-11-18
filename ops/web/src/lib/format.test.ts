@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAgo, formatDay, formatStamp } from './format';
+import { diskTone, formatAgo, formatDay, formatStamp } from './format';
 
 describe('formatAgo', () => {
   const at = '2026-11-18T12:00:00Z';
@@ -23,5 +23,18 @@ describe('dates', () => {
     expect(formatDay('2026-11-01')).toBe('1 Nov');
     expect(formatStamp('2026-11-18T23:30:00Z')).toContain('19 Nov 2026');
     expect(formatStamp('2026-07-01T10:00:00Z')).toContain('12:00');
+  });
+});
+
+describe('diskTone', () => {
+  it('warns below 10 % free and alarms below 5 %', () => {
+    expect(diskTone(10, 100)).toBeNull();
+    expect(diskTone(9, 100)).toBe('warn');
+    expect(diskTone(5, 100)).toBe('warn');
+    expect(diskTone(4, 100)).toBe('bad');
+  });
+
+  it('shows no tone for a disk without a size', () => {
+    expect(diskTone(0, 0)).toBeNull();
   });
 });

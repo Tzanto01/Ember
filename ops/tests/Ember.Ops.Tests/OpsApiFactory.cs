@@ -31,6 +31,9 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     private readonly string _noticesTokenFile;
     private readonly string _webRoot = Directory.CreateTempSubdirectory("ember-ops-web-").FullName;
 
+    /// <summary>The host status file the dashboard reads; missing unless a test writes it before the first request.</summary>
+    public string StatusFile => Path.Combine(_webRoot, "missing-status.json");
+
     public OpsApiFactory(DatabaseFixture database, string[]? trusted = null, string[]? logins = null, string? capability = Capability, string? allowedHosts = null,
         HttpMessageHandler? notices = null, string? noticesToken = "synthetic-test-token\n")
     {
@@ -46,7 +49,7 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
         {
             var settings = _database.Database.AppSettings();
             settings["Ops:WebRoot"] = _webRoot;
-            settings["Ops:StatusFile"] = Path.Combine(_webRoot, "missing-status.json");
+            settings["Ops:StatusFile"] = StatusFile;
             for (var i = 0; i < _trusted.Length; i++) settings[$"Ops:Access:TrustedProxies:{i}"] = _trusted[i];
             for (var i = 0; i < _logins.Length; i++) settings[$"Ops:Access:AllowedLogins:{i}"] = _logins[i];
             if (_capability is not null) settings["Ops:Access:AppCapability"] = _capability;

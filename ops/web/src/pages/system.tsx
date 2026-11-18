@@ -4,11 +4,11 @@ import type { ReactNode } from 'react';
 import { systemQuery } from '@/api/client';
 import type { System } from '@/api/types';
 import { Badge, Loaded, Note, PageHeader, Panel, Stats } from '@/components/ui';
-import { formatAgo, formatBytes, formatStamp, percent } from '@/lib/format';
+import { diskTone, formatAgo, formatBytes, formatStamp, percent } from '@/lib/format';
 import { useNow } from '@/lib/use-now';
 
 const staleMs = 5 * 60 * 1000;
-const fromStatusFile = new Set(['disk', 'backup', 'deployed']);
+const fromStatusFile = new Set(['disks', 'backup', 'deployed']);
 const short = (sha: string | null | undefined) => (sha ? sha.slice(0, 7) : '–');
 
 function Unavailable({ s, section }: { s: System; section: string }) {
@@ -99,13 +99,14 @@ export function SystemPage() {
                   />
                 )}
               </Section>
-              <Section s={s} section="disk" title="Disk" value={s.disk}>
-                {(d) => (
+              <Section s={s} section="disks" title="Disks" value={s.disks}>
+                {(disks) => (
                   <Stats
-                    items={[
-                      ['Free', `${formatBytes(d.freeBytes)} (${percent(d.freeBytes, d.totalBytes)})`],
-                      ['Total', formatBytes(d.totalBytes)],
-                    ]}
+                    items={disks.map((d): [string, ReactNode] => {
+                      const text = `${formatBytes(d.freeBytes)} free of ${formatBytes(d.totalBytes)} (${percent(d.freeBytes, d.totalBytes)} free)`;
+                      const tone = diskTone(d.freeBytes, d.totalBytes);
+                      return [d.mount, tone ? <Badge tone={tone}>{text}</Badge> : text];
+                    })}
                   />
                 )}
               </Section>

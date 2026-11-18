@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Writes ~/.local/state/ember-ops/status.json for the ops dashboard (mounted read-only into ember-ops at /status):
-# disk of /home, the newest pre-deploy dump in ~/backups/ember (metadata only), the deployed SHAs and the Ember
+# free space of every local disk, the newest pre-deploy dump in ~/backups/ember (metadata only), the deployed SHAs and the Ember
 # container states. Run every minute by ops-status.timer. Needs jq.
 set -euo pipefail
 
@@ -9,7 +9,12 @@ command -v jq >/dev/null || { echo "ops-status: jq is required" >&2; exit 1; }
 out_dir="${HOME}/.local/state/ember-ops"
 mkdir -p "$out_dir"
 
-read -r free total < <(df -B1 --output=avail,size /home | tail -n 1)
+disks=$({ df -B1 -l --output=source,fstype,avail,size,target 2>/dev/null || true; } | tail -n +2 | awk '
+  $1 ~ /^\/dev\// && $2 ~ /^(ext[234]|xfs|btrfs|f2fs)$/ {
+    t = $0; for (i = 0; i < 4; i++) sub(/^ *[^ ]+ +/, "", t)
+    if (t !~ /^\/(var\/lib\/docker|snap|boot)(\/|$)/ && !seen[$1]++) printf "%s\t%s\t%s\n", t, $3, $4
+  }' | LC_ALL=C sort -t $'\t' -k1,1 | jq -R -s 'split("\n") | map(select(length > 0) | split("\t")
+    | {mount: .[0], freeBytes: (.[1] | tonumber), totalBytes: (.[2] | tonumber)})')
 
 backup=null
 newest=$(find "${HOME}/backups/ember" -maxdepth 1 -type f -name 'emberdb-*.dump' -printf '%T@\t%s\t%f\n' 2>/dev/null | sort -rn | head -n 1 || true)
@@ -44,12 +49,12 @@ tmp=$(mktemp "${out_dir}/.status.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
 jq -n \
   --arg writtenAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --argjson free "$free" --argjson total "$total" \
+  --argjson disks "$disks" \
   --argjson backup "$backup" \
   --arg production "$(sha "${HOME}/ember/DEPLOYED_SHA")" \
   --arg staging "$(sha "${HOME}/ember-staging/DEPLOYED_SHA")" \
   --argjson containers "$containers" \
-  '{writtenAt: $writtenAt, disk: {freeBytes: $free, totalBytes: $total}, backup: $backup,
+  '{writtenAt: $writtenAt, disks: $disks, backup: $backup,
     deployed: {production: ($production | select(. != "") // null), staging: ($staging | select(. != "") // null)},
     containers: $containers}' >"$tmp"
 mv -f "$tmp" "${out_dir}/status.json"
