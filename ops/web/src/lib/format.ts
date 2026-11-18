@@ -36,4 +36,11 @@ export function formatBytes(bytes: number): string {
 
 export const formatNumber = (n: number) => n.toLocaleString(locale);
 export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** Badge tone for a disk's free space: `bad` below 5 %, `warn` below 10 %, otherwise (or with no size) none. */
+export function diskTone(free: number, total: number): 'bad' | 'warn' | null {
+  if (total <= 0) return null;
+  const ratio = free / total;
+  return ratio < 0.05 ? 'bad' : ratio < 0.1 ? 'warn' : null;
+}
+
 export const percent = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : '0%');
