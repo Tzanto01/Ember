@@ -175,6 +175,20 @@ describe('PushService', () => {
     expect(localStorage.getItem('ember.browserReminderNames')).toBeNull();
   });
 
+  it('turns names off when another account claims this browser', async () => {
+    localStorage.setItem('ember.browserReminderNamesFor', 'user-a');
+    localStorage.setItem('ember.browserReminderNames', '1');
+    const service = setup('subscribed');
+    await checked(service);
+
+    const claiming = service.claim('user-b');
+    const claim = await mock.next('POST', '/api/me/push-subscriptions');
+    expect(claim.body).toMatchObject({ showNames: false });
+    claim.respond(204);
+    await claiming;
+    expect(localStorage.getItem('ember.browserReminderNames')).toBeNull();
+  });
+
   it('keeps names off when saving them fails', async () => {
     const service = setup('subscribed');
     await checked(service);

@@ -194,7 +194,7 @@ export async function startApp(): Promise<void> {
   let claimedFor: string | null = null;
   const claim = () => {
     const id = auth.me.get()?.id ?? null;
-    if (id && id !== claimedFor && localMode.mode.get() !== 'local') void push.claim();
+    if (id && id !== claimedFor && localMode.mode.get() !== 'local') void push.claim(id);
     claimedFor = id;
   };
   auth.me.subscribe(claim);

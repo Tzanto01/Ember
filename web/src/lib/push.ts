@@ -16,6 +16,7 @@ export async function serviceWorkerRegistration(): Promise<ServiceWorkerRegistra
 }
 
 const namesKey = 'ember.browserReminderNames';
+const namesOwnerKey = 'ember.browserReminderNamesFor';
 
 function toRequest(subscription: PushSubscription, showNames: boolean): PushSubscriptionRequest | null {
   const json = subscription.toJSON();
@@ -85,9 +86,13 @@ export class PushService {
 
   /**
    * Re-registers this browser's subscription for the signed-in account, so a shared device follows whoever is
-   * signed in. Never throws.
+   * signed in. Never throws. A different `userId` than the last one claimed for turns "Show habit names" off first.
    */
-  async claim(): Promise<void> {
+  async claim(userId?: string): Promise<void> {
+    if (userId && localStorage.getItem(namesOwnerKey) !== userId) {
+      this.rememberNames(false);
+      localStorage.setItem(namesOwnerKey, userId);
+    }
     await this.check();
     const subscription = await this.current(await this.manager());
     const body = subscription && toRequest(subscription, this.showNames.get());
