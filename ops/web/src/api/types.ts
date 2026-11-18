@@ -115,3 +115,23 @@ export interface System {
   dashboardSha: string | null;
   errors: Record<string, string>;
 }
+
+export type NoticeKind = 'info' | 'maintenance';
+
+/** One in-app notice; texts are plain text, window bounds are UTC with seconds precision. */
+export interface Notice {
+  id: string;
+  kind: NoticeKind;
+  en: string;
+  de: string;
+  showFrom?: Timestamp;
+  showUntil?: Timestamp;
+}
+
+export type NoticeState = 'scheduled' | 'live' | 'ended';
+
+export interface NoticesView {
+  /** False when the publish token or URLs are not configured; the list is then read-only. */
+  publishing: boolean;
+  notices: (Notice & { state: NoticeState })[];
+}

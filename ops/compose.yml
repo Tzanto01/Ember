@@ -1,6 +1,6 @@
 # Ember ops dashboard. Build and run from the repo root of a clean checkout:
 #   BUILD_SHA=$(git rev-parse --short HEAD) docker compose -f ops/compose.yml up -d --build
-# Needs ~/.config/ember-ops/{ember_dashboard,emberops} (mode 600) and the ops-status timer writing ~/.local/state/ember-ops.
+# Needs ~/.config/ember-ops/{ember_dashboard,emberops,notices-token} (mode 600) and the ops-status timer writing ~/.local/state/ember-ops.
 services:
   ops:
     build:
@@ -34,12 +34,15 @@ services:
       Ops__StatusFile: /status/status.json
       Ops__GitHubRepo: Tzanto01/Ember
       Ops__NoticesUrl: https://beta.ember-glow.app/notices.json
+      Ops__NoticesPublishUrl: https://beta.ember-glow.app/_ops/notices
+      Ops__NoticesTokenFile: /run/secrets/notices_token
       Ops__ApkUrl: https://beta.ember-glow.app/download/latest.json
       Logging__LogLevel__Default: Information
       Logging__LogLevel__Microsoft.AspNetCore: Warning
     secrets:
       - ember_dashboard
       - emberops
+      - notices_token
     volumes:
       - ${HOME}/.local/state/ember-ops:/status:ro
     ports:
@@ -60,6 +63,8 @@ secrets:
     file: ${HOME}/.config/ember-ops/ember_dashboard
   emberops:
     file: ${HOME}/.config/ember-ops/emberops
+  notices_token:
+    file: ${HOME}/.config/ember-ops/notices-token
 
 networks:
   ember-ops-edge:

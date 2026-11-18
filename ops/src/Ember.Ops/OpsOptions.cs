@@ -29,6 +29,12 @@ public sealed class OpsOptions
     /// <summary>URL of the published <c>notices.json</c>; skipped when empty.</summary>
     public string? NoticesUrl { get; set; }
 
+    /// <summary>URL the whole notices document is PUT to with the bearer token from <see cref="NoticesTokenFile"/>.</summary>
+    public string? NoticesPublishUrl { get; set; } = "https://beta.ember-glow.app/_ops/notices";
+
+    /// <summary>File holding the notices publish token; publishing is off when it is unset, missing, empty or unreadable.</summary>
+    public string? NoticesTokenFile { get; set; }
+
     /// <summary>URL of the published APK <c>latest.json</c>; skipped when empty.</summary>
     public string? ApkUrl { get; set; }
 
