@@ -43,6 +43,18 @@ public sealed class OpsOptions
 
     /// <summary>Directory of the built web app; <c>wwwroot</c> under the content root when empty.</summary>
     public string? WebRoot { get; set; }
+
+    public LookoutOptions Lookout { get; set; } = new();
+}
+
+/// <summary>The <c>Ops:Lookout</c> section: the Lookout hub that may call <c>/lookout/v1</c>. Everything is refused when nothing is configured.</summary>
+public sealed class LookoutOptions
+{
+    /// <summary>The hub's IPv4 address; only TCP connections from it reach the Lookout routes, all others get 403.</summary>
+    public string HubAddress { get; set; } = string.Empty;
+
+    /// <summary>File holding the hub's bearer key, read on every request; under 32 bytes, unset, missing or unreadable means every request gets 401.</summary>
+    public string? KeyFile { get; set; }
 }
 
 /// <summary>The <c>Ops:Access</c> section: who may use the dashboard. Everything is refused when nothing is configured.</summary>

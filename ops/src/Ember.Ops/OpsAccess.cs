@@ -27,7 +27,7 @@ public static class OpsAccess
         return string.IsNullOrWhiteSpace(options.AppCapability) ? null : FromCapability(Single(headers[CapabilitiesHeader]), options.AppCapability);
     }
 
-    private static bool IsTrusted(IPAddress remote, string[] trusted)
+    internal static bool IsTrusted(IPAddress remote, string[] trusted)
     {
         if (remote.IsIPv4MappedToIPv6) remote = remote.MapToIPv4();
         foreach (var entry in trusted)

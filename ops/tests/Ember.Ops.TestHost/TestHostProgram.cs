@@ -7,12 +7,17 @@ namespace Ember.Ops.TestHost;
 /// Runs the dashboard against a seeded throwaway Postgres (<see cref="OpsTestDatabase"/>, <see cref="OpsSeed"/>) on
 /// http://localhost:5185, trusting loopback and the login <c>e2e@example.test</c>, serving <c>ops/web/dist</c>, with a
 /// synthetic host status file kept fresh. <c>--prod-schema</c> migrates emberdb only as far as production has.
+/// The Lookout routes under <c>/lookout/v1</c> accept the hub from <c>127.0.0.1</c> only (call <c>http://127.0.0.1:5185</c>, not
+/// <c>localhost</c>), with the key from the file named by <c>LOOKOUT_KEY_FILE</c>, else <see cref="LookoutKey"/>.
 /// Sends nothing outside localhost.
 /// </summary>
 public static class TestHostProgram
 {
     public const string Url = "http://localhost:5185";
     public const string Login = "e2e@example.test";
+
+    /// <summary>The synthetic Lookout key used when <c>LOOKOUT_KEY_FILE</c> is unset; not a secret.</summary>
+    public const string LookoutKey = "synthetic-lookout-test-key-not-a-secret-0001";
 
     public static async Task Main(string[] args)
     {
@@ -29,6 +34,13 @@ public static class TestHostProgram
         var upstream = new FakeNoticesUpstream(Convert.ToHexString(RandomNumberGenerator.GetBytes(16)));
         var tokenFile = Path.Combine(statusDir, "notices-token");
         await File.WriteAllTextAsync(tokenFile, upstream.Token);
+        var lookoutKeyFile = Environment.GetEnvironmentVariable("LOOKOUT_KEY_FILE");
+        var keyFromEnvironment = !string.IsNullOrEmpty(lookoutKeyFile);
+        if (!keyFromEnvironment)
+        {
+            lookoutKeyFile = Path.Combine(statusDir, "lookout-key");
+            await File.WriteAllTextAsync(lookoutKeyFile, LookoutKey);
+        }
 
         var builder = OpsApp.CreateBuilder(["--urls", Url, .. args]);
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(database.AppSettings())
@@ -42,6 +54,8 @@ public static class TestHostProgram
             ["Ops:NoticesUrl"] = FakeNoticesUpstream.ReadUrl,
             ["Ops:NoticesPublishUrl"] = FakeNoticesUpstream.PublishUrl,
             ["Ops:NoticesTokenFile"] = tokenFile,
+            ["Ops:Lookout:HubAddress"] = "127.0.0.1",
+            ["Ops:Lookout:KeyFile"] = lookoutKeyFile,
             ["Logging:LogLevel:Default"] = "Information",
             ["Logging:LogLevel:Microsoft.AspNetCore"] = "Warning",
         });
@@ -57,6 +71,7 @@ public static class TestHostProgram
         try
         {
             Console.WriteLine($"Ember ops test host on {Url} ({(productionSchema ? "production" : "v2")} schema)");
+            Console.WriteLine($"Lookout routes on {Url}/lookout/v1 for the hub at 127.0.0.1, key from {(keyFromEnvironment ? "LOOKOUT_KEY_FILE" : "the built-in synthetic test key")}");
             await app.RunAsync();
         }
         finally

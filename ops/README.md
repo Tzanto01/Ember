@@ -42,6 +42,8 @@ Publishing a notice sends the whole `notices.json` document to `PUT https://beta
 
 Writes also need the antiforgery token from `GET /api/session` in the `X-CSRF-TOKEN` header, and are refused when `Sec-Fetch-Site` is cross-site.
 
+Everything under `/lookout` is for the Lookout hub only (provider contract v1) and skips the Tailscale check: the TCP peer must be `Ops__Lookout__HubAddress` (the hub on `lookout-net`, `172.31.250.18`), else 403, and `Authorization: Bearer` must equal the key in `Ops__Lookout__KeyFile`, else 401. The key file is read on every request; unset, missing or under 32 bytes means every Lookout request gets 401. A path under `/lookout` that is not a Lookout route gets 404. Requests through Tailscale Serve get 403 there. Lookout writes take their author from the `Lookout-Actor` header and need no antiforgery token.
+
 ### Tailscale setup (one time, Nico)
 
 1. In the Tailscale admin console, add this to the policy file's `grants`:
@@ -138,4 +140,6 @@ Set through environment variables in [compose.yml](compose.yml).
 | `AllowedHosts` | Host names the app answers to |
 | `Ops__StatusFile` | The host status file |
 | `Ops__GitHubRepo`, `Ops__NoticesUrl`, `Ops__ApkUrl` | Sources for CI, the live notice and the APK version. Left empty, the section is skipped. CI makes one GitHub request every 10 minutes with `If-None-Match` |
+| `Ops__Lookout__HubAddress` | Address of the Lookout hub, the only peer allowed on `/lookout`. Empty means every Lookout request gets 403 |
+| `Ops__Lookout__KeyFile` | File with the key the hub sends as bearer. Read on every request; without a key of at least 32 bytes every Lookout request gets 401 |
 | `Ops__NoticesPublishUrl`, `Ops__NoticesTokenFile` | Where notices are published (HTTPS only) and the file with its bearer token. Without a token, or unless both URLs are HTTPS, the Notices page is read-only and writes get 503 |
