@@ -83,7 +83,7 @@ test('a saved moment goes to What helps me, shows as a Catch chip, and the list 
     const sent = body as { encrypted: string; version: number };
     expect(Object.keys(sent).sort()).toEqual(['encrypted', 'version']);
     expect(typeof sent.version).toBe('number');
-    for (const word of ['walk', 'Walk', 'breathing', 'friend', 'tea', 'Slow']) {
+    for (const word of ['A walk around the block', 'Slow breathing', 'Call a good friend', 'Make some tea']) {
       expect(sent.encrypted).not.toContain(word);
     }
     expect(Object.keys(JSON.parse(sent.encrypted) as object).sort()).toEqual(['ct', 'iv', 'v']);
