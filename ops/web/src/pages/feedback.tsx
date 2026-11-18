@@ -184,7 +184,7 @@ export function FeedbackPage() {
                       if (!e.currentTarget.contains(e.relatedTarget as Node | null) && isDrop) setDrop(null);
                     }}
                     onDrop={(e) => onDrop(e, status)}
-                    className={`flex min-h-40 flex-col gap-2 rounded-lg bg-muted p-2 ${isDrop ? 'ring-2 ring-primary' : ''}`}
+                    className={`flex min-h-28 flex-col gap-2 rounded-lg bg-muted p-2 sm:min-h-40 ${isDrop ? 'ring-2 ring-primary' : ''}`}
                   >
                     <h2 className="m-0 flex items-baseline justify-between px-1 pt-1 text-base">
                       {capitalize(status)}

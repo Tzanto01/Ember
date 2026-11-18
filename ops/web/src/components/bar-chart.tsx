@@ -15,12 +15,14 @@ interface Props {
   note?: string;
   series: Series[];
   bars: Bar[];
+  /** Show the title above the chart; off when the surrounding panel heading already says it. */
+  showTitle?: boolean;
 }
 
 const height = 120;
 
 /** Stacked bar chart; the SVG stretches to the container, axis labels are HTML so text never scales. */
-export function BarChart({ title, note, series, bars }: Props) {
+export function BarChart({ title, note, series, bars, showTitle = true }: Props) {
   const totals = bars.map((b) => b.values.reduce((s, v) => s + v, 0));
   const max = Math.max(1, ...totals);
   const sum = totals.reduce((s, v) => s + v, 0);
@@ -35,8 +37,8 @@ export function BarChart({ title, note, series, bars }: Props) {
 
   return (
     <figure className="m-0 flex flex-col gap-2">
-      <figcaption>
-        <span className="font-bold">{title}</span>
+      <figcaption className={showTitle || note ? '' : 'sr-only'}>
+        <span className={showTitle ? 'font-bold' : 'sr-only'}>{title}</span>
         {note && <span className="block text-sm text-muted-foreground">{note}</span>}
       </figcaption>
       {series.length > 1 && (

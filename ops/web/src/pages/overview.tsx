@@ -35,27 +35,30 @@ export function OverviewPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Panel title="New users per week">
               <BarChart
+                showTitle={false}
                 title="New users per week"
                 note="by first habit, proxy"
                 series={one}
                 bars={o.users.newPerWeek.map((w) => ({ label: formatDay(w.week), values: [w.count] }))}
               />
             </Panel>
-            <Panel title="Check-ins">
-              <BarChart title="Check-ins per day" note="last 90 days, completed" series={one} bars={days(o.checkInsPerDay)} />
+            <Panel title="Check-ins per day">
+              <BarChart showTitle={false} title="Check-ins per day" note="last 90 days, completed" series={one} bars={days(o.checkInsPerDay)} />
             </Panel>
-            <Panel title="Journal">
-              <BarChart title="Journal days per day" note="journal days (note or mood)" series={one} bars={days(o.journalPerDay)} />
+            <Panel title="Journal days per day">
+              <BarChart showTitle={false} title="Journal days per day" note="journal days (note or mood)" series={one} bars={days(o.journalPerDay)} />
             </Panel>
-            <Panel title="Low days">
+            <Panel title="Low days per day">
               <BarChart
+                showTitle={false}
                 title="Low days per day"
                 series={[{ label: 'Low days', color: 'var(--chart-2)' }]}
                 bars={days(o.lowDaysPerDay)}
               />
             </Panel>
-            <Panel title="Grace days">
+            <Panel title="Users by grace days per week">
               <BarChart
+                showTitle={false}
                 title="Users by grace days per week"
                 series={[{ label: 'Users', color: 'var(--chart-3)' }]}
                 bars={o.streaks.grace.map((g) => ({ label: `${g.days} d`, values: [g.count] }))}

@@ -8,10 +8,11 @@ import { formatAgo, formatBytes, formatStamp, percent } from '@/lib/format';
 import { useNow } from '@/lib/use-now';
 
 const staleMs = 5 * 60 * 1000;
+const fromStatusFile = new Set(['disk', 'backup', 'deployed']);
 const short = (sha: string | null | undefined) => (sha ? sha.slice(0, 7) : '–');
 
 function Unavailable({ s, section }: { s: System; section: string }) {
-  const reason = s.errors[section];
+  const reason = s.errors[section] ?? (fromStatusFile.has(section) ? s.errors['status'] : undefined);
   return <Note>Unavailable{reason ? `: ${reason}` : ''}</Note>;
 }
 

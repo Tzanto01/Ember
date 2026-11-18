@@ -60,7 +60,7 @@ export function FeedbackDialog({ item, onClose }: { item: FeedbackItem; onClose:
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <Badge tone="ok">{capitalize(item.status)}</Badge>
+          <Badge tone="warn">{capitalize(item.status)}</Badge>
           <Badge>{capitalize(item.platform)}</Badge>
           {item.version && <span>v{item.version}</span>}
           {item.anonymous && <Badge tone="warn">Anonymous</Badge>}

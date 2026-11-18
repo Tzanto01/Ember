@@ -37,19 +37,21 @@ export function RemindersPage() {
               <Tile label="Push enabled" value={formatNumber(r.push.enabled)} hint={`of ${formatNumber(r.push.subscriptions)} subscriptions`} />
             </dl>
             <div className="grid gap-4 lg:grid-cols-2">
-              <Panel title="Still open">
+              <Panel title="Still-open reminders per day">
                 <BarChart
+                  showTitle={false}
                   title="Still-open reminders per day"
                   note="Ember deletes reminder rows when they close, so these are only the ones still open"
                   series={channels}
                   bars={perChannel(r.openPerDay)}
                 />
               </Panel>
-              <Panel title="History">
+              <Panel title="Reminders sent per day">
                 {r.history.since === null ? (
                   <Note>No snapshots yet</Note>
                 ) : (
                   <BarChart
+                    showTitle={false}
                     title="Reminders sent per day"
                     note={`history since ${formatStamp(r.history.since)}; includes second reminders and resends`}
                     series={channels}

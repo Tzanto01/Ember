@@ -24,14 +24,14 @@ export function Layout() {
             Ember ops
           </span>
           <nav aria-label="Main" className="order-3 w-full sm:order-none sm:w-auto">
-            <ul className="m-0 flex list-none gap-1 overflow-x-auto p-0">
+            <ul className="m-0 flex list-none gap-0.5 overflow-x-auto p-0 sm:gap-1">
               {links.map((l) => (
                 <li key={l.to}>
                   <NavLink
                     to={l.to}
                     end
                     className={({ isActive }) =>
-                      `inline-flex min-h-10 items-center rounded-full px-3 font-bold no-underline ${
+                      `inline-flex min-h-10 items-center rounded-full px-2 text-sm font-bold no-underline sm:px-3 sm:text-base ${
                         isActive ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-secondary'
                       }`
                     }
