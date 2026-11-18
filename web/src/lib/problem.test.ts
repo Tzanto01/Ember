@@ -151,6 +151,20 @@ describe('toApiError', () => {
     expect(error.type).toBeNull();
     expect(error.retryAfterSeconds).toBeNull();
   });
+
+  it('reads the maintenance fallback as unreachable (status 0) by its header or its problem type, never a plain 503', () => {
+    const maintenance = { type: 'maintenance', title: 'Ember is resting', status: 503 };
+    const byHeader = toApiError(503, null, new Headers({ 'X-Ember-Fallback': '1' }));
+    const byType = toApiError(503, maintenance, new Headers());
+    const plain = toApiError(503, { type: 'unavailable', title: 'Service Unavailable', status: 503 }, new Headers());
+    const network = problemToMessage(err(0)).message;
+
+    expect(byHeader.status).toBe(0);
+    expect(byType.status).toBe(0);
+    expect(problemToMessage(byType).message).toBe(network);
+    expect(plain.status).toBe(503);
+    expect(problemToMessage(plain).message).not.toBe(network);
+  });
 });
 
 describe('asApiError', () => {

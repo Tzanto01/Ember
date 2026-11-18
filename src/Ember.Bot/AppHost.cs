@@ -124,6 +124,10 @@ public static class AppHost
                     services.AddSingleton<DiscordSocketClient>();
                     services.AddSingleton(sp => new InteractionService(sp.GetRequiredService<DiscordSocketClient>(), InteractionConfig()));
                     services.AddSingleton<IDiscordDmSender, DiscordDmSender>();
+                    services.AddHttpClient(NoticePoller.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10))
+                        .RemoveAllLoggers();
+                    services.AddSingleton<NoticePoller>();
+                    services.AddHostedService(sp => sp.GetRequiredService<NoticePoller>());
                     services.AddHostedService<BotService>();
                 }
                 else
