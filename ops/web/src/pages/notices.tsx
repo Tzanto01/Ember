@@ -149,12 +149,12 @@ export function NoticesPage() {
       setDeletingId(null);
       setListError(null);
       setStatus(action === 'end' ? `Ended ${id}.` : `Deleted ${id}.`);
-      focusAfter.current = action === 'end' ? `[data-notice-id="${id}"] [data-action="delete"]` : '#notice-status';
+      focusAfter.current = action === 'end' ? `[data-notice-id="${CSS.escape(id)}"] [data-action="delete"]` : '#notice-status';
     },
     onError: (error, { id, action }) => {
       setDeletingId(null);
       setListError(`Could not ${action === 'end' ? 'end' : 'delete'} ${id}: ${errorText(error)}`);
-      focusAfter.current = `[data-notice-id="${id}"] [data-action="${action}"]`;
+      focusAfter.current = `[data-notice-id="${CSS.escape(id)}"] [data-action="${action}"]`;
     },
   });
 
@@ -341,7 +341,7 @@ export function NoticesPage() {
                                 disabled={busy}
                                 onClick={() => {
                                   setDeletingId(null);
-                                  focusAfter.current = `[data-notice-id="${n.id}"] [data-action="delete"]`;
+                                  focusAfter.current = `[data-notice-id="${CSS.escape(n.id)}"] [data-action="delete"]`;
                                 }}
                               >
                                 Cancel

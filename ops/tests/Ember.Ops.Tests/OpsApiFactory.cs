@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Ember.Ops.TestHost;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Builder;
@@ -26,11 +27,16 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     private readonly string[] _logins;
     private readonly string? _capability;
     private readonly string? _allowedHosts;
+    private readonly HttpMessageHandler? _notices;
+    private readonly string _noticesTokenFile;
     private readonly string _webRoot = Directory.CreateTempSubdirectory("ember-ops-web-").FullName;
 
-    public OpsApiFactory(DatabaseFixture database, string[]? trusted = null, string[]? logins = null, string? capability = Capability, string? allowedHosts = null)
+    public OpsApiFactory(DatabaseFixture database, string[]? trusted = null, string[]? logins = null, string? capability = Capability, string? allowedHosts = null,
+        HttpMessageHandler? notices = null, string? noticesToken = "synthetic-test-token\n")
     {
-        (_database, _trusted, _logins, _capability, _allowedHosts) = (database, trusted ?? [TrustedIp], logins ?? [Login], capability, allowedHosts);
+        (_database, _trusted, _logins, _capability, _allowedHosts, _notices) = (database, trusted ?? [TrustedIp], logins ?? [Login], capability, allowedHosts, notices);
+        _noticesTokenFile = Path.Combine(_webRoot, "notices-token");
+        if (noticesToken is not null) File.WriteAllText(_noticesTokenFile, noticesToken);
         File.WriteAllText(Path.Combine(_webRoot, "index.html"), "<html><body>ember-ops-spa</body></html>");
     }
 
@@ -45,6 +51,12 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
             for (var i = 0; i < _logins.Length; i++) settings[$"Ops:Access:AllowedLogins:{i}"] = _logins[i];
             if (_capability is not null) settings["Ops:Access:AppCapability"] = _capability;
             if (_allowedHosts is not null) settings["AllowedHosts"] = _allowedHosts;
+            if (_notices is not null)
+            {
+                settings["Ops:NoticesUrl"] = FakeNoticesUpstream.ReadUrl;
+                settings["Ops:NoticesPublishUrl"] = FakeNoticesUpstream.PublishUrl;
+                settings["Ops:NoticesTokenFile"] = _noticesTokenFile;
+            }
             config.AddInMemoryCollection(settings);
         });
         builder.ConfigureTestServices(services =>
@@ -52,6 +64,7 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IHostedService>();
             services.AddSingleton<TimeProvider>(_database.Time);
             services.AddTransient<IStartupFilter, RemoteIpFilter>();
+            if (_notices is not null) services.AddHttpClient(NoticeStore.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => _notices);
         });
     }
 

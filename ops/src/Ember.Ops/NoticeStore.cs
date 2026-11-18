@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -47,9 +48,6 @@ public static class NoticeRules
         foreach (var notice in notices)
         {
             if (string.IsNullOrEmpty(notice.Id)) return "id is empty";
-            if (notice.Id.Length > MaxIdLength) return $"id is longer than {MaxIdLength} characters";
-            if (!notice.Id.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-'))
-                return "id may only contain letters, digits, '.', '_' and '-'";
             if (!ids.Add(notice.Id)) return $"id {notice.Id} is used twice";
             if (notice.Kind is not ("info" or "maintenance")) return "kind must be info or maintenance";
             if ((Text(notice.En, "en") ?? Text(notice.De, "de")) is { } text) return text;
@@ -62,9 +60,15 @@ public static class NoticeRules
         return null;
     }
 
-    /// <summary>Parses a <c>showFrom</c>/<c>showUntil</c> value; null when absent, not ending in <c>Z</c> or unparseable.</summary>
+    /// <summary>The id rule for a notice the dashboard writes; the message when <paramref name="id"/> breaks it, else null.</summary>
+    public static string? CheckNewId(string id) =>
+        id.Length > MaxIdLength ? $"id is longer than {MaxIdLength} characters"
+        : id.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-') ? null
+        : "id may only contain letters, digits, '.', '_' and '-'";
+
+    /// <summary>Parses a <c>showFrom</c>/<c>showUntil</c> value; null when absent, not a UTC ISO time ending in <c>Z</c>, or unparseable.</summary>
     public static DateTimeOffset? ParseTime(string? value) =>
-        value is { Length: > 0 } && value.EndsWith('Z')
+        value is { Length: > 0 } && TimeFormat.IsMatch(value)
         && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var at)
             ? at
             : null;
@@ -76,6 +80,8 @@ public static class NoticeRules
     public static string State(Notice notice, DateTimeOffset now) =>
         ParseTime(notice.ShowFrom) > now ? "scheduled" : ParseTime(notice.ShowUntil) <= now ? "ended" : "live";
 
+    private static readonly Regex TimeFormat = new(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$", RegexOptions.CultureInvariant);
+
     private static string? Text(string? text, string name)
     {
         if (string.IsNullOrWhiteSpace(text)) return $"{name} is empty";
@@ -85,7 +91,8 @@ public static class NoticeRules
 
 /// <summary>
 /// Reads the live notices document and publishes changes to it, one write at a time, logging each to <c>NoticeLog</c>.
-/// For <see cref="StaleReadWindow"/> after a write the document this process wrote counts as live, since edge-cached reads lag.
+/// Edge-cached reads lag, so for <see cref="StaleReadWindow"/> a read that still shows a document this process replaced counts as
+/// the document it wrote; any other read, such as another writer's change, counts as live.
 /// </summary>
 public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, IHttpClientFactory http, TimeProvider time, ILogger<NoticeStore> logger)
 {
@@ -93,16 +100,18 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
     public static readonly TimeSpan StaleReadWindow = TimeSpan.FromSeconds(90);
     private const string NotSetUp = "Publishing isn't set up";
 
-    private sealed record Written(IReadOnlyList<Notice> Notices, DateTimeOffset At);
+    private sealed record Replaced(IReadOnlyList<Notice> Notices, DateTimeOffset At);
+
+    private sealed record Memory(IReadOnlyList<Notice> Written, IReadOnlyList<Replaced> Replaced);
 
     private readonly SemaphoreSlim gate = new(1, 1);
-    private volatile Written? last;
+    private volatile Memory? memory;
 
     public async Task<IResult> GetAsync(CancellationToken ct)
     {
         var o = options.Value;
         var now = time.GetUtcNow();
-        var (notices, error) = await EffectiveAsync(o, now, ct);
+        var (notices, _, error) = await EffectiveAsync(o, now, ct);
         return notices is null
             ? Results.Problem(detail: error, statusCode: StatusCodes.Status502BadGateway)
             : Results.Ok(View(notices, now, ReadToken(o) is not null && Configured(o)));
@@ -115,6 +124,8 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
             return Task.FromResult(Results.Problem(detail: "Text can't contain NUL characters", statusCode: StatusCodes.Status400BadRequest));
         var notice = new Notice(input.Id ?? string.Empty, input.Kind ?? string.Empty, input.En ?? string.Empty, input.De ?? string.Empty,
             string.IsNullOrEmpty(input.ShowFrom) ? null : input.ShowFrom, string.IsNullOrEmpty(input.ShowUntil) ? null : input.ShowUntil);
+        if (NoticeRules.CheckNewId(notice.Id) is { } badId)
+            return Task.FromResult(Results.Problem(detail: badId, statusCode: StatusCodes.Status400BadRequest));
         return WriteAsync(actor, "publish", (notices, _) =>
         {
             var index = notices.FindIndex(n => n.Id == notice.Id);
@@ -162,7 +173,7 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
         try
         {
             var now = time.GetUtcNow();
-            var (live, readError) = await EffectiveAsync(o, now, ct);
+            var (live, upstream, readError) = await EffectiveAsync(o, now, CancellationToken.None);
             if (live is null) return Results.Problem(detail: readError, statusCode: StatusCodes.Status502BadGateway);
 
             List<Notice> notices = [.. live];
@@ -170,8 +181,8 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
             if (error is not null) return error;
             if (NoticeRules.Validate(notices) is { } invalid) return Results.Problem(detail: invalid, statusCode: StatusCodes.Status400BadRequest);
 
-            if (await PutAsync(o.NoticesPublishUrl!, token, notices, ct) is { } failed) return failed;
-            last = new(notices.ToArray(), now);
+            if (await PutAsync(o.NoticesPublishUrl!, token, notices, CancellationToken.None) is { } failed) return failed;
+            memory = new(notices.ToArray(), [.. (memory?.Replaced ?? []).Where(r => now - r.At < StaleReadWindow), new(live, now), new(upstream!, now)]);
             await LogAsync(actor, action, logged!);
             return Results.Ok(View(notices, now, true));
         }
@@ -235,9 +246,15 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
         }
     }
 
-    private async Task<(IReadOnlyList<Notice>? Notices, string? Error)> EffectiveAsync(OpsOptions o, DateTimeOffset now, CancellationToken ct)
+    private async Task<(IReadOnlyList<Notice>? Notices, IReadOnlyList<Notice>? Upstream, string? Error)> EffectiveAsync(OpsOptions o, DateTimeOffset now, CancellationToken ct)
     {
-        if (last is { } written && now - written.At < StaleReadWindow) return (written.Notices, null);
+        var (upstream, error) = await ReadAsync(o, ct);
+        if (upstream is null) return (null, null, error);
+        return (memory is { } m && m.Replaced.Any(r => now - r.At < StaleReadWindow && r.Notices.SequenceEqual(upstream)) ? m.Written : upstream, upstream, null);
+    }
+
+    private async Task<(IReadOnlyList<Notice>? Notices, string? Error)> ReadAsync(OpsOptions o, CancellationToken ct)
+    {
         if (string.IsNullOrWhiteSpace(o.NoticesUrl)) return ([], null);
         try
         {
@@ -273,7 +290,8 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
         }
     }
 
-    private static bool Configured(OpsOptions o) => !string.IsNullOrWhiteSpace(o.NoticesUrl) && !string.IsNullOrWhiteSpace(o.NoticesPublishUrl);
+    private static bool Configured(OpsOptions o) =>
+        !string.IsNullOrWhiteSpace(o.NoticesUrl) && Uri.TryCreate(o.NoticesPublishUrl, UriKind.Absolute, out var publish) && publish.Scheme == Uri.UriSchemeHttps;
 
     private static NoticesView View(IReadOnlyList<Notice> notices, DateTimeOffset now, bool publishing) =>
         new(publishing, notices.Select(n => new NoticeView(n.Id, n.Kind, n.En, n.De, n.ShowFrom, n.ShowUntil, NoticeRules.State(n, now))).ToList());

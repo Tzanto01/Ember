@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -31,7 +32,18 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
     public static readonly TimeSpan FailureCache = TimeSpan.FromSeconds(30);
     private static readonly string[] DefaultBranches = ["main", "test", "v2/next"];
 
-    private sealed record Fetched<T>(T? Value, string? Error);
+    private static readonly TimeZoneInfo Berlin = FindBerlin();
+
+    private sealed record Fetched<T>(T? Value, string? Error)
+    {
+        /// <summary>Overrides the cache lifetime, e.g. until a rate limit resets.</summary>
+        public TimeSpan? Ttl { get; init; }
+    }
+
+    private sealed record CiSnapshot(string ETag, IReadOnlyList<CiRun> Runs);
+
+    private volatile CiSnapshot? ciSnapshot;
+    private long ciRateLimitedUntil;
 
     public async Task<SystemReport> GetAsync(CancellationToken ct)
     {
@@ -39,7 +51,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         var now = time.GetUtcNow().UtcDateTime;
         var errors = new Dictionary<string, string>();
 
-        var ciTask = Cached("system:ci", TimeSpan.FromMinutes(5), () => CiAsync(o, CancellationToken.None), TimeSpan.FromMinutes(5));
+        var ciTask = Cached("system:ci", TimeSpan.FromMinutes(10), () => CiAsync(o, CancellationToken.None), TimeSpan.FromMinutes(10));
         var noticeTask = Cached("system:notice", TimeSpan.FromMinutes(2), () => NoticeAsync(o.NoticesUrl, CancellationToken.None));
         var apkTask = Cached("system:apk", TimeSpan.FromMinutes(2), () => ApkAsync(o.ApkUrl, CancellationToken.None));
 
@@ -117,34 +129,66 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         (await cache.GetOrCreateAsync(key, async e =>
         {
             var fetched = await load();
-            e.AbsoluteExpirationRelativeToNow = fetched.Error is null ? ttl : failureTtl ?? FailureCache;
+            e.AbsoluteExpirationRelativeToNow = fetched.Ttl ?? (fetched.Error is null ? ttl : failureTtl ?? FailureCache);
             return fetched;
         }))!;
 
     private async Task<Fetched<IReadOnlyList<CiRun>>> CiAsync(OpsOptions o, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(o.GitHubRepo)) return new(null, null);
+        if (CiRateLimited() is { } limited) return limited;
         var branches = o.GitHubBranches is { Length: > 0 } configured ? configured : DefaultBranches;
-        return await Fetch<IReadOnlyList<CiRun>>("ci", async client =>
+        var fetched = await Fetch<IReadOnlyList<CiRun>>("ci", async client =>
         {
-            var runs = await Task.WhenAll(branches.Select(async branch =>
-            {
-                using var request = new HttpRequestMessage(HttpMethod.Get,
-                    $"https://api.github.com/repos/{o.GitHubRepo.Trim()}/actions/runs?branch={Uri.EscapeDataString(branch)}&per_page=1");
-                request.Headers.Accept.ParseAdd("application/vnd.github+json");
-                using var response = await client.SendAsync(request, ct);
-                response.EnsureSuccessStatusCode();
-                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-                if (doc.RootElement.GetProperty("workflow_runs") is not { ValueKind: JsonValueKind.Array } list || list.GetArrayLength() == 0)
-                    return null;
-                var run = list[0];
-                return new CiRun(branch, run.GetProperty("status").GetString() ?? "unknown",
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{o.GitHubRepo.Trim()}/actions/runs?per_page=50");
+            request.Headers.Accept.ParseAdd("application/vnd.github+json");
+            var last = ciSnapshot;
+            if (last is not null) request.Headers.TryAddWithoutValidation("If-None-Match", last.ETag);
+            using var response = await client.SendAsync(request, ct);
+            if (response.StatusCode == HttpStatusCode.NotModified && last is not null) return last.Runs;
+            if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests
+                && response.Headers.TryGetValues("x-ratelimit-remaining", out var remaining) && remaining.FirstOrDefault() == "0"
+                && response.Headers.TryGetValues("x-ratelimit-reset", out var reset) && long.TryParse(reset.FirstOrDefault(), out var resetAt)
+                && resetAt > 0 && resetAt < DateTimeOffset.MaxValue.ToUnixTimeSeconds())
+                Volatile.Write(ref ciRateLimitedUntil, resetAt);
+            response.EnsureSuccessStatusCode();
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            var list = doc.RootElement.GetProperty("workflow_runs");
+            IEnumerable<JsonElement> all = list.ValueKind == JsonValueKind.Array ? list.EnumerateArray() : [];
+            var newest = all
+                .Where(run => run.GetProperty("head_branch") is { ValueKind: JsonValueKind.String } branch && branches.Contains(branch.GetString()))
+                .Select(run => new CiRun(run.GetProperty("head_branch").GetString()!, run.GetProperty("status").GetString() ?? "unknown",
                     run.GetProperty("conclusion").ValueKind == JsonValueKind.String ? run.GetProperty("conclusion").GetString() : null,
                     run.GetProperty("html_url").GetString() ?? string.Empty, run.GetProperty("created_at").GetDateTime().ToUniversalTime(),
-                    run.GetProperty("head_sha").GetString() ?? string.Empty);
-            }));
-            return runs.OfType<CiRun>().ToList();
+                    run.GetProperty("head_sha").GetString() ?? string.Empty))
+                .GroupBy(run => run.Branch)
+                .ToDictionary(g => g.Key, g => g.MaxBy(run => run.At)!);
+            IReadOnlyList<CiRun> runs = branches.Where(newest.ContainsKey).Select(b => newest[b]).ToList();
+            ciSnapshot = response.Headers.ETag is { } etag ? new(etag.ToString(), runs) : null;
+            return runs;
         });
+        return CiRateLimited() ?? fetched;
+    }
+
+    private Fetched<IReadOnlyList<CiRun>>? CiRateLimited()
+    {
+        var until = DateTimeOffset.FromUnixTimeSeconds(Volatile.Read(ref ciRateLimitedUntil));
+        var wait = until - time.GetUtcNow();
+        if (wait <= TimeSpan.Zero) return null;
+        var zone = Berlin == TimeZoneInfo.Utc ? " UTC" : string.Empty;
+        return new(null, $"GitHub rate limit, back at {TimeZoneInfo.ConvertTime(until, Berlin):HH:mm}{zone}") { Ttl = wait };
+    }
+
+    private static TimeZoneInfo FindBerlin()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
+        }
+        catch (Exception e) when (e is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.Utc;
+        }
     }
 
     private Task<Fetched<JsonElement?>> NoticeAsync(string? url, CancellationToken ct) =>
