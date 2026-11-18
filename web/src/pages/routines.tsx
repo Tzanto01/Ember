@@ -1,10 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
-import { Bell, BellOff, Plus } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowDown, ArrowUp, Bell, BellOff, Plus } from 'lucide-react';
+import { type ReactNode, useId, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { EmptyState } from '@/components/empty-state';
 import { BackLink } from '@/components/back-link';
+import { LiveRegion } from '@/components/live-region';
 import { PageHeader } from '@/components/page-header';
 import { routineHabitsKey, routinesKey } from '@/components/routines/routine-sections';
 import { routineTitle } from '@/components/routines/routine-title';
@@ -13,19 +15,55 @@ import { Button } from '@/components/ui/button';
 import { Card, cardVariants } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Routine } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { api } from '@/lib/services';
 
 const routineLimit = 10;
 
-/** `/routines`: the user's routines with their habits in order and reminder, links to edit, and "New routine". */
+/**
+ * `/routines`: the user's routines in their order with Move up and Move down (saved right away, restored when saving fails),
+ * their habits in order and reminder, links to edit, and "New routine".
+ */
 export default function RoutinesPage() {
   const { t } = useTranslation();
+  const id = useId();
+  const queryClient = useQueryClient();
+  const [announcement, setAnnouncement] = useState('');
+  const [orderProblem, setOrderProblem] = useState<string | null>(null);
   const routines = useQuery({ queryKey: routinesKey, queryFn: () => api.listRoutines() });
   const habits = useQuery({ queryKey: routineHabitsKey, queryFn: () => api.listHabits() });
+  const reorder = useMutation({
+    mutationFn: (ids: number[]) => api.setRoutineOrder(ids),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['today'] }),
+  });
   const names = new Map((habits.data ?? []).map((h) => [h.id, h.name]));
   const list = routines.data;
   const atLimit = (list?.length ?? 0) >= routineLimit;
+
+  function move(current: Routine[], index: number, step: -1 | 1): void {
+    const target = index + step;
+    if (target < 0 || target >= current.length) return;
+    const next = [...current];
+    [next[index], next[target]] = [next[target], next[index]];
+    const routine = current[index];
+    flushSync(() => {
+      queryClient.setQueryData<Routine[]>(routinesKey, next);
+      setOrderProblem(null);
+      setAnnouncement(t('routine.habits.moved', { name: routineTitle(routine.name), n: target + 1, total: current.length }));
+    });
+    document.getElementById(`${id}-${step < 0 ? 'up' : 'down'}-${routine.id}`)?.focus();
+    reorder.mutate(
+      next.map((r) => r.id),
+      {
+        onError: (error) => {
+          queryClient.setQueryData<Routine[]>(routinesKey, current);
+          const apiError = asApiError(error);
+          if (!apiError.handled) setOrderProblem(problemToMessage(apiError).message);
+        },
+      },
+    );
+  }
 
   const newButton = atLimit ? (
     <p className="text-[0.875rem] text-muted-foreground">
@@ -77,18 +115,48 @@ export default function RoutinesPage() {
   } else {
     content = (
       <>
+        <LiveRegion message={announcement} />
+        {orderProblem && (
+          <Notice tone="notice" heading={t('routines.orderFailed')}>
+            <p>{orderProblem}</p>
+          </Notice>
+        )}
         <ul role="list" className="flex flex-col gap-3">
-          {list.map((routine) => {
+          {list.map((routine, index) => {
             const members = routine.habitIds.flatMap((id) => names.get(id) ?? []);
             return (
               <li key={routine.id} className={cardVariants({ className: 'gap-2' })}>
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="min-w-0 text-[1.25rem] break-words">{routine.name}</h2>
-                  <Button asChild variant="secondary" className="shrink-0">
-                    <Link to={`/routines/${routine.id}/edit`} aria-label={t('today.edit', { name: routineTitle(routine.name) })}>
-                      {t('routines.edit')}
-                    </Link>
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      id={`${id}-up-${routine.id}`}
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('routine.habits.up', { name: routineTitle(routine.name) })}
+                      aria-disabled={index === 0 || undefined}
+                      onClick={() => move(list, index, -1)}
+                    >
+                      <ArrowUp aria-hidden />
+                    </Button>
+                    <Button
+                      id={`${id}-down-${routine.id}`}
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('routine.habits.down', { name: routineTitle(routine.name) })}
+                      aria-disabled={index === list.length - 1 || undefined}
+                      onClick={() => move(list, index, 1)}
+                    >
+                      <ArrowDown aria-hidden />
+                    </Button>
+                    <Button asChild variant="secondary">
+                      <Link to={`/routines/${routine.id}/edit`} aria-label={t('today.edit', { name: routineTitle(routine.name) })}>
+                        {t('routines.edit')}
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
                 <p className="inline-flex items-center gap-1.5 text-[0.875rem] text-muted-foreground">
                   {routine.reminderTime ? (

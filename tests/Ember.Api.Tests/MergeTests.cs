@@ -283,7 +283,7 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var user = await Host.SignedInAsync();
         var userId = await user.IdAsync();
         for (var i = 0; i < 10; i++)
-            await Seed(new Routine { UserId = userId, Name = $"Own {i}" });
+            await Seed(new Routine { UserId = userId, Name = $"Own {i}", Position = i });
         var bot = await BotOnlyAsync(["Read"]);
         var routine = await Seed(new Routine { UserId = bot.UserId, Name = "Evening" });
         await Host.Db(db => db.Habits.Where(h => h.UserId == bot.UserId)
@@ -299,6 +299,7 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         await (await user.Post(MergeUrl)).Expect(HttpStatusCode.NoContent);
 
         (await Host.Db(db => db.Routines.CountAsync(r => r.UserId == userId))).Should().Be(11);
+        (await Host.Db(db => db.Routines.Where(r => r.Id == routine.Id).Select(r => r.Position).SingleAsync())).Should().Be(10);
         (await Host.Db(db => db.Habits.Where(h => h.UserId == userId).Select(h => h.RoutineId).SingleAsync())).Should().Be(routine.Id);
         (await Host.Db(db => db.Moods.Where(m => m.UserId == userId).Select(m => m.Id).ToListAsync()))
             .Should().BeEquivalentTo([mood.Id, secret.Id]);

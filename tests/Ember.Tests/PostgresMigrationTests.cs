@@ -309,6 +309,31 @@ public class PostgresMigrationTests(PostgresFixture postgres)
             .Should().Equal(FeedbackStatus.Released, FeedbackStatus.Open);
     }
 
+    [DockerFact]
+    public async Task RoutinePositionMigration_NumbersEachUsersRoutinesOldestFirst()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        var migrator = db.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261118120000_AddPushShowNames");
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO \"AspNetUsers\" (\"Id\", \"Timezone\", \"GraceDaysPerWeek\", \"DmFailureCount\", \"EmailConfirmed\", " +
+            "\"PhoneNumberConfirmed\", \"TwoFactorEnabled\", \"LockoutEnabled\", \"AccessFailedCount\") VALUES " +
+            "('00000000-0000-0000-0000-000000000001', 'UTC', 1, 0, FALSE, FALSE, FALSE, FALSE, 0), " +
+            "('00000000-0000-0000-0000-000000000002', 'UTC', 1, 0, FALSE, FALSE, FALSE, FALSE, 0);" +
+            "INSERT INTO \"Routines\" (\"Id\", \"UserId\", \"Name\", \"CreatedAt\", \"ReminderExclusions\") VALUES " +
+            "(1, '00000000-0000-0000-0000-000000000001', 'Newest', '2026-11-03', ARRAY[]::text[]), " +
+            "(2, '00000000-0000-0000-0000-000000000002', 'Other', '2026-11-02', ARRAY[]::text[]), " +
+            "(3, '00000000-0000-0000-0000-000000000001', 'Oldest', '2026-11-01', ARRAY[]::text[]), " +
+            "(4, '00000000-0000-0000-0000-000000000001', 'Middle', '2026-11-02', ARRAY[]::text[])");
+
+        await migrator.MigrateAsync();
+
+        (await db.Routines.AsNoTracking().OrderBy(r => r.Id).Select(r => r.Position).ToListAsync()).Should().Equal(2, 0, 0, 1);
+    }
+
     private static async Task<DateOnly> CurrentDateAsync(EmberDbContext db)
         => (await db.Database.SqlQueryRaw<DateOnly>("SELECT CURRENT_DATE AS \"Value\"").ToListAsync()).Single();
 

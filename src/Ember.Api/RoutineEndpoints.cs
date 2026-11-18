@@ -15,6 +15,7 @@ internal static class RoutineEndpoints
     public sealed record CreateRoutineRequest(string? Name, string? ReminderTime, string?[]? ReminderExclusions, int[]? HabitIds);
     public sealed record UpdateRoutineRequest(string? Name, string? ReminderTime, bool? ClearReminder, string?[]? ReminderExclusions,
         int[]? HabitIds);
+    public sealed record RoutineOrderRequest(int[]? Ids);
 
     public static RouteGroupBuilder MapRoutines(this RouteGroupBuilder api)
     {
@@ -64,6 +65,16 @@ internal static class RoutineEndpoints
             return (await habits.GetRoutinesAsync(userId)).FirstOrDefault(r => r.Id == id) is { } routine
                 ? Results.Ok(ToDto(routine, await LoadDestinations(habits, userId)))
                 : Problems.NotFound();
+        });
+
+        api.MapPut("/routines/order", async (RoutineOrderRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        {
+            if (request.Ids is null) return Problems.Validation("ids", "List every routine.");
+            if (request.Ids.Distinct().Count() != request.Ids.Length) return Problems.Validation("ids", "Each routine can be listed once.");
+
+            return await habits.SetRoutineOrderAsync(principal.UserId(), request.Ids) == RoutineOrderResult.Saved
+                ? Results.NoContent()
+                : Problems.Conflict("Your routines changed in the meantime. Reload and try again.");
         });
 
         api.MapDelete("/routines/{id:int}", async (int id, ClaimsPrincipal principal, HabitService habits) =>

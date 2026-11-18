@@ -114,4 +114,43 @@ public class RoutineApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         HabitIds(routine).Should().BeEmpty();
         (await Host.Db(db => db.Habits.CountAsync(h => h.RoutineId != null))).Should().Be(0);
     }
+
+    private static async Task<int> RoutineIdAsync(ApiClient user, string name)
+        => (await (await user.Post("/api/routines", new { name })).ExpectJson(HttpStatusCode.Created)).GetProperty("id").GetInt32();
+
+    private static async Task<string?[]> RoutineNamesAsync(ApiClient user)
+        => (await (await user.Get("/api/routines")).ExpectJson()).EnumerateArray().Select(r => r.GetProperty("name").GetString()).ToArray();
+
+    [DockerFact]
+    public async Task Order_sets_the_listing_order_and_new_routines_go_last()
+    {
+        var user = await Host.SignedInAsync();
+        var mental = await RoutineIdAsync(user, "Mental");
+        var creative = await RoutineIdAsync(user, "Creative");
+        var physical = await RoutineIdAsync(user, "Physical");
+
+        await (await user.Put("/api/routines/order", new { ids = new[] { physical, mental, creative } })).Expect(HttpStatusCode.NoContent);
+        await RoutineIdAsync(user, "Structure");
+
+        (await RoutineNamesAsync(user)).Should().Equal("Physical", "Mental", "Creative", "Structure");
+    }
+
+    [DockerFact]
+    public async Task Order_that_is_not_exactly_the_users_routines_changes_nothing()
+    {
+        var user = await Host.SignedInAsync();
+        var first = await RoutineIdAsync(user, "First");
+        var second = await RoutineIdAsync(user, "Second");
+        var foreign = await RoutineIdAsync(await Host.SignedInAsync(), "Foreign");
+
+        await (await user.Put("/api/routines/order", new { ids = new[] { second } })).ExpectProblem(HttpStatusCode.Conflict, "conflict");
+        await (await user.Put("/api/routines/order", new { ids = new[] { second, first, foreign } }))
+            .ExpectProblem(HttpStatusCode.Conflict, "conflict");
+        await (await user.Put("/api/routines/order", new { ids = new[] { second, foreign } })).ExpectProblem(HttpStatusCode.Conflict, "conflict");
+        await (await user.Put("/api/routines/order", new { ids = new[] { second, second, first } }))
+            .ExpectProblem(HttpStatusCode.BadRequest, "validation");
+        await (await user.Put("/api/routines/order", new { })).ExpectProblem(HttpStatusCode.BadRequest, "validation");
+
+        (await RoutineNamesAsync(user)).Should().Equal("First", "Second");
+    }
 }

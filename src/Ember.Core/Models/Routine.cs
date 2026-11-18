@@ -22,6 +22,9 @@ public class Routine
     /// <summary>Reminder destination ids (<see cref="Services.ReminderDestinations"/>) this routine does not remind on; empty means everywhere.</summary>
     public List<string> ReminderExclusions { get; set; } = [];
 
+    /// <summary>Place of the routine in the user's list, lowest first; ties fall back to <see cref="CreatedAt"/>, then <see cref="Id"/>.</summary>
+    public int Position { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = null!;

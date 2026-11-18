@@ -396,6 +396,7 @@ export class LocalBackend {
       ['GET', /^\/api\/routines$/, async () => this.listRoutines()],
       ['POST', /^\/api\/routines$/, (_m, _q, b) => this.createRoutine(bodyOf(b))],
       ['PATCH', /^\/api\/routines\/(\d+)$/, (m, _q, b) => this.patchRoutine(id(m), bodyOf(b))],
+      ['PUT', /^\/api\/routines\/order$/, (_m, _q, b) => this.orderRoutines(bodyOf(b))],
       ['DELETE', /^\/api\/routines\/(\d+)$/, (m) => this.deleteRoutine(id(m))],
       ['GET', /^\/api\/low-days$/, (_m, q) => this.listLowDays(q)],
       ['PUT', /^\/api\/low-days\/([^/]+)$/, (m) => this.setLowDay(date(m, 1), true)],
@@ -759,6 +760,19 @@ export class LocalBackend {
       return d;
     });
     return json(200, routineDto(data, data.routines.find((r) => r.id === id)!));
+  }
+
+  private async orderRoutines(b: Body): Promise<Response> {
+    const ids = b['ids'];
+    if (!Array.isArray(ids)) throw invalid({ ids: ['List every routine.'] });
+    if (new Set(ids).size !== ids.length) throw invalid({ ids: ['Each routine can be listed once.'] });
+    await this.update((d) => {
+      if (ids.length !== d.routines.length || !d.routines.every((r) => ids.includes(r.id)))
+        throw new Problem(409, 'conflict', 'Your routines changed in the meantime. Reload and try again.');
+      d.routines.sort((x, y) => ids.indexOf(x.id) - ids.indexOf(y.id));
+      return d;
+    });
+    return empty();
   }
 
   private async deleteRoutine(id: number): Promise<Response> {

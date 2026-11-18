@@ -340,6 +340,11 @@ export class ApiClient {
     return this.http.request('PATCH', `/api/routines/${id}`, { body: patch });
   }
 
+  /** `PUT /api/routines/order`: `ids` lists every routine once, in the new order; 409 `conflict` when the routines changed meanwhile. */
+  setRoutineOrder(ids: number[]): Promise<void> {
+    return this.http.request('PUT', '/api/routines/order', { body: { ids } });
+  }
+
   /** `DELETE /api/routines/{id}`: its habits stay, ungrouped. */
   deleteRoutine(id: number): Promise<void> {
     return this.http.request('DELETE', `/api/routines/${id}`);

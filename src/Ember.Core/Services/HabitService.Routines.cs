@@ -15,6 +15,15 @@ public enum RoutineWriteResult
     LimitReached,
 }
 
+/// <summary>Outcome of reordering a user's routines.</summary>
+public enum RoutineOrderResult
+{
+    Saved,
+
+    /// <summary>The ids aren't exactly the user's routines, each once. Nothing was written.</summary>
+    Mismatch,
+}
+
 /// <summary>Routines: named, ordered groups of habits with an optional shared reminder.</summary>
 public partial class HabitService
 {
@@ -32,17 +41,18 @@ public partial class HabitService
             .Where(h => DayOn(h, today, today, tz, lowDays).State is DayState.Pending or DayState.Partial)
             .ToList();
 
-    /// <summary>The user's routines (oldest first) with their member habits ordered by <see cref="Habit.RoutinePosition"/>.</summary>
+    /// <summary>The user's routines in their chosen order (<see cref="Routine.Position"/>) with their member habits ordered by <see cref="Habit.RoutinePosition"/>.</summary>
     public Task<List<Routine>> GetRoutinesAsync(Guid userId)
         => _db.Routines
             .AsNoTracking()
             .Where(r => r.UserId == userId)
             .Include(r => r.Habits.OrderBy(h => h.RoutinePosition))
-            .OrderBy(r => r.CreatedAt).ThenBy(r => r.Id)
+            .OrderBy(r => r.Position).ThenBy(r => r.CreatedAt).ThenBy(r => r.Id)
             .ToListAsync();
 
     /// <summary>
-    /// Creates a routine. <paramref name="habitIds"/> (ordered) become its members, moving them out of any other routine.
+    /// Creates a routine at the end of the user's list. <paramref name="habitIds"/> (ordered) become its members,
+    /// moving them out of any other routine.
     /// </summary>
     public async Task<(RoutineWriteResult Result, Routine? Routine)> AddRoutineAsync(Guid userId, string name, TimeOnly? reminderTime,
         IReadOnlyCollection<string>? reminderExclusions, IReadOnlyList<int>? habitIds)
@@ -56,6 +66,7 @@ public partial class HabitService
             Name = name,
             ReminderTime = reminderTime,
             ReminderExclusions = reminderExclusions?.Distinct().ToList() ?? [],
+            Position = (await _db.Routines.Where(r => r.UserId == userId).MaxAsync(r => (int?)r.Position) ?? -1) + 1,
             CreatedAt = _time.GetUtcNow().UtcDateTime,
         };
         if (habitIds is not null && !await SetRoutineHabitsAsync(userId, routine, habitIds))
@@ -97,6 +108,20 @@ public partial class HabitService
 
         await _db.SaveChangesAsync();
         return RoutineWriteResult.Saved;
+    }
+
+    /// <summary>Puts the user's routines in the order of <paramref name="routineIds"/>, which must list each of them once.</summary>
+    public async Task<RoutineOrderResult> SetRoutineOrderAsync(Guid userId, IReadOnlyList<int> routineIds)
+    {
+        var routines = await _db.Routines.Where(r => r.UserId == userId).ToDictionaryAsync(r => r.Id);
+        if (routineIds.Count != routines.Count || routineIds.Distinct().Count() != routines.Count
+            || routineIds.Any(id => !routines.ContainsKey(id)))
+            return RoutineOrderResult.Mismatch;
+
+        for (var i = 0; i < routineIds.Count; i++)
+            routines[routineIds[i]].Position = i;
+        await _db.SaveChangesAsync();
+        return RoutineOrderResult.Saved;
     }
 
     /// <summary>Deletes the user's routine; its habits stay, ungrouped. False when the routine isn't the user's.</summary>

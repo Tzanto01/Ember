@@ -1,4 +1,6 @@
-# Ember API contract v1.19
+# Ember API contract v1.20
+
+v1.20 (2026-11-18, user feedback: the order of routines sets the focus when opening the app): users choose the order of their routines. See "Routine order v1.20".
 
 v1.19 (2026-11-18, user feedback: browser reminders should say which habit they are about): each browser can opt in to reminders that name the habit or routine, off by default. See "Browser reminder names v1.19".
 
@@ -653,3 +655,10 @@ Additive. Older clients ignore `tipsSeen`.
 - `POST /api/me/push-subscriptions` takes `showNames?: boolean`. Set: stored with the subscription. Absent: kept while the endpoint stays with the same account; a new endpoint, or one that moves to another account, starts with `false`.
 - With `showNames` true, web push reminders to that subscription name the item: "A gentle nudge for <habit>" / "Time for your <routine> routine", and on the second reminder "One more nudge for <habit>, in case the first one got buried." / "One more nudge for your <routine> routine, in case the first one got buried." (German in the account's language). Otherwise the body stays generic. Tag, actions and token are unchanged.
 - The web app keeps the switch per browser (localStorage `ember.browserReminderNames`), shows it in Settings under the destinations while this browser is one of them, sends the value with every registration, and turns it off when the browser subscription goes (logout, account deletion).
+
+## Routine order v1.20
+
+- Each routine has a place in its user's list. `GET /api/routines` and the export list routines in that order; a new routine goes to the end. Existing routines keep their oldest-first order.
+- `PUT /api/routines/order` `{ ids: int[] }` sets the order: `ids` must list each of the caller's routines exactly once → 204. Missing `ids` or a repeated id → 400 `validation` on `ids`. Any other set (a routine left out, an unknown or foreign id) → 409 `conflict`, nothing changed.
+- Import keeps the file's routine order. A merge puts the moved routines after the target's own, in their order.
+- The web app's Routines page moves a routine with Move up / Move down buttons and saves the whole list; Today shows routines in this order.

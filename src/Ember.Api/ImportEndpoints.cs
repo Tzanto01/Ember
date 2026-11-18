@@ -92,6 +92,7 @@ internal static class ImportEndpoints
             {
                 Name = name ?? "",
                 ReminderTime = r.ReminderTime,
+                Position = routines.Count,
                 CreatedAt = now,
             };
             if (r.Id is { } id && !routineById.TryAdd(id, routine)) local["id"] = [UniqueId];

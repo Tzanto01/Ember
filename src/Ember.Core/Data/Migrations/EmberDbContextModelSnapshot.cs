@@ -619,6 +619,9 @@ namespace Ember.Core.Data.Migrations
                     b.Property<DateTime?>("NextReminderUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
                     b.PrimitiveCollection<List<string>>("ReminderExclusions")
                         .IsRequired()
                         .HasColumnType("text[]");

@@ -159,7 +159,7 @@ public static class ExportBuilder
                 ? user.PushSubscriptions.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
                     .Select(p => new PushSubscriptionRecord(p.Endpoint, DateTime.SpecifyKind(p.CreatedAt, DateTimeKind.Utc), p.Label, p.Enabled)).ToList()
                 : null,
-            user.Routines.OrderBy(r => r.CreatedAt).ThenBy(r => r.Id).Select(r => new RoutineRecord(
+            user.Routines.OrderBy(r => r.Position).ThenBy(r => r.CreatedAt).ThenBy(r => r.Id).Select(r => new RoutineRecord(
                 r.Id, r.Name, r.ReminderTime, AsUtc(r.NextReminderUtc), r.ReminderExclusions.ToList(),
                 DateTime.SpecifyKind(r.CreatedAt, DateTimeKind.Utc))).ToList(),
             full

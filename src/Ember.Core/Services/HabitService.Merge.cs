@@ -38,7 +38,7 @@ public partial class HabitService
     /// the target a new security stamp. A plaintext source mood whose trimmed label matches a plaintext target mood
     /// (ignoring case) is combined into it: the source's entries pointing at it point at the target's mood and the source mood
     /// is dropped (skipped when the source has encrypted entries, which may reference it inside the ciphertext).
-    /// The habit and routine limits do not apply. The target's settings are kept; the caller reschedules the target's reminders. Returns <see cref="AccountMergeResult.JournalConflict"/>
+    /// Moved routines go after the target's own, keeping their order. The habit and routine limits do not apply. The target's settings are kept; the caller reschedules the target's reminders. Returns <see cref="AccountMergeResult.JournalConflict"/>
     /// without changes when both accounts have a journal key.
     /// </summary>
     public async Task<AccountMergeResult> MergeBotOnlyAccountAsync(Guid targetUserId, Guid sourceUserId, ulong discordUserId,
@@ -64,9 +64,13 @@ public partial class HabitService
                 .Where(h => h.UserId == sourceUserId)
                 .ExecuteUpdateAsync(s => s.SetProperty(h => h.UserId, targetUserId), cancellationToken);
 
+            var routineOffset = (await _db.Routines.Where(r => r.UserId == targetUserId)
+                .MaxAsync(r => (int?)r.Position, cancellationToken) ?? -1) + 1;
             await _db.Routines
                 .Where(r => r.UserId == sourceUserId)
-                .ExecuteUpdateAsync(s => s.SetProperty(r => r.UserId, targetUserId), cancellationToken);
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.UserId, targetUserId)
+                    .SetProperty(r => r.Position, r => r.Position + routineOffset), cancellationToken);
 
             await MergeMoodsAsync(targetUserId, sourceUserId, cancellationToken);
 
