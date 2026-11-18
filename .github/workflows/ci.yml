@@ -110,6 +110,7 @@ jobs:
 
       - name: End-to-end tests
         working-directory: web
+        timeout-minutes: 15
         env:
           E2E_BASE_URL: http://localhost:5081
         run: bunx playwright test --shard=${{ matrix.shard }}/3

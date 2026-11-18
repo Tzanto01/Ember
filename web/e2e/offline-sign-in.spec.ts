@@ -3,7 +3,7 @@ import { createWebUser } from './support/accounts';
 
 test('Try again on the offline sign-in says Ember still cannot be reached, then goes on once the API answers', async ({ page }) => {
   await createWebUser(page);
-  await page.evaluate(() => localStorage.removeItem('ember.offlineMe'));
+  await page.addInitScript(() => localStorage.removeItem('ember.offlineMe'));
   await page.route('**/api/me', (route) => route.abort('internetdisconnected'));
 
   await page.goto('/today');

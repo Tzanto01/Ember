@@ -9,7 +9,7 @@ test('every sub page leads back up to its parent, and the main nav lights the pa
   const tab = (name: string) =>
     page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name, exact: true });
   const title = (name: string) => page.getByRole('heading', { level: 1, name, exact: true });
-  const back = (name: string) => page.getByRole('link', { name, exact: true }).first().click();
+  const back = (name: string) => page.getByLabel(name, { exact: true }).click();
 
   await page.getByRole('link', { name: 'New habit' }).click();
   await expect(title('New habit')).toBeVisible();
