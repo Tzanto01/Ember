@@ -124,12 +124,6 @@ public partial class HabitService
     public async Task<SlipResult> AddSlipAsync(ulong discordUserId, int habitId, DateOnly date, string? reason = null)
         => await AddSlipAsync(await FindDiscordUserAsync(discordUserId), habitId, date, reason);
 
-    public async Task<SlipResult> RemoveSlipsAsync(ulong discordUserId, int habitId, DateOnly date)
-        => await RemoveSlipsAsync(await FindDiscordUserAsync(discordUserId), habitId, date);
-
-    public async Task<List<HabitSlip>?> GetSlipsAsync(ulong discordUserId, int habitId, DateOnly from, DateOnly to)
-        => await GetSlipsAsync(await FindDiscordUserAsync(discordUserId), habitId, from, to);
-
     public async Task<DayEditResult> SetLowDayAsync(ulong discordUserId, DateOnly date)
         => await SetLowDayAsync(await FindDiscordUserAsync(discordUserId), date);
 

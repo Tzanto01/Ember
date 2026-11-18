@@ -575,7 +575,7 @@ export class LocalBackend {
     const name = validName(b['name'], limits.habitName);
     if (name === null) errors['name'] = [`Must be 1 to ${limits.habitName} characters.`];
     const reminder = reminderField(b['reminderTime'], errors);
-    const frequency = letGo && !given(b['frequency']) ? 'daily' : parseFrequency(b['frequency']);
+    const frequency = parseFrequency(b['frequency']);
     if (!frequency) errors['frequency'] = ['Must be daily, weekly or weekdays.'];
     weeklyTargetField(b['weeklyTarget'], frequency, errors);
     const days = daysField(b['days'], frequency, null, errors);
@@ -719,11 +719,12 @@ export class LocalBackend {
     );
   }
 
-  private slipHabit(d: LocalData, id: number, date: string): LocalHabit {
+  private slipHabit(d: LocalData, id: number, date: string, inRange = true): LocalHabit {
     const habit = d.habits.find((h) => h.id === id);
     if (!habit) throw notFound();
     if (!isLocalLetGo(habit)) throw invalidField('kind', letGoOnly);
     if (!isDate(date)) throw invalidField('date', dateMessage);
+    if (!inRange) return habit;
     if (date > this.today(d)) throw invalidField('date', "Can't be after today.");
     if (date < habitStartDate(habit, d.profile.timezone)) throw invalidField('date', "Can't be before the habit's start.");
     return habit;
@@ -751,7 +752,7 @@ export class LocalBackend {
 
   private async clearSlips(id: number, date: string): Promise<Response> {
     const data = await this.update((d) => {
-      this.slipHabit(d, id, date);
+      this.slipHabit(d, id, date, false);
       d.slips = (d.slips ?? []).filter((slip) => slip.habitId !== id || slip.date !== date);
       return d;
     });

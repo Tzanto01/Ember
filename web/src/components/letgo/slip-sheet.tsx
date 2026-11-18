@@ -37,7 +37,8 @@ function focusJournal(date: string): void {
 
 /**
  * The "I slipped" dialog for today: optional reason chips (at most one), a link to today's journal and Save. After
- * saving it says "Noted." with the longest stretch and offers Undo, which removes today's slips again.
+ * saving it says "Noted." with the longest stretch and, when this was the day's only slip, offers Undo, which removes it again.
+ * Mount it with a new `key` each time it opens so it starts from a clean form.
  */
 export function SlipSheet({ habit, open, onOpenChange, onChange }: SlipSheetProps) {
   const { t } = useTranslation();
@@ -52,12 +53,6 @@ export function SlipSheet({ habit, open, onOpenChange, onChange }: SlipSheetProp
 
   function change(next: boolean): void {
     if (busy) return;
-    if (next) {
-      setReason(null);
-      setSaved(null);
-      setUndone(false);
-      setProblem(null);
-    }
     onOpenChange(next);
   }
 
@@ -149,7 +144,7 @@ export function SlipSheet({ habit, open, onOpenChange, onChange }: SlipSheetProp
                     {t('letgo.sheet.close')}
                   </Button>
                 </Dialog.Close>
-                {!undone && (
+                {!undone && saved.today.slips === 1 && (
                   <BusyButton
                     variant="ghost"
                     block

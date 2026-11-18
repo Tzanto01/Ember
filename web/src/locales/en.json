@@ -1477,5 +1477,5 @@
   "guide.habit.letGo.q": "What is a habit to let go of?",
   "guide.habit.letGo.a": "Something you want to stop or do less. Instead of a streak it counts days free, and it has its own section on Today, below your other habits. It has no schedule and can't be in a routine. If you like, Ember checks in quietly once a day at a time you pick.",
   "guide.habitsDays.slip.q": "How does a slip count?",
-  "guide.habitsDays.slip.a": "Tap “I slipped” and Save; a reason is optional. A slip is never a failure: your longest stretch and this month's free days stay, and days free start again from the next day. Paused days count as neither free nor slipped. Noted it by mistake? Undo takes it back."
+  "guide.habitsDays.slip.a": "Tap “I slipped” and Save; a reason is optional. A slip is never a failure: your longest stretch and this month's free days stay, and days free start again from the next day. Paused days count as neither free nor slipped. Noted it by mistake? Undo takes it back, and in History you can remove a day's slips."
 }

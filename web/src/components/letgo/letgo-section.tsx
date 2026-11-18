@@ -27,6 +27,7 @@ export function useLetGoUpdate(): (habit: LetGoHabit) => void {
 function LetGoRow({ habit }: { habit: LetGoHabit }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [session, setSession] = useState(0);
   const update = useLetGoUpdate();
   const paused = habit.today.state === 'paused';
   const notStarted = habit.today.state === 'beforestart';
@@ -61,7 +62,10 @@ function LetGoRow({ habit }: { habit: LetGoHabit }) {
             <Button
               variant="secondary"
               aria-label={t('letgo.slippedName', { name: habit.name })}
-              onClick={() => setOpen(true)}
+              onClick={() => {
+                setSession((n) => n + 1);
+                setOpen(true);
+              }}
             >
               <Feather aria-hidden />
               {t('letgo.slipped')}
@@ -69,7 +73,7 @@ function LetGoRow({ habit }: { habit: LetGoHabit }) {
           )}
         </div>
       </Card>
-      <SlipSheet habit={habit} open={open} onOpenChange={setOpen} onChange={update} />
+      <SlipSheet key={session} habit={habit} open={open} onOpenChange={setOpen} onChange={update} />
     </li>
   );
 }
