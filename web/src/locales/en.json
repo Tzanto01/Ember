@@ -104,6 +104,7 @@
   "login.offline.retry": "Try again",
   "login.offline.retrying": "Trying again…",
   "login.offline.signIn": "Sign in instead",
+  "login.offline.still": "Ember still can't be reached. Check your connection and try again.",
   "login.twoFactor.title": "Two-step sign-in",
   "login.twoFactor.lede": "Enter the 6-digit code from your authenticator app.",
   "login.twoFactor.ledeRecovery": "Enter one of your recovery codes. Each one works once.",

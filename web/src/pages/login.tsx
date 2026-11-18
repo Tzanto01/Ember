@@ -25,6 +25,7 @@ import { Input, PasswordInput } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
 import { env } from '@/lib/env';
+import { forgetUnreachable } from '@/lib/guards';
 import { type DiscordCode, listenForDiscord, startDiscordSignIn } from '@/lib/native/discord';
 import { queryString } from '@/lib/navigation';
 import { asApiError, type FriendlyProblem, problemToMessage, requiresTwoFactor } from '@/lib/problem';
@@ -166,6 +167,7 @@ export default function LoginPage() {
   const [pending, setPending] = useState<Credentials | null>(null);
   const [offlineForm, setOfflineForm] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [stillOffline, setStillOffline] = useState(false);
   const [discordCode, setDiscordCode] = useState<DiscordCode | null>(null);
   const [discordError, setDiscordError] = useState(false);
   const onDiscord = useRef<(result: DiscordCode | 'error') => void>(() => undefined);
@@ -203,8 +205,11 @@ export default function LoginPage() {
   async function retry(): Promise<void> {
     if (retrying) return;
     setRetrying(true);
+    setStillOffline(false);
+    forgetUnreachable();
     await navigate(returnUrl);
     setRetrying(false);
+    setStillOffline(true);
   }
 
   function signedIn(): void {
@@ -266,6 +271,7 @@ export default function LoginPage() {
           title={t('login.offline.title')}
           lede={t('login.offline.lede')}
         />
+        {stillOffline && <Notice tone="notice">{t('login.offline.still')}</Notice>}
         <div className="flex flex-col gap-3">
           <BusyButton type="button" block busy={retrying} busyLabel={t('login.offline.retrying')} onClick={() => void retry()}>
             {t('login.offline.retry')}

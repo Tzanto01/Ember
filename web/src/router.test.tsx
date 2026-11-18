@@ -61,6 +61,20 @@ describe('router guards', () => {
     expect(mock.all.filter((call) => call.url === '/api/me')).toHaveLength(1);
   });
 
+  it('Try again on the offline login asks the API again right away, says when it still fails, and goes on once it answers', async () => {
+    const router = await visit('/today');
+    (await mock.next('GET', '/api/me')).fail();
+    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    (await mock.next('GET', '/api/me')).fail();
+    expect(await screen.findByText("Ember still can't be reached. Check your connection and try again.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    (await mock.next('GET', '/api/me')).respond(200, me);
+
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument();
+    expect(url(router)).toBe('/today');
+  });
+
   it('shows the landing page to a signed-out visitor at /', async () => {
     const router = await visit('/');
 
