@@ -8,7 +8,7 @@ import type { ProblemDetails } from './models';
  */
 export class ApiError extends Error {
   constructor(
-    /** HTTP status, 0 when the network failed. */
+    /** HTTP status, 0 when the network failed or the maintenance fallback answered (see {@link isMaintenance}). */
     readonly status: number,
     readonly problem: ProblemDetails | null,
     /** Seconds from `Retry-After` on 429, else null. */
@@ -26,14 +26,23 @@ export class ApiError extends Error {
 }
 
 /**
+ * True for the maintenance fallback's answer while the server is down: a 503 with `X-Ember-Fallback: 1` or the
+ * problem type `maintenance` (the header is not readable cross-origin, so the native build relies on the type).
+ */
+function isMaintenance(status: number, problem: ProblemDetails | null, headers?: Headers | null): boolean {
+  return status === 503 && (headers?.get('X-Ember-Fallback') === '1' || problem?.type === 'maintenance');
+}
+
+/**
  * Converts a failed HTTP response into an `ApiError`.
  * `body` is the parsed JSON body or null; a non-object body carries no problem.
- * `Retry-After` is read from `headers` when present.
+ * `Retry-After` is read from `headers` when present. The maintenance fallback's answer becomes status 0, the same
+ * as a network failure, so every unreachable path (offline queue, device copies, offline sign-in) handles it.
  */
 export function toApiError(status: number, body: unknown, headers?: Headers | null): ApiError {
   const problem = body && typeof body === 'object' ? (body as ProblemDetails) : null;
   const retry = Number.parseInt(headers?.get('Retry-After') ?? '', 10);
-  return new ApiError(status, problem, Number.isFinite(retry) ? retry : null);
+  return new ApiError(isMaintenance(status, problem, headers) ? 0 : status, problem, Number.isFinite(retry) ? retry : null);
 }
 
 /** Normalises anything thrown by an API call into an `ApiError`; a network failure, an abort or anything unknown becomes status 0. */

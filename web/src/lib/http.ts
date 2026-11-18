@@ -116,6 +116,8 @@ export class Http {
   bearer: BearerTokens | null = null;
   /** Called after a successful habit, day, pause, routine or low-day write (native reminder rebuild). */
   onHabitWrite: (() => void) | null = null;
+  /** Called when a request fails as unreachable (status 0: no answer, or the maintenance fallback). */
+  onUnreachable: (() => void) | null = null;
   /**
    * No-account mode: answers own `/api/` requests in process instead of `fetch` (`url` is the path with its query
    * string, without the API base). Null sends them to the server.
@@ -191,7 +193,9 @@ export class Http {
     try {
       response = await this.authorized(method, url, options);
     } catch (error) {
-      throw error instanceof ApiError ? error : new ApiError(0, null);
+      const failure = error instanceof ApiError ? error : new ApiError(0, null);
+      if (failure.status === 0) this.onUnreachable?.();
+      throw failure;
     }
     if (response.ok) {
       if (method !== 'GET' && !options.replay && reminderInputs.test(url)) this.onHabitWrite?.();
@@ -199,6 +203,7 @@ export class Http {
     }
 
     const error = toApiError(response.status, await readJson(response), response.headers);
+    if (error.status === 0) this.onUnreachable?.();
     if (error.status === 403 && error.type === 'antiforgery' && !retried) {
       const refreshed = await this.authorized('GET', '/api/auth/antiforgery', {}).then(
         (r) => r.ok,

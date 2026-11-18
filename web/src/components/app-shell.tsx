@@ -9,6 +9,7 @@ import { BetaUpdateBanner } from '@/components/beta-update';
 import { FlameMark } from '@/components/flame-mark';
 import { Guide } from '@/components/guide/guide';
 import { LegalLinks } from '@/components/legal-links';
+import { LiveNoticeBanner } from '@/components/live-notice';
 import { NativeConfirmation } from '@/components/native-confirmation';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
@@ -165,6 +166,7 @@ export function AppShell() {
         data-arrive={arriving ? 'blocks' : undefined}
         className={cn('mx-auto flex w-full flex-1 flex-col gap-6 py-6 focus:outline-none md:py-10', measure, inline)}
       >
+        <LiveNoticeBanner />
         {signOutFailed && (
           <Notice tone="notice">
             <p>{t('shell.signOutFailed')}</p>

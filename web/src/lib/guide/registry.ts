@@ -228,6 +228,12 @@ export const guides: Record<GuideScreen, Guide> = {
         answerKey: 'guide.settings.sync.a',
         covers: ['web/src/lib/local/mode.ts', deviceData],
       },
+      {
+        id: 'settings-down',
+        questionKey: 'guide.settings.down.q',
+        answerKey: 'guide.settings.down.a',
+        covers: ['web/src/lib/notices.ts', 'web/src/lib/problem.ts', 'web/src/lib/offline-queue.ts'],
+      },
     ],
   },
   reminders: {
