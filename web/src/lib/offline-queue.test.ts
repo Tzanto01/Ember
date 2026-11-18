@@ -44,6 +44,29 @@ describe('OfflineQueue', () => {
     expect(queue.pending.get()).toBe(0);
   });
 
+  it('a replay asked for while a failing one runs tries again after it, so coming back online mid-run sends the edit', async () => {
+    await queue.add(edit(1));
+    let goOnline!: () => void;
+    let started!: () => void;
+    const sending = new Promise<void>((resolve) => (started = resolve));
+    const failing = queue.replay('user-a', async () => {
+      started();
+      await new Promise<void>((resolve) => (goOnline = resolve));
+      throw new ApiError(0, null);
+    });
+    await sending;
+    const sent: QueueEdit[] = [];
+    const retry = queue.replay('user-a', async (e) => {
+      sent.push(e);
+    });
+    goOnline();
+
+    expect(await failing).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+    expect(await retry).toEqual({ sent: 1, dropped: 0, remaining: 0 });
+    expect(sent).toEqual([edit(1)]);
+    expect(queue.pending.get()).toBe(0);
+  });
+
   it('refuses to queue without a signed-in user', async () => {
     queue.userId.set(null);
 

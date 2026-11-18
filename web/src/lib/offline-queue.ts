@@ -43,6 +43,7 @@ const plainText = (edit: NoteEdit): string | null =>
  */
 export class OfflineQueue {
   private readonly replaying = new Map<string, Promise<ReplayResult>>();
+  private readonly again = new Map<string, Promise<ReplayResult>>();
 
   /** The signed-in user the queue belongs to, or null. */
   readonly userId = new Store<string | null>(null);
@@ -73,15 +74,26 @@ export class OfflineQueue {
 
   /**
    * Sends the user's queued edits oldest first, one at a time. A sent or dropped edit leaves the queue;
-   * the first edit that must be kept stops the replay so the order holds. Concurrent calls share one run, and
-   * edits queued while it runs are sent in the same run.
+   * the first edit that must be kept stops the replay so the order holds. Edits queued while it runs are sent in
+   * the same run; calls made while it runs share one further run after it, so a trigger such as coming back online
+   * during a failing run still gets its try.
    */
   replay(userId: string, send: (edit: QueueEdit) => Promise<unknown>): Promise<ReplayResult> {
-    let run = this.replaying.get(userId);
-    if (!run) {
-      run = this.run(userId, send).finally(() => this.replaying.delete(userId));
-      this.replaying.set(userId, run);
+    const running = this.replaying.get(userId);
+    if (running) {
+      let next = this.again.get(userId);
+      if (!next) {
+        const follow = () => {
+          this.again.delete(userId);
+          return this.replay(userId, send);
+        };
+        next = running.then(follow, follow);
+        this.again.set(userId, next);
+      }
+      return next;
     }
+    const run = this.run(userId, send).finally(() => this.replaying.delete(userId));
+    this.replaying.set(userId, run);
     return run;
   }
 
