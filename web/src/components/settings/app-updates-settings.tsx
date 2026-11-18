@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
-import { offerBetaUpdate } from '@/components/beta-update';
-import { Button } from '@/components/ui/button';
-import { checkForUpdate, type UpdateCheck } from '@/lib/native/updater';
+import { BetaInstallAction, useBetaInstallText } from '@/components/beta-update';
+import { betaUpdate, checkForUpdate, offerBetaUpdate, type UpdateCheck } from '@/lib/native/updater';
+import { useStore } from '@/lib/store';
 
 /**
  * The beta app's "App updates" card body: the installed version and "Check for updates", which checks the manifest
- * now and says the result. A newer build goes to the update banner (even after it was dismissed); "Show update" moves
- * focus to the banner's Update button, where the install runs.
+ * now and says the result. A newer build is offered here with "Update now" and in the update banner (even after it was
+ * dismissed); both show the same shared install state.
  */
 export function AppUpdatesSettings() {
   const { t } = useTranslation();
   const [installed, setInstalled] = useState<string | null>(null);
   const [result, setResult] = useState<UpdateCheck | 'checking' | null>(null);
+  const { update, phase } = useStore(betaUpdate);
+  const installText = useBetaInstallText(phase, update?.versionName ?? '');
 
   useEffect(() => {
     let active = true;
@@ -31,19 +33,20 @@ export function AppUpdatesSettings() {
   async function check() {
     setResult('checking');
     const found = await checkForUpdate();
-    if (found.status === 'update') offerBetaUpdate(found.update);
+    if (found.status === 'update') offerBetaUpdate(found.update, true);
     setResult(found);
   }
 
+  const offered = !!update && (result === null || (result !== 'checking' && result.status === 'update'));
   const message =
     result === 'checking'
       ? t('settings.appUpdates.checking')
-      : result?.status === 'current'
-        ? t('settings.appUpdates.current', { version: result.versionName })
-        : result?.status === 'update'
-          ? t('settings.appUpdates.available', { version: result.update.versionName })
-          : result?.status === 'error'
-            ? t('settings.appUpdates.error')
+      : result?.status === 'error'
+        ? t('settings.appUpdates.error')
+        : result?.status === 'current'
+          ? t('settings.appUpdates.current', { version: result.versionName })
+          : offered
+            ? installText
             : '';
 
   return (
@@ -58,11 +61,7 @@ export function AppUpdatesSettings() {
         >
           {t('settings.appUpdates.check')}
         </BusyButton>
-        {result !== 'checking' && result?.status === 'update' && (
-          <Button onClick={() => offerBetaUpdate(result.update, true)}>
-            {t('settings.appUpdates.show')}
-          </Button>
-        )}
+        {offered && <BetaInstallAction />}
       </div>
       <p role="status">{message}</p>
     </>

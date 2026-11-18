@@ -1,6 +1,7 @@
 import { Capacitor, type PluginListenerHandle, registerPlugin } from '@capacitor/core';
 import { env } from '../env';
 import { type LocalizedNotes, loadReleaseNotes } from '../release-notes';
+import { Store } from '../store';
 
 /** A newer sideloaded beta build, from `latest.json` next to the APK. */
 export interface BetaUpdate {
@@ -100,5 +101,79 @@ export async function findReleaseNotes(versionName: string): Promise<LocalizedNo
     return entries.find((entry) => entry.version === versionName)?.notes ?? null;
   } catch {
     return null;
+  }
+}
+
+/** Where the offered update's install is: offered, waiting for the install permission, downloading, or failed. */
+export type BetaInstallPhase = 'offer' | 'permission' | 'downloading' | 'failed';
+
+/** The offered beta update and its install, shared by the update banner and Settings. */
+export interface BetaUpdateState {
+  update: BetaUpdate | null;
+  /** The banner hides offers up to this versionCode. */
+  dismissed: number;
+  phase: BetaInstallPhase;
+  /** Download progress, null while unknown. */
+  percent: number | null;
+}
+
+export const betaUpdate = new Store<BetaUpdateState>({ update: null, dismissed: 0, phase: 'offer', percent: null });
+
+let installing = false;
+
+/** Offers `update` (keeping its install phase when it is already offered); `undismiss` shows it in the banner again. Ignored while an install runs. */
+export function offerBetaUpdate(update: BetaUpdate, undismiss = false): void {
+  if (installing) return;
+  betaUpdate.update((state) => ({
+    update,
+    dismissed: undismiss ? 0 : state.dismissed,
+    phase: state.update?.versionCode === update.versionCode ? state.phase : 'offer',
+    percent: null,
+  }));
+}
+
+function showPhase(phase: BetaInstallPhase): void {
+  betaUpdate.update((state) => ({ ...state, phase, percent: null }));
+}
+
+/**
+ * Installs the offered update: asks for the "Install unknown apps" permission first when needed, then downloads it
+ * (checked natively) and opens Android's installer. Does nothing while an install already runs.
+ */
+export async function installBetaUpdate(): Promise<void> {
+  const target = betaUpdate.get().update;
+  if (!target || installing) return;
+  installing = true;
+  try {
+    if (!(await EmberUpdater.canInstall()).value) {
+      showPhase('permission');
+      await EmberUpdater.openInstallSettings();
+      return;
+    }
+    showPhase('downloading');
+    const progress = await EmberUpdater.addListener('downloadProgress', ({ received, total }) => {
+      if (total > 0)
+        betaUpdate.update((state) => ({ ...state, percent: Math.min(100, Math.floor((received * 100) / total)) }));
+    });
+    try {
+      await EmberUpdater.downloadAndInstall({ url: target.url, sha256: target.sha256, size: target.size });
+      showPhase('offer');
+    } finally {
+      void progress.remove();
+    }
+  } catch {
+    showPhase('failed');
+  } finally {
+    installing = false;
+  }
+}
+
+/** Continues an install that waited for the install permission, once the app is back and has it. */
+export async function resumeBetaInstall(): Promise<void> {
+  if (
+    betaUpdate.get().phase === 'permission' &&
+    (await EmberUpdater.canInstall().catch(() => ({ value: false }))).value
+  ) {
+    await installBetaUpdate();
   }
 }

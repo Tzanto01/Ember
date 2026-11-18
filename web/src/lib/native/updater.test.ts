@@ -1,10 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockFetch } from '@/lib/test-support';
-import { checkForUpdate } from './updater';
+import { betaUpdate, checkForUpdate, installBetaUpdate, offerBetaUpdate } from './updater';
+
+const plugin = vi.hoisted(() => ({
+  canInstall: vi.fn(async () => ({ value: true })),
+  downloadAndInstall: vi.fn(async () => undefined),
+  addListener: vi.fn(async () => ({ remove: async () => undefined })),
+}));
 
 vi.mock('@capacitor/core', () => ({
   Capacitor: { isPluginAvailable: (name: string) => name === 'EmberUpdater' },
-  registerPlugin: () => ({}),
+  registerPlugin: () => plugin,
 }));
 
 vi.mock('@capacitor/app', () => ({
@@ -51,5 +57,16 @@ describe('checkForUpdate', () => {
       call.respond(200, { ...manifest, sha256: 'abc' })],
   ])('reports an error when %s', async (_name, respond) => {
     expect(await checkWith(respond as never)).toEqual({ status: 'error' });
+  });
+});
+
+describe('installBetaUpdate', () => {
+  it('starts one download when pressed twice', async () => {
+    offerBetaUpdate(manifest);
+
+    await Promise.all([installBetaUpdate(), installBetaUpdate()]);
+
+    expect(plugin.downloadAndInstall).toHaveBeenCalledTimes(1);
+    expect(betaUpdate.get().phase).toBe('offer');
   });
 });

@@ -2,6 +2,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
+import { betaUpdate } from '@/lib/native/updater';
 import { mockFetch } from '@/lib/test-support';
 import { BetaUpdateBanner } from './beta-update';
 
@@ -57,6 +58,7 @@ describe('BetaUpdateBanner', () => {
     native.available = true;
     native.resume = null;
     env.native = true;
+    betaUpdate.set({ update: null, dismissed: 0, phase: 'offer', percent: null });
     native.updater.canInstall.mockResolvedValue({ value: true });
     native.updater.openInstallSettings.mockResolvedValue(undefined);
     native.updater.downloadAndInstall.mockResolvedValue(undefined);
@@ -72,9 +74,9 @@ describe('BetaUpdateBanner', () => {
     await renderWith(200, manifest);
 
     expect(screen.getByRole('status', { name: 'App update' })).toHaveTextContent(
-      'Update available: Ember Beta 0.9.0-beta.3',
+      'Ember Beta 0.9.0-beta.3 is available.',
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
     expect(native.updater.downloadAndInstall).toHaveBeenCalledWith({
       url: manifest.url,
       sha256: manifest.sha256,
@@ -83,7 +85,7 @@ describe('BetaUpdateBanner', () => {
     expect(native.updater.openInstallSettings).not.toHaveBeenCalled();
   });
 
-  it("lists the new version's notes from the server before downloading", async () => {
+  it("reveals the new version's notes from the server behind Show changes", async () => {
     const f = await renderWith(200, manifest);
     await act(async () =>
       (await f.next('GET', notesUrl)).respond(200, [
@@ -92,13 +94,20 @@ describe('BetaUpdateBanner', () => {
       ]),
     );
 
+    expect(screen.queryByRole('list')).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Show changes' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const list = screen.getByRole('list', { name: "What's new in 0.9.0-beta.3" });
     expect(
       within(list)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual(['A new thing.', 'Another one.']);
-    await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hide changes' }));
+    expect(screen.queryByRole('list')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
     expect(native.updater.downloadAndInstall).toHaveBeenCalledTimes(1);
   });
 
@@ -113,8 +122,8 @@ describe('BetaUpdateBanner', () => {
     const f = await renderWith(200, manifest);
     await act(async () => (await f.next('GET', notesUrl)).respond(status, body));
 
-    expect(screen.queryByRole('list')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+    expect(screen.queryByRole('button', { name: 'Show changes' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
     expect(native.updater.downloadAndInstall).toHaveBeenCalledTimes(1);
   });
 
@@ -149,7 +158,7 @@ describe('BetaUpdateBanner', () => {
     native.updater.canInstall.mockResolvedValueOnce({ value: false });
     await renderWith(200, manifest);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
     expect(native.updater.openInstallSettings).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('status')).toHaveTextContent(
       'Allow Ember to install updates, then come back.',
@@ -164,7 +173,7 @@ describe('BetaUpdateBanner', () => {
     native.updater.downloadAndInstall.mockRejectedValueOnce(new Error('MISMATCH'));
     await renderWith(200, manifest);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Update' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
 
     expect(
       await screen.findByText("The update couldn't be downloaded. Try again in a moment."),

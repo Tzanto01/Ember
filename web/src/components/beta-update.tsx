@@ -1,88 +1,75 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { currentLanguage } from '@/lib/i18n';
 import {
-  type BetaUpdate,
-  EmberUpdater,
+  type BetaInstallPhase,
+  betaUpdate,
   findReleaseNotes,
   findUpdate,
+  installBetaUpdate,
+  offerBetaUpdate,
+  resumeBetaInstall,
   updaterAvailable,
 } from '@/lib/native/updater';
 import { type LocalizedNotes, notesIn } from '@/lib/release-notes';
-
-type Phase = 'offer' | 'permission' | 'downloading' | 'failed';
+import { useStore } from '@/lib/store';
 
 const hour = 60 * 60 * 1000;
-let dismissedCode = 0;
-let offerHandler: ((update: BetaUpdate, focus: boolean) => void) | null = null;
+
+/** What the offered update's install is doing, as one line of text. */
+export function useBetaInstallText(phase: BetaInstallPhase, version: string): string {
+  const { t } = useTranslation();
+  return {
+    offer: t('betaUpdate.offer', { version }),
+    permission: t('betaUpdate.permission'),
+    downloading: t('betaUpdate.downloading', { version }),
+    failed: t('betaUpdate.failed'),
+  }[phase];
+}
 
 /**
- * Shows `update` in the mounted banner even when it was dismissed this session; with `focus`, moves focus to its
- * Update button.
+ * The offered update's install action: the download progress (bar and percent) while downloading, otherwise
+ * "Update now" ("Try again" after a failure), which starts the shared install.
  */
-export function offerBetaUpdate(update: BetaUpdate, focus = false): void {
-  dismissedCode = 0;
-  offerHandler?.(update, focus);
+export function BetaInstallAction() {
+  const { t } = useTranslation();
+  const { phase, percent } = useStore(betaUpdate);
+  if (phase === 'downloading') {
+    return (
+      <div className="flex w-full items-center gap-3">
+        <progress
+          className="h-2 flex-1 accent-primary"
+          aria-label={t('betaUpdate.progress')}
+          max={100}
+          {...(percent === null ? {} : { value: percent })}
+        />
+        {percent !== null && <span aria-hidden>{percent}%</span>}
+      </div>
+    );
+  }
+  return (
+    <Button variant="secondary" onClick={() => void installBetaUpdate()}>
+      {phase === 'failed' ? t('betaUpdate.retry') : t('betaUpdate.update')}
+    </Button>
+  );
 }
 
 /**
  * "Update available" banner for the sideloaded beta app; renders nothing on the web and in the Play build. Checks
- * the manifest on mount and when the app returns to the foreground (at most once an hour). Update asks for the
- * "Install unknown apps" permission first when needed, then downloads and opens Android's installer. The offer lists
- * the new version's notes from the server when it has them. Dismissing hides that version for the rest of the session,
- * until `offerBetaUpdate` brings it back.
+ * the manifest on mount and when the app returns to the foreground (at most once an hour), and shows the shared
+ * offer and install state (`betaUpdate`). "Show changes" reveals the new version's notes from the server when it has
+ * them. Dismissing hides that version until Settings offers it again.
  */
 export function BetaUpdateBanner() {
   const { t } = useTranslation();
-  const [update, setUpdate] = useState<BetaUpdate | null>(null);
-  const [phase, setPhase] = useState<Phase>('offer');
-  const [percent, setPercent] = useState<number | null>(null);
+  const { update, dismissed, phase } = useStore(betaUpdate);
   const [notes, setNotes] = useState<{ versionName: string; notes: LocalizedNotes } | null>(null);
-  const updateRef = useRef<BetaUpdate | null>(null);
-  const phaseRef = useRef<Phase>('offer');
-  const busy = useRef(false);
-  const updateButton = useRef<HTMLButtonElement>(null);
-
-  function show(next: Phase) {
-    phaseRef.current = next;
-    setPhase(next);
-  }
-
-  async function install() {
-    const target = updateRef.current;
-    if (!target || busy.current) return;
-    busy.current = true;
-    try {
-      if (!(await EmberUpdater.canInstall()).value) {
-        show('permission');
-        await EmberUpdater.openInstallSettings();
-        return;
-      }
-      show('downloading');
-      setPercent(null);
-      const progress = await EmberUpdater.addListener('downloadProgress', ({ received, total }) => {
-        if (total > 0) setPercent(Math.min(100, Math.floor((received * 100) / total)));
-      });
-      try {
-        await EmberUpdater.downloadAndInstall({
-          url: target.url,
-          sha256: target.sha256,
-          size: target.size,
-        });
-        show('offer');
-      } finally {
-        void progress.remove();
-      }
-    } catch {
-      show('failed');
-    } finally {
-      busy.current = false;
-    }
-  }
+  const [changesOpen, setChangesOpen] = useState(false);
+  const notesId = useId();
+  const text = useBetaInstallText(phase, update?.versionName ?? '');
 
   useEffect(() => {
     if (!updaterAvailable()) return;
@@ -90,34 +77,18 @@ export function BetaUpdateBanner() {
     let lastCheck = -Infinity;
     let listener: { remove: () => Promise<void> } | undefined;
 
-    async function present(found: BetaUpdate, focus = false) {
-      if (!busy.current) {
-        updateRef.current = found;
-        flushSync(() => setUpdate(found));
-      }
-      if (focus) updateButton.current?.focus();
-      const foundNotes = await findReleaseNotes(found.versionName);
-      if (active && foundNotes) setNotes({ versionName: found.versionName, notes: foundNotes });
-    }
-
     async function check() {
       if (Date.now() - lastCheck < hour) return;
       lastCheck = Date.now();
       const found = await findUpdate();
-      if (active && found && !busy.current) await present(found);
+      if (active && found) offerBetaUpdate(found);
     }
 
     async function resumed() {
-      if (
-        phaseRef.current === 'permission' &&
-        (await EmberUpdater.canInstall().catch(() => ({ value: false }))).value
-      ) {
-        await install();
-      }
+      await resumeBetaInstall();
       await check();
     }
 
-    offerHandler = (found, focus) => void present(found, focus);
     void check();
     void import('@capacitor/app')
       .then(({ App }) => App.addListener('resume', () => void resumed()))
@@ -128,31 +99,53 @@ export function BetaUpdateBanner() {
       .catch(() => undefined);
     return () => {
       active = false;
-      offerHandler = null;
       void listener?.remove();
     };
   }, []);
 
-  if (!update || update.versionCode <= dismissedCode) return null;
+  const versionName = update?.versionName;
+  useEffect(() => {
+    if (!versionName) return;
+    let active = true;
+    void findReleaseNotes(versionName).then((found) => {
+      if (active && found) setNotes({ versionName, notes: found });
+    });
+    return () => {
+      active = false;
+    };
+  }, [versionName]);
 
-  function dismiss() {
-    dismissedCode = update!.versionCode;
-    setUpdate(null);
-  }
+  if (!update || update.versionCode <= dismissed) return null;
 
-  const text = {
-    offer: t('betaUpdate.offer', { version: update.versionName }),
-    permission: t('betaUpdate.permission'),
-    downloading: t('betaUpdate.downloading', { version: update.versionName }),
-    failed: t('betaUpdate.failed'),
-  }[phase];
+  const hasNotes = phase === 'offer' && notes?.versionName === update.versionName;
 
   return (
     <Notice tone={phase === 'failed' ? 'notice' : 'info'} aria-label={t('betaUpdate.label')}>
       <div className="flex w-full flex-wrap items-start gap-2">
         <p>{text}</p>
-        {phase === 'offer' && notes?.versionName === update.versionName && (
+        <BetaInstallAction />
+        {hasNotes && (
+          <Button
+            variant="ghost"
+            aria-expanded={changesOpen}
+            aria-controls={changesOpen ? notesId : undefined}
+            onClick={() => setChangesOpen((open) => !open)}
+          >
+            {changesOpen ? t('betaUpdate.hideChanges') : t('betaUpdate.showChanges')}
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('betaUpdate.dismiss')}
+          className="-my-2 -mr-2 ml-auto"
+          onClick={() => betaUpdate.update((state) => ({ ...state, dismissed: update.versionCode }))}
+        >
+          <X aria-hidden />
+        </Button>
+        {hasNotes && changesOpen && (
           <ul
+            id={notesId}
             aria-label={t('betaUpdate.notesLabel', { version: update.versionName })}
             className="flex w-full list-disc flex-col gap-1 pl-5"
           >
@@ -161,27 +154,6 @@ export function BetaUpdateBanner() {
             ))}
           </ul>
         )}
-        {phase === 'downloading' ? (
-          <progress
-            className="h-2 w-full accent-primary"
-            aria-label={t('betaUpdate.progress')}
-            max={100}
-            {...(percent === null ? {} : { value: percent })}
-          />
-        ) : (
-          <Button ref={updateButton} variant="secondary" onClick={() => void install()}>
-            {phase === 'failed' ? t('betaUpdate.retry') : t('betaUpdate.update')}
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('betaUpdate.dismiss')}
-          className="-my-2 -mr-2 ml-auto"
-          onClick={dismiss}
-        >
-          <X aria-hidden />
-        </Button>
       </div>
     </Notice>
   );
