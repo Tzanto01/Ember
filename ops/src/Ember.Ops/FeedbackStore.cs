@@ -2,9 +2,11 @@ using Npgsql;
 
 namespace Ember.Ops;
 
+/// <param name="Position">Sort key within the column, ascending: the stored card position, else minus the Unix seconds of
+/// <c>CreatedAt</c>, so cards nobody moved yet sort newest first and a move can land between any two cards.</param>
 public sealed record FeedbackItem(
     int Id, string Title, string Text, string Platform, string? Version, DateTime CreatedAt, string Status, DateTime? ResolvedAt,
-    bool Anonymous, IReadOnlyList<Guid> ImageIds, int CommentCount, double? Position);
+    bool Anonymous, IReadOnlyList<Guid> ImageIds, int CommentCount, double Position);
 
 public sealed record FeedbackList(IReadOnlyList<FeedbackItem> Items);
 
@@ -54,11 +56,12 @@ public static class FeedbackStore
                 var id = reader.GetInt32(0);
                 items.Add(new(id, reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4),
                     reader.GetDateTime(5), reader.GetString(6), reader.IsDBNull(7) ? null : reader.GetDateTime(7), reader.GetBoolean(8),
-                    reader.GetFieldValue<Guid[]>(9), counts.GetValueOrDefault(id), positions.TryGetValue(id, out var p) ? p : null));
+                    reader.GetFieldValue<Guid[]>(9), counts.GetValueOrDefault(id),
+                    positions.TryGetValue(id, out var p) ? p : -new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc)).ToUnixTimeSeconds()));
             }
         }
 
-        return new(items.OrderBy(i => i.Position is null).ThenBy(i => i.Position).ThenByDescending(i => i.CreatedAt).ToList());
+        return new(items.OrderBy(i => i.Position).ThenByDescending(i => i.CreatedAt).ToList());
     }
 
     /// <summary>

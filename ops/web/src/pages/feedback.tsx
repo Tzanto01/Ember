@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type DragEvent, Fragment, useEffect, useRef, useState } from 'react';
 import { feedbackQuery, moveFeedback } from '@/api/client';
 import { type FeedbackItem, type FeedbackList, type FeedbackStatus, statuses } from '@/api/types';
@@ -18,7 +18,8 @@ interface MoveVars {
 }
 
 export function FeedbackPage() {
-  const query = useQuery(feedbackQuery);
+  const moving = useIsMutating() > 0;
+  const query = useQuery({ ...feedbackQuery, refetchInterval: moving ? false : 30_000 });
   const queryClient = useQueryClient();
   const [hidden, setHidden] = useState<ReadonlySet<FeedbackStatus>>(new Set());
   const [platform, setPlatform] = useState('all');
@@ -35,8 +36,8 @@ export function FeedbackPage() {
     mutationFn: ({ id, status, position }: MoveVars) => moveFeedback(id, { status, position }),
     onError: (error, { previous }) => {
       if (previous) queryClient.setQueryData(feedbackQuery.queryKey, previous);
-      setMoveError(`Could not move the card, it is back where it was: ${error.message}`);
-      setAnnouncement('Move failed, the card is back where it was.');
+      setMoveError(`Could not move the card, the board shows where it is now: ${error.message}`);
+      setAnnouncement('Move failed, the board was reloaded.');
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: feedbackQuery.queryKey }),
   });

@@ -75,6 +75,37 @@ public sealed class BoardTests(V2DatabaseFixture database) : IDisposable
     }
 
     [Fact]
+    public async Task A_card_moved_between_two_never_moved_cards_sorts_between_them()
+    {
+        var ids = new List<int>();
+        await using (var connection = await database.OpenAsync("emberdb"))
+        {
+            var rows = new SyntheticRows(connection);
+            foreach (var days in new[] { 30, 20, 10 })
+                ids.Add(await rows.AddReturningIdAsync("Feedback", new()
+                {
+                    ["Platform"] = "web",
+                    ["Title"] = $"Order {days}",
+                    ["Text"] = "Synthetic",
+                    ["CreatedAt"] = DateTime.UtcNow.AddDays(-days - 400),
+                    ["Status"] = "declined",
+                }));
+        }
+        using var client = _factory.ClientFrom();
+        await OpsApiFactory.StartSessionAsync(client);
+        async Task<List<FeedbackItem>> ColumnAsync() =>
+            (await client.GetFromJsonAsync<FeedbackList>("/api/feedback"))!.Items.Where(i => ids.Contains(i.Id)).ToList();
+        var (oldest, middle, newest) = (ids[0], ids[1], ids[2]);
+        var before = await ColumnAsync();
+        before.Select(i => i.Id).Should().Equal(newest, middle, oldest);
+
+        var between = (before[1].Position + before[2].Position) / 2;
+        (await client.PutAsJsonAsync($"/api/feedback/{newest}/status", new { status = "declined", position = between })).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        (await ColumnAsync()).Select(i => i.Id).Should().Equal(middle, newest, oldest);
+    }
+
+    [Fact]
     public async Task Rejects_a_status_move_without_a_csrf_token_and_changes_nothing()
     {
         using var client = _factory.ClientFrom();

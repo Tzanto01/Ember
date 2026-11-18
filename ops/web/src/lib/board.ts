@@ -1,31 +1,18 @@
 import type { FeedbackItem, FeedbackStatus } from '@/api/types';
 
-/** Server order within a column: position ascending (nulls last), then newest first. */
+/** Server order within a column: position ascending, then newest first. */
 export function compareCards(a: FeedbackItem, b: FeedbackItem): number {
-  if (a.position !== null && b.position !== null && a.position !== b.position) return a.position - b.position;
-  if (a.position === null && b.position !== null) return 1;
-  if (a.position !== null && b.position === null) return -1;
-  return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+  return a.position - b.position || Date.parse(b.createdAt) - Date.parse(a.createdAt);
 }
 
 export function columnOf(items: FeedbackItem[], status: FeedbackStatus): FeedbackItem[] {
   return items.filter((i) => i.status === status).sort(compareCards);
 }
 
-/**
- * The position for a card dropped at `index` of `column` (ordered, without the moved card): halfway between its
- * neighbours. Cards without a position count as following the last positioned one, so a card placed among them
- * lands right after the positioned cards, which is where the server will sort it.
- */
+/** The position for a card dropped at `index` of `column` (ordered, without the moved card): halfway between its neighbours. */
 export function positionAt(column: FeedbackItem[], index: number): number {
-  let last = 0;
-  let k = 0;
-  const effective = column.map((c) => {
-    if (c.position !== null) return (last = c.position);
-    return last + ++k;
-  });
-  const prev = effective[index - 1];
-  const next = effective[index];
+  const prev = column[index - 1]?.position;
+  const next = column[index]?.position;
   if (prev === undefined && next === undefined) return 0;
   if (prev === undefined) return next! - 1;
   if (next === undefined) return prev + 1;

@@ -3,7 +3,7 @@ import type { FeedbackItem, FeedbackStatus } from '@/api/types';
 import { applyMove, columnOf, indexAmong, positionAt } from './board';
 
 let nextId = 1;
-function card(position: number | null, status: FeedbackStatus = 'open', createdAt = '2026-11-01T10:00:00Z'): FeedbackItem {
+function card(position: number, status: FeedbackStatus = 'open', createdAt = '2026-11-01T10:00:00Z'): FeedbackItem {
   return {
     id: nextId++,
     title: 't',
@@ -32,12 +32,11 @@ describe('positionAt', () => {
     expect(positionAt(col, 2)).toBeGreaterThan(8);
   });
 
-  it('sorts a card placed among unpositioned cards right after the positioned ones', () => {
-    const positioned = card(5);
-    const loose = [card(null), card(null)];
-    const pos = positionAt([positioned, ...loose], 2);
-    const moved = { ...card(pos), id: 999 };
-    expect(columnOf([positioned, ...loose, moved], 'open').map((c) => c.id)).toEqual([positioned.id, moved.id, ...loose.map((c) => c.id)]);
+  it('moves a card down among cards nobody moved yet', () => {
+    const col = [card(-300), card(-200), card(-100)];
+    const [top, ...rest] = col;
+    const moved = { ...top!, position: positionAt(rest, 1) };
+    expect(columnOf([...rest, moved], 'open').map((c) => c.id)).toEqual([rest[0]!.id, top!.id, rest[1]!.id]);
   });
 });
 
@@ -46,7 +45,7 @@ describe('applyMove', () => {
     const a = card(1, 'planned');
     const b = card(2, 'planned');
     const c = card(3, 'planned');
-    const x = card(null, 'open');
+    const x = card(0, 'open');
     const items = [a, b, c, x];
     for (let index = 0; index <= 3; index++) {
       const result = applyMove(items, x.id, 'planned', index)!;
@@ -55,9 +54,9 @@ describe('applyMove', () => {
   });
 
   it('sets resolvedAt for released and declined, keeps an existing one, and clears it otherwise', () => {
-    const x = { ...card(null), resolvedAt: '2026-10-01T00:00:00Z' };
+    const x = { ...card(0), resolvedAt: '2026-10-01T00:00:00Z' };
     expect(applyMove([x], x.id, 'declined', 0)!.items[0]!.resolvedAt).toBe('2026-10-01T00:00:00Z');
-    expect(applyMove([card(null)], nextId - 1, 'released', 0)!.items[0]!.resolvedAt).not.toBeNull();
+    expect(applyMove([card(0)], nextId - 1, 'released', 0)!.items[0]!.resolvedAt).not.toBeNull();
     expect(applyMove([x], x.id, 'planned', 0)!.items[0]!.resolvedAt).toBeNull();
   });
 });

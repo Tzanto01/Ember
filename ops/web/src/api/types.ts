@@ -64,7 +64,7 @@ export interface FeedbackItem {
   anonymous: boolean;
   imageIds: string[];
   commentCount: number;
-  position: number | null;
+  position: number;
 }
 
 export interface FeedbackList {

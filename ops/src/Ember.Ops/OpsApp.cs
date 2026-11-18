@@ -157,7 +157,7 @@ public static class OpsApp
         api.MapPost("/feedback/{id:int}/comments", async (int id, CommentInput input, HttpContext context, OpsDatabases db, CancellationToken ct) =>
         {
             var body = input.Body?.Trim();
-            if (string.IsNullOrEmpty(body) || body.Length > FeedbackStore.MaxCommentLength) return Results.BadRequest();
+            if (string.IsNullOrEmpty(body) || body.Length > FeedbackStore.MaxCommentLength || body.Contains('\0')) return Results.BadRequest();
             if (!await FeedbackStore.ExistsAsync(db.Ember, id, ct)) return Results.NotFound();
             return Results.Json(await FeedbackStore.AddCommentAsync(db.Ops, id, Author(context), body, ct), statusCode: StatusCodes.Status201Created);
         }).AddEndpointFilter(WriteGuard);

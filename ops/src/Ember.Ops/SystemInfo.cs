@@ -39,7 +39,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         var now = time.GetUtcNow().UtcDateTime;
         var errors = new Dictionary<string, string>();
 
-        var ciTask = Cached("system:ci", TimeSpan.FromMinutes(5), () => CiAsync(o, CancellationToken.None));
+        var ciTask = Cached("system:ci", TimeSpan.FromMinutes(5), () => CiAsync(o, CancellationToken.None), TimeSpan.FromMinutes(5));
         var noticeTask = Cached("system:notice", TimeSpan.FromMinutes(2), () => NoticeAsync(o.NoticesUrl, CancellationToken.None));
         var apkTask = Cached("system:apk", TimeSpan.FromMinutes(2), () => ApkAsync(o.ApkUrl, CancellationToken.None));
 
@@ -113,11 +113,11 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         return new(size, latest);
     }
 
-    private async Task<Fetched<T>> Cached<T>(string key, TimeSpan ttl, Func<Task<Fetched<T>>> load) =>
+    private async Task<Fetched<T>> Cached<T>(string key, TimeSpan ttl, Func<Task<Fetched<T>>> load, TimeSpan? failureTtl = null) =>
         (await cache.GetOrCreateAsync(key, async e =>
         {
             var fetched = await load();
-            e.AbsoluteExpirationRelativeToNow = fetched.Error is null ? ttl : FailureCache;
+            e.AbsoluteExpirationRelativeToNow = fetched.Error is null ? ttl : failureTtl ?? FailureCache;
             return fetched;
         }))!;
 
@@ -153,7 +153,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
             : Fetch<JsonElement?>("notice", async client =>
             {
                 using var response = await client.GetAsync(url, ct);
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return JsonDocument.Parse("""{"notices":[]}""").RootElement.Clone();
                 response.EnsureSuccessStatusCode();
                 using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
                 return doc.RootElement.Clone();
