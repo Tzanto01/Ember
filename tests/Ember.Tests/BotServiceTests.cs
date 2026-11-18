@@ -9,6 +9,27 @@ namespace Ember.Tests;
 public class BotServiceTests
 {
     [Fact]
+    public async Task Status_without_an_active_notice_is_the_habit_count()
+    {
+        var (text, activity) = await BotService.StatusAsync(null, () => Task.FromResult(3));
+
+        text.Should().Be("3 habits tracked 🔥");
+        activity.Should().BeOfType<Game>().Which.Type.Should().Be(ActivityType.Watching);
+        activity.Name.Should().Be(text);
+    }
+
+    [Fact]
+    public async Task Status_with_an_active_notice_is_its_text_as_custom_status_without_counting_habits()
+    {
+        var notice = new Ember.Bot.Services.Notice("a", null, null, new string('x', 200));
+
+        var (text, activity) = await BotService.StatusAsync(notice, () => throw new InvalidOperationException("Not counted"));
+
+        text.Should().Be(new string('x', 128));
+        activity.Should().BeOfType<CustomStatusGame>().Which.State.Should().Be(text);
+    }
+
+    [Fact]
     public async Task StartClientAsync_SetsOnlineStatusBeforeLoginAndStart()
     {
         var calls = new List<string>();

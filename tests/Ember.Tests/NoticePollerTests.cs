@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using System.Net;
 
 namespace Ember.Tests;
 
@@ -20,8 +21,10 @@ public class NoticePollerTests
         }
         """;
 
-    private static NoticePoller Poller(FakeTimeProvider time)
-        => new(new NoHttp(), new ConfigurationBuilder().Build(), time, NullLogger<NoticePoller>.Instance);
+    private static NoticePoller Poller(FakeTimeProvider time, params HttpResponseMessage[] responses)
+        => new(new QueuedHttp(responses), new ConfigurationBuilder().Build(), time, NullLogger<NoticePoller>.Instance);
+
+    private static HttpResponseMessage Ok(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
 
     private static Notice Window(string id, DateTimeOffset? from, DateTimeOffset? until) => new(id, from, until, id);
 
@@ -71,38 +74,77 @@ public class NoticePollerTests
     [InlineData("<html>Bad gateway</html>")]
     [InlineData("null")]
     [InlineData("""{ "notices": "soon" }""")]
-    [InlineData("""{ "notices": [ { "id": "a", "en": "x", "showFrom": "tomorrow" } ] }""")]
     public void Invalid_file_is_rejected(string json)
     {
         NoticePoller.Parse(json).Should().BeNull();
     }
 
     [Fact]
-    public void Failed_poll_keeps_the_last_notice_for_30_minutes_then_clears_it()
+    public void One_malformed_entry_does_not_hide_a_good_one()
     {
-        var time = new FakeTimeProvider(Now);
-        var poller = Poller(time);
-        poller.Apply("""{ "notices": [ { "id": "a", "en": "Resting" } ] }""", time.GetUtcNow());
+        var notices = NoticePoller.Parse("""
+            { "notices": [
+              { "id": "bad-date", "en": "x", "showFrom": "tomorrow" },
+              { "id": "number-date", "en": "x", "showUntil": 1763467200 },
+              { "id": 7, "en": "numeric id" },
+              "not an object",
+              { "id": "good", "en": "Ember is resting", "showFrom": null, "showUntil": "2026-11-18T13:00:00Z" }
+            ] }
+            """)!;
 
-        time.Advance(TimeSpan.FromMinutes(30));
-        poller.Apply(null, time.GetUtcNow()).Should().BeTrue();
-        poller.Apply("not json", time.GetUtcNow()).Should().BeFalse();
+        NoticePoller.Select(notices, Now).Should().Be(new Notice("good", null, new DateTimeOffset(2026, 11, 18, 13, 0, 0, TimeSpan.Zero), "Ember is resting"));
+    }
+
+    [Fact]
+    public async Task A_404_clears_an_active_notice()
+    {
+        var poller = Poller(new FakeTimeProvider(Now), Ok("""{ "notices": [ { "id": "a", "en": "Resting" } ] }"""), new HttpResponseMessage(HttpStatusCode.NotFound));
+
+        await poller.PollAsync("https://ember.example/notices.json", CancellationToken.None);
         poller.Active!.Id.Should().Be("a");
 
-        time.Advance(TimeSpan.FromMinutes(1));
-        poller.Apply(null, time.GetUtcNow());
+        await poller.PollAsync("https://ember.example/notices.json", CancellationToken.None);
+        poller.Active.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError, null)]
+    [InlineData(HttpStatusCode.Gone, null)]
+    [InlineData(HttpStatusCode.OK, "<html>Bad gateway</html>")]
+    public async Task Any_failed_poll_clears_an_active_notice(HttpStatusCode status, string? body)
+    {
+        var failure = new HttpResponseMessage(status) { Content = new StringContent(body ?? "") };
+        var poller = Poller(new FakeTimeProvider(Now), Ok("""{ "notices": [ { "id": "a", "en": "Resting" } ] }"""), failure);
+
+        await poller.PollAsync("https://ember.example/notices.json", CancellationToken.None);
+        await poller.PollAsync("https://ember.example/notices.json", CancellationToken.None);
+
         poller.Active.Should().BeNull();
     }
 
     [Fact]
-    public void Successful_poll_ends_the_failure_streak_so_the_next_failure_warns_again()
+    public async Task Network_error_clears_an_active_notice_and_still_raises_Changed()
     {
-        var time = new FakeTimeProvider(Now);
-        var poller = Poller(time);
+        var poller = Poller(new FakeTimeProvider(Now), Ok("""{ "notices": [ { "id": "a", "en": "Resting" } ] }"""));
+        var changes = 0;
+        poller.Changed += () => { changes++; return Task.CompletedTask; };
 
-        poller.Apply(null, Now).Should().BeTrue();
-        poller.Apply("""{ "notices": [] }""", Now).Should().BeFalse();
-        poller.Apply(null, Now).Should().BeTrue();
+        await poller.PollAsync("https://ember.example/notices.json", CancellationToken.None);
+        await poller.PollAsync("https://ember.example/notices.json", CancellationToken.None);
+
+        poller.Active.Should().BeNull();
+        changes.Should().Be(2);
+    }
+
+    [Fact]
+    public void Warning_is_due_once_per_failure_streak()
+    {
+        var poller = Poller(new FakeTimeProvider(Now));
+
+        poller.Apply(null).Should().BeTrue();
+        poller.Apply(null).Should().BeFalse();
+        poller.Apply([]).Should().BeFalse();
+        poller.Apply(null).Should().BeTrue();
     }
 
     [Fact]
@@ -133,8 +175,16 @@ public class NoticePollerTests
         NoticePoller.NoticesUrl(Config()).Should().BeNull();
     }
 
-    private sealed class NoHttp : IHttpClientFactory
+    private sealed class QueuedHttp(HttpResponseMessage[] responses) : IHttpClientFactory
     {
-        public HttpClient CreateClient(string name) => throw new InvalidOperationException("No HTTP in unit tests.");
+        private readonly Queue<HttpResponseMessage> _responses = new(responses);
+
+        public HttpClient CreateClient(string name) => new(new Handler(_responses));
+
+        private sealed class Handler(Queue<HttpResponseMessage> responses) : HttpMessageHandler
+        {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+                => responses.TryDequeue(out var response) ? Task.FromResult(response) : throw new HttpRequestException("Connection refused");
+        }
     }
 }

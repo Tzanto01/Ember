@@ -23,6 +23,7 @@ public class BotService : IHostedService
     private readonly OncePerProcess _commandRegistration;
     private readonly NoticePoller _notices;
     private Timer? _statusTimer;
+    private readonly SemaphoreSlim _statusLock = new(1, 1);
     private string? _lastActivity;
 
     public BotService(
@@ -93,8 +94,7 @@ public class BotService : IHostedService
             _logger.LogError(ex, "Failed to register slash commands; will retry on the next Ready.");
         }
 
-        _lastActivity = null;
-        await UpdateStatusAsync();
+        await UpdateStatusAsync(force: true);
         _statusTimer ??= new Timer(_ => _ = UpdateStatusAsync(), null,
             TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(30));
     }
@@ -121,31 +121,18 @@ public class BotService : IHostedService
         }
     }
 
-    private async Task UpdateStatusAsync()
+    private async Task UpdateStatusAsync(bool force = false)
     {
+        await _statusLock.WaitAsync();
         try
         {
-            IActivity activity;
-            string text;
-            if (_notices.Active is { } notice)
-            {
-                text = NoticePoller.StatusText(notice);
-                activity = new CustomStatusGame(text);
-            }
-            else
+            var (text, activity) = await StatusAsync(_notices.Active, async () =>
             {
                 using var scope = _services.CreateScope();
-                var habitCount = await scope.ServiceProvider.GetRequiredService<HabitService>().CountHabitsAsync();
-                text = habitCount switch
-                {
-                    0 => "habits take shape 🌿",
-                    1 => "1 habit tracked 🔥",
-                    _ => $"{habitCount} habits tracked 🔥",
-                };
-                activity = new Game(text, ActivityType.Watching);
-            }
+                return await scope.ServiceProvider.GetRequiredService<HabitService>().CountHabitsAsync();
+            });
 
-            if (text == _lastActivity) return;
+            if (!force && text == _lastActivity) return;
             await _client.SetStatusAsync(UserStatus.Online);
             await _client.SetActivityAsync(activity);
             _lastActivity = text;
@@ -154,6 +141,32 @@ public class BotService : IHostedService
         {
             _logger.LogWarning(ex, "Failed to update bot status.");
         }
+        finally
+        {
+            _statusLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// The bot's activity: the active notice as a custom status, otherwise the habit count (read only then) as "Watching".
+    /// <c>Text</c> is what the user sees, used to skip unchanged updates.
+    /// </summary>
+    internal static async Task<(string Text, IActivity Activity)> StatusAsync(Notice? notice, Func<Task<int>> countHabits)
+    {
+        if (notice is not null)
+        {
+            var status = NoticePoller.StatusText(notice);
+            return (status, new CustomStatusGame(status));
+        }
+
+        var habitCount = await countHabits();
+        var text = habitCount switch
+        {
+            0 => "habits take shape 🌿",
+            1 => "1 habit tracked 🔥",
+            _ => $"{habitCount} habits tracked 🔥",
+        };
+        return (text, new Game(text, ActivityType.Watching));
     }
 
     private Task OnNoticesChangedAsync()

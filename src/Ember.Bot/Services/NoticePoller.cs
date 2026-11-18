@@ -2,6 +2,7 @@ using Ember.Bot.Modules;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Text.Json;
 
 namespace Ember.Bot.Services;
@@ -11,8 +12,8 @@ public sealed record Notice(string Id, DateTimeOffset? ShowFrom, DateTimeOffset?
 
 /// <summary>
 /// Polls the live notices file every 5 minutes (<c>Ember:NoticesUrl</c>, or <c>Ember:WebOrigin</c> + <c>/notices.json</c>).
-/// A failed request, non-200 or invalid JSON keeps the last known notices for at most 30 minutes, then clears them.
-/// Raises <see cref="Changed"/> after every poll; never DMs anyone.
+/// A 404 means no notice; any other failed poll (network error, timeout, non-200, invalid JSON) also clears the notices
+/// and logs one warning per failure streak. Raises <see cref="Changed"/> after every poll; never DMs anyone.
 /// </summary>
 public sealed class NoticePoller : BackgroundService
 {
@@ -20,16 +21,12 @@ public sealed class NoticePoller : BackgroundService
     internal const string HttpClientName = "notices";
     internal const int StatusMaxLength = 128;
     internal static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(5);
-    internal static readonly TimeSpan KeepStaleFor = TimeSpan.FromMinutes(30);
-
-    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
     private readonly IHttpClientFactory _http;
     private readonly IConfiguration _config;
     private readonly TimeProvider _time;
     private readonly ILogger<NoticePoller> _logger;
     private volatile Notice[] _notices = [];
-    private DateTimeOffset? _lastSuccess;
     private bool _failing;
 
     public NoticePoller(IHttpClientFactory http, IConfiguration config, TimeProvider time, ILogger<NoticePoller> logger)
@@ -56,22 +53,45 @@ public sealed class NoticePoller : BackgroundService
     internal static Notice? Select(IEnumerable<Notice> notices, DateTimeOffset now)
         => notices.FirstOrDefault(n => (n.ShowFrom is null || n.ShowFrom <= now) && (n.ShowUntil is null || now < n.ShowUntil));
 
-    /// <summary>The notices in <paramref name="json"/>, skipping entries without an id or English text; <c>null</c> when the file is invalid.</summary>
+    /// <summary>
+    /// The notices in <paramref name="json"/>, skipping malformed entries (no id or English text, a non-string or unreadable date);
+    /// a <c>null</c> date means absent. <c>null</c> when the file itself is invalid.
+    /// </summary>
     internal static Notice[]? Parse(string json)
     {
         try
         {
-            var file = JsonSerializer.Deserialize<NoticesFile>(json, Json);
-            if (file is null) return null;
-            return (file.Notices ?? [])
-                .Where(n => n is not null && !string.IsNullOrWhiteSpace(n.Id) && !string.IsNullOrWhiteSpace(n.En))
-                .Select(n => new Notice(n!.Id!, n.ShowFrom, n.ShowUntil, n.En!.Trim()))
-                .ToArray();
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return null;
+            if (!doc.RootElement.TryGetProperty("notices", out var list) || list.ValueKind == JsonValueKind.Null) return [];
+            if (list.ValueKind != JsonValueKind.Array) return null;
+            return list.EnumerateArray().Select(Entry).OfType<Notice>().ToArray();
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    private static Notice? Entry(JsonElement entry)
+    {
+        if (entry.ValueKind != JsonValueKind.Object) return null;
+        if (Text(entry, "id") is not { } id || Text(entry, "en") is not { } en) return null;
+        if (!Date(entry, "showFrom", out var from) || !Date(entry, "showUntil", out var until)) return null;
+        return new Notice(id, from, until, en);
+    }
+
+    private static string? Text(JsonElement entry, string name)
+        => entry.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && value.GetString() is { } text
+            && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
+
+    private static bool Date(JsonElement entry, string name, out DateTimeOffset? date)
+    {
+        date = null;
+        if (!entry.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return true;
+        if (value.ValueKind != JsonValueKind.String || !value.TryGetDateTimeOffset(out var parsed)) return false;
+        date = parsed;
+        return true;
     }
 
     /// <summary>The bot's custom status for <paramref name="notice"/>: its English text, cut to 128 characters without splitting a surrogate pair.</summary>
@@ -84,25 +104,14 @@ public sealed class NoticePoller : BackgroundService
     }
 
     /// <summary>
-    /// Applies one poll result: the response body on success, <c>null</c> on failure. Returns <c>true</c> when this
-    /// failure starts a new failure streak (the only one worth a warning).
+    /// Applies one poll result: the notices on success, <c>null</c> on failure, which clears them. Returns <c>true</c> when
+    /// this failure starts a new failure streak (the only one worth a warning).
     /// </summary>
-    internal bool Apply(string? body, DateTimeOffset now)
+    internal bool Apply(Notice[]? notices)
     {
-        var parsed = body is null ? null : Parse(body);
-        if (parsed is not null)
-        {
-            _notices = parsed;
-            _lastSuccess = now;
-            _failing = false;
-            return false;
-        }
-
-        if (_lastSuccess is null || now - _lastSuccess > KeepStaleFor)
-            _notices = [];
-
-        var firstFailure = !_failing;
-        _failing = true;
+        _notices = notices ?? [];
+        var firstFailure = notices is null && !_failing;
+        _failing = notices is null;
         return firstFailure;
     }
 
@@ -119,7 +128,8 @@ public sealed class NoticePoller : BackgroundService
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogWarning(ex, "Notice poll failed unexpectedly.");
+                if (Apply(null))
+                    _logger.LogWarning(ex, "Notice poll failed unexpectedly; showing no notice.");
             }
         }
         while (await WaitAsync(timer, stoppingToken));
@@ -137,45 +147,32 @@ public sealed class NoticePoller : BackgroundService
         }
     }
 
-    private async Task PollAsync(string url, CancellationToken stoppingToken)
+    /// <summary>Fetches <paramref name="url"/> once, applies the result and raises <see cref="Changed"/>.</summary>
+    internal async Task PollAsync(string url, CancellationToken stoppingToken)
     {
-        string? body = null;
-        string reason;
+        Notice[]? notices = null;
+        Exception? error = null;
+        var reason = "invalid JSON";
         try
         {
             using var response = await _http.CreateClient(HttpClientName).GetAsync(url, stoppingToken);
-            if (response.StatusCode == System.Net.HttpStatusCode.OK)
-            {
-                body = await response.Content.ReadAsStringAsync(stoppingToken);
-                reason = "invalid JSON";
-            }
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                notices = [];
+            else if (response.StatusCode == HttpStatusCode.OK)
+                notices = Parse(await response.Content.ReadAsStringAsync(stoppingToken));
             else
-            {
                 reason = $"HTTP {(int)response.StatusCode}";
-            }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !stoppingToken.IsCancellationRequested)
+        catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
         {
+            error = ex;
             reason = ex.GetType().Name;
         }
 
-        if (Apply(body, _time.GetUtcNow()))
-            _logger.LogWarning("Could not read the notices from {Url} ({Reason}); keeping the last known notices for up to 30 minutes.", url, reason);
+        if (Apply(notices))
+            _logger.LogWarning(error, "Could not read the notices from {Url} ({Reason}); showing no notice.", url, reason);
 
         if (Changed is { } changed)
             await changed();
-    }
-
-    private sealed class NoticesFile
-    {
-        public List<NoticeEntry?>? Notices { get; set; }
-    }
-
-    private sealed class NoticeEntry
-    {
-        public string? Id { get; set; }
-        public DateTimeOffset? ShowFrom { get; set; }
-        public DateTimeOffset? ShowUntil { get; set; }
-        public string? En { get; set; }
     }
 }
