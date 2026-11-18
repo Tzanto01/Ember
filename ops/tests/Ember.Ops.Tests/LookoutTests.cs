@@ -316,4 +316,56 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
         (await response.Content.ReadAsStringAsync()).Should().Contain("Invalid JSON body");
     }
+
+    [Fact]
+    public async Task The_lookout_key_is_not_served_from_the_web_root()
+    {
+        var factory = Factory();
+        using var client = factory.ClientFrom();
+
+        using var response = await client.GetAsync("/lookout-key");
+
+        (await response.Content.ReadAsStringAsync()).Should().NotContain(OpsApiFactory.LookoutKey);
+    }
+
+    [Fact]
+    public async Task Comments_of_an_unknown_card_are_a_404_problem()
+    {
+        using var response = await Hub().GetAsync("/lookout/v1/widgets/feedback/cards/2000000000/comments");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+    }
+
+    [Theory]
+    [InlineData("GET", "/lookout/v1/nope")]
+    [InlineData("PUT", "/lookout/v1/widgets/feedback/cards/1/move")]
+    public async Task The_peer_check_comes_before_the_key_check_and_both_before_routing(string method, string path)
+    {
+        using var wrongPeer = await Hub(ip: OpsApiFactory.UntrustedIp).SendAsync(Request(new HttpMethod(method), path, content: Json("{}")));
+        using var wrongKey = await Hub(bearer: "synthetic-lookout-key-for-tests-0123456780").SendAsync(Request(new HttpMethod(method), path, content: Json("{}")));
+
+        wrongPeer.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        wrongKey.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task An_image_is_served_with_its_stored_content_type_only_under_its_own_card()
+    {
+        using var client = Hub();
+        var feedback = LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/feedback"), "feedback");
+        var imageId = feedback.GetProperty("cards").EnumerateArray().Single(c => c.GetProperty("id").GetString() == database.Data.FeedbackOpen.ToString())
+            .GetProperty("imageIds")[0].GetString();
+        var own = $"/lookout/v1/widgets/feedback/cards/{database.Data.FeedbackOpen}/images/";
+
+        using var found = await client.GetAsync(own + imageId);
+        using var otherCard = await client.GetAsync($"/lookout/v1/widgets/feedback/cards/{database.Data.FeedbackPlanned}/images/{imageId}");
+        using var notAGuid = await client.GetAsync(own + "not-a-guid");
+
+        found.StatusCode.Should().Be(HttpStatusCode.OK);
+        found.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
+        (await found.Content.ReadAsByteArrayAsync()).Should().Equal(1, 2, 3, 4);
+        otherCard.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        notAGuid.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }

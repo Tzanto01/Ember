@@ -33,6 +33,7 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     private readonly string _noticesTokenFile;
     private readonly string? _hubAddress;
     private readonly string _lookoutKeyFile;
+    private readonly string _keyDirectory = Directory.CreateTempSubdirectory("ember-ops-key-").FullName;
     private readonly string _webRoot = Directory.CreateTempSubdirectory("ember-ops-web-").FullName;
 
     /// <summary>The host status file the dashboard reads; missing unless a test writes it before the first request.</summary>
@@ -46,7 +47,7 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
         _noticesTokenFile = Path.Combine(_webRoot, "notices-token");
         if (noticesToken is not null) File.WriteAllText(_noticesTokenFile, noticesToken);
         _hubAddress = hubAddress;
-        _lookoutKeyFile = Path.Combine(_webRoot, "lookout-key");
+        _lookoutKeyFile = Path.Combine(_keyDirectory, "lookout-key");
         if (lookoutKey is not null) File.WriteAllText(_lookoutKeyFile, lookoutKey);
         File.WriteAllText(Path.Combine(_webRoot, "index.html"), "<html><body>ember-ops-spa</body></html>");
     }
@@ -87,7 +88,9 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (disposing && Directory.Exists(_webRoot)) Directory.Delete(_webRoot, recursive: true);
+        if (!disposing) return;
+        foreach (var directory in new[] { _webRoot, _keyDirectory })
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
     }
 
     /// <summary>A cookie-keeping client that arrives from <paramref name="remoteIp"/> with the given identity headers.</summary>
