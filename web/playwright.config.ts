@@ -12,16 +12,23 @@ const baseURL = process.env['E2E_BASE_URL'];
  */
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: false,
+  fullyParallel: true,
   workers: Number(process.env['E2E_WORKERS'] ?? 3),
   timeout: 60_000,
   retries: 0,
-  reporter: [['list']],
+  reporter: process.env['CI'] ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL: baseURL ?? 'http://localhost:4200',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'phone',
+      use: { ...devices['Pixel 7'] },
+      testMatch: ['navigation.spec.ts', 'routines.spec.ts', 'signup-first-habit.spec.ts', 'schedules-checkins.spec.ts'],
+    },
+  ],
   webServer: baseURL
     ? undefined
     : {

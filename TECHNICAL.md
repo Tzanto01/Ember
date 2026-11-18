@@ -148,13 +148,30 @@ Web (from `web/`, using Bun 1.3.14):
 | Mobile build (output `dist/ember-mobile/browser`) | `bun --bun run build:mobile` |
 | Sync the Android project | `bunx --bun cap sync android` |
 
-The dev server proxies `/api` to an API on port 5081. End-to-end tests are described in [web/README.md](web/README.md).
+The dev server proxies `/api` to an API on port 5081.
 
 Android (from `mobile/android`): run `./gradlew assembleDebug` to build a debug APK (on Windows, `gradlew.bat assembleDebug`). Before that, run the mobile build and the Capacitor sync in `web/` (the two commands in the table above, in that order). Release signing and Play upload steps are in [mobile/STORE.md](mobile/STORE.md).
 
 The HTTP API is described in [docs/contracts/api-v1.md](docs/contracts/api-v1.md).
 
-CI (`.github/workflows/ci.yml`) runs on every push. For .NET it restores, checks for vulnerable packages, builds and runs the tests. For the web it runs the unit tests and both builds.
+CI (`.github/workflows/ci.yml`) runs on every push. For .NET it restores, checks for vulnerable packages, builds and runs the tests. For the web it runs the unit tests and both builds. A third job runs the end-to-end tests below and uploads the Playwright report, traces and test host log when they fail.
+
+### End-to-end tests
+
+Playwright journeys in `web/e2e` run against `tests/Ember.Api.TestHost`: the real API with a throwaway PostgreSQL container (needs Docker), a fake Discord and an in-memory outbox. The test host serves the built web app on the same origin:
+
+```bash
+# from web/
+bun --bun run build && bunx playwright install chromium
+# from the repository root, and keep it running
+dotnet run --project tests/Ember.Api.TestHost -- --urls http://localhost:5081 --webroot web/dist/ember-web/browser
+# from web/, in a second shell
+E2E_BASE_URL=http://localhost:5081 bunx playwright test                    # desktop and phone
+E2E_BASE_URL=http://localhost:5081 bunx playwright test --project=chromium # desktop only
+E2E_BASE_URL=http://localhost:5081 bunx playwright test --project=phone    # phone only
+```
+
+The `chromium` project (Desktop Chrome) runs every journey. The `phone` project (Pixel 7) runs the ones where the phone layout matters: bottom navigation and back links, Today check-ins and routines. Run Playwright on Node (`bunx playwright`, not `bunx --bun`): under the Bun runtime its request fixture fails on responses that set cookies. Tests run in parallel; `E2E_WORKERS` (default 3) sets how many. CI runs both projects the same way, split over three parallel jobs (`--shard=1/3` to `3/3`).
 
 ## Tech stack
 

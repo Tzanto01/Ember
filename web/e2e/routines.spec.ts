@@ -61,3 +61,33 @@ test('a routine groups its habits on Today in order, overrides their reminder, a
   await expect(page.getByText(/reminds you at/)).toHaveCount(0);
   await expect(page.getByLabel('Reminder time')).toHaveValue('08:00');
 });
+
+test('Move up and Move down on Routines reorder them, the order survives a reload, and Today follows it', async ({ page }) => {
+  await createWebUser(page);
+  const routines = ['Morning', 'Lunch', 'Evening'];
+  for (const name of routines) {
+    await createHabit(page, `${name} habit`);
+    await page.goto('/routines/new');
+    await page.getByLabel('Name', { exact: true }).fill(name);
+    await page.getByRole('button', { name: `Add ${name} habit` }).click();
+    await page.getByRole('button', { name: 'Create routine' }).click();
+    await expect(page).toHaveURL(/\/routines$/);
+  }
+  const names = page.getByRole('heading', { level: 2, name: /^(Morning|Lunch|Evening)$/ });
+  await expect(names).toHaveText(routines);
+
+  const move = async (name: string) => {
+    const saved = page.waitForResponse((r) => r.url().endsWith('/api/routines/order') && r.request().method() === 'PUT');
+    await page.getByRole('button', { name }).click();
+    expect((await saved).ok()).toBe(true);
+  };
+  await move('Move Evening routine up');
+  await expect(names).toHaveText(['Morning', 'Evening', 'Lunch']);
+  await move('Move Morning routine down');
+  await expect(names).toHaveText(['Evening', 'Morning', 'Lunch']);
+
+  await page.reload();
+  await expect(names).toHaveText(['Evening', 'Morning', 'Lunch']);
+  await page.getByRole('link', { name: 'Back to Today' }).click();
+  await expect(names).toHaveText(['Evening', 'Morning', 'Lunch']);
+});

@@ -58,3 +58,69 @@ jobs:
 
       - name: Mobile build
         run: bun --bun run build:mobile
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        working-directory: web
+        run: bunx playwright install --with-deps chromium
+
+      - name: Web build
+        working-directory: web
+        run: bun --bun run build
+
+      - name: Build test host
+        run: dotnet build tests/Ember.Api.TestHost -c Release
+
+      - name: Start test host
+        run: |
+          nohup dotnet run --no-build -c Release --project tests/Ember.Api.TestHost -- --urls http://localhost:5081 --webroot web/dist/ember-web/browser > testhost.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fs http://localhost:5081/health && exit 0
+            sleep 2
+          done
+          cat testhost.log
+          exit 1
+
+      - name: End-to-end tests
+        working-directory: web
+        env:
+          E2E_BASE_URL: http://localhost:5081
+        run: bunx playwright test --shard=${{ matrix.shard }}/3
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            web/playwright-report
+            web/test-results
+            testhost.log
+          retention-days: 7

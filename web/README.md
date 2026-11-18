@@ -10,6 +10,6 @@ React 19, TypeScript, Vite, Tailwind CSS v4, TanStack Query, React Router, Capac
 | Mobile build (no service worker, settings in `.env.mobile`, output `dist/ember-mobile/browser`) | `bun --bun run build:mobile` |
 | Sync the Android project | `bunx --bun cap sync android` |
 | Unit tests (Vitest) | `bun --bun run test` |
-| End-to-end tests (Playwright) | see `playwright.config.ts`: start `tests/Ember.Api.TestHost` on port 5081 with `--webroot web/dist/ember-web/browser`, then `E2E_BASE_URL=http://localhost:5081 bunx --bun playwright test` |
+| End-to-end tests (Playwright) | see `playwright.config.ts`: start `tests/Ember.Api.TestHost` on port 5081 with `--webroot web/dist/ember-web/browser`, then `E2E_BASE_URL=http://localhost:5081 bunx playwright test` (Playwright runs on Node: under `--bun` its request fixture fails on responses that set cookies) |
 
 Design: `design/layout.md` (layout and screens), `docs/contracts/design-tokens-v1.md` (theme tokens), `src/themes/` (themes; `index.css` picks one). Parity with the former Angular app: `PARITY.md`.
