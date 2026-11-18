@@ -160,9 +160,8 @@ public static class LookoutPages
             Section(s, "database", "Database", s.Database is { } db
                 ? [new("Size", db.SizeBytes, "bytes"), new("Latest migration", db.LatestMigration, "code")]
                 : null),
-            Section(s, "disk", "Disk", s.Disk is { } disk
-                ? [new("Free", disk.FreeBytes, "bytes", Hint: Pct(disk.FreeBytes, disk.TotalBytes)), new("Total", disk.TotalBytes, "bytes")]
-                : null),
+            Section(s, "disks", "Disks", s.Disks?.Select(d =>
+                new StatItem(d.Mount, d.FreeBytes, "bytes", DiskTone(d), $"of {Bytes(d.TotalBytes)} ({Pct(d.FreeBytes, d.TotalBytes)} free)")).ToList()),
             Section(s, "backup", "Newest pre-deploy dump", s.Backup is { } backup
                 ? [new("File", backup.Name, "code"), new("Written", Iso(backup.At), "time"), new("Age", backup.AgeHours, "hours"), new("Size", backup.SizeBytes, "bytes")]
                 : null),
@@ -200,10 +199,13 @@ public static class LookoutPages
         if (overdue > 0) alerts.Add(new($"{N(overdue.Value)} reminders overdue", "bad", "reminders"));
         alerts.AddRange(failedCi.Select(run => new Alert($"CI failed on {run.Branch}", "bad", "system")));
         if (statusError is not null) alerts.Add(new($"Host status: {statusError}", "warn", "system"));
+        var lowDisks = (system.Disks ?? []).Where(d => DiskTone(d) is not null).ToList();
+        alerts.AddRange(lowDisks.Select(d => new Alert($"Disk {d.Mount}: {Pct(d.FreeBytes, d.TotalBytes)} free", DiskTone(d)!, "system")));
 
-        var bad = databaseFailed || system.Services.Any(x => !x.Ok) || overdue > 0 || failedCi.Any(run => run.Branch == "main");
+        var bad = databaseFailed || system.Services.Any(x => !x.Ok) || overdue > 0 || failedCi.Any(run => run.Branch == "main")
+            || lowDisks.Any(d => DiskTone(d) == "bad");
         var generatedAt = new[] { overview?.GeneratedAt, reminders?.GeneratedAt, feedback is null ? null : now, system.GeneratedAt }.Where(t => t is not null).Min()!.Value;
-        return new(generatedAt, bad ? "bad" : statusError is not null ? "warn" : "ok",
+        return new(generatedAt, bad ? "bad" : statusError is not null || lowDisks.Count > 0 ? "warn" : "ok",
         [
             new("Users", overview?.Users),
             new("Active 7 days", overview?.Active7),
@@ -248,7 +250,7 @@ public static class LookoutPages
 
     private static string Unavailable(SystemReport s, string section)
     {
-        var reason = s.Errors.GetValueOrDefault(section) ?? (section is "disk" or "backup" or "deployed" ? s.Errors.GetValueOrDefault("status") : null);
+        var reason = s.Errors.GetValueOrDefault(section) ?? (section is "disks" or "backup" or "deployed" ? s.Errors.GetValueOrDefault("status") : null);
         return "Unavailable" + (reason is null ? "" : $": {reason}");
     }
 
@@ -267,6 +269,19 @@ public static class LookoutPages
 
     private static string Pct(double part, double whole) =>
         whole > 0 ? Math.Round(part * 100.0 / whole, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture) + "%" : "0%";
+
+    /// <summary><c>bad</c> below 5 % free, <c>warn</c> below 10 %, else null (as the web <c>diskTone</c>).</summary>
+    public static string? DiskTone(HostDisk disk) =>
+        disk.TotalBytes <= 0 ? null : (double)disk.FreeBytes / disk.TotalBytes is var ratio && ratio < 0.05 ? "bad" : ratio < 0.1 ? "warn" : null;
+
+    private static string Bytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double value = bytes;
+        var i = 0;
+        for (; value >= 1024 && i < units.Length - 1; i++) value /= 1024;
+        return value.ToString(i == 0 || value >= 100 ? "0" : "0.0", CultureInfo.InvariantCulture) + " " + units[i];
+    }
 
     private static string N(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 

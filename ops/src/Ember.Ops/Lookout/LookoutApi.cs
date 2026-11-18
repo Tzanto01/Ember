@@ -71,7 +71,7 @@ public static class LookoutApi
         lookout.MapGet("/widgets/{w}/cards/{card}/comments", async (string w, string card, OpsDatabases db, CancellationToken ct) =>
         {
             if (w != BoardId) return NoWidget();
-            if (CardId(card) is not { } id) return NoFeedback();
+            if (CardId(card) is not { } id || !await FeedbackStore.ExistsAsync(db.Ember, id, ct)) return NoFeedback();
             return Results.Ok((await FeedbackStore.CommentsAsync(db.Ops, id, ct)).Select(ToLookout).ToList());
         });
 

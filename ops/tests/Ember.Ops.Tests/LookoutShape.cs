@@ -14,14 +14,14 @@ public static class LookoutShape
         ["reminders"] = ["tiles", "open", "sent", "discord", "second", "push", "overdue"],
         ["feedback"] = ["feedback"],
         ["notices"] = ["notices"],
-        ["system"] = ["services", "database", "disk", "backup", "deployed", "apk", "live-notice", "ci"],
+        ["system"] = ["services", "database", "disks", "backup", "deployed", "apk", "live-notice", "ci"],
     };
 
     private static readonly Dictionary<string, string> Types = new()
     {
         ["tiles"] = "stats", ["new-users"] = "bars", ["check-ins"] = "bars", ["journal"] = "bars", ["low-days"] = "bars", ["grace"] = "panel",
         ["fireside"] = "panel", ["let-go"] = "panel", ["open"] = "bars", ["sent"] = "bars", ["discord"] = "stats", ["second"] = "panel", ["push"] = "stats",
-        ["overdue"] = "stats", ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disk"] = "stats",
+        ["overdue"] = "stats", ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
         ["backup"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["live-notice"] = "list", ["ci"] = "ci",
     };
 
