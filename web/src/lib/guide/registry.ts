@@ -163,6 +163,16 @@ export const guides: Record<GuideScreen, Guide> = {
         target: 'pause',
         covers: ['web/src/components/habits/habit-edit-sections.tsx', core, plan],
       },
+      {
+        id: 'habit-let-go',
+        questionKey: 'guide.habit.letGo.q',
+        answerKey: 'guide.habit.letGo.a',
+        covers: [
+          'web/src/components/letgo/letgo-section.tsx',
+          'web/src/components/habits/habit-fields.tsx',
+          'src/Ember.Core/Services/HabitService.LetGo.cs',
+        ],
+      },
     ],
   },
   routines: {
@@ -297,6 +307,12 @@ export const guides: Record<GuideScreen, Guide> = {
         answerKey: 'guide.habitsDays.timezone.a',
         target: 'timezone',
         covers: ['src/Ember.Core/Services/TimezoneHelper.cs', plan],
+      },
+      {
+        id: 'habits-days-slip',
+        questionKey: 'guide.habitsDays.slip.q',
+        answerKey: 'guide.habitsDays.slip.a',
+        covers: ['web/src/components/letgo/slip-sheet.tsx', 'src/Ember.Core/Services/HabitService.LetGo.cs'],
       },
     ],
   },

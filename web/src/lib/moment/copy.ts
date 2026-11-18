@@ -77,6 +77,9 @@ export const momentCopy = {
     get replaying() {
       return t('moment.tile.replaying');
     },
+    get craving() {
+      return t('moment.tile.craving');
+    },
     get unsure() {
       return t('moment.tile.unsure');
     },

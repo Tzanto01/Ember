@@ -1,5 +1,5 @@
 /** What the user named in the moment flow (contract companion-v1). */
-export type MomentState = 'rejected' | 'overloaded' | 'racing' | 'replaying' | 'unsure';
+export type MomentState = 'rejected' | 'overloaded' | 'racing' | 'replaying' | 'craving' | 'unsure';
 
 /** One step of a practice: plain text, a paced-breathing player, or a timer. */
 export type PracticeStep =

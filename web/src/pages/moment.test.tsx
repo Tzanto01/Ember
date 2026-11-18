@@ -116,6 +116,18 @@ describe('MomentPage', () => {
     expect(router.state.location.pathname).toBe('/');
   }, 15_000);
 
+  it('offers the craving tile and starts urge surfing for it, without an account', async () => {
+    localMode.mode.set('local');
+    open('off');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: "Name what's happening" }));
+    await heading("What's happening?");
+    await user.click(screen.getByRole('button', { name: 'Craving, a strong urge' }));
+    await heading('How strong is it?');
+    await user.click(screen.getByRole('button', { name: 'Skip' }));
+    await heading(/^Surf the urge, step 1 of 7/);
+  });
+
   it('keeps the draft and explains when saving fails offline', async () => {
     auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
     const { journal } = open('unlocked');

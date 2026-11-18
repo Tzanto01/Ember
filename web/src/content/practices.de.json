@@ -168,5 +168,37 @@
     ],
     "a11y": { "motion": "none", "languageLevel": "plain" },
     "basis": "labelling and worry postponement"
+  },
+  {
+    "id": "urge-surfing",
+    "version": 1,
+    "title": "Den Drang vorbeiziehen lassen",
+    "states": ["craving"],
+    "type": "urge-surfing",
+    "minutes": 4,
+    "steps": [
+      {
+        "kind": "text",
+        "text": "Ein Verlangen ist wie eine Welle. Es baut sich auf, erreicht seinen Höhepunkt und ebbt wieder ab, auch wenn du nichts tust."
+      },
+      {
+        "kind": "text",
+        "text": "Spür, wo du den Drang in deinem Körper merkst. Im Mund, in der Brust, in den Händen, im Bauch? Nimm es einfach wahr."
+      },
+      { "kind": "breath", "inhale": 4, "hold": 0, "exhale": 6, "rounds": 4 },
+      {
+        "kind": "timer",
+        "seconds": 90,
+        "text": "Beobachte den Drang 90 Sekunden lang. Spür, wie er steigt, sich verändert und wieder abflaut. Du musst ihm nicht nachgeben."
+      },
+      {
+        "kind": "text",
+        "text": "Spür nach, wie der Drang jetzt ist. Was auch immer er gerade tut, ist okay. Er zieht vorbei, auch wenn er später wiederkommt."
+      },
+      { "kind": "text", "text": "Wenn es sich zu viel anfühlt, kannst du jederzeit aufhören." },
+      { "kind": "text", "text": "Wenn dir schwindlig wird, atme einfach normal." }
+    ],
+    "a11y": { "motion": "gentle", "languageLevel": "plain" },
+    "basis": "urge surfing"
   }
 ]
