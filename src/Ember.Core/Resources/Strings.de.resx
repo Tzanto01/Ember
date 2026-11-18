@@ -47,6 +47,9 @@ Wann immer du so weit bist, deine Habits warten hier auf dich.</value>
     <value>{1}: {0} Tage frei</value>
   </data>
   <data name="letgo.reminder" xml:space="preserve">
-    <value>Ein ruhiger Check-in für {0}. Falls heute etwas war, kannst du es in Ember festhalten.</value>
+    <value>Ein leiser Check-in für {0}. Falls heute etwas war, kannst du es in Ember notieren.</value>
+  </data>
+  <data name="letgo.reminder.nameless" xml:space="preserve">
+    <value>Ein leiser Check-in. Falls heute etwas war, kannst du es in Ember notieren.</value>
   </data>
 </root>

@@ -49,4 +49,7 @@ Whenever you're ready, your habits are here waiting.</value>
   <data name="letgo.reminder" xml:space="preserve">
     <value>A quiet check-in for {0}. If anything happened today, you can note it in Ember.</value>
   </data>
+  <data name="letgo.reminder.nameless" xml:space="preserve">
+    <value>A quiet check-in. If anything happened today, you can note it in Ember.</value>
+  </data>
 </root>
