@@ -1,5 +1,6 @@
 import { matchPath } from 'react-router';
 import type { en } from '../i18n';
+import { firesideLimits } from '../fireside-limits';
 import { limits } from '../local/limits';
 import { graceOptions } from '../models';
 
@@ -45,7 +46,8 @@ export type GuideScreen =
   | 'reminders'
   | 'habitsDays'
   | 'appearance'
-  | 'privacy';
+  | 'privacy'
+  | 'fireside';
 
 /** Every guide, by screen. */
 export const guides: Record<GuideScreen, Guide> = {
@@ -371,6 +373,36 @@ export const guides: Record<GuideScreen, Guide> = {
       },
     ],
   },
+  fireside: {
+    nameKey: 'fireside.title',
+    ledeKey: 'guide.fireside.lede',
+    entries: [
+      {
+        id: 'fireside-what',
+        questionKey: 'guide.fireside.what.q',
+        answerKey: 'guide.fireside.what.a',
+        values: { friends: firesideLimits.friends },
+        covers: [
+          'web/src/pages/fireside.tsx',
+          'web/src/components/fireside/fireside-settings.tsx',
+          'web/src/lib/fireside-limits.ts',
+        ],
+      },
+      {
+        id: 'fireside-sees',
+        questionKey: 'guide.fireside.sees.q',
+        answerKey: 'guide.fireside.sees.a',
+        covers: ['web/src/pages/fireside-friend.tsx', 'src/Ember.Core/Services/FiresideService.cs'],
+      },
+      {
+        id: 'fireside-codes',
+        questionKey: 'guide.fireside.codes.q',
+        answerKey: 'guide.fireside.codes.a',
+        values: { length: firesideLimits.codeLength, minutes: firesideLimits.codeMinutes },
+        covers: ['web/src/components/fireside/add-friend.tsx', 'src/Ember.Core/Services/FiresideService.cs'],
+      },
+    ],
+  },
 };
 
 /**
@@ -391,6 +423,9 @@ export const guideRoutes: { path: string; screen: GuideScreen | null }[] = [
   { path: '/settings/habits', screen: 'habitsDays' },
   { path: '/settings/appearance', screen: 'appearance' },
   { path: '/settings/privacy', screen: 'privacy' },
+  { path: '/settings/people', screen: 'fireside' },
+  { path: '/fireside', screen: 'fireside' },
+  { path: '/fireside/:id', screen: 'fireside' },
 ];
 
 /** The guide for the screen at `pathname`, or null when that screen has none. */

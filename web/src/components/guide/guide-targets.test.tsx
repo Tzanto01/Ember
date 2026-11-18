@@ -7,6 +7,7 @@ import { findGuideTarget } from '@/lib/guide/highlight';
 import { type GuideScreen, guides } from '@/lib/guide/registry';
 import { api, auth, localMode } from '@/lib/services';
 import { me, mockFetch } from '@/lib/test-support';
+import FiresidePage from '@/pages/fireside';
 import HabitEditPage from '@/pages/habit-edit';
 import HistoryPage from '@/pages/history';
 import RoutinesPage from '@/pages/routines';
@@ -32,6 +33,7 @@ const screens: Record<GuideScreen, Screen> = {
   habitsDays: { mode: 'account', path: '/settings/:group?', url: () => '/settings/habits', Page: SettingsPage },
   appearance: { mode: 'account', path: '/settings/:group?', url: () => '/settings/appearance', Page: SettingsPage },
   privacy: { mode: 'account', path: '/settings/:group?', url: () => '/settings/privacy', Page: SettingsPage },
+  fireside: { mode: 'account', path: '/fireside', url: () => '/fireside', Page: FiresidePage },
 };
 
 describe('guide "Show me" targets', { timeout: 15_000 }, () => {

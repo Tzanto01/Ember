@@ -28,6 +28,9 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
     public DbSet<ReminderPhone> ReminderPhones => Set<ReminderPhone>();
     public DbSet<PushReminder> PushReminders => Set<PushReminder>();
     public DbSet<FeedbackImage> FeedbackImages => Set<FeedbackImage>();
+    public DbSet<FiresideCode> FiresideCodes => Set<FiresideCode>();
+    public DbSet<FiresideLink> FiresideLinks => Set<FiresideLink>();
+    public DbSet<Warmth> Warmth => Set<Warmth>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -269,6 +272,56 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
             entity.Property(i => i.Id).ValueGeneratedNever();
             entity.Property(i => i.ContentType).HasMaxLength(16).IsRequired();
             entity.Property(i => i.Data).IsRequired();
+        });
+
+        modelBuilder.Entity<User>().Property(u => u.FiresideName).HasMaxLength(32);
+
+        modelBuilder.Entity<FiresideCode>(entity =>
+        {
+            entity.HasKey(c => c.UserId);
+            entity.Property(c => c.CodeHash).HasMaxLength(64).IsRequired();
+            entity.Property(c => c.CodeProtected).HasMaxLength(512);
+            entity.HasIndex(c => c.CodeHash).IsUnique();
+            entity.HasIndex(c => c.ExpiresAtUtc);
+            entity.HasOne<User>()
+                  .WithOne()
+                  .HasForeignKey<FiresideCode>(c => c.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FiresideLink>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+            entity.Property(l => l.KnownName).HasMaxLength(32).IsRequired();
+            entity.HasIndex(l => new { l.OwnerId, l.FriendId }).IsUnique();
+            entity.HasIndex(l => l.FriendId);
+            entity.HasIndex(l => l.JoinNotifyPending).HasFilter("\"JoinNotifyPending\"");
+            entity.HasOne<User>()
+                  .WithMany()
+                  .HasForeignKey(l => l.OwnerId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(l => l.Friend)
+                  .WithMany()
+                  .HasForeignKey(l => l.FriendId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Warmth>(entity =>
+        {
+            entity.HasKey(w => w.Id);
+            entity.Property(w => w.Message).HasMaxLength(16).IsRequired();
+            entity.HasIndex(w => new { w.ToUserId, w.FromUserId });
+            entity.HasIndex(w => new { w.FromUserId, w.ToUserId, w.SentAtUtc });
+            entity.HasIndex(w => w.SentAtUtc);
+            entity.HasIndex(w => w.NotifyPending).HasFilter("\"NotifyPending\"");
+            entity.HasOne<User>()
+                  .WithMany()
+                  .HasForeignKey(w => w.FromUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>()
+                  .WithMany()
+                  .HasForeignKey(w => w.ToUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

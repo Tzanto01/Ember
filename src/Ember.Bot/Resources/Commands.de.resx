@@ -123,4 +123,19 @@
   <data name="timezone.show.description" xml:space="preserve">
     <value>Zeig deine aktuelle Zeitzone</value>
   </data>
+  <data name="fireside.description" xml:space="preserve">
+    <value>Schick und bekomm Wärme von Leuten am Lagerfeuer</value>
+  </data>
+  <data name="fireside.code.description" xml:space="preserve">
+    <value>Hol dir einen Code, mit dem jemand an dein Lagerfeuer kommt</value>
+  </data>
+  <data name="fireside.join.description" xml:space="preserve">
+    <value>Komm mit einem Code an ein Lagerfeuer</value>
+  </data>
+  <data name="fireside.join.code.description" xml:space="preserve">
+    <value>Der Code, den du bekommen hast</value>
+  </data>
+  <data name="fireside.send.description" xml:space="preserve">
+    <value>Schick jemandem etwas Wärme</value>
+  </data>
 </root>

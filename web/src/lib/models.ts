@@ -197,6 +197,8 @@ export interface MergePreview {
   dayMarks: number;
   habitNames: string[];
   kept: { timezone: string; graceDaysPerWeek: number };
+  /** v1.22: Fireside friends that won't come along. */
+  firesideDropped?: number;
 }
 
 /** `GET /api/stats/weekly`, the 7 days ending yesterday. */

@@ -647,6 +647,15 @@ Habits are one part of it: no guilt, no pressure.</value>
     <value>`/export`: get your habits, check-ins and settings by DM
 `/privacy delete`: permanently delete all your Ember data</value>
   </data>
+  <data name="help.fireside.title" xml:space="preserve">
+    <value>Fireside</value>
+  </data>
+  <data name="help.fireside.body" xml:space="preserve">
+    <value>`/fireside code`: get a code a friend can use to join your fireside
+`/fireside join`: join a friend's fireside with their code
+`/fireside send`: send a friend some warmth
+Turn Fireside on in the Ember app or on the web.</value>
+  </data>
   <data name="help.feedback.title" xml:space="preserve">
     <value>Feedback</value>
   </data>
@@ -1323,5 +1332,63 @@ Ember then offers to move your habits from here into that account. No codes need
   </data>
   <data name="time.suggested" xml:space="preserve">
     <value>hh:mm tt</value>
+  </data>
+  <data name="fireside.off" xml:space="preserve">
+    <value>Fireside isn't on for your account. Turn it on and choose your name in the Ember app or on the web.</value>
+  </data>
+  <data name="fireside.code" xml:space="preserve">
+    <value>Your code: **{0}**
+Works once, for 30 minutes.</value>
+  </data>
+  <data name="fireside.joined" xml:space="preserve">
+    <value>You're at {0}'s fireside now. {0} sees your name, nothing else.</value>
+  </data>
+  <data name="fireside.invalid-code" xml:space="preserve">
+    <value>That code didn't work. Ask for a new one.</value>
+  </data>
+  <data name="fireside.too-many" xml:space="preserve">
+    <value>Too many tries. Try again in a while.</value>
+  </data>
+  <data name="fireside.full" xml:space="preserve">
+    <value>One of you already has 20 friends at the fireside.</value>
+  </data>
+  <data name="fireside.unavailable" xml:space="preserve">
+    <value>That isn't available anymore.</value>
+  </data>
+  <data name="fireside.no-friends" xml:space="preserve">
+    <value>No one is at your fireside yet. Share a code with /fireside code.</value>
+  </data>
+  <data name="fireside.pick-friend" xml:space="preserve">
+    <value>Who should get some warmth?</value>
+  </data>
+  <data name="fireside.pick-friend.placeholder" xml:space="preserve">
+    <value>Pick a friend</value>
+  </data>
+  <data name="fireside.pick-message" xml:space="preserve">
+    <value>Which message?</value>
+  </data>
+  <data name="fireside.pick-message.placeholder" xml:space="preserve">
+    <value>Pick a message</value>
+  </data>
+  <data name="fireside.sent" xml:space="preserve">
+    <value>Sent.</value>
+  </data>
+  <data name="fireside.limit" xml:space="preserve">
+    <value>You already sent them warmth today.</value>
+  </data>
+  <data name="fireside.message.thinking" xml:space="preserve">
+    <value>Thinking of you</value>
+  </data>
+  <data name="fireside.message.proud" xml:space="preserve">
+    <value>Proud of you</value>
+  </data>
+  <data name="fireside.message.easy" xml:space="preserve">
+    <value>Go easy on yourself today</value>
+  </data>
+  <data name="fireside.message.notAlone" xml:space="preserve">
+    <value>You're not alone</value>
+  </data>
+  <data name="fireside.message.blanket" xml:space="preserve">
+    <value>Sending a warm blanket</value>
   </data>
 </root>

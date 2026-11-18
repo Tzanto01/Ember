@@ -155,4 +155,22 @@ Tipp bei allem, was du geschafft hast, auf Erledigt. Kein Druck 💙</value>
   <data name="missedday.dismiss" xml:space="preserve">
     <value>Passt schon, weiter</value>
   </data>
+  <data name="fireside.notify.warmth" xml:space="preserve">
+    <value>{0} schickt dir Wärme</value>
+  </data>
+  <data name="fireside.notify.warmth.unnamed" xml:space="preserve">
+    <value>Jemand schickt dir Wärme</value>
+  </data>
+  <data name="fireside.notify.joined" xml:space="preserve">
+    <value>{0} sitzt jetzt an deinem Lagerfeuer</value>
+  </data>
+  <data name="fireside.notify.joined.unnamed" xml:space="preserve">
+    <value>Jemand sitzt jetzt an deinem Lagerfeuer</value>
+  </data>
+  <data name="fireside.send-back" xml:space="preserve">
+    <value>Wärme zurückschicken</value>
+  </data>
+  <data name="fireside.okay" xml:space="preserve">
+    <value>Okay</value>
+  </data>
 </root>

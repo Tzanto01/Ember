@@ -35,6 +35,7 @@ public static class ApiApp
         services.AddDbContext<EmberDbContext>(options => options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<HabitService>();
+        services.AddScoped<FiresideService>();
 
         services.AddProblemDetails(options => options.CustomizeProblemDetails = Problems.Customize);
         services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
@@ -188,6 +189,7 @@ public static class ApiApp
         signedIn.MapJournal();
         signedIn.MapHelps();
         signedIn.MapStats();
+        signedIn.MapFireside();
 
         api.MapHabitTemplates();
         api.MapPush();

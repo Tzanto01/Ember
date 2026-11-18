@@ -64,9 +64,10 @@ public sealed class WebPushReminderChannel : IReminderChannel
 
     /// <summary>
     /// The notification payload with <paramref name="body"/>, plus the "Done" action (labelled in <paramref name="t"/>, English when null)
-    /// when <paramref name="doneToken"/> is set and the <paramref name="tag"/> when set.
+    /// when <paramref name="doneToken"/> is set and the <paramref name="tag"/> when set; a click opens <paramref name="url"/>.
     /// </summary>
-    internal static string BuildPayload(string body, string? doneToken = null, string? tag = null, Texts? t = null) => JsonSerializer.Serialize(new
+    internal static string BuildPayload(string body, string? doneToken = null, string? tag = null, Texts? t = null, string url = "/today")
+        => JsonSerializer.Serialize(new
     {
         notification = new
         {
@@ -76,7 +77,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
             actions = doneToken is null ? null : new[] { new { action = "done", title = (t ?? BotTexts.English).Get("reminder.done") } },
             data = new
             {
-                onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url = "/today" } },
+                onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url } },
                 doneToken,
             },
         },
@@ -190,6 +191,22 @@ public sealed class WebPushReminderChannel : IReminderChannel
                 .Where(s => subscriptionIds.Contains(s.Id)).ToList();
         var payload = ClearPayload(tag, BotTexts.For(language));
         await SendAsync(userId, subscriptions, _ => payload, cancellationToken);
+    }
+
+    /// <summary>
+    /// Sends a plain notification (<paramref name="namedBody"/> to subscriptions that show names, else <paramref name="body"/>) with
+    /// <paramref name="tag"/>, opening <paramref name="url"/>, to the user's push subscriptions in <paramref name="subscriptionIds"/>.
+    /// True when at least one accepted it.
+    /// </summary>
+    public async Task<bool> SendNoticeAsync(Guid userId, IReadOnlyCollection<int> subscriptionIds, string body, string namedBody,
+        string tag, string url, CancellationToken cancellationToken = default)
+    {
+        List<Core.Models.PushSubscription> subscriptions;
+        using (var scope = _scopes.CreateScope())
+            subscriptions = (await scope.ServiceProvider.GetRequiredService<HabitService>().GetPushSubscriptionsAsync(userId, cancellationToken))
+                .Where(s => subscriptionIds.Contains(s.Id)).ToList();
+        if (subscriptions.Count == 0) return false;
+        return await SendAsync(userId, subscriptions, s => BuildPayload(s.ShowNames ? namedBody : body, tag: tag, url: url), cancellationToken);
     }
 
     /// <summary>Pushes each subscription its payload; deletes ones the push service reports gone. True when at least one accepted it.</summary>
