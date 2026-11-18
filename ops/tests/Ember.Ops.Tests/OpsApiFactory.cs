@@ -21,6 +21,8 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     public const string UntrustedIp = "10.9.9.9";
     public const string Login = "operator@example.test";
     public const string Capability = "example.test/cap/ember-ops";
+    public const string HubIp = "10.7.7.7";
+    public const string LookoutKey = "synthetic-lookout-key-for-tests-0123456789";
 
     private readonly DatabaseFixture _database;
     private readonly string[] _trusted;
@@ -29,14 +31,20 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
     private readonly string? _allowedHosts;
     private readonly HttpMessageHandler? _notices;
     private readonly string _noticesTokenFile;
+    private readonly string? _hubAddress;
+    private readonly string _lookoutKeyFile;
     private readonly string _webRoot = Directory.CreateTempSubdirectory("ember-ops-web-").FullName;
 
     public OpsApiFactory(DatabaseFixture database, string[]? trusted = null, string[]? logins = null, string? capability = Capability, string? allowedHosts = null,
-        HttpMessageHandler? notices = null, string? noticesToken = "synthetic-test-token\n")
+        HttpMessageHandler? notices = null, string? noticesToken = "synthetic-test-token\n",
+        string? hubAddress = null, string? lookoutKey = null)
     {
         (_database, _trusted, _logins, _capability, _allowedHosts, _notices) = (database, trusted ?? [TrustedIp], logins ?? [Login], capability, allowedHosts, notices);
         _noticesTokenFile = Path.Combine(_webRoot, "notices-token");
         if (noticesToken is not null) File.WriteAllText(_noticesTokenFile, noticesToken);
+        _hubAddress = hubAddress;
+        _lookoutKeyFile = Path.Combine(_webRoot, "lookout-key");
+        if (lookoutKey is not null) File.WriteAllText(_lookoutKeyFile, lookoutKey);
         File.WriteAllText(Path.Combine(_webRoot, "index.html"), "<html><body>ember-ops-spa</body></html>");
     }
 
@@ -51,6 +59,11 @@ public sealed class OpsApiFactory : WebApplicationFactory<Program>
             for (var i = 0; i < _logins.Length; i++) settings[$"Ops:Access:AllowedLogins:{i}"] = _logins[i];
             if (_capability is not null) settings["Ops:Access:AppCapability"] = _capability;
             if (_allowedHosts is not null) settings["AllowedHosts"] = _allowedHosts;
+            if (_hubAddress is not null)
+            {
+                settings["Ops:Lookout:HubAddress"] = _hubAddress;
+                settings["Ops:Lookout:KeyFile"] = _lookoutKeyFile;
+            }
             if (_notices is not null)
             {
                 settings["Ops:NoticesUrl"] = FakeNoticesUpstream.ReadUrl;
