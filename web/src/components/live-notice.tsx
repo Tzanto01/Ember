@@ -31,9 +31,10 @@ export function LiveNoticeBanner() {
 
 /** The active maintenance notice for the "can't be reached" state, shown even when dismissed; else nothing. */
 export function MaintenanceNotice() {
+  const { t } = useTranslation();
   const notice = activeNotice(useStore(liveNotices), { kind: 'maintenance' });
   return notice ? (
-    <Notice tone="info">
+    <Notice tone="info" aria-label={t('liveNotice.label')}>
       <p className="whitespace-pre-line">{noticeText(notice, currentLanguage())}</p>
     </Notice>
   ) : null;

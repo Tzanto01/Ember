@@ -20,19 +20,25 @@ export const noticeRefreshMs = 10 * 60 * 1000;
 const dismissedKey = 'ember.dismissedNotices';
 const maxShown = 280;
 const unreachableGapMs = 60_000;
+const foregroundGapMs = 30_000;
 
 const text = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 const when = (value: unknown): value is string | undefined =>
   value === undefined || (typeof value === 'string' && !Number.isNaN(Date.parse(value)));
 
-/** The valid entries of a `/notices.json` body, in its order; a wrong shape gives none, unknown fields are ignored. */
+/**
+ * The valid entries of a `/notices.json` body, in its order; a wrong shape gives none, unknown fields are ignored and a
+ * null `showFrom` or `showUntil` counts as absent.
+ */
 export function parseNotices(body: unknown): LiveNotice[] {
   const list = body && typeof body === 'object' ? (body as { notices?: unknown }).notices : null;
   if (!Array.isArray(list)) return [];
   return list.flatMap((entry: unknown): LiveNotice[] => {
     if (!entry || typeof entry !== 'object') return [];
-    const { id, kind, showFrom, showUntil, en, de } = entry as Record<string, unknown>;
+    const { id, kind, en, de } = entry as Record<string, unknown>;
+    const showFrom = (entry as Record<string, unknown>)['showFrom'] ?? undefined;
+    const showUntil = (entry as Record<string, unknown>)['showUntil'] ?? undefined;
     if (
       !text(id) ||
       (kind !== 'maintenance' && kind !== 'info') ||
@@ -107,9 +113,7 @@ export function dismissNotice(id: string): void {
   dismissedNotices.set(ids);
   try {
     localStorage.setItem(dismissedKey, JSON.stringify(ids));
-  } catch {
-    return;
-  }
+  } catch {}
 }
 
 let inFlight: Promise<void> | null = null;
@@ -117,11 +121,12 @@ let lastFetch = -Infinity;
 
 /**
  * Fetches `/notices.json` from the API base into {@link liveNotices} (empty when that fails or is invalid). Joins a
- * fetch already running; skips when the last one started less than `minGapMs` ago.
+ * fetch already running; skips when the last one started less than `minGapMs` ago (never after the clock went back).
  */
 export function refreshNotices(minGapMs = 0): Promise<void> {
   if (inFlight) return inFlight;
-  if (Date.now() - lastFetch < minGapMs) return Promise.resolve();
+  const since = Date.now() - lastFetch;
+  if (since >= 0 && since < minGapMs) return Promise.resolve();
   lastFetch = Date.now();
   inFlight = fetch(`${env.apiBase}/notices.json`, {
     cache: 'no-cache',
@@ -145,18 +150,18 @@ export function refreshNoticesUnreachable(): void {
 
 /**
  * Fetches notices now, every {@link noticeRefreshMs}, and when the app comes back to the foreground (the Capacitor
- * `resume` in the Android app, `visibilitychange` on the web).
+ * `resume` in the Android app, `visibilitychange` on the web) at most every 30 seconds.
  */
 export function startNotices(native: boolean): void {
   void refreshNotices();
   setInterval(() => void refreshNotices(), noticeRefreshMs);
   if (native) {
     void import('@capacitor/app')
-      .then(({ App }) => App.addListener('resume', () => void refreshNotices()))
+      .then(({ App }) => App.addListener('resume', () => void refreshNotices(foregroundGapMs)))
       .catch(() => undefined);
     return;
   }
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void refreshNotices();
+    if (document.visibilityState === 'visible') void refreshNotices(foregroundGapMs);
   });
 }

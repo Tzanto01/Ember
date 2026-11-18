@@ -5,6 +5,7 @@ import {
   noticeText,
   parseNotices,
   refreshNotices,
+  startNotices,
   liveNotices,
 } from './notices';
 import { mockFetch } from './test-support';
@@ -38,6 +39,10 @@ describe('parseNotices', () => {
       { ...maintenance, showUntil: '2026-11-18T14:00:00Z' },
       info,
     ]);
+  });
+
+  it('reads a null window bound as no bound', () => {
+    expect(parseNotices({ notices: [{ ...info, showFrom: null, showUntil: null }] })).toEqual([info]);
   });
 
   it('gives nothing for a missing or wrongly shaped file', () => {
@@ -93,6 +98,29 @@ describe('refreshNotices', () => {
     (await mock.next('GET', '/notices.json')).fail();
     await second;
     expect(liveNotices.get()).toEqual([]);
+  });
+});
+
+describe('startNotices', () => {
+  it('asks again when the web app comes back to the foreground, at most every 30 seconds', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-18T12:00:00Z'), toFake: ['Date'] });
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const mock = mockFetch();
+    const shown = () => document.dispatchEvent(new Event('visibilitychange'));
+
+    startNotices(false);
+    (await mock.next('GET', '/notices.json')).respond(200, { notices: [info] });
+    await vi.waitFor(() => expect(liveNotices.get()).toEqual([info]));
+
+    vi.setSystemTime(new Date('2026-11-18T12:00:20Z'));
+    shown();
+    expect(mock.pending).toEqual([]);
+
+    vi.setSystemTime(new Date('2026-11-18T12:00:31Z'));
+    shown();
+    (await mock.next('GET', '/notices.json')).respond(200, { notices: [] });
+    await vi.waitFor(() => expect(liveNotices.get()).toEqual([]));
+    vi.useRealTimers();
   });
 });
 

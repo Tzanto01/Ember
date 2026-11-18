@@ -83,5 +83,5 @@ test('the "can\'t be reached" sign-in state shows the maintenance notice even af
 
   await page.goto('/today');
   await expect(page.getByRole('heading', { name: "Ember can't be reached right now" })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText(noticeText);
+  await expect(page.getByRole('status', { name: 'Notice from Ember' })).toContainText(noticeText);
 });
