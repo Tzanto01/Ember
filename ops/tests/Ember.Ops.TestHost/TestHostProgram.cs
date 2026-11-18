@@ -71,12 +71,13 @@ public static class TestHostProgram
     public static Task WriteStatusAsync(string path)
     {
         var now = DateTime.UtcNow;
-        var status = new HostStatus(now, new(120L << 30, 500L << 30), new("emberdb-20261118-120000.dump", now.AddHours(-6), 3_456_789),
+        var status = new HostStatus(now, null, new("emberdb-20261118-120000.dump", now.AddHours(-6), 3_456_789),
             new("8e324d4synthetic", "f9ff73fsynthetic"),
             [
                 new("ember-ember-1", "running", "none"), new("ember-api-1", "running", "healthy"),
                 new("ember-staging-api-1", "running", "unhealthy"), new("homeserver-postgres", "running", "healthy"),
-            ]);
+            ],
+            [new("/", 9L << 30, 110L << 30), new("/srv/data", 3_400L << 30, 3_600L << 30)]);
         return File.WriteAllTextAsync(path, JsonSerializer.Serialize(status, JsonSerializerOptions.Web));
     }
 

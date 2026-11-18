@@ -12,7 +12,7 @@ It reads the production database `emberdb` as the role `ember_dashboard`, which 
 | Reminders | Reminders still open per day and channel, sent reminders per day from the dashboard's own snapshots, Discord DMs on, failing and paused, second reminders, push subscriptions and phones, overdue reminders |
 | Feedback | Kanban board with the Ember statuses (open, planned, implemented, released, declined). Drag a card or use its Move menu to change the status. Card details show the description, pictures, platform, version, send time and whether it was sent anonymously. Comments are kept per card. Filter by status and platform, search title and description |
 | Notices | Publish a live notice (info or maintenance, English and German, up to 280 characters each, optional show from and until in your local time) with a preview like the app banner and a confirm step. Lists live, scheduled and ended notices with End now and Delete. Each change is written to `NoticeLog` in `emberops` with the author |
-| System | Container states, whether reminders are advancing, `emberdb` size and latest migration, disk free, newest pre-deploy dump, deployed SHA of production and staging, CI of `main`, `test` and `v2/next`, the live notice, the published APK version |
+| System | Container states, whether reminders are advancing, `emberdb` size and latest migration, free space per disk, newest pre-deploy dump, deployed SHA of production and staging, CI of `main`, `test` and `v2/next`, the live notice, the published APK version |
 
 The stat pages refresh every 30 seconds. The server computes counters at most every 20 seconds and the 90-day and 12-week series at most every 5 minutes, shared by all viewers.
 
@@ -82,7 +82,7 @@ Keep these true, or the trusted proxy address means less:
 
    Both scripts can run again safely. Re-run `ember_dashboard.sql` after an Ember release that adds tables or columns the dashboard reads, then restart the container.
 3. Checkout: `git clone --branch v2/next-ops <Ember repo> ~/ember-ops`.
-4. Host status timer: it writes `~/.local/state/ember-ops/status.json` every minute (disk, newest dump, deployed SHAs, container states; it needs `jq`). The container reads only that folder, read-only.
+4. Host status timer: it writes `~/.local/state/ember-ops/status.json` every minute (free space of every local disk, newest dump, deployed SHAs, container states; it needs `jq`). The container reads only that folder, read-only.
 
    ```bash
    mkdir -p ~/.config/systemd/user

@@ -105,7 +105,7 @@ export interface System {
   statusWrittenAt: Timestamp | null;
   services: Service[];
   database: { sizeBytes: number; latestMigration: string | null } | null;
-  disk: { freeBytes: number; totalBytes: number } | null;
+  disks: { mount: string; freeBytes: number; totalBytes: number }[] | null;
   /** Newest pre-deploy dump; its age is information, not a failure. */
   backup: { name: string; at: Timestamp; ageHours: number; sizeBytes: number } | null;
   deployed: { production: string | null; staging: string | null } | null;
