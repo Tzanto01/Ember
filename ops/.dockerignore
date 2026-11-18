@@ -1,0 +1,8 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+tests
+web/e2e
+web/test-results
+web/playwright-report

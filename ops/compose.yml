@@ -1,0 +1,60 @@
+# Ember ops dashboard. Build and run from the repo root of a clean checkout:
+#   BUILD_SHA=$(git rev-parse --short HEAD) docker compose -f ops/compose.yml up -d --build
+# Needs ~/.config/ember-ops/{ember_dashboard,emberops} (mode 600) and the ops-status timer writing ~/.local/state/ember-ops.
+services:
+  ops:
+    build:
+      context: .
+      args:
+        BUILD_SHA: ${BUILD_SHA:-}
+    container_name: ember-ops
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      Ops__EmberConnection: Host=postgres;Port=5432;Database=emberdb;Username=ember_dashboard;GSS Encryption Mode=Disable;Command Timeout=10
+      Ops__EmberPasswordFile: /run/secrets/ember_dashboard
+      Ops__OpsConnection: Host=postgres;Port=5432;Database=emberops;Username=emberops;GSS Encryption Mode=Disable;Command Timeout=10
+      Ops__OpsPasswordFile: /run/secrets/emberops
+      Ops__Access__TrustedProxies__0: 172.19.0.1
+      Ops__Access__AppCapability: nicowoellnitz.de/cap/ember-ops
+      Ops__Access__AllowedLogins__0: ""
+      Ops__StatusFile: /status/status.json
+      Ops__GitHubRepo: Tzanto01/Ember
+      Ops__NoticesUrl: https://beta.ember-glow.app/notices.json
+      Ops__ApkUrl: https://beta.ember-glow.app/download/latest.json
+      Logging__LogLevel__Default: Information
+      Logging__LogLevel__Microsoft.AspNetCore: Warning
+    secrets:
+      - ember_dashboard
+      - emberops
+    volumes:
+      - ${HOME}/.local/state/ember-ops:/status:ro
+    ports:
+      - "127.0.0.1:8096:8080"
+    networks:
+      - homeserver-net
+    healthcheck:
+      test: ["CMD", "dotnet", "/app/Ember.Ops.dll", "--healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+secrets:
+  ember_dashboard:
+    file: ${HOME}/.config/ember-ops/ember_dashboard
+  emberops:
+    file: ${HOME}/.config/ember-ops/emberops
+
+networks:
+  homeserver-net:
+    external: true
