@@ -22,7 +22,7 @@ import { api } from '@/lib/services';
 const routineLimit = 10;
 
 /**
- * `/routines`: the user's routines in their order with Move up and Move down (saved right away, restored when saving fails),
+ * `/routines`: the user's routines in their order with Move up and Move down (saved right away, reloaded from the server when saving fails),
  * their habits in order and reminder, links to edit, and "New routine".
  */
 export default function RoutinesPage() {
@@ -57,7 +57,7 @@ export default function RoutinesPage() {
       next.map((r) => r.id),
       {
         onError: (error) => {
-          queryClient.setQueryData<Routine[]>(routinesKey, current);
+          void queryClient.invalidateQueries({ queryKey: routinesKey });
           const apiError = asApiError(error);
           if (!apiError.handled) setOrderProblem(problemToMessage(apiError).message);
         },
