@@ -20,6 +20,7 @@ import { MoodManager } from '@/components/journal/mood-manager';
 import { CrisisLines } from '@/components/moment/crisis-lines';
 import { DeleteDeviceData, DeviceDataSettings } from '@/components/local/device-data-settings';
 import { PageHeader } from '@/components/page-header';
+import { AppUpdatesSettings } from '@/components/settings/app-updates-settings';
 import { ColorSchemePicker } from '@/components/settings/color-scheme-picker';
 import { LanguagePicker } from '@/components/settings/language-picker';
 import { FeedbackForm } from '@/components/settings/feedback-form';
@@ -614,6 +615,7 @@ export default function SettingsPage() {
           { id: 'journal', title: t('settings.card.journal') },
           { id: 'moments', title: t('settings.card.moments') },
         ]),
+    ...(updaterAvailable() ? [{ id: 'app-updates', title: t('settings.card.appUpdates') }] : []),
     { id: 'helps', title: t('settings.card.helps') },
     ...(local ? [] : [{ id: 'export', title: t('settings.card.export') }]),
     { id: 'delete', title: local ? t('settings.card.deleteDevice') : t('settings.card.deleteAccount') },
@@ -1291,6 +1293,12 @@ export default function SettingsPage() {
                   </>
                 )}
                 {outcome('discord')}
+              </SettingsCard>
+            )}
+
+            {shown('app-updates') && (
+              <SettingsCard id="app-updates" title={title('app-updates')}>
+                <AppUpdatesSettings />
               </SettingsCard>
             )}
 

@@ -54,23 +54,43 @@ export function parseManifest(body: unknown, origin: string, installed: number):
   return { versionCode, versionName, url, sha256, ...(positiveInt(size) ? { size } : {}) };
 }
 
+/** What a manifest check found: a newer build, the installed build (`versionName`) is the latest, or no answer. */
+export type UpdateCheck =
+  | { status: 'update'; update: BetaUpdate }
+  | { status: 'current'; versionName: string }
+  | { status: 'error' };
+
+/**
+ * Reads `{apiBase}/download/latest.json` and compares it with the installed build. `error` outside the beta app and
+ * whenever the manifest is unreachable, broken or invalid.
+ */
+export async function checkForUpdate(): Promise<UpdateCheck> {
+  if (!updaterAvailable()) return { status: 'error' };
+  try {
+    const origin = new URL(env.apiBase).origin;
+    const { App } = await import('@capacitor/app');
+    const info = await App.getInfo();
+    const installed = Number(info.build);
+    if (!Number.isSafeInteger(installed)) return { status: 'error' };
+    const response = await fetch(`${env.apiBase}/download/latest.json`, { cache: 'no-store' });
+    if (!response.ok) return { status: 'error' };
+    const latest = parseManifest(await response.json(), origin, 0);
+    if (!latest) return { status: 'error' };
+    return latest.versionCode > installed
+      ? { status: 'update', update: latest }
+      : { status: 'current', versionName: info.version };
+  } catch {
+    return { status: 'error' };
+  }
+}
+
 /**
  * Reads `{apiBase}/download/latest.json` and returns a build newer than the installed one. Null outside the beta
  * app and whenever the manifest is missing, broken or invalid.
  */
 export async function findUpdate(): Promise<BetaUpdate | null> {
-  if (!updaterAvailable()) return null;
-  try {
-    const origin = new URL(env.apiBase).origin;
-    const { App } = await import('@capacitor/app');
-    const installed = Number((await App.getInfo()).build);
-    if (!Number.isSafeInteger(installed)) return null;
-    const response = await fetch(`${env.apiBase}/download/latest.json`, { cache: 'no-store' });
-    if (!response.ok) return null;
-    return parseManifest(await response.json(), origin, installed);
-  } catch {
-    return null;
-  }
+  const result = await checkForUpdate();
+  return result.status === 'update' ? result.update : null;
 }
 
 /** The notes for `versionName` from the server's `{apiBase}/release-notes.json`; null when they are missing or unreachable. */

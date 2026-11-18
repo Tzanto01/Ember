@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
@@ -17,12 +18,23 @@ type Phase = 'offer' | 'permission' | 'downloading' | 'failed';
 
 const hour = 60 * 60 * 1000;
 let dismissedCode = 0;
+let offerHandler: ((update: BetaUpdate, focus: boolean) => void) | null = null;
+
+/**
+ * Shows `update` in the mounted banner even when it was dismissed this session; with `focus`, moves focus to its
+ * Update button.
+ */
+export function offerBetaUpdate(update: BetaUpdate, focus = false): void {
+  dismissedCode = 0;
+  offerHandler?.(update, focus);
+}
 
 /**
  * "Update available" banner for the sideloaded beta app; renders nothing on the web and in the Play build. Checks
  * the manifest on mount and when the app returns to the foreground (at most once an hour). Update asks for the
  * "Install unknown apps" permission first when needed, then downloads and opens Android's installer. The offer lists
- * the new version's notes from the server when it has them. Dismissing hides that version for the rest of the session.
+ * the new version's notes from the server when it has them. Dismissing hides that version for the rest of the session,
+ * until `offerBetaUpdate` brings it back.
  */
 export function BetaUpdateBanner() {
   const { t } = useTranslation();
@@ -33,6 +45,7 @@ export function BetaUpdateBanner() {
   const updateRef = useRef<BetaUpdate | null>(null);
   const phaseRef = useRef<Phase>('offer');
   const busy = useRef(false);
+  const updateButton = useRef<HTMLButtonElement>(null);
 
   function show(next: Phase) {
     phaseRef.current = next;
@@ -77,15 +90,21 @@ export function BetaUpdateBanner() {
     let lastCheck = -Infinity;
     let listener: { remove: () => Promise<void> } | undefined;
 
+    async function present(found: BetaUpdate, focus = false) {
+      if (!busy.current) {
+        updateRef.current = found;
+        flushSync(() => setUpdate(found));
+      }
+      if (focus) updateButton.current?.focus();
+      const foundNotes = await findReleaseNotes(found.versionName);
+      if (active && foundNotes) setNotes({ versionName: found.versionName, notes: foundNotes });
+    }
+
     async function check() {
       if (Date.now() - lastCheck < hour) return;
       lastCheck = Date.now();
       const found = await findUpdate();
-      if (!active || !found || busy.current) return;
-      updateRef.current = found;
-      setUpdate(found);
-      const foundNotes = await findReleaseNotes(found.versionName);
-      if (active && foundNotes) setNotes({ versionName: found.versionName, notes: foundNotes });
+      if (active && found && !busy.current) await present(found);
     }
 
     async function resumed() {
@@ -98,6 +117,7 @@ export function BetaUpdateBanner() {
       await check();
     }
 
+    offerHandler = (found, focus) => void present(found, focus);
     void check();
     void import('@capacitor/app')
       .then(({ App }) => App.addListener('resume', () => void resumed()))
@@ -108,6 +128,7 @@ export function BetaUpdateBanner() {
       .catch(() => undefined);
     return () => {
       active = false;
+      offerHandler = null;
       void listener?.remove();
     };
   }, []);
@@ -148,7 +169,7 @@ export function BetaUpdateBanner() {
             {...(percent === null ? {} : { value: percent })}
           />
         ) : (
-          <Button variant="secondary" onClick={() => void install()}>
+          <Button ref={updateButton} variant="secondary" onClick={() => void install()}>
             {phase === 'failed' ? t('betaUpdate.retry') : t('betaUpdate.update')}
           </Button>
         )}

@@ -104,6 +104,15 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(await account.findByText(/We sent a link to a@example.test/)).toBeInTheDocument();
   });
 
+  it('in the beta app, Account & security ends with App updates and its check button', async () => {
+    exactAlarms.beta = true;
+    await open('/settings/account');
+
+    const cards = document.querySelectorAll('section');
+    expect([...cards].map((card) => card.getAttribute('id'))).toEqual(['account', 'two-factor', 'discord', 'app-updates']);
+    expect(within(cards[3] as HTMLElement).getByRole('button', { name: 'Check for updates' })).toBeInTheDocument();
+  });
+
   it('for a Discord-only account, says so and offers no password change', async () => {
     const discordOnly = { ...me, email: null, hasPassword: false, discord: { linked: true, id: '42' } };
     auth.setMe(discordOnly);

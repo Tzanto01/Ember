@@ -24,7 +24,7 @@ export const settingsGroups: SettingsGroup[] = [
     slug: 'account',
     nameKey: 'settings.group.account',
     icon: ShieldCheck,
-    cards: ['account', 'device', 'two-factor', 'discord'],
+    cards: ['account', 'device', 'two-factor', 'discord', 'app-updates'],
   },
   {
     slug: 'reminders',
