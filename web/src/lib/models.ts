@@ -375,6 +375,8 @@ export interface DeleteAccountRequest {
 export interface PushSubscriptionRequest {
   endpoint: string;
   keys: { p256dh: string; auth: string };
+  /** Whether reminders to this browser name the habit or routine; omitted keeps the stored value. */
+  showNames?: boolean;
 }
 
 /**

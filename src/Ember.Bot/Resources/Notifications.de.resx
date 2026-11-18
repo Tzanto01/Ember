@@ -69,6 +69,18 @@ Tipp bei allem, was du geschafft hast, auf Erledigt. Kein Druck 💙</value>
   <data name="push.reminder.second" xml:space="preserve">
     <value>Noch ein Schubs, falls der erste untergegangen ist.</value>
   </data>
+  <data name="push.reminder.habit.first" xml:space="preserve">
+    <value>Ein sanfter Schubs für {0}</value>
+  </data>
+  <data name="push.reminder.habit.second" xml:space="preserve">
+    <value>Noch ein Schubs für {0}, falls der erste untergegangen ist.</value>
+  </data>
+  <data name="push.reminder.routine.first" xml:space="preserve">
+    <value>Zeit für deine Routine {0}</value>
+  </data>
+  <data name="push.reminder.routine.second" xml:space="preserve">
+    <value>Noch ein Schubs für deine Routine {0}, falls der erste untergegangen ist.</value>
+  </data>
   <data name="push.logged" xml:space="preserve">
     <value>Eingetragen. Gut gemacht. ✅</value>
   </data>

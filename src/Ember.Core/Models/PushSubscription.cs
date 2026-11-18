@@ -23,6 +23,9 @@ public class PushSubscription
     /// <summary>Whether reminders go to this browser; off in Settings mutes it for every habit and routine.</summary>
     public bool Enabled { get; set; } = true;
 
+    /// <summary>Whether reminders to this browser name the habit or routine; off by default, since they can show on a lock screen.</summary>
+    public bool ShowNames { get; set; }
+
     /// <summary>
     /// The sign-in session (<see cref="AuthSession"/>) that last registered it; ending that session deletes the subscription.
     /// Null for subscriptions saved before sessions were recorded. Reminders carry a "Done" token only while it is live.

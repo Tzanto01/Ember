@@ -459,6 +459,9 @@ namespace Ember.Core.Data.Migrations
                     b.Property<Guid?>("SessionId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("ShowNames")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 

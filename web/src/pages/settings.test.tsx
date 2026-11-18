@@ -425,6 +425,31 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
       expect(screen.queryByRole('button', { name: 'Turn on reminders in this browser' })).toBeNull();
     });
 
+    it('in a browser with reminders on, the names switch is off by default and saves names for this browser', async () => {
+      const setShowNames = vi.spyOn(push, 'setShowNames').mockImplementation(async (on) => push.showNames.set(on));
+      const user = userEvent.setup();
+      const { fetch } = await open('/settings/reminders');
+      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, laptop]);
+
+      const names = await screen.findByRole('switch', { name: 'Show habit names in reminders' });
+      expect(names).not.toBeChecked();
+      await user.click(names);
+
+      expect(setShowNames).toHaveBeenCalledWith(true);
+      expect(await screen.findByText('Saved.')).toBeInTheDocument();
+      expect(names).toBeChecked();
+      expect(reminderNames.get()).toBe(false);
+      push.showNames.set(false);
+    });
+
+    it('offers no names switch for browser reminders while this browser is not a destination', async () => {
+      const { fetch } = await open('/settings/reminders');
+      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, { ...laptop, current: false }]);
+
+      await screen.findByRole('switch', { name: 'Firefox on Linux' });
+      expect(screen.queryByRole('switch', { name: 'Show habit names in reminders' })).toBeNull();
+    });
+
     it('puts the switch back and says so gently when the change fails', async () => {
       const user = userEvent.setup();
       const { fetch } = await open('/settings/reminders');

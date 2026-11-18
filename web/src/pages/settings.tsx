@@ -192,6 +192,7 @@ export default function SettingsPage() {
   const me = useStore(auth.me);
   const local = useStore(localMode.mode) === 'local';
   const pushAvailable = useStore(push.available);
+  const browserNames = useStore(push.showNames);
   const queryClient = useQueryClient();
 
   const busyRef = useRef<Section | null>(null);
@@ -489,6 +490,19 @@ export default function SettingsPage() {
         show('push', { tone: 'notice', text: t('settings.push.denied') });
       else
         show('push', { tone: 'notice', text: t('settings.push.failed') });
+    } finally {
+      finish();
+    }
+  }
+
+  async function changeBrowserNames(on: boolean): Promise<void> {
+    if (busyRef.current) return;
+    start('push');
+    try {
+      await push.setShowNames(on);
+      setSaved('push');
+    } catch (error) {
+      fail('push', asApiError(error));
     } finally {
       finish();
     }
@@ -986,6 +1000,15 @@ export default function SettingsPage() {
                       </>
                     )
                   ))}
+                {!env.native && destinations.data?.some((d) => d.current && d.kind === 'browser') && (
+                  <>
+                    <ReminderNamesSetting
+                      checked={browserNames}
+                      onCheckedChange={(on) => void changeBrowserNames(on)}
+                    />
+                    {savedStatus('push')}
+                  </>
+                )}
                 {outcome('push')}
               </SettingsCard>
             )}

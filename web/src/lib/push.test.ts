@@ -111,7 +111,7 @@ describe('PushService', () => {
 
     const done = service.subscribe();
     const request = await mock.next('POST', '/api/me/push-subscriptions');
-    expect(request.body).toEqual({ endpoint, keys: { p256dh: 'p256-key', auth: 'auth-key' } });
+    expect(request.body).toEqual({ endpoint, keys: { p256dh: 'p256-key', auth: 'auth-key' }, showNames: false });
     expect(subscribe).toHaveBeenCalledWith({
       userVisibleOnly: true,
       applicationServerKey: new Uint8Array([1, 2, 3, 251, 255]),
@@ -143,11 +143,47 @@ describe('PushService', () => {
     const done = service.claim();
     (await mock.next('GET', '/api/push/vapid-public-key')).respond(200, { key: vapidKey });
     const request = await mock.next('POST', '/api/me/push-subscriptions');
-    expect(request.body).toEqual({ endpoint, keys: { p256dh: 'p256-key', auth: 'auth-key' } });
+    expect(request.body).toEqual({ endpoint, keys: { p256dh: 'p256-key', auth: 'auth-key' }, showNames: false });
     request.respond(204);
     await done;
 
     expect(mock.all.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+
+  it('saves names for this browser, sends them with later registrations and forgets them with the subscription', async () => {
+    const service = setup('subscribed');
+    await checked(service);
+
+    const saving = service.setShowNames(true);
+    const request = await mock.next('POST', '/api/me/push-subscriptions');
+    expect(request.body).toEqual({ endpoint, keys: { p256dh: 'p256-key', auth: 'auth-key' }, showNames: true });
+    expect(service.showNames.get()).toBe(false);
+    request.respond(204);
+    await saving;
+    expect(localStorage.getItem('ember.browserReminderNames')).toBe('1');
+
+    const claiming = service.claim();
+    const claim = await mock.next('POST', '/api/me/push-subscriptions');
+    expect(claim.body).toMatchObject({ showNames: true });
+    claim.respond(204);
+    await claiming;
+
+    const releasing = service.release();
+    (await mock.next('DELETE', removal)).respond(204);
+    await releasing;
+    expect(service.showNames.get()).toBe(false);
+    expect(localStorage.getItem('ember.browserReminderNames')).toBeNull();
+  });
+
+  it('keeps names off when saving them fails', async () => {
+    const service = setup('subscribed');
+    await checked(service);
+
+    const saving = service.setShowNames(true);
+    (await mock.next('POST', '/api/me/push-subscriptions')).respond(500);
+
+    await expect(saving).rejects.toBeDefined();
+    expect(service.showNames.get()).toBe(false);
   });
 
   it('claim makes no call without a browser subscription', async () => {

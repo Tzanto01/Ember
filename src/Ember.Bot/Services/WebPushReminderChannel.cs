@@ -16,7 +16,8 @@ namespace Ember.Bot.Services;
 
 /// <summary>
 /// Sends reminders as Web Push notifications (VAPID, aes128gcm) to the user's push subscriptions in
-/// <see cref="Reminder.PushSubscriptionIds"/>. The notification names no habit, since it can show on a lock screen; its tag
+/// <see cref="Reminder.PushSubscriptionIds"/>. The notification names no habit, since it can show on a lock screen, unless the
+/// subscription opted in (<see cref="Core.Models.PushSubscription.ShowNames"/>); then it names the habit or routine. Its tag
 /// (<see cref="HabitTag"/>, <see cref="RoutineTag"/>) lets a later reminder or the clear push (<see cref="SendClearAsync"/>) replace it.
 /// A subscription the push service reports as gone (404/410) is deleted. Delivered when at least one subscription accepted the
 /// message; a delivered reminder is remembered (<see cref="HabitService.AddPushReminderAsync"/>) until its item is done or it expires.
@@ -138,7 +139,9 @@ public sealed class WebPushReminderChannel : IReminderChannel
         HashSet<Guid> liveSessions;
         var t = BotTexts.For(reminder.Language);
         var body = t.Get(reminder.Second ? "push.reminder.second" : "push.reminder.first");
-        string? donePayload = null;
+        var namedBody = t.Format((reminder.PendingHabits is null ? "push.reminder.habit" : "push.reminder.routine")
+            + (reminder.Second ? ".second" : ".first"), reminder.HabitName);
+        string? doneToken = null;
         var tag = reminder.PendingHabits is null ? HabitTag(reminder.HabitId) : RoutineTag(reminder.HabitId);
         var allowed = reminder.PushSubscriptionIds ?? [];
         using (var scope = _scopes.CreateScope())
@@ -150,13 +153,13 @@ public sealed class WebPushReminderChannel : IReminderChannel
 
             liveSessions = await habits.GetLiveSessionIdsAsync(reminder.UserId, cancellationToken);
             if (reminder.PendingHabits is null && subscriptions.Any(s => s.SessionId is { } id && liveSessions.Contains(id)))
-                donePayload = BuildPayload(body, await habits.CreateReminderActionTokenAsync(reminder.UserId, reminder.HabitId, reminder.Day,
-                    reminder.Day.AddDays(1).ToDateTime(new TimeOnly(MissedDayReflectionJob.LocalSendHour, 0)), cancellationToken), tag, t);
+                doneToken = await habits.CreateReminderActionTokenAsync(reminder.UserId, reminder.HabitId, reminder.Day,
+                    reminder.Day.AddDays(1).ToDateTime(new TimeOnly(MissedDayReflectionJob.LocalSendHour, 0)), cancellationToken);
         }
-        var plainPayload = BuildPayload(body, tag: tag);
 
         var delivered = await SendAsync(reminder.UserId, subscriptions,
-            s => donePayload is not null && s.SessionId is { } sessionId && liveSessions.Contains(sessionId) ? donePayload : plainPayload,
+            s => BuildPayload(s.ShowNames ? namedBody : body,
+                s.SessionId is { } sessionId && liveSessions.Contains(sessionId) ? doneToken : null, tag, t),
             cancellationToken);
         if (!delivered) return DeliveryOutcome.Undeliverable;
 

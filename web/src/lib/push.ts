@@ -15,11 +15,13 @@ export async function serviceWorkerRegistration(): Promise<ServiceWorkerRegistra
   ]);
 }
 
-function toRequest(subscription: PushSubscription): PushSubscriptionRequest | null {
+const namesKey = 'ember.browserReminderNames';
+
+function toRequest(subscription: PushSubscription, showNames: boolean): PushSubscriptionRequest | null {
   const json = subscription.toJSON();
   const p256dh = json.keys?.['p256dh'];
   const auth = json.keys?.['auth'];
-  return json.endpoint && p256dh && auth ? { endpoint: json.endpoint, keys: { p256dh, auth } } : null;
+  return json.endpoint && p256dh && auth ? { endpoint: json.endpoint, keys: { p256dh, auth }, showNames } : null;
 }
 
 function serverKey(base64Url: string): Uint8Array<ArrayBuffer> {
@@ -43,6 +45,12 @@ export class PushService {
 
   /** True when this browser holds a push subscription. */
   readonly subscribed = new Store(false);
+
+  /**
+   * This browser's "Show habit names in reminders", off by default and persisted in localStorage. Sent with every
+   * registration; turns off when the browser subscription goes.
+   */
+  readonly showNames = new Store(localStorage.getItem(namesKey) === '1');
 
   constructor(
     private readonly api: ApiClient,
@@ -82,7 +90,7 @@ export class PushService {
   async claim(): Promise<void> {
     await this.check();
     const subscription = await this.current(await this.manager());
-    const body = subscription && toRequest(subscription);
+    const body = subscription && toRequest(subscription, this.showNames.get());
     if (!this.available.get() || !body) return;
     await this.api.addPushSubscription(body).catch(() => undefined);
   }
@@ -104,7 +112,7 @@ export class PushService {
       applicationServerKey: serverKey(this.key),
     });
     try {
-      const body = toRequest(subscription);
+      const body = toRequest(subscription, this.showNames.get());
       if (!body) throw new Error('Incomplete push subscription');
       await this.api.addPushSubscription(body);
       this.subscribed.set(true);
@@ -113,6 +121,24 @@ export class PushService {
       this.subscribed.set(false);
       throw error;
     }
+  }
+
+  /**
+   * Saves `showNames` for this browser's subscription on the server, then remembers it. Does nothing without a
+   * subscription. Rejects with an `ApiError` when the server call fails.
+   */
+  async setShowNames(on: boolean): Promise<void> {
+    const subscription = await this.current(await this.manager());
+    const body = subscription && toRequest(subscription, on);
+    if (!body) return;
+    await this.api.addPushSubscription(body);
+    this.rememberNames(on);
+  }
+
+  private rememberNames(on: boolean): void {
+    this.showNames.set(on);
+    if (on) localStorage.setItem(namesKey, '1');
+    else localStorage.removeItem(namesKey);
   }
 
   /** Removes the subscription on the server, then in the browser. Rejects with an `ApiError` when the server call fails. */
@@ -147,5 +173,6 @@ export class PushService {
   private async forget(subscription: PushSubscription): Promise<void> {
     await subscription.unsubscribe().catch(() => undefined);
     this.subscribed.set(false);
+    this.rememberNames(false);
   }
 }

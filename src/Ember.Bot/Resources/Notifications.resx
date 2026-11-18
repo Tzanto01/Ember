@@ -69,6 +69,18 @@ Tap Done for each one you've done. No pressure 💙</value>
   <data name="push.reminder.second" xml:space="preserve">
     <value>One more nudge, in case the first one got buried.</value>
   </data>
+  <data name="push.reminder.habit.first" xml:space="preserve">
+    <value>A gentle nudge for {0}</value>
+  </data>
+  <data name="push.reminder.habit.second" xml:space="preserve">
+    <value>One more nudge for {0}, in case the first one got buried.</value>
+  </data>
+  <data name="push.reminder.routine.first" xml:space="preserve">
+    <value>Time for your {0} routine</value>
+  </data>
+  <data name="push.reminder.routine.second" xml:space="preserve">
+    <value>One more nudge for your {0} routine, in case the first one got buried.</value>
+  </data>
   <data name="push.logged" xml:space="preserve">
     <value>Logged. Nice work. ✅</value>
   </data>

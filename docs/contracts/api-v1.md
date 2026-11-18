@@ -1,4 +1,6 @@
-# Ember API contract v1.18
+# Ember API contract v1.19
+
+v1.19 (2026-11-18, user feedback: browser reminders should say which habit they are about): each browser can opt in to reminders that name the habit or routine, off by default. See "Browser reminder names v1.19".
 
 v1.18 (2026-11-14, Nico: "when the user first creates a habit, we prompt them if they want streaks active or not ... it makes sense to point users in the direction of something that app can do when the time is right. We don't want to overload them, but we do want them to have the chance to experience everything"): the app shows one-time tips at the right moment, starting with the streaks question after the first habit; which tips an account has seen is stored on the account. See "Tips v1.18" and the Tips section of docs/contracts/companion-v1.md.
 
@@ -473,7 +475,7 @@ All need a signed-in session and only ever see the caller's own destinations.
 - `GET /api/me/reminder-destinations` → 200 `ReminderDestination[]`: Discord first, then browsers, then phones, each ordered by id.
 - `PATCH /api/me/reminder-destinations/{id}` `{ "enabled": bool }` → 200 `ReminderDestination`. Off means nothing goes there for any habit or routine. A missing `enabled` → 400 `validation`. An unknown or malformed id, an id of another account, and `discord` without a Discord login all answer the same 404 `not_found`. Turning `discord` on or off records the account's answer, so the bot never asks again.
 - `POST /api/me/phones` `{ "installId": string, "label"?: string }` → 200 `ReminderDestination` (`current: true`). `installId` is 16 to 64 characters of `A-Z a-z 0-9 _ -`, else 400 `validation`. Upsert by `installId`: registering again from the same account keeps the id and `enabled` and updates label and session; an install stored for another account moves to the caller as a new phone (new id, enabled), like a shared push endpoint. At most 10 phones per account; registering an 11th removes the least recently registered. The app registers on every reminder rebuild (only with notification permission) and caches the result for offline rebuilds.
-- `POST /api/me/push-subscriptions` is unchanged on the wire. Saving again keeps the subscription's `enabled` while the endpoint stays with the same account; an endpoint that moves to another account starts enabled.
+- `POST /api/me/push-subscriptions` is unchanged on the wire (until v1.19 adds `showNames`, see "Browser reminder names v1.19"). Saving again keeps the subscription's `enabled` while the endpoint stays with the same account; an endpoint that moves to another account starts enabled.
 
 ### Phones follow their session
 
@@ -645,3 +647,9 @@ Additive. Older clients ignore `tipsSeen`.
 
 - The bot asks the streaks question once: when it creates a habit for an account whose `tipsSeen` lacks `streaks` and whose `showStreaks` is false, an ephemeral follow-up to the confirmation asks "Do you want to see streaks?" with "Show streaks" and "Not for me" buttons (in the account's language; a separate message so the confirmation keeps its own buttons; asked again on each new habit until answered). Either button sets `showStreaks` accordingly and marks `streaks` seen, then edits the message to drop the buttons. No other tips in the bot.
 
+
+## Browser reminder names v1.19
+
+- `POST /api/me/push-subscriptions` takes `showNames?: boolean`. Set: stored with the subscription. Absent: kept while the endpoint stays with the same account; a new endpoint, or one that moves to another account, starts with `false`.
+- With `showNames` true, web push reminders to that subscription name the item: "A gentle nudge for <habit>" / "Time for your <routine> routine", and on the second reminder "One more nudge for <habit>, in case the first one got buried." / "One more nudge for your <routine> routine, in case the first one got buried." (German in the account's language). Otherwise the body stays generic. Tag, actions and token are unchanged.
+- The web app keeps the switch per browser (localStorage `ember.browserReminderNames`), shows it in Settings under the destinations while this browser is one of them, sends the value with every registration, and turns it off when the browser subscription goes (logout, account deletion).

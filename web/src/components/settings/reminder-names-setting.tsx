@@ -5,11 +5,20 @@ import { Switch } from '@/components/ui/switch';
 import { reminderNames } from '@/lib/native/reminder-names';
 import { useStore } from '@/lib/store';
 
-/** Native only: the per-device "Show habit names in reminders" switch, bound to `reminderNames`. */
-export function ReminderNamesSetting() {
+/**
+ * The "Show habit names in reminders" switch. Without props it is the native per-device setting bound to
+ * `reminderNames`; with `checked` and `onCheckedChange` it shows and changes another value (this browser's push).
+ */
+export function ReminderNamesSetting({
+  checked,
+  onCheckedChange,
+}: {
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+} = {}) {
   const { t } = useTranslation();
   const id = useId();
-  const on = useStore(reminderNames);
+  const native = useStore(reminderNames);
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex min-w-0 flex-col gap-1">
@@ -20,9 +29,9 @@ export function ReminderNamesSetting() {
       </div>
       <Switch
         id={id}
-        checked={on}
+        checked={checked ?? native}
         aria-describedby={`${id}-hint`}
-        onCheckedChange={(checked) => reminderNames.set(checked)}
+        onCheckedChange={onCheckedChange ?? ((on) => reminderNames.set(on))}
         className="mt-[2px]"
       />
     </div>

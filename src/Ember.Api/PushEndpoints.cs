@@ -8,7 +8,7 @@ internal static class PushEndpoints
 {
     public sealed record VapidKeyDto(string Key);
     public sealed record PushKeysRequest(string? P256dh, string? Auth);
-    public sealed record PushSubscriptionRequest(string? Endpoint, PushKeysRequest? Keys);
+    public sealed record PushSubscriptionRequest(string? Endpoint, PushKeysRequest? Keys, bool? ShowNames = null);
 
     public const int MaxEndpointLength = 2048;
     public const int MaxP256dhLength = 256;
@@ -40,7 +40,7 @@ internal static class PushEndpoints
             if (errors.Count > 0) return Problems.Validation(errors);
 
             await habits.SavePushSubscriptionAsync(principal.UserId(), request.Endpoint!, request.Keys!.P256dh!, request.Keys.Auth!,
-                AuthSessions.IdOf(principal), BrowserLabels.From(http.Headers.UserAgent.ToString()));
+                AuthSessions.IdOf(principal), BrowserLabels.From(http.Headers.UserAgent.ToString()), request.ShowNames);
             return Results.NoContent();
         }).RequireAuthorization();
 

@@ -96,6 +96,32 @@ public class PushApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Show_names_is_off_by_default_kept_when_omitted_and_reset_when_the_endpoint_moves()
+    {
+        var a = await Host.SignedInAsync();
+        var b = await Host.SignedInAsync();
+        var endpoint = FcmEndpoint();
+        var keys = new { p256dh = Base64Url(65), auth = Base64Url(16) };
+        Task<bool> ShowNames() => Host.Db(db => db.PushSubscriptions.Where(s => s.Endpoint == endpoint).Select(s => s.ShowNames).SingleAsync());
+
+        await (await Subscribe(a, endpoint)).Expect(HttpStatusCode.NoContent);
+        (await ShowNames()).Should().BeFalse();
+
+        await (await a.Post(Subscriptions, new { endpoint, keys, showNames = true })).Expect(HttpStatusCode.NoContent);
+        (await ShowNames()).Should().BeTrue();
+
+        await (await a.Post(Subscriptions, new { endpoint, keys })).Expect(HttpStatusCode.NoContent);
+        (await ShowNames()).Should().BeTrue();
+
+        await (await a.Post(Subscriptions, new { endpoint, keys, showNames = false })).Expect(HttpStatusCode.NoContent);
+        (await ShowNames()).Should().BeFalse();
+
+        await (await a.Post(Subscriptions, new { endpoint, keys, showNames = true })).Expect(HttpStatusCode.NoContent);
+        await (await b.Post(Subscriptions, new { endpoint, keys })).Expect(HttpStatusCode.NoContent);
+        (await ShowNames()).Should().BeFalse();
+    }
+
+    [DockerFact]
     public async Task A_user_keeps_only_their_ten_most_recent_subscriptions()
     {
         var user = await Host.SignedInAsync();

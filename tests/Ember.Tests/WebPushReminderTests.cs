@@ -324,6 +324,28 @@ public class WebPushReminderTests
     }
 
     [Fact]
+    public async Task Only_a_browser_that_opted_in_gets_the_habit_name()
+    {
+        var (host, push, _) = await CreateAsync(new Seed(30, [Endpoint("named"), Endpoint("generic")], Discord: false));
+        await using var hostScope = host;
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            await db.Habits.Where(h => h.Id == 30).ExecuteUpdateAsync(s => s.SetProperty(h => h.Name, "Stretch for ten minutes"));
+            await db.PushSubscriptions.Where(s => s.Endpoint == Endpoint("named"))
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.ShowNames, true));
+        });
+
+        await RunJobAsync(host);
+
+        var tag = WebPushReminderChannel.HabitTag(30);
+        var bodyLength = (string endpoint) => push.Requests.Single(r => r.Endpoint == Endpoint(endpoint)).BodyLength;
+        (bodyLength("named") - bodyLength("generic")).Should().Be(
+            WebPushReminderChannel.BuildPayload("A gentle nudge for Stretch for ten minutes", tag: tag).Length
+            - WebPushReminderChannel.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
+    }
+
+    [Fact]
     public async Task Without_any_live_session_no_token_is_created()
     {
         var (host, push, _) = await CreateAsync(new Seed(30, [Endpoint("legacy")], Discord: false));
