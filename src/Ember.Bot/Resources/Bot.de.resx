@@ -1324,4 +1324,46 @@ Ember bietet dir dann an, deine Habits von hier in dieses Konto zu übernehmen. 
   <data name="time.suggested" xml:space="preserve">
     <value>HH:mm</value>
   </data>
+  <data name="habit.letgo.label" xml:space="preserve">
+    <value>Loslassen</value>
+  </data>
+  <data name="habit.letgo.days-free.one" xml:space="preserve">
+    <value>{0} Tag frei</value>
+  </data>
+  <data name="habit.letgo.days-free.other" xml:space="preserve">
+    <value>{0} Tage frei</value>
+  </data>
+  <data name="habit.letgo.slip-button" xml:space="preserve">
+    <value>Ausgerutscht</value>
+  </data>
+  <data name="habit.letgo.slip-button.named" xml:space="preserve">
+    <value>Ausgerutscht: {0}</value>
+  </data>
+  <data name="habit.letgo.noted.one" xml:space="preserve">
+    <value>Notiert. Deine längste Strecke bisher ist {0} Tag.</value>
+  </data>
+  <data name="habit.letgo.noted.other" xml:space="preserve">
+    <value>Notiert. Deine längste Strecke bisher sind {0} Tage.</value>
+  </data>
+  <data name="habit.letgo.noted.first" xml:space="preserve">
+    <value>Notiert. Jeder Tag ist ein neuer Anfang.</value>
+  </data>
+  <data name="habit.letgo.question" xml:space="preserve">
+    <value>**{0}**: {1}. Falls du heute ausgerutscht bist, kannst du es hier notieren.</value>
+  </data>
+  <data name="habit.letgo.web-only" xml:space="preserve">
+    <value>Gewohnheiten zum Loslassen legst du im Web oder in der App an und bearbeitest sie dort.</value>
+  </data>
+  <data name="habit.letgo.stats" xml:space="preserve">
+    <value>Tage frei: **{0}**
+Längste Strecke: **{1}**
+Freie Tage diesen Monat: **{2}**</value>
+  </data>
+  <data name="habit.letgo.share.stats" xml:space="preserve">
+    <value>Längste Strecke: **{0}** · Freie Tage diesen Monat: **{1}**</value>
+  </data>
+  <data name="history.letgo.grid" xml:space="preserve">
+    <value>**{0}** · {2}
+Letzte {1} Tage: 🌿 frei, 🍂 Ausrutscher notiert, ⏸️ pausiert. Frühere Tage kannst du im Web oder in der App ändern.</value>
+  </data>
 </root>

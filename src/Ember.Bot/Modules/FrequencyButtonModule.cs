@@ -58,6 +58,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
         var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
+        if (habit.Kind == HabitKind.LetGo) { await RespondAsync(HabitModule.LetGoWebOnlyText(t), ephemeral: true); return; }
 
         await RespondAsync(t.Format("habit.frequency.question", habit.Name),
             components: HabitSelectModule.FrequencyComponents(t, habitId), ephemeral: true);
@@ -70,6 +71,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
         var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
+        if (habit.Kind == HabitKind.LetGo) { await DoneAsync(HabitModule.LetGoWebOnlyText(t)); return; }
 
         var menu = new SelectMenuBuilder()
             .WithCustomId($"freq:days:{habitId}")
@@ -112,6 +114,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
         var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
+        if (habit.Kind == HabitKind.LetGo) { await DoneAsync(HabitModule.LetGoWebOnlyText(t)); return; }
         if (habit.FrequencyType == FrequencyType.Weekly) { await WeeklyOnlyOnceAsync(t); return; }
 
         var menu = new SelectMenuBuilder()

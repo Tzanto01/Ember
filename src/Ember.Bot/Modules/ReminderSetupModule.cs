@@ -24,6 +24,17 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     public async Task OnSetReminderAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        if (int.TryParse(habitIdStr, out var habitId)
+            && (await _habits.GetHabitAsync(Context.User.Id, habitId))?.Kind == HabitKind.LetGo)
+        {
+            await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+            {
+                m.Content    = HabitModule.LetGoWebOnlyText(t);
+                m.Embed      = null;
+                m.Components = new ComponentBuilder().Build();
+            });
+            return;
+        }
         if (!await _habits.HasTimezoneSetAsync(Context.User.Id))
         {
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>

@@ -1324,4 +1324,46 @@ Ember then offers to move your habits from here into that account. No codes need
   <data name="time.suggested" xml:space="preserve">
     <value>hh:mm tt</value>
   </data>
+  <data name="habit.letgo.label" xml:space="preserve">
+    <value>Letting go</value>
+  </data>
+  <data name="habit.letgo.days-free.one" xml:space="preserve">
+    <value>{0} day free</value>
+  </data>
+  <data name="habit.letgo.days-free.other" xml:space="preserve">
+    <value>{0} days free</value>
+  </data>
+  <data name="habit.letgo.slip-button" xml:space="preserve">
+    <value>I slipped</value>
+  </data>
+  <data name="habit.letgo.slip-button.named" xml:space="preserve">
+    <value>I slipped: {0}</value>
+  </data>
+  <data name="habit.letgo.noted.one" xml:space="preserve">
+    <value>Noted. Your longest stretch so far is {0} day.</value>
+  </data>
+  <data name="habit.letgo.noted.other" xml:space="preserve">
+    <value>Noted. Your longest stretch so far is {0} days.</value>
+  </data>
+  <data name="habit.letgo.noted.first" xml:space="preserve">
+    <value>Noted. Every day is a new start.</value>
+  </data>
+  <data name="habit.letgo.question" xml:space="preserve">
+    <value>**{0}**: {1}. If you slipped today, you can note it here.</value>
+  </data>
+  <data name="habit.letgo.web-only" xml:space="preserve">
+    <value>Let-go habits are created and edited on the web or in the app.</value>
+  </data>
+  <data name="habit.letgo.stats" xml:space="preserve">
+    <value>Days free: **{0}**
+Longest stretch: **{1}**
+Free days this month: **{2}**</value>
+  </data>
+  <data name="habit.letgo.share.stats" xml:space="preserve">
+    <value>Longest stretch: **{0}** · Free days this month: **{1}**</value>
+  </data>
+  <data name="history.letgo.grid" xml:space="preserve">
+    <value>**{0}** · {2}
+Last {1} days: 🌿 free, 🍂 a slip noted, ⏸️ paused. Past days can be changed on the web or in the app.</value>
+  </data>
 </root>
