@@ -1,5 +1,23 @@
 [
   {
+    "version": "0.10.0-beta.3",
+    "date": "2026-11-18",
+    "notes": {
+      "en": [
+        "You can choose the order of your routines now. Use the arrows on the Routines page, and Today shows them in that order.",
+        "Routines, the habit and routine forms, What’s new and Your moments have a back link at the top now, and the bottom bar shows which section you’re in.",
+        "When Ember can’t be reached at sign-in, “Try again” checks again right away and tells you if it still can’t connect.",
+        "Browser reminders can name the habit or routine too, like the Android app does. Turn on “Show habit names in reminders” in Settings. It’s off by default, so your lock screen only says “Ember”."
+      ],
+      "de": [
+        "Du kannst jetzt die Reihenfolge deiner Routinen festlegen. Nimm dafür die Pfeile auf der Seite „Routinen“, dann zeigt Heute sie in dieser Reihenfolge.",
+        "Routinen, die Formulare für Habits und Routinen, „Was ist neu“ und „Deine Momente“ haben jetzt oben einen Link zurück, und die Leiste unten zeigt, in welchem Bereich du bist.",
+        "Wenn Ember bei der Anmeldung nicht erreichbar ist, fragt „Noch mal versuchen“ jetzt sofort neu nach und sagt dir, wenn es immer noch nicht klappt.",
+        "Erinnerungen im Browser können jetzt auch den Habit oder die Routine nennen, wie in der Android-App. Schalte dafür in den Einstellungen „Namen der Habits in Erinnerungen zeigen“ ein. Standardmäßig ist das aus, dann steht auf deinem Sperrbildschirm nur „Ember“."
+      ]
+    }
+  },
+  {
     "version": "0.10.0-beta.2",
     "date": "2026-11-15",
     "notes": {
