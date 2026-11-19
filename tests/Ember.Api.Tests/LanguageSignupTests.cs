@@ -81,7 +81,8 @@ public class LanguageSignupTests(PostgresFixture postgres) : ApiTestBase(postgre
 
         mail.Subject.Should().Be("Confirm your Ember email address");
         mail.Body.Should().Be(
-            $"Welcome to Ember.\n\nYour code:\n\n{ApiHost.SignupCode(mail)}\n\nEnter it in Ember to confirm your email address and sign in, or open this link:\n{mail.Link()}\n\nThe code works for 15 minutes. If you didn't create an Ember account, you can ignore this email.");
+            $"Welcome to Ember.\n\nYour code:\n\n{ApiHost.SignupCode(mail)}\n\nEnter it in Ember to confirm your email address and sign in, or open this link:\n{mail.Link()}\n\nThe code works for 15 minutes. If you didn't create an Ember account, you can ignore this email.\n\n"
+            + $"You're getting this email because someone entered this address at Ember. The controller is Nico Pauly Wöllnitz (contact@nicowoellnitz.de). How Ember processes data and what rights you have is set out in the privacy policy: {ApiHost.WebOrigin}/legal/privacy. If this wasn't you, you can ignore this email.");
     }
 
     [DockerFact]
@@ -101,7 +102,8 @@ public class LanguageSignupTests(PostgresFixture postgres) : ApiTestBase(postgre
         await (await english.Post("/api/auth/register", new Credentials(email, ApiClient.Passphrase))).Expect(HttpStatusCode.OK);
         var registered = (await Host.Mail.WaitForAsync(email, 3))[2];
         registered.Subject.Should().Be("Dein Ember-Konto");
-        registered.Body.Should().Contain($"Anmelden: {ApiHost.WebOrigin}/login\nPasswort vergessen? {ApiHost.WebOrigin}/forgot-password");
+        registered.Body.Should().Contain($"Anmelden: {ApiHost.WebOrigin}/login\nPasswort vergessen? {ApiHost.WebOrigin}/forgot-password")
+            .And.EndWith($"\n\nDu bekommst diese E-Mail, weil jemand diese Adresse bei Ember eingegeben hat. Verantwortlich ist Nico Pauly Wöllnitz (contact@nicowoellnitz.de). Wie Ember Daten verarbeitet und welche Rechte du hast, steht in der Datenschutzerklärung: {ApiHost.WebOrigin}/legal/privacy. Wenn du das nicht warst, kannst du diese E-Mail ignorieren.");
         (await LanguageOf(email)).Should().Be("de");
     }
 

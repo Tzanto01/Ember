@@ -37,6 +37,9 @@ internal sealed class EmberEmailSender(
     private string Origin => ApiApp.WebOrigin(configuration)
         ?? throw new InvalidOperationException("Ember:WebOrigin is not configured.");
 
+    /// <summary>The note on who sent a sign-up or already-registered mail and why, with a link to the web app's privacy policy.</summary>
+    private string Footer(Texts t) => t.Format("email.footer", $"{Origin}/legal/privacy");
+
     /// <summary>The stored form of a sign-up code: SHA-256, upper-case hex.</summary>
     internal static string CodeHash(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
 
@@ -63,7 +66,7 @@ internal sealed class EmberEmailSender(
         var userId = user.Id;
         var link = $"{Origin}/confirm-email?user={userId}&code={code}";
         var t = TextsFor(user.Language);
-        return Send(user.Email ?? email, t.Get("email.confirm.subject"), t.Format("email.confirm.body", code, link),
+        return Send(user.Email ?? email, t.Get("email.confirm.subject"), $"{t.Format("email.confirm.body", code, link)}\n\n{Footer(t)}",
             async () =>
             {
                 using var scope = scopes.CreateScope();
@@ -92,7 +95,7 @@ internal sealed class EmberEmailSender(
     public Task SendAlreadyRegisteredAsync(string email, string language)
     {
         var t = TextsFor(language);
-        return Send(email, t.Get("email.registered.subject"), t.Format("email.registered.body", $"{Origin}/login", $"{Origin}/forgot-password"));
+        return Send(email, t.Get("email.registered.subject"), $"{t.Format("email.registered.body", $"{Origin}/login", $"{Origin}/forgot-password")}\n\n{Footer(t)}");
     }
 
     /// <summary>

@@ -49,4 +49,7 @@ Forgot your password? {1}
 
 If this wasn't you, you can ignore this email.</value>
   </data>
+  <data name="email.footer" xml:space="preserve">
+    <value>You're getting this email because someone entered this address at Ember. The controller is Nico Pauly Wöllnitz (contact@nicowoellnitz.de). How Ember processes data and what rights you have is set out in the privacy policy: {0}. If this wasn't you, you can ignore this email.</value>
+  </data>
 </root>

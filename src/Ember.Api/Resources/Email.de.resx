@@ -49,4 +49,7 @@ Passwort vergessen? {1}
 
 Wenn du das nicht warst, kannst du diese E-Mail einfach ignorieren.</value>
   </data>
+  <data name="email.footer" xml:space="preserve">
+    <value>Du bekommst diese E-Mail, weil jemand diese Adresse bei Ember eingegeben hat. Verantwortlich ist Nico Pauly Wöllnitz (contact@nicowoellnitz.de). Wie Ember Daten verarbeitet und welche Rechte du hast, steht in der Datenschutzerklärung: {0}. Wenn du das nicht warst, kannst du diese E-Mail ignorieren.</value>
+  </data>
 </root>
