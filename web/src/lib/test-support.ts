@@ -117,6 +117,8 @@ export const me: Me = {
   journal: { encrypted: false, turningOff: false, plaintextLeft: 0, encryptedLeft: 0 },
   showStreaks: true,
   language: 'en',
+  todayOrder: null,
+  offerHabitNote: false,
 };
 
 /** Synthetic habit, pending today (2026-11-01). */

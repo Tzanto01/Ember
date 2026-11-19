@@ -5,14 +5,14 @@ namespace Ember.Core.Services;
 
 /// <summary>
 /// The validated, not yet saved content of an export file for <see cref="HabitService.ImportAsync"/>. Habits reference their
-/// routine through <see cref="Habit.Routine"/> and carry their <see cref="Habit.Logs"/> and <see cref="Habit.Slips"/>; a day note whose mood is one of the
+/// routine through <see cref="Habit.Routine"/> and carry their <see cref="Habit.Logs"/>, <see cref="Habit.Slips"/> and <see cref="Habit.Notes"/>; a day note whose mood is one of the
 /// imported own moods has a null <see cref="DayNote.Mood"/> and that mood as <c>CustomMood</c>. Null settings stay unchanged.
 /// </summary>
 public sealed record ImportData(
     IReadOnlyList<Routine> Routines, IReadOnlyList<Habit> Habits, IReadOnlyList<DayMark> DayMarks, IReadOnlyList<Mood> Moods,
     IReadOnlyList<(DayNote Note, Mood? CustomMood)> DayNotes, JournalKey? JournalKey, int? GraceDaysPerWeek, string? Theme,
     int SecondReminderMinutes, bool? ShowStreaks = null, string? Language = null, bool? CalmMode = null,
-    IReadOnlyList<string>? TipsSeen = null);
+    IReadOnlyList<string>? TipsSeen = null, bool? OfferHabitNote = null);
 
 /// <summary>Outcome of <see cref="HabitService.ImportAsync"/>.</summary>
 public enum ImportResult
@@ -94,6 +94,7 @@ public partial class HabitService
         var showStreaks = data.ShowStreaks;
         var language = data.Language;
         var calmMode = data.CalmMode;
+        var offerHabitNote = data.OfferHabitNote;
         await _db.Users
             .Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s
@@ -102,7 +103,8 @@ public partial class HabitService
                 .SetProperty(u => u.SecondReminderMinutes, secondReminderMinutes)
                 .SetProperty(u => u.ShowStreaks, u => showStreaks ?? u.ShowStreaks)
                 .SetProperty(u => u.Language, u => language ?? u.Language)
-                .SetProperty(u => u.CalmMode, u => calmMode ?? u.CalmMode));
+                .SetProperty(u => u.CalmMode, u => calmMode ?? u.CalmMode)
+                .SetProperty(u => u.OfferHabitNote, u => offerHabitNote ?? u.OfferHabitNote));
         foreach (var tip in data.TipsSeen ?? []) await MarkTipSeenAsync(userId, tip);
         await transaction.CommitAsync();
         return ImportResult.Imported;

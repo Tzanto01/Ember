@@ -1,5 +1,7 @@
 package app.ember.habits;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -13,9 +15,11 @@ import org.json.JSONObject;
  * Bridge to the "Today in Ember" widget: {@code update} stores a validated snapshot of today's habits in
  * app-private storage and redraws, {@code clear} forgets it with the widget key and pending check-ins, and validated
  * widget taps that open the app arrive as {@code widgetTap} events (retained until JS listens, so a cold-start tap is
- * not lost). {@code setKey} and {@code hasKey} manage the key the widget checks in with on its own, and
- * {@code takePending} hands its unconfirmed check-ins to JS. The "I need a moment" door
- * is a pending launch action on a cold start ({@code takeLaunchAction}) and an {@code openMoment} event on a warm one.
+ * not lost). {@code setStyle} sets its theme, colour scheme and motion. {@code setKey} and {@code hasKey} manage the
+ * key the widget checks in with on its own, and {@code takePending} hands its unconfirmed check-ins to JS. The
+ * "I need a moment" door is a pending launch action on a cold start ({@code takeLaunchAction}) and an
+ * {@code openMoment} event on a warm one. {@code canOpenScreenTime} and {@code openScreenTime} point to the system's
+ * screen-time screen.
  */
 @CapacitorPlugin(name = "EmberWidget")
 public class EmberWidgetPlugin extends Plugin {
@@ -35,6 +39,8 @@ public class EmberWidgetPlugin extends Plugin {
                 call.getString("timeZone"),
                 habits,
                 more,
+                call.getInt("done"),
+                call.getInt("total"),
                 call.getObject("next")
             );
         } catch (JSONException | IllegalArgumentException e) {
@@ -94,6 +100,46 @@ public class EmberWidgetPlugin extends Plugin {
         AppLanguage.set(getContext(), call.getString("language"));
         TodayWidget.refresh(getContext());
         MomentWidget.refresh(getContext());
+        call.resolve();
+    }
+
+    /**
+     * Stores the widget's look ({@code theme}, {@code colorScheme} light, dark or system, {@code motion}), then
+     * redraws the Today widget in it. Always resolves.
+     */
+    @PluginMethod
+    public void setStyle(PluginCall call) {
+        TodayWidget.setStyle(
+            getContext(),
+            call.getString("theme"),
+            Boolean.TRUE.equals(call.getBoolean("motion", false)),
+            call.getString("colorScheme")
+        );
+        call.resolve();
+    }
+
+    /** Resolves {@code { available }}, true when this device has a screen-time screen {@link ScreenTime} can open. */
+    @PluginMethod
+    public void canOpenScreenTime(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("available", ScreenTime.intent(getContext()) != null);
+        call.resolve(result);
+    }
+
+    /** Opens the system's screen-time screen in its own task, or rejects when there is none. */
+    @PluginMethod
+    public void openScreenTime(PluginCall call) {
+        Intent intent = ScreenTime.intent(getContext());
+        if (intent == null) {
+            call.reject("Screen time is not available");
+            return;
+        }
+        try {
+            getContext().startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (ActivityNotFoundException | SecurityException e) {
+            call.reject("Screen time is not available");
+            return;
+        }
         call.resolve();
     }
 

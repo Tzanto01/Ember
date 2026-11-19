@@ -105,6 +105,29 @@ describe('HistoryPage', () => {
     expect(await screen.findByText(/marked done\.$/)).toBeInTheDocument();
   });
 
+  it("shows the selected habit's note for the open day and edits it in the note sheet", async () => {
+    const container = renderHistory();
+    await answerHabits(f, [habit]);
+    await answerMonth(f, 1, '2026-11-01', '2026-11-04');
+    const day = await waitFor(() => container.querySelector<HTMLButtonElement>('#day-2026-11-03')!);
+
+    await userEvent.click(day);
+    (await f.next('GET', '/api/habit-notes?from=2026-09-04&to=2026-11-03&habitId=1')).respond(200, [
+      { habitId: 1, date: '2026-11-03', text: 'Felt easy, seeing progress.' },
+      { habitId: 1, date: '2026-11-01', text: 'Short one, still counts.' },
+    ]);
+
+    const card = (await screen.findByRole('heading', { name: 'Note on Walk' })).closest('section')!;
+    expect(await within(card).findByText('Felt easy, seeing progress.')).toBeInTheDocument();
+    expect(within(card).queryByText('Short one, still counts.')).toBeNull();
+
+    await userEvent.click(within(card).getByRole('button', { name: 'Edit note' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Walk' });
+    expect(within(dialog).getByRole('textbox', { name: 'A note for this day, just for you' })).toHaveValue(
+      'Felt easy, seeing progress.',
+    );
+  });
+
   it("pages months only between the habit's start month and the current month", async () => {
     renderHistory('/history/1');
     await answerHabits(f, [{ ...habit, startDate: '2026-10-15' }]);

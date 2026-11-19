@@ -51,6 +51,8 @@ const storageKey = 'ember.theme';
 const accountKey = 'ember.accountTheme';
 const schemeKey = 'ember.colorScheme';
 const calmKey = 'ember.calm';
+const notTodayKey = 'ember.notTodayOpen';
+const gentleKey = 'ember.gentleMotion';
 
 /** Light or dark on this device; `system` follows `prefers-color-scheme`. Never synced to the account. */
 export type ColorScheme = 'system' | 'light' | 'dark';
@@ -110,6 +112,9 @@ function write(key: string, value: string | null): void {
   } catch {}
 }
 
+/** Bumps whenever `chooseColorScheme` runs. */
+export const colorSchemeApplied = new Store(0);
+
 /** This device's colour scheme, as `/theme-init.js` reads it. */
 export function colorScheme(): ColorScheme {
   const scheme = read(schemeKey);
@@ -122,6 +127,7 @@ export function chooseColorScheme(scheme: ColorScheme): void {
   const dark = scheme === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches : scheme === 'dark';
   document.documentElement.classList.toggle('dark', dark);
   syncThemeColor();
+  colorSchemeApplied.update((count) => count + 1);
 }
 
 let picks = 0;
@@ -173,6 +179,25 @@ export function applyCalm(on: boolean): void {
   else delete document.documentElement.dataset['calm'];
   if ((read(calmKey) === '1') !== on) write(calmKey, on ? '1' : null);
   calmMode.set(on);
+}
+
+/** Whether Today's "Not for today" section was left open on this device. */
+export function notTodayOpen(): boolean {
+  return read(notTodayKey) === '1';
+}
+
+/** Remembers on this device whether Today's "Not for today" section is open. */
+export function rememberNotTodayOpen(open: boolean): void {
+  write(notTodayKey, open ? '1' : null);
+}
+
+/** The Android widget's "Gentle motion" on this device; on unless turned off. */
+export const gentleMotion = new Store(read(gentleKey) !== '0');
+
+/** Turns the widget's gentle motion on or off and remembers it on this device. */
+export function applyGentleMotion(on: boolean): void {
+  write(gentleKey, on ? null : '0');
+  gentleMotion.set(on);
 }
 
 /** Forgets this device's theme and the account's and calm mode, and shows the default (for sign-out). */

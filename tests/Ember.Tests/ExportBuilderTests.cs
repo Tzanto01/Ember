@@ -334,4 +334,54 @@ public class ExportBuilderTests
         json.RootElement.GetProperty("routines").GetArrayLength().Should().Be(1);
         json.RootElement.GetProperty("logs").GetArrayLength().Should().Be(2);
     }
+
+    private static User UserWithHabitNotes()
+    {
+        var user = UserWithV17Data();
+        user.OfferHabitNote = true;
+        user.TodayOrder = ["r:7", "h:12"];
+        var read = user.Habits.First();
+        read.Notes.Add(new HabitNote { Date = new DateOnly(2025, 6, 18), CipherVersion = 1, CipherIv = "aXY=", CipherText = "+3Q=" });
+        read.Notes.Add(new HabitNote { Date = new DateOnly(2025, 6, 17), Text = "=Felt slow" });
+        return user;
+    }
+
+    [Fact]
+    public void FullExport_HasHabitNotesOldestFirstAndTheNoteSettings_InJsonAndCsv()
+    {
+        var user = UserWithHabitNotes();
+
+        using var json = JsonDocument.Parse(ExportBuilder.BuildJson(user));
+        var rows = Rows(ExportBuilder.BuildCsv(user));
+
+        var settings = json.RootElement.GetProperty("settings");
+        settings.GetProperty("offer_habit_note").GetBoolean().Should().BeTrue();
+        settings.GetProperty("today_order").EnumerateArray().Select(k => k.GetString()).Should().Equal("r:7", "h:12");
+        var notes = json.RootElement.GetProperty("habit_notes").EnumerateArray().ToList();
+        notes.Select(n => (n.GetProperty("habit_id").GetInt32(), n.GetProperty("date").GetString())).Should().Equal((10, "2025-06-17"), (10, "2025-06-18"));
+        notes[0].GetProperty("text").GetString().Should().Be("=Felt slow");
+        notes[0].GetProperty("encrypted").ValueKind.Should().Be(JsonValueKind.Null);
+        notes[1].GetProperty("text").ValueKind.Should().Be(JsonValueKind.Null);
+        notes[1].GetProperty("encrypted").GetProperty("ct").GetString().Should().Be("+3Q=");
+
+        rows.Should().ContainSingle(r => r["record_type"] == "settings" && r["offer_habit_note"] == "true" && r["today_order"] == "r:7;h:12");
+        rows.Should().ContainSingle(r => r["record_type"] == "habit_note" && r["habit_id"] == "10" && r["date"] == "2025-06-17"
+            && r["text"] == "'=Felt slow" && r["cipher_version"] == "");
+        rows.Should().ContainSingle(r => r["record_type"] == "habit_note" && r["date"] == "2025-06-18"
+            && r["text"] == "" && r["cipher_version"] == "1" && r["cipher_iv"] == "aXY=" && r["cipher_text"] == "+3Q=");
+    }
+
+    [Fact]
+    public void DiscordExport_LeavesOutHabitNotesAndTheTodayOrder()
+    {
+        var user = UserWithHabitNotes();
+
+        using var json = JsonDocument.Parse(ExportBuilder.BuildJson(user, forDiscord: true));
+        var rows = Rows(ExportBuilder.BuildCsv(user, forDiscord: true));
+
+        json.RootElement.GetProperty("habit_notes").ValueKind.Should().Be(JsonValueKind.Null);
+        json.RootElement.GetProperty("settings").GetProperty("today_order").ValueKind.Should().Be(JsonValueKind.Null);
+        rows.Should().NotContain(r => r["record_type"] == "habit_note");
+        rows.Should().ContainSingle(r => r["record_type"] == "settings" && r["today_order"] == "");
+    }
 }

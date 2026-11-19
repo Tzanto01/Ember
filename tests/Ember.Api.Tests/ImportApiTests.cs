@@ -183,6 +183,91 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Habit_notes_follow_their_habits_new_ids_and_the_offer_setting_imports_but_the_today_order_doesnt()
+    {
+        var source = await Host.SignedInAsync();
+        int Id(JsonElement e) => e.GetProperty("id").GetInt32();
+        var walk = Id(await source.CreateHabitAsync("Walk"));
+        var read = Id(await source.CreateHabitAsync("Read"));
+        await Host.Db(db => db.Habits.Where(h => h.Id == walk || h.Id == read)
+            .ExecuteUpdateAsync(s => s.SetProperty(h => h.CreatedAt, h => h.CreatedAt.AddDays(-5))));
+        var today = Host.Today;
+        await (await source.Put($"/api/habits/{walk}/notes/{today.AddDays(-2).Iso()}", new { text = "Short loop" })).Expect(HttpStatusCode.OK);
+        await (await source.Put($"/api/habits/{read}/notes/{today.Iso()}", new { text = "Two chapters" })).Expect(HttpStatusCode.OK);
+        await (await source.Put("/api/me/today-order", new { order = new[] { $"h:{read}", $"h:{walk}" } })).Expect(HttpStatusCode.OK);
+        await (await source.Patch("/api/me", new { offerHabitNote = true })).Expect(HttpStatusCode.OK);
+        var exported = await (await source.Get("/api/me/export?format=json")).ExpectJson();
+        exported.GetProperty("settings").GetProperty("today_order").GetArrayLength().Should().Be(2);
+
+        var target = await Host.SignedInAsync();
+        await (await Import(target, exported)).Expect(HttpStatusCode.NoContent);
+
+        var me = await (await target.Get("/api/me")).ExpectJson();
+        me.GetProperty("offerHabitNote").GetBoolean().Should().BeTrue();
+        me.GetProperty("todayOrder").ValueKind.Should().Be(JsonValueKind.Null);
+        var names = (await (await target.Get("/api/habits")).ExpectJson()).EnumerateArray()
+            .ToDictionary(h => Id(h), h => h.GetProperty("name").GetString());
+        names.Keys.Should().NotContain([walk, read]);
+        var notes = (await (await target.Get("/api/habit-notes")).ExpectJson()).EnumerateArray()
+            .Select(n => (names[n.GetProperty("habitId").GetInt32()], n.GetProperty("date").GetString(), n.GetProperty("text").GetString()));
+        notes.Should().Equal(("Walk", today.AddDays(-2).Iso(), "Short loop"), ("Read", today.Iso(), "Two chapters"));
+    }
+
+    private static JsonElement WithHabitNotes(object doc, params object[] notes)
+    {
+        var node = JsonSerializer.SerializeToNode(doc)!;
+        node["habit_notes"] = JsonSerializer.SerializeToNode(notes);
+        return JsonSerializer.SerializeToElement(node);
+    }
+
+    [DockerFact]
+    public async Task Invalid_habit_notes_are_a_400_with_their_path_and_write_nothing()
+    {
+        var user = await Host.SignedInAsync();
+
+        var errors = await ErrorsAsync(await Import(user, WithHabitNotes(Doc(),
+            new { habit_id = 1, date = "2026-10-25", text = "Fine" },
+            new { habit_id = 1, date = "2026-10-25", text = "Same day" },
+            new { habit_id = 9, date = "2026-10-26", text = "No habit" },
+            new { habit_id = 1, date = "2026-10-19", text = "Before start" },
+            new { habit_id = 1, date = "2026-12-25", text = "Future" },
+            new { habit_id = 1, date = "2026-10-27", text = new string('a', 281) },
+            new { habit_id = 1, date = "2026-10-28", encrypted = Blob },
+            new { habit_id = 1, date = "2026-10-29" })));
+
+        errors.EnumerateObject().Select(e => e.Name).Should().BeEquivalentTo(
+            "habit_notes[1].date", "habit_notes[2].habit_id", "habit_notes[3].date", "habit_notes[4].date",
+            "habit_notes[5].text", "habit_notes[6].encrypted", "habit_notes[7].text");
+        (await HabitCountAsync(await user.IdAsync())).Should().Be(0);
+        (await Host.Db(db => db.HabitNotes.CountAsync())).Should().Be(0);
+    }
+
+    [DockerFact]
+    public async Task An_encrypted_habit_note_imports_under_the_new_habit_id_with_its_iv_and_ct_and_ct_over_4096_characters_is_a_400()
+    {
+        var user = await Host.SignedInAsync();
+        var iv = Convert.ToBase64String(Enumerable.Range(1, 12).Select(i => (byte)i).ToArray());
+        var ct = Convert.ToBase64String(Enumerable.Range(0, 3072).Select(i => (byte)(i % 251)).ToArray());
+        ct.Length.Should().Be(4096);
+        object Note(string cipherText) => new { habit_id = 1, date = "2026-10-25", encrypted = new { v = 1, iv, ct = cipherText } };
+
+        var tooLong = await ErrorsAsync(await Import(user, WithHabitNotes(Doc(journalKey: Key), Note(B64(3075)))));
+        tooLong.EnumerateObject().Select(e => e.Name).Should().Contain(name => name.StartsWith("habit_notes[0].encrypted"));
+        (await HabitCountAsync(await user.IdAsync())).Should().Be(0);
+        (await Host.Db(db => db.HabitNotes.CountAsync())).Should().Be(0);
+
+        await (await Import(user, WithHabitNotes(Doc(journalKey: Key), Note(ct)))).Expect(HttpStatusCode.NoContent);
+
+        var habitId = (await (await user.Get("/api/habits")).ExpectJson()).EnumerateArray().Single().GetProperty("id").GetInt32();
+        var stored = (await (await user.Get("/api/habit-notes")).ExpectJson()).EnumerateArray().Single();
+        stored.GetProperty("habitId").GetInt32().Should().Be(habitId);
+        stored.GetProperty("date").GetString().Should().Be("2026-10-25");
+        stored.Has("text").Should().BeFalse();
+        var encrypted = stored.GetProperty("encrypted");
+        (encrypted.GetProperty("iv").GetString(), encrypted.GetProperty("ct").GetString()).Should().Be((iv, ct));
+    }
+
+    [DockerFact]
     public async Task Import_refuses_slips_on_a_build_habit_and_logs_on_a_let_go_habit_and_writes_nothing()
     {
         var user = await Host.SignedInAsync();

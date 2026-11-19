@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { EmptyState } from '@/components/empty-state';
 import { type DayAction, DayPanel } from '@/components/history/day-panel';
+import { HabitNoteCard } from '@/components/history/habit-note-card';
 import { CalendarIllustration, NotebookIllustration } from '@/components/history/illustrations';
 import { keptDays, windowStart } from '@/components/history/kept-days';
 import { Legend } from '@/components/history/legend';
@@ -359,6 +360,7 @@ export default function HistoryPage() {
               <p>{t('history.pickDay')}</p>
             </Card>
           )}
+          {openDay && <HabitNoteCard habit={selected} date={openDay.date} />}
           {openDay && <DayJournal date={openDay.date} />}
           {openDay && <TipSlot place="journal" habits={buildHabits(habits)} />}
           <StatTiles

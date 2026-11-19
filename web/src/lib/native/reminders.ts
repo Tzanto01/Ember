@@ -101,10 +101,11 @@ export class Reminders {
   /**
    * Rebuilds the user's reminders from the current habit list (when offline: the cached list with the queued
    * day edits applied, so an offline check-in still cancels today's reminder), in `timeZone`, with a second
-   * reminder `secondMinutes` after each one when above 0. Rebuilds run one after another. Never throws.
+   * reminder `secondMinutes` after each one when above 0, and pushes the widget's snapshot in the account's Today
+   * `order`. Rebuilds run one after another. Never throws.
    */
-  rebuild(userId: string, timeZone: string, secondMinutes = 0): Promise<void> {
-    this.chain = this.chain.then(() => this.run(userId, timeZone, secondMinutes)).catch(() => undefined);
+  rebuild(userId: string, timeZone: string, secondMinutes = 0, order: string[] | null = null): Promise<void> {
+    this.chain = this.chain.then(() => this.run(userId, timeZone, secondMinutes, order)).catch(() => undefined);
     return this.chain;
   }
 
@@ -298,17 +299,17 @@ export class Reminders {
     }
   }
 
-  private async run(userId: string, timeZone: string, secondMinutes: number): Promise<void> {
+  private async run(userId: string, timeZone: string, secondMinutes: number, order: string[] | null): Promise<void> {
     const loaded = await this.load(userId, timeZone);
     if (!loaded || loaded === 'signedOut') return;
     const { habits, routines, live } = loaded;
     const now = Date.now();
     const today = localDate(now, timeZone);
-    const next = widgetSnapshot(userId, timeZone, addDays(today, 1), habits);
+    const next = widgetSnapshot(userId, timeZone, addDays(today, 1), habits, routines, order);
     await this.toWidget((widget) =>
       widget.update({
-        ...widgetSnapshot(userId, timeZone, today, habits),
-        next: { date: next.date, habits: next.habits, more: next.more },
+        ...widgetSnapshot(userId, timeZone, today, habits, routines, order),
+        next: { date: next.date, habits: next.habits, more: next.more, done: next.done, total: next.total },
       }),
     );
     if (live && !localModeOn()) await this.handOffKey();

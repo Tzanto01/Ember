@@ -1,4 +1,6 @@
-# Ember API contract v1.22
+# Ember API contract v1.23
+
+v1.23 (2026-11-19, Nico on the Fireside storyboard, boards 10 to 15: "Looks good."): Today shows only what is for today, in an order the account can set (`todayOrder`, `PUT /api/me/today-order`), and each habit can carry a short note per day (`/api/habit-notes`, `/api/habits/{id}/notes/{date}`), offered after a check-in only when `offerHabitNote` is on. See "Today order and habit notes v1.23".
 
 v1.22 (2026-11-18, Nico: "one person generates an 8-digit or -letter code and the other person adds that in their app. Like that we don't even need to deal with requests."): Fireside ("Am Lagerfeuer" in German), friends who send each other one of five fixed warmth messages, added with single-use codes, off by default, no seen markers, counts or replies. See "Fireside v1.22".
 
@@ -768,3 +770,33 @@ Approved storyboard (Nico, 2026-11-18): https://claude.ai/artifact/JUckrvBQmSZSq
 ### Out of scope
 
 Free-text messages, friend search, group firesides, any public profile, Android server push (FCM).
+
+## Today order and habit notes v1.23
+
+### Today order
+
+- `Me` gains `todayOrder: string[] | null`. Keys: `h:<habitId>` for a habit outside a routine (let-go habits too), `r:<routineId>` for a routine. Null means automatic (reminder time, then name). The order inside a routine stays the routine's own `habitIds`.
+- `PUT /api/me/today-order` `{ "order": string[] | null }` → 200 `{ "order": string[] | null }`. The server keeps only well-formed keys (canonical ids, no leading zeros) of the caller's own habits outside a routine and own routines, each once at its first place, and drops the rest (malformed, unknown, foreign, routine member, duplicate). Null resets. More than 500 entries → 400 `validation` on `order` and nothing changes. Not consent-gated (it holds ids only). The client sends the full list and adopts the trimmed response.
+- The server never inserts keys; the client places items missing from the saved order. Stored keys of habits deleted or moved into a routine later stay until the next save.
+- Export: `settings.today_order` (JSON) and `today_order` (CSV, keys joined with `;`), full export only. Import ignores it, because ids change. Deleted with the account.
+
+### Habit note offer
+
+- `Me` gains `offerHabitNote: boolean` (default false). `PATCH /api/me` `{ offerHabitNote }` → 200 `Me`. Export `settings.offer_habit_note` and CSV `offer_habit_note`; import sets it like `show_streaks` (missing keeps the account's value).
+
+### Habit notes
+
+```json
+{ "habitId": 3, "date": "2026-11-19", "text": "Short loop in the rain." }
+{ "habitId": 3, "date": "2026-11-19", "encrypted": { "v": 1, "iv": "…", "ct": "…" } }
+```
+
+- One note per habit and local day, stored on the habit (no user id): it goes with the habit on delete, account deletion and merge.
+- `GET /api/habit-notes?from&to[&habitId]` → `HabitNote[]` of the caller's habits, oldest first (default and maximum: 366 days, `from` not after `to`, else 400 `validation`). A `habitId` that isn't the caller's gives `[]`.
+- `PUT /api/habits/{id}/notes/{date}` `{ text?: string, encrypted?: { v, iv, ct } }` → 200 `HabitNote`. Checks in this order: date format (400), consent (403 `consent_required`), the habit is the caller's (404 `not_found` for foreign or unknown), `in_future` (422), `before_habit_start` (422, before that habit's own start, unless the date is today or a note already exists), then the body (400 `validation`). `text` is 1 to 280 chars after trimming (line breaks kept); an empty or missing `text` without `encrypted` is a 400 on `text`: clear a note with `DELETE`. `encrypted` follows the day-note rules (`v` 1, `iv` 12 bytes, `ct` base64 of at least 16 bytes and at most 4096 characters, not mixed with `text`, needs a journal key); plaintext is refused on `encrypted` while the private journal is on and not turning off.
+- `DELETE /api/habits/{id}/notes/{date}` → 204 (also when there was no note), 404 for a foreign or unknown habit. Not consent-gated.
+- Online only: the client doesn't queue habit-note writes offline.
+- Private journal: `Me.journal.plaintextLeft` and `encryptedLeft` count habit notes. `DELETE /api/me/journal-key` with `discardEncrypted` also deletes encrypted habit notes; without it, any encrypted habit note → 409. Clients migrate and re-upload habit notes per habit (`habitId` filter) in 366-day windows.
+- Crypto: AES-GCM with AAD `ember-habit-note:v1:<date>`, payload `{ "text": "…" }`. Accepted risk: the AAD binds the kind and the date, not the habit, because habit ids change on import. A server could swap two same-day notes between habits without the client noticing.
+- Export (full only, never the bot's `/export`): `habit_notes: [{ habit_id, date, text, encrypted }]` (`encrypted` null for plaintext, `text` null when encrypted) and CSV `habit_note` rows (`habit_id`, `date`, `text`, cipher columns). Import remaps `habit_id` to the new habit and checks each note: date not after today and not before that habit's start, one per habit and day, `text` up to 280 chars or a valid `encrypted` (which needs a journal key in the file or the account).
+- Never shown by the bot, in any notification, or in the weekly summary.

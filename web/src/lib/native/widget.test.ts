@@ -10,7 +10,9 @@ import { OfflineQueue } from '../offline-queue';
 import { type FetchMock, habit, letGoHabit, mockFetch } from '../test-support';
 import { reminderNames } from './reminder-names';
 import { Reminders } from './reminders';
-import { type EmberWidgetPlugin, widgetSnapshot } from './widget';
+import { followWidgetStyle } from '../startup';
+import { applyCalm, applyGentleMotion, applyTheme, chooseColorScheme, chooseTheme, resetTheme } from '../theme';
+import { type EmberWidgetPlugin, type WidgetSnapshot, widgetSnapshot } from './widget';
 
 describe('widget snapshot', () => {
   let mock: FetchMock;
@@ -65,12 +67,12 @@ describe('widget snapshot', () => {
     count,
   });
 
-  it("pushes today's scheduled habits with their state after a rebuild, leaving out rest days and pauses, and tomorrow's from the schedule", async () => {
+  it("pushes today's habits by the Today rules after a rebuild, with done of total, leaving out rest days and pauses, and tomorrow's from the schedule", async () => {
     const done = reminders.rebuild('u1', 'Europe/Berlin');
     (await mock.next('GET', '/api/habits')).respond(200, [
       { ...habit, id: 1, name: 'Walk', timesPerDay: 3, today: day('partial', 2) },
-      { ...habit, id: 2, name: 'Stretch', today: day('offday') },
-      { ...habit, id: 3, name: 'Read', today: day('paused') },
+      { ...habit, id: 2, name: 'Stretch', frequency: 'weekdays', days: ['mon'], today: day('offday') },
+      { ...habit, id: 3, name: 'Read', pausedToday: true, pausedUntil: '2026-11-01', today: day('paused') },
       { ...habit, id: 4, name: 'Water', today: day('done', 1) },
       { ...habit, id: 5, name: 'Journal', today: day('pending') },
     ]);
@@ -78,44 +80,109 @@ describe('widget snapshot', () => {
     await phoneRegistered();
     await done;
 
+    const open = (id: number, name: string, timesPerDay = 1) => ({ id, name, state: 'open', count: 0, timesPerDay });
     expect(update).toHaveBeenCalledWith({
       userId: 'u1',
       date: '2026-11-01',
       timeZone: 'Europe/Berlin',
       habits: [
+        open(5, 'Journal'),
         { id: 1, name: 'Walk', state: 'partial', count: 2, timesPerDay: 3 },
         { id: 4, name: 'Water', state: 'done', count: 1, timesPerDay: 1 },
-        { id: 5, name: 'Journal', state: 'open', count: 0, timesPerDay: 1 },
       ],
       more: 0,
+      done: 1,
+      total: 3,
       next: {
         date: '2026-11-02',
-        habits: [
-          { id: 1, name: 'Walk', state: 'open', count: 0, timesPerDay: 3 },
-          { id: 2, name: 'Stretch', state: 'open', count: 0, timesPerDay: 1 },
-          { id: 3, name: 'Read', state: 'open', count: 0, timesPerDay: 1 },
-          { id: 4, name: 'Water', state: 'open', count: 0, timesPerDay: 1 },
-        ],
-        more: 1,
+        habits: [open(5, 'Journal'), open(3, 'Read'), open(2, 'Stretch'), open(1, 'Walk', 3), open(4, 'Water')],
+        more: 0,
+        done: 0,
+        total: 5,
       },
     });
   });
 
-  it('leaves let-go habits out of the rows and the more count', () => {
+  it("follows the account's Today order with routines as one block in member order, keeping done habits in place", async () => {
+    const done = reminders.rebuild('u1', 'Europe/Berlin', 0, ['h:4', 'r:7', 'h:1']);
+    (await mock.next('GET', '/api/habits')).respond(200, [
+      { ...habit, id: 1, name: 'Walk' },
+      { ...habit, id: 2, name: 'Stretch' },
+      { ...habit, id: 3, name: 'Water' },
+      { ...habit, id: 4, name: 'Meds', today: day('done', 1) },
+    ]);
+    (await mock.next('GET', '/api/routines')).respond(200, [
+      { id: 7, name: 'Morning', reminderTime: null, reminderChannels: [], habitIds: [3, 2] },
+    ]);
+    await phoneRegistered();
+    await done;
+
+    const snapshot = (update.mock.calls[0] as unknown as [WidgetSnapshot])[0];
+    expect(snapshot.habits.map((h) => h.id)).toEqual([4, 3, 2, 1]);
+    expect([snapshot.done, snapshot.total]).toEqual([1, 4]);
+    expect(snapshot.next!.habits.map((h) => h.id)).toEqual([4, 3, 2, 1]);
+  });
+
+  it('leaves let-go habits out of the rows, the count and the more count', () => {
     const snapshot = widgetSnapshot('u1', 'Europe/Berlin', '2026-11-01', [habit, letGoHabit]);
 
     expect(snapshot.habits.map((h) => h.id)).toEqual([1]);
-    expect(snapshot.more).toBe(0);
+    expect([snapshot.more, snapshot.total]).toEqual([0, 1]);
     expect(JSON.stringify(snapshot)).not.toContain('Coffee');
   });
 
-  it('shows four rows and counts the rest as more', () => {
-    const habits = Array.from({ length: 8 }, (_, i) => ({ ...habit, id: i + 1 }));
+  it('carries up to 25 habits and counts the rest as more, still counting all of them in the total', () => {
+    const habits = Array.from({ length: 27 }, (_, i) => ({ ...habit, id: i + 1, name: `Habit ${String(i + 1).padStart(2, '0')}` }));
 
     const snapshot = widgetSnapshot('u1', 'Europe/Berlin', '2026-11-01', habits);
 
-    expect(snapshot.habits.map((h) => h.id)).toEqual([1, 2, 3, 4]);
-    expect(snapshot.more).toBe(4);
+    expect(snapshot.habits).toHaveLength(25);
+    expect(snapshot.habits.at(-1)!.id).toBe(25);
+    expect([snapshot.more, snapshot.total]).toEqual([2, 27]);
+  });
+
+  it('tells the widget its theme, colour scheme and motion at start and after each change, with motion off in calm mode', async () => {
+    const setStyle = vi.fn(async () => undefined);
+    applyGentleMotion(true);
+    applyCalm(false);
+
+    followWidgetStyle(true, async () => ({ EmberWidget: { setStyle } as unknown as EmberWidgetPlugin }));
+    await vi.waitFor(() => expect(setStyle).toHaveBeenCalledTimes(1));
+    expect(setStyle).toHaveBeenLastCalledWith({ theme: 'hearthlight', motion: true, colorScheme: 'system' });
+
+    applyCalm(true);
+    await vi.waitFor(() => expect(setStyle).toHaveBeenLastCalledWith({ theme: 'hearthlight', motion: false, colorScheme: 'system' }));
+    applyCalm(false);
+    applyGentleMotion(false);
+    chooseColorScheme('dark');
+    chooseTheme('tidepool');
+    await vi.waitFor(() => expect(setStyle).toHaveBeenLastCalledWith({ theme: 'tidepool', motion: false, colorScheme: 'dark' }));
+    expect(localStorage.getItem('ember.gentleMotion')).toBe('0');
+
+    applyGentleMotion(true);
+    localStorage.removeItem('ember.colorScheme');
+    document.documentElement.classList.remove('dark');
+    resetTheme();
+  });
+
+  it('sends the same style again after a failed call, on the next change of any input', async () => {
+    const setStyle = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('not ready'))
+      .mockResolvedValue(undefined);
+    applyGentleMotion(true);
+    applyCalm(false);
+
+    followWidgetStyle(true, async () => ({ EmberWidget: { setStyle } as unknown as EmberWidgetPlugin }));
+    await vi.waitFor(() => expect(setStyle).toHaveBeenCalledTimes(1));
+    applyGentleMotion(true);
+    applyTheme('hearthlight');
+
+    await vi.waitFor(() => expect(setStyle).toHaveBeenCalledTimes(2));
+    applyTheme('hearthlight');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(setStyle).toHaveBeenCalledTimes(2);
+    resetTheme();
   });
 
   it('clears the widget and the names setting with the reminders', async () => {

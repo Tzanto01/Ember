@@ -13,6 +13,9 @@
     <string name="widget_row_open_description">%1$s öffnen, %2$s</string>
     <string name="widget_more">+%1$d weitere</string>
     <string name="widget_not_saved">%1$s · noch nicht gespeichert</string>
+    <string name="widget_today">Heute</string>
+    <string name="widget_all_done">Für heute alles erledigt</string>
+    <string name="widget_flame_description">Heute öffnen</string>
     <string name="moment_label">Ich brauche einen Moment</string>
     <string name="moment_short_label">Ein Moment</string>
     <string name="moment_widget_name">Ich brauche einen Moment</string>

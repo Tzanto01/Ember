@@ -5,11 +5,19 @@ import type { Habit } from '@/lib/models';
 import { habit } from '@/lib/test-support';
 import { HabitRow } from './habit-row';
 
-function show(overrides: Partial<Habit>, showStreaks = true) {
+function show(overrides: Partial<Habit>, showStreaks = true, checkInPaused = false) {
   const subject: Habit = { ...habit, ...overrides };
   const { container } = render(
     <MemoryRouter>
-      <HabitRow habit={subject} busy={false} reward={null} onToggle={() => {}} onRewardEnd={() => {}} showStreaks={showStreaks} />
+      <HabitRow
+        habit={subject}
+        busy={false}
+        reward={null}
+        onToggle={() => {}}
+        onRewardEnd={() => {}}
+        showStreaks={showStreaks}
+        checkInPaused={checkInPaused}
+      />
     </MemoryRouter>,
   );
   return container;
@@ -69,6 +77,17 @@ describe('HabitRow meta line', () => {
 
     expect(row.textContent).toMatch(/Paused until (15 December|December 15)/);
     expect(checkButton()).toBeNull();
+  });
+
+  it('under Not for today, offers the check-in for a paused habit and keeps saying it is paused', () => {
+    const row = show(
+      { pausedToday: true, pausedUntil: '2026-12-15', today: { ...habit.today, state: 'paused' } },
+      true,
+      true,
+    );
+
+    expect(row.textContent).toMatch(/Paused until (15 December|December 15)/);
+    expect(checkButton()).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('says when a habit has not started and offers no check-in', () => {

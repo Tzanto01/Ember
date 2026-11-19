@@ -155,3 +155,41 @@ test('the Today let-go row and slip sheet read in German', async ({ page }) => {
   await sheet.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(sheet.getByRole('status')).toContainText('Notiert.');
 });
+
+test('after a slip is saved the sheet offers Try instead with the built-in ideas and no screen-time button on the web', async ({ page }) => {
+  await createWebUser(page);
+  await createLetGoHabit(page, 'Late snacks');
+
+  await letGoRow(page, 'Late snacks').getByRole('button', { name: 'I slipped: Late snacks' }).click();
+  const sheet = slipDialog(page);
+  await sheet.getByRole('button', { name: 'Bored', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(sheet.getByRole('status')).toContainText(/^Noted\./);
+
+  const ideas = sheet.getByRole('list', { name: 'Try instead' });
+  await expect(ideas).toBeVisible();
+  await expect(ideas.getByRole('listitem')).toHaveText([
+    'Call or message someone',
+    'Step outside for a few minutes',
+    'Meet a friend',
+    'Read a few pages',
+    'Put the phone in another room',
+  ]);
+  await expect(page.getByRole('button', { name: 'See your screen time' })).toHaveCount(0);
+});
+
+test('the social-media-free evenings template creates a let-go habit with its quiet check-in at 21:00', async ({ page }) => {
+  await createWebUser(page);
+  await page.goto('/habits/new');
+  const template = page.getByRole('button', { name: /Social-media-free evenings/ });
+  await expect(template).toContainText('To let go of · quiet check-in at 21:00');
+  await template.click();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue(/Social-media-free evenings/);
+  await expect(page.getByLabel('Quiet evening check-in (optional)')).toHaveValue('21:00');
+  await page.getByRole('button', { name: 'Create habit' }).click();
+  await expect(page).toHaveURL(/\/today$/);
+  await expect(page.getByRole('region', { name: 'Letting go' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^I slipped: .*Social-media-free evenings/ })).toBeVisible();
+  await page.getByRole('link', { name: /^Edit .*Social-media-free evenings/ }).click();
+  await expect(page.getByLabel('Quiet evening check-in (optional)')).toHaveValue('21:00');
+});

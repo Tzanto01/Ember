@@ -392,6 +392,43 @@ namespace Ember.Core.Data.Migrations
                     b.ToTable("HabitLogs");
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.HabitNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CipherIv")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("CipherText")
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.Property<int?>("CipherVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("HabitId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HabitId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("HabitNotes");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.HabitSlip", b =>
                 {
                     b.Property<int>("Id")
@@ -948,6 +985,9 @@ namespace Ember.Core.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<bool>("OfferHabitNote")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text");
 
@@ -977,6 +1017,9 @@ namespace Ember.Core.Data.Migrations
 
                     b.PrimitiveCollection<List<string>>("TipsSeen")
                         .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.PrimitiveCollection<List<string>>("TodayOrder")
                         .HasColumnType("text[]");
 
                     b.Property<bool>("TwoFactorEnabled")
@@ -1231,6 +1274,17 @@ namespace Ember.Core.Data.Migrations
                     b.Navigation("Habit");
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.HabitNote", b =>
+                {
+                    b.HasOne("Ember.Core.Models.Habit", "Habit")
+                        .WithMany("Notes")
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Habit");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.HabitSlip", b =>
                 {
                     b.HasOne("Ember.Core.Models.Habit", "Habit")
@@ -1430,6 +1484,8 @@ namespace Ember.Core.Data.Migrations
             modelBuilder.Entity("Ember.Core.Models.Habit", b =>
                 {
                     b.Navigation("Logs");
+
+                    b.Navigation("Notes");
 
                     b.Navigation("Slips");
                 });

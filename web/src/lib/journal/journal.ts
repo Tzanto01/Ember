@@ -4,7 +4,10 @@ import { addDays } from '../local-date';
 import type {
   DayNote,
   DayNoteBody,
+  AnyHabit,
   EncryptedBlob,
+  HabitNote,
+  HabitNoteBody,
   JournalKey,
   LocalDateString,
   Me,
@@ -12,6 +15,7 @@ import type {
   MoodPatchBody,
   OwnMood,
   StoredDayNote,
+  StoredHabitNote,
   StoredMood,
 } from '../models';
 import type { DroppedNote, ResealResult } from '../offline-queue';
@@ -19,9 +23,11 @@ import { ApiError, asApiError } from '../problem';
 import { Store } from '../store';
 import type { HelpsList } from '../helps/types';
 import {
+  decryptHabitNote,
   decryptHelps,
   decryptMood,
   decryptNote,
+  encryptHabitNote,
   encryptHelps,
   encryptMood,
   encryptNote,
@@ -51,6 +57,8 @@ export type JournalSource = Pick<
   | 'listDayNotes'
   | 'saveDayNote'
   | 'sendNoteEdit'
+  | 'listHabitNotes'
+  | 'saveHabitNote'
   | 'listMoods'
   | 'createMood'
   | 'updateMood'
@@ -78,6 +86,8 @@ const rewrapMs = 10 * 60 * 1000;
 /** Scans for entries go back at least this far, further when a habit started earlier. */
 const minScanDays = 3660;
 const maxText = 2000;
+/** The longest habit note, in characters after trimming. */
+export const maxHabitNote = 280;
 const maxLabel = 24;
 
 type Bytes = Uint8Array<ArrayBuffer>;
@@ -184,6 +194,27 @@ export class JournalService implements JournalApi {
     const encrypted = await encryptNote(key, date, { text, mood: current.mood ?? null });
     if (this.key !== key || this.session.me.get()?.id !== me.id) throw new JournalLockedError();
     await this.api.sendNoteEdit({ kind: 'note', date, body: { encrypted } });
+    this.bump();
+  }
+
+  async habitNotes(
+    from?: LocalDateString,
+    to?: LocalDateString,
+    habitId?: number,
+  ): Promise<{ notes: HabitNote[]; hidden: number }> {
+    return this.readHabitNotes(await this.api.listHabitNotes(from, to, habitId));
+  }
+
+  async saveHabitNote(habitId: number, date: LocalDateString, text: string | null): Promise<void> {
+    const me = this.requireMe();
+    const trimmed = text?.trim() ?? '';
+    if (trimmed.length > maxHabitNote) throw new RangeError(t('habitNote.tooLong', { max: maxHabitNote }));
+    let body: HabitNoteBody | null = null;
+    if (trimmed) {
+      const key = this.sealingKey(me);
+      body = key ? { encrypted: await encryptHabitNote(key, date, { text: trimmed }) } : { text: trimmed };
+    }
+    await this.api.saveHabitNote(habitId, date, body);
     this.bump();
   }
 
@@ -424,9 +455,16 @@ export class JournalService implements JournalApi {
       );
       return false;
     });
+    const habitNotes: { habitId: number; habitName: string; date: LocalDateString; text: string }[] = [];
+    await this.scanHabitNotes(async (stored, habit) => {
+      const { notes } = await this.readHabitNotes(stored);
+      habitNotes.push(...notes.map((n) => ({ habitId: n.habitId, habitName: habit.name, date: n.date, text: n.text })));
+      return false;
+    });
+    habitNotes.sort((a, b) => a.date.localeCompare(b.date) || a.habitId - b.habitId);
     const sealedHelps = me.journal.encrypted && !me.journal.turningOff ? await this.api.getHelps() : null;
     const helps = sealedHelps ? await this.openHelps(sealedHelps.encrypted).then((list) => list.items, () => []) : [];
-    const file = { exportedAt: new Date().toISOString(), entries, moods, helps };
+    const file = { exportedAt: new Date().toISOString(), entries, moods, helps, habitNotes };
     return {
       blob: new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' }),
       fileName: `ember-journal-${me.localToday}.json`,
@@ -551,15 +589,22 @@ export class JournalService implements JournalApi {
         const body = await decryptNote(key, note.date, note.encrypted);
         await this.api.sendNoteEdit({ kind: 'note', date: note.date, body });
       }
-      const me = await this.session.loadMe(true);
-      return (
-        this.key !== key ||
-        me?.id !== userId ||
-        !me.journal.turningOff ||
-        me.journal.encryptedLeft <= 0
-      );
+      return this.reuploadDone(key, userId);
+    });
+    await this.scanHabitNotes(async (notes) => {
+      for (const note of notes) {
+        if (!isEncrypted(note) || this.key !== key) continue;
+        const body = await decryptHabitNote(key, note.date, note.encrypted);
+        await this.api.saveHabitNote(note.habitId, note.date, body);
+      }
+      return this.reuploadDone(key, userId);
     });
     this.bump();
+  }
+
+  private async reuploadDone(key: CryptoKey, userId: string | null): Promise<boolean> {
+    const me = await this.session.loadMe(true);
+    return this.key !== key || me?.id !== userId || !me.journal.turningOff || me.journal.encryptedLeft <= 0;
   }
 
   private async runRestore(): Promise<void> {
@@ -589,7 +634,7 @@ export class JournalService implements JournalApi {
   }
 
   private async migrate(): Promise<void> {
-    let me = await this.session.loadMe(true);
+    const me = await this.session.loadMe(true);
     const key = this.key;
     if (
       !me?.journal.encrypted ||
@@ -611,16 +656,28 @@ export class JournalService implements JournalApi {
         const encrypted = await encryptNote(key, note.date, note);
         await this.api.sendNoteEdit({ kind: 'note', date: note.date, body: { encrypted } });
       }
-      me = await this.session.loadMe(true);
-      return (
-        this.key !== key ||
-        me?.id !== userId ||
-        !me.journal.encrypted ||
-        me.journal.turningOff ||
-        me.journal.plaintextLeft <= 0
-      );
+      return this.migrateDone(key, userId);
+    });
+    await this.scanHabitNotes(async (notes) => {
+      for (const note of notes) {
+        if (isEncrypted(note) || this.key !== key) continue;
+        const encrypted = await encryptHabitNote(key, note.date, note);
+        await this.api.saveHabitNote(note.habitId, note.date, { encrypted });
+      }
+      return this.migrateDone(key, userId);
     });
     this.bump();
+  }
+
+  private async migrateDone(key: CryptoKey, userId: string): Promise<boolean> {
+    const me = await this.session.loadMe(true);
+    return (
+      this.key !== key ||
+      me?.id !== userId ||
+      !me.journal.encrypted ||
+      me.journal.turningOff ||
+      me.journal.plaintextLeft <= 0
+    );
   }
 
   /** Walks `GET /api/day-notes` back from local today in 366-day windows until `visit` returns true or the floor. */
@@ -634,6 +691,41 @@ export class JournalService implements JournalApi {
       if (await visit(await this.api.listDayNotes(from, to))) return;
       to = addDays(from, -1);
     }
+  }
+
+  /**
+   * Walks `GET /api/habit-notes` per habit, from two days after local today back to two days before the habit's start
+   * (a time zone change can move both), in 366-day windows, until `visit` returns true. Rejects when the habits can't be listed.
+   */
+  private async scanHabitNotes(visit: (notes: StoredHabitNote[], habit: AnyHabit) => Promise<boolean>): Promise<void> {
+    const today = this.requireMe().localToday;
+    for (const habit of await this.api.listHabits()) {
+      const floor = addDays(habit.startDate < today ? habit.startDate : today, -2);
+      for (let to = addDays(today, 2); to >= floor;) {
+        const from = addDays(to, -365);
+        if (await visit(await this.api.listHabitNotes(from, to, habit.id), habit)) return;
+        to = addDays(from, -1);
+      }
+    }
+  }
+
+  private async readHabitNotes(stored: StoredHabitNote[]): Promise<{ notes: HabitNote[]; hidden: number }> {
+    const key = this.key;
+    const notes: HabitNote[] = [];
+    let hidden = 0;
+    for (const note of stored) {
+      if (!isEncrypted(note)) {
+        notes.push({ habitId: note.habitId, date: note.date, text: note.text });
+        continue;
+      }
+      try {
+        if (!key) throw new JournalLockedError();
+        notes.push({ habitId: note.habitId, date: note.date, ...(await decryptHabitNote(key, note.date, note.encrypted)) });
+      } catch {
+        hidden++;
+      }
+    }
+    return { notes, hidden };
   }
 
   private async readNotes(stored: StoredDayNote[]): Promise<{ notes: DayNote[]; hidden: number }> {

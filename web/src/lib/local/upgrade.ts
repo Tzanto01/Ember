@@ -2,12 +2,13 @@ import type { ApiClient } from '../api-client';
 import type { AuthService } from '../auth';
 import type { DeviceStore } from '../device-store';
 import { type JournalApi, JournalLockedError } from '../journal/types';
-import type { MoodKey, OwnMood } from '../models';
+import type { AnyHabit, MoodKey, OwnMood } from '../models';
 import { ApiError, asApiError, problemToMessage } from '../problem';
 import { deviceTipsSeen, earliestStart, exportDocument } from './backend';
 import type { LocalMode } from './mode';
+import { habitStartDate } from './rules';
 import type { LocalStore } from './store';
-import type { LocalData, LocalMood, LocalNote, UpgradeApi, UpgradeProgress, UpgradeResult, UpgradeSummary } from './types';
+import type { LocalData, LocalHabitNote, LocalMood, LocalNote, UpgradeApi, UpgradeProgress, UpgradeResult, UpgradeSummary } from './types';
 import { deviceLanguage, t } from '../i18n';
 
 const conflictCopy = () => t('upgrade.error.conflict');
@@ -19,18 +20,31 @@ function isNotEmpty(error: ApiError): boolean {
   return error.status === 409 && error.type === 'conflict' && error.problem?.detail === notEmptyDetail;
 }
 
-/** Day notes and low days the account can't take: dated before the earliest habit start, or all of them without habits. */
-function leftOut(data: LocalData): { notes: LocalNote[]; lowDays: string[] } {
+/**
+ * Day notes and low days the account can't take (dated before the earliest habit start, or all of them without
+ * habits), and habit notes dated before their habit's start.
+ */
+function leftOut(data: LocalData): { notes: LocalNote[]; lowDays: string[]; habitNotes: LocalHabitNote[] } {
   const start = earliestStart(data);
   const before = (date: string) => start === null || date < start;
-  return { notes: data.notes.filter((n) => before(n.date)), lowDays: data.lowDays.filter(before) };
+  const starts = new Map(data.habits.map((h) => [h.id, habitStartDate(h, data.profile.timezone)]));
+  return {
+    notes: data.notes.filter((n) => before(n.date)),
+    lowDays: data.lowDays.filter(before),
+    habitNotes: (data.habitNotes ?? []).filter((n) => !starts.has(n.habitId) || n.date < starts.get(n.habitId)!),
+  };
 }
 
 /** The import body: the export document without what the account can't take, and without the journal when `journal` is false. */
 function importDocument(data: LocalData, journal: boolean): Record<string, unknown> {
   const out = leftOut(data);
   return exportDocument(
-    { ...data, notes: data.notes.filter((n) => !out.notes.includes(n)), lowDays: data.lowDays.filter((d) => !out.lowDays.includes(d)) },
+    {
+      ...data,
+      notes: data.notes.filter((n) => !out.notes.includes(n)),
+      lowDays: data.lowDays.filter((d) => !out.lowDays.includes(d)),
+      habitNotes: (data.habitNotes ?? []).filter((n) => !out.habitNotes.includes(n)),
+    },
     journal,
   );
 }
@@ -40,7 +54,9 @@ function failed(message: string): UpgradeResult {
 }
 
 function holdsData(data: LocalData): boolean {
-  return [data.habits, data.logs, data.lowDays, data.routines, data.moods, data.notes].some((list) => list.length > 0);
+  return [data.habits, data.logs, data.lowDays, data.routines, data.moods, data.notes, data.habitNotes ?? []].some(
+    (list) => list.length > 0,
+  );
 }
 
 function sameSorted(a: string[], b: string[]): boolean {
@@ -64,7 +80,7 @@ export class UpgradeService implements UpgradeApi {
     private readonly store: LocalStore,
     private readonly api: Pick<ApiClient, 'importData' | 'listHabits' | 'listRoutines' | 'markTipSeen' | 'updateMe'>,
     private readonly auth: Pick<AuthService, 'me'>,
-    private readonly journal: Pick<JournalApi, 'state' | 'enable' | 'moods' | 'addMood' | 'updateMood' | 'save'>,
+    private readonly journal: Pick<JournalApi, 'state' | 'enable' | 'moods' | 'addMood' | 'updateMood' | 'save' | 'saveHabitNote'>,
     private readonly device: Pick<DeviceStore, 'clearUser'>,
     private readonly localMode: Pick<LocalMode, 'mode' | 'finishUpgrade'>,
   ) {}
@@ -76,9 +92,9 @@ export class UpgradeService implements UpgradeApi {
     return {
       habits: data.habits.length,
       checkIns: data.logs.length,
-      notes: data.notes.length,
+      notes: data.notes.length + (data.habitNotes?.length ?? 0),
       moods: data.moods.length,
-      leftOut: { notes: out.notes.length, lowDays: out.lowDays.length },
+      leftOut: { notes: out.notes.length + out.habitNotes.length, lowDays: out.lowDays.length },
     };
   }
 
@@ -157,6 +173,7 @@ export class UpgradeService implements UpgradeApi {
             graceDaysPerWeek: profile.graceDaysPerWeek,
             showStreaks: profile.showStreaks ?? true,
             calmMode: profile.calmMode ?? false,
+            offerHabitNote: profile.offerHabitNote ?? false,
             language: deviceLanguage(),
             ...(profile.theme ? { theme: profile.theme } : {}),
           });
@@ -198,6 +215,7 @@ export class UpgradeService implements UpgradeApi {
           routines: [],
           moods: [],
           notes: [],
+          habitNotes: [],
           upgrade: finished,
         }));
         await this.device.clearUser(data.profile.userId).catch(() => undefined);
@@ -270,5 +288,32 @@ export class UpgradeService implements UpgradeApi {
     }
     for (const mood of data.moods.filter((m) => !m.archived)) await accountMood(mood);
     for (const note of data.notes) await saveNote(note);
+
+    const skippedHabitNotes = new Set(leftOut(data).habitNotes);
+    const habitNotes = (data.habitNotes ?? []).filter((n) => !skippedHabitNotes.has(n));
+    if (!habitNotes.length) return;
+    const accountIds = accountHabitIds(data, await this.api.listHabits());
+    for (const note of habitNotes) {
+      const done = `${note.habitId}|${note.date}`;
+      const id = accountIds.get(note.habitId);
+      if (progress().habitNotesDone?.includes(done)) continue;
+      if (id === undefined) throw new Error('No account habit for a device habit note.');
+      await this.journal.saveHabitNote(id, note.date, note.text);
+      await save({ habitNotesDone: [...(progress().habitNotesDone ?? []), done] });
+    }
   }
+}
+
+/** Device habit id to account habit id after the import: habits of the same name and kind, paired in order. */
+function accountHabitIds(data: LocalData, account: AnyHabit[]): Map<number, number> {
+  const kindOf = (kind: string | undefined) => (kind === 'letGo' ? 'letGo' : 'build');
+  const waiting = [...account].sort((a, b) => a.id - b.id);
+  const ids = new Map<number, number>();
+  for (const habit of [...data.habits].sort((a, b) => a.id - b.id)) {
+    const index = waiting.findIndex((h) => h.name === habit.name && kindOf(h.kind) === kindOf(habit.kind));
+    if (index < 0) continue;
+    ids.set(habit.id, waiting[index]!.id);
+    waiting.splice(index, 1);
+  }
+  return ids;
 }

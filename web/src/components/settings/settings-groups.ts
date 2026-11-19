@@ -36,7 +36,7 @@ export const settingsGroups: SettingsGroup[] = [
     slug: 'habits',
     nameKey: 'settings.group.habits',
     icon: CalendarDays,
-    cards: ['routines', 'streaks', 'grace', 'timezone', 'moods'],
+    cards: ['routines', 'streaks', 'habit-notes', 'grace', 'timezone', 'moods'],
   },
   { slug: 'people', nameKey: 'fireside.settings.group', icon: Users, cards: ['fireside'] },
   {

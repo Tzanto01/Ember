@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { vi } from 'vitest';
 import type { JournalApi, JournalState } from '@/lib/journal/types';
-import type { DayNote, OwnMood } from '@/lib/models';
+import type { DayNote, HabitNote, OwnMood } from '@/lib/models';
 import { Store } from '@/lib/store';
 import { JournalContext } from './journal-context';
 
@@ -13,7 +13,8 @@ export function fakeJournal({
   state = 'off',
   notes = [],
   moods = [],
-}: { state?: JournalState; notes?: DayNote[]; moods?: OwnMood[] } = {}) {
+  habitNotes = [],
+}: { state?: JournalState; notes?: DayNote[]; moods?: OwnMood[]; habitNotes?: HabitNote[] } = {}) {
   const unused = () => vi.fn(() => Promise.reject(new Error('not used by screens')));
   const fake = {
     state: new Store<JournalState>(state),
@@ -25,6 +26,13 @@ export function fakeJournal({
       hidden: 0,
     })),
     save: vi.fn(async (_date: string, _entry: Pick<DayNote, 'text' | 'mood'>) => ({ queued: false })),
+    habitNotes: vi.fn(async (from?: string, to?: string, habitId?: number) => ({
+      notes: habitNotes.filter(
+        (n) => (!from || n.date >= from) && (!to || n.date <= to) && (habitId === undefined || n.habitId === habitId),
+      ),
+      hidden: 0,
+    })),
+    saveHabitNote: vi.fn(async (_habitId: number, _date: string, _text: string | null) => undefined),
     appendPrivate: vi.fn(async (_date: string, _block: string) => undefined),
     moods: vi.fn(async () => moods),
     addMood: vi.fn(async (mood: { label: string; emoji: string | null }): Promise<OwnMood> => ({

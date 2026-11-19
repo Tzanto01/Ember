@@ -266,6 +266,26 @@ describe('HabitNewPage', () => {
       expect(screen.getByText('Give your habit a short name.')).toBeInTheDocument();
     });
 
+    it('offers social-media-free evenings as a let-go habit with its quiet check-in at 21:00', async () => {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      (await fetch.next('GET', '/api/habit-templates')).respond(200, [template]);
+
+      await user.click(await screen.findByRole('button', { name: /Social-media-free evenings/ }));
+      expect(screen.getByRole('radio', { name: 'Something to let go of' })).toBeChecked();
+      expect(screen.getByLabelText(/Quiet evening check-in/)).toHaveValue('21:00');
+      await user.click(screen.getByRole('button', { name: 'Create habit' }));
+
+      expect((await fetch.next('POST', '/api/habits')).body).toEqual({
+        name: '🌙 Social-media-free evenings',
+        kind: 'letGo',
+        frequency: 'daily',
+        timesPerDay: 1,
+        reminderTimes: ['21:00'],
+      });
+    });
+
     it('does not send a kind for a build habit', async () => {
       const user = userEvent.setup();
       const fetch = mockFetch();

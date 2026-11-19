@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  decryptHabitNote,
   decryptMood,
   decryptNote,
+  encryptHabitNote,
   encryptMood,
   encryptNote,
   importJournalKey,
@@ -110,6 +112,17 @@ describe('journal crypto', () => {
 
     expect(await decryptMood(key, mood)).toEqual({ label: 'Cosy', emoji: null });
     await expect(decryptMood(key, note)).rejects.toThrow();
+  });
+
+  it("round-trips a habit note for its day and keeps it apart from another day's and from day entries", async () => {
+    const key = await importJournalKey(newJournalKeyBytes());
+    const blob = await encryptHabitNote(key, '2026-11-01', { text: 'Felt heavy, went anyway.' });
+    const entry = await encryptNote(key, '2026-11-01', { text: 'Tea', mood: null });
+
+    expect(await decryptHabitNote(key, '2026-11-01', blob)).toEqual({ text: 'Felt heavy, went anyway.' });
+    await expect(decryptHabitNote(key, '2026-11-02', blob)).rejects.toThrow();
+    await expect(decryptNote(key, '2026-11-01', blob)).rejects.toThrow();
+    await expect(decryptHabitNote(key, '2026-11-01', entry)).rejects.toThrow();
   });
 
   it('refuses a ciphertext over 16 KiB of base64', async () => {

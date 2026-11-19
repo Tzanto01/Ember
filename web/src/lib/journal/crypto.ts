@@ -18,6 +18,7 @@ type Bytes = Uint8Array<ArrayBuffer>;
 
 const utf8 = (text: string): Bytes => new TextEncoder().encode(text);
 const noteAad = (date: LocalDateString): Bytes => utf8(`ember-day-note:v1:${date}`);
+const habitNoteAad = (date: LocalDateString): Bytes => utf8(`ember-habit-note:v1:${date}`);
 
 function random(length: number): Bytes {
   return crypto.getRandomValues(new Uint8Array(length));
@@ -258,6 +259,18 @@ export async function decryptNote(
   const { text, mood } = await open(key, blob, noteAad(date));
   if (!stringOrNull(text) || !stringOrNull(mood)) throw new Error('Unexpected payload.');
   return { text, mood: mood as MoodKey | null };
+}
+
+/** Encrypts a habit's note for `date`; the AAD binds it to the kind and `date` (not the habit, whose id changes on import). */
+export function encryptHabitNote(key: CryptoKey, date: LocalDateString, note: { text: string }): Promise<EncryptedBlob> {
+  return seal(key, { text: note.text }, habitNoteAad(date));
+}
+
+/** Decrypts a habit's note stored for `date`. Rejects when it was sealed for another day, key or kind. */
+export async function decryptHabitNote(key: CryptoKey, date: LocalDateString, blob: EncryptedBlob): Promise<{ text: string }> {
+  const { text } = await open(key, blob, habitNoteAad(date));
+  if (typeof text !== 'string') throw new Error('Unexpected payload.');
+  return { text };
 }
 
 /** Encrypts an own mood's label and emoji. Throws `RangeError` when `ct` would exceed 16 KiB. */

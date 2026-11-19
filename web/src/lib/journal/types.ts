@@ -1,5 +1,5 @@
 import type { ExportFile } from '../api-client';
-import type { DayNote, LocalDateString, OwnMood } from '../models';
+import type { DayNote, HabitNote, LocalDateString, OwnMood } from '../models';
 import type { Store } from '../store';
 import { t } from '../i18n';
 
@@ -53,6 +53,14 @@ export interface JournalApi {
    * pass 2000 characters. Never sends plaintext and never queues.
    */
   appendPrivate(date: LocalDateString, block: string): Promise<void>;
+
+  /** Readable habit notes in the range (one habit with `habitId`); `hidden` counts encrypted ones this device can't read. */
+  habitNotes(from?: LocalDateString, to?: LocalDateString, habitId?: number): Promise<{ notes: HabitNote[]; hidden: number }>;
+  /**
+   * Saves a habit's note for `date` (encrypting when private) or, with empty text, deletes it. Online only: never
+   * queued, a failure rejects. `RangeError` past 280 characters, `JournalLockedError` while locked.
+   */
+  saveHabitNote(habitId: number, date: LocalDateString, text: string | null): Promise<void>;
 
   /** Own moods, archived included; empty while locked. */
   moods(): Promise<OwnMood[]>;

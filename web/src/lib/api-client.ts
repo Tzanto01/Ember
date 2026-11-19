@@ -13,6 +13,7 @@ import {
   type FeedbackRequest,
   type Habit,
   isLetGo,
+  type HabitNoteBody,
   type HabitPatch,
   type HabitTemplate,
   type JournalKey,
@@ -34,6 +35,7 @@ import {
   type SlipDay,
   type SlipReason,
   type StoredDayNote,
+  type StoredHabitNote,
   type StoredMood,
   type TipId,
   type TwoFactorSetup,
@@ -210,6 +212,11 @@ export class ApiClient {
   /** `PATCH /api/me`. Call `AuthService.setMe()` with the result. */
   async updateMe(patch: MePatch): Promise<Me> {
     return withJournal(await this.http.request<Me>('PATCH', '/api/me', { body: patch }));
+  }
+
+  /** `PUT /api/me/today-order`: null goes back to the automatic order; resolves the order the server kept. */
+  async setTodayOrder(order: string[] | null): Promise<string[] | null> {
+    return (await this.http.request<{ order: string[] | null }>('PUT', '/api/me/today-order', { body: { order } })).order;
   }
 
   /** `PUT /api/me/tips/{id}` → 204: marks the tip seen (idempotent). */
@@ -417,6 +424,26 @@ export class ApiClient {
       return null;
     }
     return this.http.request<StoredDayNote>('PUT', url, { body: edit.body, replay });
+  }
+
+  /** `GET /api/habit-notes`, at most 366 days; `habitId` narrows it to one habit. Entries may be encrypted. */
+  listHabitNotes(from?: LocalDateString, to?: LocalDateString, habitId?: number): Promise<StoredHabitNote[]> {
+    return this.http.request('GET', '/api/habit-notes', {
+      params: { ...range(from, to), habitId: habitId === undefined ? undefined : String(habitId) },
+    });
+  }
+
+  /**
+   * `PUT /api/habits/{id}/notes/{date}`, or `DELETE` for a null body. Online only: a failure rejects and nothing is
+   * queued. Pass an already encrypted body while the private journal is on.
+   */
+  async saveHabitNote(habitId: number, date: LocalDateString, body: HabitNoteBody | null): Promise<StoredHabitNote | null> {
+    const url = `/api/habits/${habitId}/notes/${seg(date)}`;
+    if (body === null) {
+      await this.http.request('DELETE', url);
+      return null;
+    }
+    return this.http.request<StoredHabitNote>('PUT', url, { body });
   }
 
   /** `GET /api/moods`: the user's own moods, archived ones included. Moods may be encrypted. */

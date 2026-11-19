@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather, Pause, Pencil } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, Feather, Pause, Pencil } from 'lucide-react';
+import { type HTMLAttributes, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/local-date';
 import type { LetGoHabit } from '@/lib/models';
 import { daysFreeText } from './letgo-text';
 import { SlipSheet } from './slip-sheet';
+import { TryInstead } from './try-instead';
 
 const shortDate: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
 
@@ -24,7 +25,14 @@ export function useLetGoUpdate(): (habit: LetGoHabit) => void {
   };
 }
 
-function LetGoRow({ habit }: { habit: LetGoHabit }) {
+/** What Today adds to each let-go row: its order key, the lifted look, and the "⋯" menu. */
+export interface LetGoRowExtras {
+  reorderKey: string;
+  className?: string;
+  menu: ReactNode;
+}
+
+function LetGoRow({ habit, extras }: { habit: LetGoHabit; extras?: LetGoRowExtras }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState(0);
@@ -33,7 +41,7 @@ function LetGoRow({ habit }: { habit: LetGoHabit }) {
   const notStarted = habit.today.state === 'beforestart';
 
   return (
-    <li>
+    <li data-reorder-key={extras?.reorderKey} className={extras?.className}>
       <Card className="flex-row flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 md:py-3">
         <div className="flex min-w-0 flex-1 flex-col">
           <h3 className="text-[1.125rem] break-words">{habit.name}</h3>
@@ -58,6 +66,7 @@ function LetGoRow({ habit }: { habit: LetGoHabit }) {
               <Pencil aria-hidden />
             </Link>
           </Button>
+          {extras?.menu}
           {!paused && !notStarted && (
             <Button
               variant="secondary"
@@ -78,20 +87,47 @@ function LetGoRow({ habit }: { habit: LetGoHabit }) {
   );
 }
 
-/** Today's "Letting go" section: one row per let-go habit with its days free and "I slipped". Renders nothing without any. */
-export function LetGoSection({ habits }: { habits: LetGoHabit[] }) {
+/**
+ * Today's "Letting go" section: one row per let-go habit (in the given order) with its days free and "I slipped".
+ * Renders nothing without any. `listProps` and `extras` let Today rearrange the rows.
+ */
+export function LetGoSection({
+  habits,
+  listProps,
+  extras,
+}: {
+  habits: LetGoHabit[];
+  listProps?: HTMLAttributes<HTMLUListElement>;
+  extras?: (habit: LetGoHabit) => LetGoRowExtras;
+}) {
   const { t } = useTranslation();
+  const [ideasOpen, setIdeasOpen] = useState(false);
   if (!habits.length) return null;
   return (
     <section aria-labelledby="letgo-heading" className="flex flex-col gap-3">
       <h2 id="letgo-heading" className="text-[1.25rem]">
         {t('letgo.section.heading')}
       </h2>
-      <ul role="list" className="flex flex-col gap-3">
+      <ul role="list" className="flex flex-col gap-3" {...listProps}>
         {habits.map((habit) => (
-          <LetGoRow key={habit.id} habit={habit} />
+          <LetGoRow key={habit.id} habit={habit} extras={extras?.(habit)} />
         ))}
       </ul>
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="link"
+          className="self-start px-0"
+          aria-expanded={ideasOpen}
+          aria-controls="try-instead-list"
+          onClick={() => setIdeasOpen(!ideasOpen)}
+        >
+          {t('letgo.tryInstead.heading')}
+          <ChevronDown aria-hidden className={ideasOpen ? 'rotate-180' : undefined} />
+        </Button>
+        <div id="try-instead-list" hidden={!ideasOpen}>
+          {ideasOpen && <TryInstead heading={false} />}
+        </div>
+      </div>
     </section>
   );
 }

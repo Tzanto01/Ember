@@ -12,7 +12,7 @@ export function BusyButton({
   ...props
 }: Omit<ButtonProps, 'asChild'> & { busy: boolean; busyLabel: ReactNode }) {
   return (
-    <Button {...props} aria-disabled={busy || undefined}>
+    <Button {...props} aria-disabled={busy || props['aria-disabled'] || undefined}>
       {busy ? (
         <>
           <Spinner />

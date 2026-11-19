@@ -19,7 +19,7 @@ function weekdayName(date: string): string {
 async function createScheduledHabit(
   page: Page,
   name: string,
-  options: { days?: string[]; timesPerDay?: number },
+  options: { days?: string[]; timesPerDay?: number; offToday?: boolean },
 ): Promise<void> {
   await page.goto('/habits/new');
   await page.getByRole('button', { name: 'Start from scratch' }).click();
@@ -35,7 +35,7 @@ async function createScheduledHabit(
   if (options.timesPerDay) await page.getByLabel('Times a day').selectOption(String(options.timesPerDay));
   await page.getByRole('button', { name: 'Create habit' }).click();
   await expect(page).toHaveURL(/\/today$/);
-  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  if (!options.offToday) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 }
 
 function card(page: Page, name: string) {
@@ -46,11 +46,12 @@ test('a habit on set days shows an off day as rest, never as missed', async ({ p
   await createWebUser(page);
   const today = await localToday(page);
   await createScheduledHabit(page, 'Gym', { days: [weekdayName(today)] });
-  await createScheduledHabit(page, 'Swim', { days: [weekdayName(addDays(today, 1))] });
+  await createScheduledHabit(page, 'Swim', { days: [weekdayName(addDays(today, 1))], offToday: true });
 
   await expect(card(page, 'Gym').getByText('Rest day, nothing planned')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Check in Gym for today' })).toHaveAttribute('aria-pressed', 'false');
 
+  await page.getByRole('button', { name: 'Not for today · 1' }).click();
   const swim = card(page, 'Swim');
   await expect(swim.getByText(/Rest day, nothing planned/)).toBeVisible();
   await expect(page.getByText(/missed/i)).toHaveCount(0);

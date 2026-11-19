@@ -210,6 +210,12 @@ export const guides: Record<GuideScreen, Guide> = {
           'src/Ember.Core/Data/EmberDbContext.cs',
         ],
       },
+      {
+        id: 'routines-order',
+        questionKey: 'guide.routines.order.q',
+        answerKey: 'guide.routines.order.a',
+        covers: ['web/src/lib/today-plan.ts', 'web/src/pages/today.tsx', 'web/src/components/today/use-reorder.ts'],
+      },
     ],
   },
   settings: {
@@ -320,7 +326,11 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'habits-days-slip',
         questionKey: 'guide.habitsDays.slip.q',
         answerKey: 'guide.habitsDays.slip.a',
-        covers: ['web/src/components/letgo/slip-sheet.tsx', 'src/Ember.Core/Services/HabitService.LetGo.cs'],
+        covers: [
+          'web/src/components/letgo/slip-sheet.tsx',
+          'web/src/components/letgo/try-instead.tsx',
+          'src/Ember.Core/Services/HabitService.LetGo.cs',
+        ],
       },
     ],
   },

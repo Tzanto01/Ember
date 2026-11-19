@@ -137,6 +137,18 @@ public class User : IdentityUser<Guid>
     /// <summary>Start (UTC) of the current one-hour window of <see cref="FiresideJoinFailures"/>; null before the first failure.</summary>
     public DateTime? FiresideJoinWindowUtc { get; set; }
 
+    /// <summary>
+    /// The account's own order of the Today list: <c>h:&lt;habitId&gt;</c> for a habit outside a routine and <c>r:&lt;routineId&gt;</c>
+    /// for a routine, at most <see cref="MaxTodayOrderEntries"/>. Null means automatic (by reminder time, then name).
+    /// </summary>
+    public List<string>? TodayOrder { get; set; }
+
+    /// <summary>Most entries <see cref="TodayOrder"/> may hold.</summary>
+    public const int MaxTodayOrderEntries = 500;
+
+    /// <summary>Whether the app offers a habit note after a check-in. Off by default.</summary>
+    public bool OfferHabitNote { get; set; }
+
     public ICollection<IdentityUserLogin<Guid>> Logins { get; set; } = new List<IdentityUserLogin<Guid>>();
     public ICollection<Habit> Habits { get; set; } = new List<Habit>();
     public ICollection<DayMark> DayMarks { get; set; } = new List<DayMark>();

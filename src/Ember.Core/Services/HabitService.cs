@@ -1034,6 +1034,37 @@ public partial class HabitService
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.Language, language));
     }
 
+    /// <summary>Sets <see cref="User.OfferHabitNote"/>.</summary>
+    public async Task SetOfferHabitNoteAsync(Guid userId, bool offer)
+    {
+        await _db.Users
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.OfferHabitNote, offer));
+    }
+
+    /// <summary>
+    /// Stores <paramref name="order"/> as the user's <see cref="User.TodayOrder"/>, keeping only the first occurrence of each
+    /// <c>h:&lt;id&gt;</c> of the user's habits outside a routine and <c>r:&lt;id&gt;</c> of the user's routines, in canonical form.
+    /// Null resets to automatic. Returns what was stored. Callers enforce <see cref="User.MaxTodayOrderEntries"/>.
+    /// </summary>
+    public async Task<List<string>?> SetTodayOrderAsync(Guid userId, IReadOnlyList<string?>? order)
+    {
+        List<string>? kept = null;
+        if (order is not null)
+        {
+            var valid = (await _db.Habits.Where(h => h.UserId == userId && h.RoutineId == null).Select(h => h.Id).ToListAsync())
+                .Select(id => $"h:{id}")
+                .Concat((await _db.Routines.Where(r => r.UserId == userId).Select(r => r.Id).ToListAsync()).Select(id => $"r:{id}"))
+                .ToHashSet();
+            var seen = new HashSet<string>();
+            kept = order.OfType<string>().Where(k => valid.Contains(k) && seen.Add(k)).ToList();
+        }
+        await _db.Users
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.TodayOrder, kept));
+        return kept;
+    }
+
     /// <summary>Sets <see cref="User.CalmMode"/>.</summary>
     public async Task SetCalmModeAsync(Guid userId, bool calmMode)
     {
@@ -1079,10 +1110,11 @@ public partial class HabitService
 
     /// <summary>
     /// The user with their logins, push subscriptions, phones, every habit, log, slip, day mark, routine, journal entry and own mood, and the
-    /// journal key and "What helps me" list (untracked), or null when Ember stores nothing about them.
+    /// journal key and "What helps me" list (untracked), or null when Ember stores nothing about them. Habit notes only with
+    /// <paramref name="withHabitNotes"/> (the full export).
     /// </summary>
-    public Task<User?> GetUserForExportAsync(Guid userId)
-        => _db.Users
+    public Task<User?> GetUserForExportAsync(Guid userId, bool withHabitNotes = false)
+        => (withHabitNotes ? _db.Users.Include(u => u.Habits).ThenInclude(h => h.Notes) : (IQueryable<User>)_db.Users)
             .AsNoTracking()
             .Include(u => u.Logins)
             .Include(u => u.Habits).ThenInclude(h => h.Logs)

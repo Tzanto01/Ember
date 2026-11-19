@@ -21,6 +21,7 @@ import type {
   BackupApi,
   LocalData,
   LocalHabit,
+  LocalHabitNote,
   LocalLog,
   LocalMood,
   LocalNote,
@@ -297,13 +298,31 @@ function parse(text: string): ParsedBackup {
     if (note.text !== null || note.mood !== null) notes.push(note);
   }
 
+  const habitNoteDays = new Set<string>();
+  const habitNotes: LocalHabitNote[] = [];
+  for (const raw of list(field(doc, 'habit_notes'))) {
+    const n = record(raw);
+    const habit = habitIds.get(field(n, 'habit_id') as number) ?? damaged();
+    const date = optionalDate(field(n, 'date')) ?? damaged();
+    const key = `${habit.id}|${date}`;
+    if (habitNoteDays.has(key) || date > today) damaged();
+    habitNoteDays.add(key);
+    if (field(n, 'encrypted') !== undefined && field(n, 'encrypted') !== null) {
+      skippedEncrypted++;
+      continue;
+    }
+    const text = field(n, 'text');
+    if (typeof text !== 'string' || !text.trim() || text.trim().length > limits.habitNoteText) damaged();
+    habitNotes.push({ habitId: habit.id, date, text: text.trim() });
+  }
+
   return {
     summary: {
       habits: habits.length,
       checkIns: logs.length,
       lowDays: lowDays.size,
       routines: routines.length,
-      notes: notes.length,
+      notes: notes.length + habitNotes.length,
       moods: moods.length,
       skippedEncrypted,
     },
@@ -316,6 +335,7 @@ function parse(text: string): ParsedBackup {
       routines,
       moods,
       notes,
+      habitNotes,
     },
   };
 }
@@ -360,6 +380,7 @@ export class BackupService implements BackupApi {
           timezone: settings.timezone,
           graceDaysPerWeek: settings.graceDaysPerWeek,
           theme: settings.theme,
+          todayOrder: null,
           nextIds: {
             habit: habit + data.habits.length + 1,
             routine: routine + data.routines.length + 1,
@@ -383,6 +404,7 @@ export class BackupService implements BackupApi {
           ...n,
           mood: n.mood?.startsWith('custom:') ? `custom:${Number(n.mood.slice(7)) + mood}` : n.mood,
         })),
+        habitNotes: (data.habitNotes ?? []).map((n) => ({ ...n, habitId: n.habitId + habit })),
       };
       return next;
     });

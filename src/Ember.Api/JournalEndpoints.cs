@@ -18,11 +18,14 @@ internal static class JournalEndpoints
     public const int MaxEmojiLength = 32;
     public const int MaxCipherTextLength = 16384;
     public const int MaxRangeDays = 366;
+    public const int MaxHabitNoteLength = 280;
+    public const int MaxHabitNoteCipherTextLength = 4096;
 
     internal static readonly HashSet<string> BuiltInMoods = ["low", "meh", "okay", "good", "great"];
 
     public sealed record EncryptedDto(int? V, string? Iv, string? Ct);
     public sealed record DayNoteRequest(string? Text, string? Mood, EncryptedDto? Encrypted);
+    public sealed record HabitNoteRequest(string? Text, EncryptedDto? Encrypted);
     public sealed record MoodRequest(string? Label, string? Emoji, EncryptedDto? Encrypted, bool? Archived);
     public sealed record PassphraseDto(string? Salt, int? Iterations, string? Iv, string? Wrapped);
     public sealed record RecoveryDto(string? Salt, string? Iv, string? Wrapped);
@@ -82,6 +85,55 @@ internal static class JournalEndpoints
 
             await habits.DeleteDayNoteAsync(principal.UserId(), day);
             return Results.NoContent();
+        });
+
+        api.MapGet("/habit-notes", async (string? from, string? to, int? habitId, ClaimsPrincipal principal, HabitService habits) =>
+        {
+            var userId = principal.UserId();
+            var today = await habits.GetLocalTodayAsync(userId);
+            var errors = new Dictionary<string, string[]>();
+            var end = Formats.DateOr(to, today, "to", errors);
+            var start = Formats.DateOr(from, Formats.DaysBefore(end, MaxRangeDays - 1), "from", errors);
+            if (errors.Count == 0 && start > end) errors["from"] = ["Can't be after to."];
+            if (errors.Count == 0 && end.DayNumber - start.DayNumber >= MaxRangeDays) errors["from"] = [$"At most {MaxRangeDays} days."];
+            if (errors.Count > 0) return Problems.Validation(errors);
+
+            return Results.Ok((await habits.GetHabitNotesAsync(userId, start, end, habitId)).Select(ToDto).ToList());
+        });
+
+        api.MapPut("/habits/{id:int}/notes/{date}", async (int id, string date, HabitNoteRequest request, ClaimsPrincipal principal,
+            HabitService habits) =>
+        {
+            if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
+
+            var userId = principal.UserId();
+            if (!await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
+            if (await habits.GetHabitAsync(userId, id) is not { } habit) return Problems.NotFound();
+            var today = await habits.GetLocalTodayAsync(userId);
+            if (day > today) return Problems.DayEdit(DayEditResult.InFuture)!;
+            if (day != today && day < HabitService.StartDate(habit, await habits.GetUserTzAsync(userId))
+                && (await habits.GetHabitNotesAsync(userId, day, day, id)).Count == 0)
+                return Problems.DayEdit(DayEditResult.BeforeHabitStart)!;
+
+            var errors = new Dictionary<string, string[]>();
+            var cipher = WriteForm(request.Encrypted, request.Text is not null, true, await habits.GetJournalKeyAsync(userId), errors,
+                MaxHabitNoteCipherTextLength);
+            string? text = null;
+            if (request.Encrypted is null)
+            {
+                text = ValidText(request.Text, errors, MaxHabitNoteLength);
+                if (text is null && !errors.ContainsKey("text")) errors["text"] = ["Set text or encrypted. Delete the note to clear it."];
+            }
+            if (errors.Count > 0) return Problems.Validation(errors);
+
+            return await habits.SetHabitNoteAsync(userId, id, day, text, cipher) is { } note ? Results.Ok(ToDto(note)) : Problems.NotFound();
+        });
+
+        api.MapDelete("/habits/{id:int}/notes/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits) =>
+        {
+            if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
+
+            return await habits.DeleteHabitNoteAsync(principal.UserId(), id, day) ? Results.NoContent() : Problems.NotFound();
         });
 
         api.MapGet("/moods", async (ClaimsPrincipal principal, HabitService habits) =>
@@ -205,7 +257,7 @@ internal static class JournalEndpoints
     /// encrypted needs a key, plaintext (<paramref name="plaintextWrite"/>) is refused while a key exists and isn't turning off.
     /// </summary>
     internal static JournalCipher? WriteForm(EncryptedDto? encrypted, bool plaintextGiven, bool plaintextWrite, JournalKey? key,
-        Dictionary<string, string[]> errors)
+        Dictionary<string, string[]> errors, int maxCipherTextLength = MaxCipherTextLength)
     {
         if (encrypted is null)
         {
@@ -220,8 +272,8 @@ internal static class JournalEndpoints
             var count = errors.Count;
             if (encrypted.V != 1) errors["encrypted.v"] = ["Must be 1."];
             ExpectBase64(encrypted.Iv, 12, "encrypted.iv", errors);
-            if (encrypted.Ct is not { Length: <= MaxCipherTextLength } || Base64Length(encrypted.Ct) is not >= 16)
-                errors["encrypted.ct"] = [$"Must be base64 of at least 16 bytes and at most {MaxCipherTextLength} characters."];
+            if (encrypted.Ct is null || encrypted.Ct.Length > maxCipherTextLength || Base64Length(encrypted.Ct) is not >= 16)
+                errors["encrypted.ct"] = [$"Must be base64 of at least 16 bytes and at most {maxCipherTextLength} characters."];
             if (errors.Count == count) return new JournalCipher(1, encrypted.Iv!, encrypted.Ct!);
         }
         return null;
@@ -245,11 +297,11 @@ internal static class JournalEndpoints
             && mood == $"custom:{id}";
     }
 
-    /// <summary>The trimmed journal text, null when empty; adds an error when it is too long.</summary>
-    internal static string? ValidText(string? text, Dictionary<string, string[]> errors)
+    /// <summary>The trimmed journal text, null when empty; adds an error when it is longer than <paramref name="maxLength"/>.</summary>
+    internal static string? ValidText(string? text, Dictionary<string, string[]> errors, int maxLength = MaxTextLength)
     {
         var trimmed = text?.Trim() is { Length: > 0 } t ? t : null;
-        if (trimmed?.Length > MaxTextLength) errors["text"] = [$"Must be at most {MaxTextLength} characters."];
+        if (trimmed?.Length > maxLength) errors["text"] = [$"Must be at most {maxLength} characters."];
         return trimmed;
     }
 
@@ -318,6 +370,10 @@ internal static class JournalEndpoints
     private static object ToDto(DayNote note) => note.CipherVersion is { } version
         ? new { date = note.Date, encrypted = new EncryptedDto(version, note.CipherIv, note.CipherText) }
         : new { date = note.Date, text = note.Text, mood = note.Mood };
+
+    private static object ToDto(HabitNote note) => note.CipherVersion is { } version
+        ? new { habitId = note.HabitId, date = note.Date, encrypted = new EncryptedDto(version, note.CipherIv, note.CipherText) }
+        : new { habitId = note.HabitId, date = note.Date, text = note.Text };
 
     private static object ToDto(Mood mood) => mood.CipherVersion is { } version
         ? new { id = mood.Id, encrypted = new EncryptedDto(version, mood.CipherIv, mood.CipherText), archived = mood.Archived }
