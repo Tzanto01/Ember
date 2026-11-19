@@ -19,6 +19,7 @@ public static class LookoutPages
             new("engagement", "Engagement", "activity", 60),
             new("devices", "Devices", "smartphone", 60),
             new("releases", "Releases", "rocket", 30),
+            new("health", "Health", "heart-pulse", 60),
             new("notices", "Notices", "megaphone", 30),
             new("system", "System", "server", 30),
             new("feedback", "Feedback", "kanban", 0),
@@ -95,7 +96,13 @@ public static class LookoutPages
         [
             services,
             Section(s, "database", "Database", s.Database is { } db
-                ? [new("Size", db.SizeBytes, "bytes"), new("Latest migration", db.LatestMigration, "code")]
+                ?
+                [
+                    new("Size", db.SizeBytes, "bytes"),
+                    new("Connections", db.Connections, Tone: db.Connections >= db.MaxConnections * 0.8 ? "warn" : null,
+                        Hint: $"of {N(db.MaxConnections)} on the shared server, {N(db.EmberConnections)} to emberdb", Max: db.MaxConnections),
+                    new("Latest migration", db.LatestMigration, "code"),
+                ]
                 : null),
             Section(s, "disks", "Disks", s.Disks?.Select(d =>
                 new StatItem(d.Mount, d.FreeBytes, "bytes", DiskTone(d), $"of {Bytes(d.TotalBytes)} ({Pct(d.FreeBytes, d.TotalBytes)} free)",
@@ -235,7 +242,7 @@ public static class LookoutPages
     /// Overdue reminders show only as the failing "Reminders advancing" health check.
     /// </summary>
     public static Summary Summary(OverviewCounters? overview, FeedbackList? feedback, SystemReport system, DateTime now,
-        OverviewSeries? series = null, ActivityInsights? activity = null)
+        OverviewSeries? series = null, ApiHealth? api = null)
     {
         var databaseFailed = overview is null || feedback is null;
         var failedCi = (system.Ci ?? []).Where(Failed).ToList();
@@ -256,7 +263,7 @@ public static class LookoutPages
         [
             overview is null ? new("Users", null) : UsersItem(overview.Users, series),
             overview is null ? new("Active 7 days", null) : Active7Item(overview.Active7, overview.Users, series),
-            (activity is null ? null : Figures(activity))?.Stickiness ?? new("Stickiness", null, "percent"),
+            ApiP95(api),
             feedback is null
                 ? new("Open feedback", null)
                 : new("Open feedback", feedback.Items.Count(i => i.Status == "open"), Goal: new(Below: 5),
@@ -264,6 +271,55 @@ public static class LookoutPages
         ],
         alerts.Take(5).ToList());
     }
+
+    /// <summary>Ember's API timings: the last 24 hours, the last 7 days in slots of <see cref="ApiTimings.SlotHours"/> hours, and the slowest route templates.</summary>
+    public static Page Health(ApiHealth h)
+    {
+        if (h.Unavailable is { } reason)
+            return new("health", "Health", h.GeneratedAt,
+            [
+                Stats("api", "API, last 24 hours", "tiles", []) with { Unavailable = reason },
+                Bars("requests", "Requests per minute", "category", ["Requests"], []) with { Unavailable = reason },
+                Bars("latency", "Response time, ms", "category", ["p50", "p95"], []) with { Unavailable = reason },
+                Bars("errors", "5xx responses, %", "category", ["5xx"], []) with { Unavailable = reason },
+                Stats("slowest", "Slowest routes, last 24 hours", "list", []) with { Unavailable = reason },
+            ]);
+
+        var slots = $"per {ApiTimings.SlotHours} hours over {ApiTimings.Days} days, Europe/Berlin";
+        var day = h.Day!.Timing;
+        return new("health", "Health", h.GeneratedAt,
+        [
+            Stats("api", "API, last 24 hours", "tiles",
+            [
+                new("Requests per minute", Math.Round(day.Requests / h.Day.Minutes, 1)),
+                new("p50", day.Requests == 0 ? null : Math.Round(day.P50), Hint: "ms"),
+                ApiP95(h),
+                new("5xx rate", day.Requests == 0 ? null : (double)day.Errors / day.Requests, "percent", Goal: new(Below: 0.01)),
+            ]),
+            Bars("requests", "Requests per minute", "category", ["Requests"],
+                h.Slots.Select(s => new Bar(SlotLabel(s.Start), [Math.Round(s.Timing.Requests / s.Minutes, 2)])), slots) with { Better = "up" },
+            Bars("latency", "Response time, ms", "category", ["p50", "p95"],
+                h.Slots.Where(s => s.Timing.Requests > 0).Select(s => new Bar(SlotLabel(s.Start), [Math.Round(s.Timing.P50), Math.Round(s.Timing.P95)])),
+                $"{slots}; slots without requests are left out") with { Better = "down" },
+            Bars("errors", "5xx responses, %", "category", ["5xx"],
+                h.Slots.Select(s => new Bar(SlotLabel(s.Start), [s.Timing.Requests == 0 ? 0 : Math.Round(100.0 * s.Timing.Errors / s.Timing.Requests, 2)])), slots)
+                with { Better = "down" },
+            Stats("slowest", "Slowest routes, last 24 hours", "list", h.Slowest.Select(r =>
+                new StatItem(r.Route, Math.Round(r.P95), Hint: $"p95 ms; p50 {Math.Round(r.P50)} ms, {N(r.Requests)} requests")).ToList()) with
+            {
+                Note = "by p95 response time; route templates, never paths or ids",
+            },
+        ]);
+    }
+
+    /// <summary>The API's p95 response time over the last 24 hours in milliseconds; null while the API reports no timings.</summary>
+    private static StatItem ApiP95(ApiHealth? api) =>
+        api?.Day is { Timing.Requests: > 0 } day
+            ? new("API p95", Math.Round(day.Timing.P95), Hint: "ms, last 24 hours", Goal: new(Below: 300))
+            : new("API p95", null, Hint: api?.Unavailable ?? "ms, last 24 hours", Goal: new(Below: 300));
+
+    private static string SlotLabel(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin")).ToString("MM-dd HH:mm", CultureInfo.InvariantCulture);
 
     /// <summary>The health check <see cref="SystemInfo"/> adds for overdue reminders.</summary>
     public const string RemindersAdvancing = "Reminders advancing";

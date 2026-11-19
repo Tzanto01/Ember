@@ -125,7 +125,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         (manifest.GetProperty("id").GetString(), manifest.GetProperty("name").GetString(), manifest.GetProperty("icon").GetString(), manifest.GetProperty("timeZone").GetString())
             .Should().Be(("ember", "Ember", "flame", "Europe/Berlin"));
         manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("id").GetString()).Should().Equal(LookoutShape.PageIds);
-        manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("refreshSeconds").GetInt32()).Should().Equal(30, 60, 60, 30, 30, 30, 0);
+        manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("refreshSeconds").GetInt32()).Should().Equal(30, 60, 60, 30, 60, 30, 30, 0);
     }
 
     [Theory]
@@ -133,6 +133,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     [InlineData("engagement")]
     [InlineData("devices")]
     [InlineData("releases")]
+    [InlineData("health")]
     [InlineData("notices")]
     [InlineData("system")]
     [InlineData("feedback")]
@@ -174,7 +175,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         summary.GetProperty("generatedAt").GetString().Should().EndWith("Z");
         summary.GetProperty("state").GetString().Should().BeOneOf("ok", "warn", "bad");
         summary.GetProperty("tiles").EnumerateArray().Select(t => t.GetProperty("label").GetString()).Should()
-            .Equal("Users", "Active 7 days", "Stickiness", "Open feedback");
+            .Equal("Users", "Active 7 days", "API p95", "Open feedback");
         summary.GetProperty("tiles")[0].GetProperty("value").GetInt32().Should().Be(6);
         summary.GetProperty("alerts").EnumerateArray().Select(a => a.GetProperty("text").GetString()).Should().Contain("Reminders not advancing");
         summary.GetProperty("alerts").GetArrayLength().Should().BeInRange(1, 5);

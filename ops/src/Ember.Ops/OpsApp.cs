@@ -34,6 +34,15 @@ public static class OpsApp
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false })
             .RedactLoggedHeaders(_ => true);
         services.AddSingleton<NoticeStore>();
+        services.AddHttpClient(ApiTimings.HttpClientName, client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(5);
+                client.MaxResponseContentBufferSize = 8 << 20;
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("ember-ops");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false })
+            .RedactLoggedHeaders(_ => true);
+        services.AddSingleton<ApiTimings>();
         services.AddHostedService<ReminderSnapshotService>();
         return builder;
     }
@@ -87,6 +96,9 @@ public static class OpsApp
 
     internal static Task<SystemReport> SystemAsync(IMemoryCache cache, SystemInfo system, CancellationToken ct) =>
         Cached(cache, "system", CounterCache, () => system.GetAsync(ct));
+
+    internal static Task<ApiHealth> ApiHealthAsync(IMemoryCache cache, ApiTimings timings, CancellationToken ct) =>
+        Cached(cache, "api:health", CounterCache, () => timings.ReadAsync(ct));
 
     private static Task<EmberFeatures> FeaturesAsync(IMemoryCache cache, OpsDatabases db, CancellationToken ct) =>
         Cached(cache, "ember:features", FeaturesCache, () => EmberFeatures.DetectAsync(db.Ember, ct));

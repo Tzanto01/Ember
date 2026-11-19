@@ -6,7 +6,10 @@ using Microsoft.Extensions.Options;
 namespace Ember.Ops;
 
 public sealed record ServiceState(string Name, bool Ok, string? Detail);
-public sealed record DatabaseInfo(long SizeBytes, string? LatestMigration);
+/// <param name="Connections">
+/// Backends attached to a database on the whole Postgres server (client connections plus any autovacuum worker; without <c>pg_read_all_stats</c> other roles' backend types are hidden, so they are not filtered by type); <paramref name="EmberConnections"/> those on emberdb.
+/// </param>
+public sealed record DatabaseInfo(long SizeBytes, string? LatestMigration, int Connections, int EmberConnections, int MaxConnections);
 public sealed record DiskInfo(long FreeBytes, long TotalBytes);
 public sealed record HostDisk(string Mount, long FreeBytes, long TotalBytes);
 public sealed record BackupInfo(string Name, DateTime At, double AgeHours, long SizeBytes);
@@ -119,12 +122,18 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         [
             Db.Command("SELECT pg_database_size(current_database())"),
             Db.Command("""SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId" DESC LIMIT 1"""),
+            Db.Command("""
+                SELECT count(*)::int, count(*) FILTER (WHERE datname = current_database())::int, current_setting('max_connections')::int
+                FROM pg_stat_activity WHERE datid IS NOT NULL
+                """),
         ], ct);
         await reader.RowAsync(ct);
         var size = reader.GetInt64(0);
         await reader.NextResultAsync(ct);
         var latest = await reader.ReadAsync(ct) ? reader.GetString(0) : null;
-        return new(size, latest);
+        await reader.NextResultAsync(ct);
+        await reader.RowAsync(ct);
+        return new(size, latest, reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
     }
 
     private async Task<Fetched<T>> Cached<T>(string key, TimeSpan ttl, Func<Task<Fetched<T>>> load, TimeSpan? failureTtl = null) =>

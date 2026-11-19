@@ -23,6 +23,7 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
     [InlineData("engagement")]
     [InlineData("devices")]
     [InlineData("releases")]
+    [InlineData("health")]
     [InlineData("notices")]
     [InlineData("system")]
     [InlineData("feedback")]
@@ -67,7 +68,7 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
         var summary = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/summary");
 
         summary.GetProperty("tiles").EnumerateArray().Select(t => t.GetProperty("label").GetString()).Should()
-            .Equal("Users", "Active 7 days", "Stickiness", "Open feedback");
+            .Equal("Users", "Active 7 days", "API p95", "Open feedback");
         summary.GetProperty("tiles")[0].GetProperty("value").GetInt32().Should().Be(6);
     }
 }

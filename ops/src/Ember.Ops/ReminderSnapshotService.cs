@@ -2,9 +2,10 @@ namespace Ember.Ops;
 
 /// <summary>
 /// Every five minutes stores the day's and week's sign-in and retention counts in emberops (<see cref="InsightQueries.SnapshotActivityAsync"/>)
-/// and removes comments and card positions of deleted feedback (<see cref="FeedbackStore.PurgeOrphansAsync"/>).
+/// and Ember's API request timings (<see cref="ApiTimings.PullAsync"/>), and removes comments and card positions of deleted feedback
+/// (<see cref="FeedbackStore.PurgeOrphansAsync"/>).
 /// </summary>
-public sealed class ReminderSnapshotService(OpsDatabases db, TimeProvider time, ILogger<ReminderSnapshotService> logger) : BackgroundService
+public sealed class ReminderSnapshotService(OpsDatabases db, ApiTimings timings, TimeProvider time, ILogger<ReminderSnapshotService> logger) : BackgroundService
 {
     public static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
 
@@ -21,6 +22,7 @@ public sealed class ReminderSnapshotService(OpsDatabases db, TimeProvider time, 
             {
                 logger.LogWarning(e, "Activity snapshot failed");
             }
+            await timings.PullAsync(stoppingToken);
             try
             {
                 await FeedbackStore.PurgeOrphansAsync(db, stoppingToken);

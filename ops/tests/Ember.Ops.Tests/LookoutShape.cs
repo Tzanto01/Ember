@@ -6,7 +6,7 @@ namespace Ember.Ops.Tests;
 /// <summary>Asserts the widget shapes of provider-v1.ts on a decoded page.</summary>
 public static class LookoutShape
 {
-    public static readonly string[] PageIds = ["overview", "engagement", "devices", "releases", "notices", "system", "feedback"];
+    public static readonly string[] PageIds = ["overview", "engagement", "devices", "releases", "health", "notices", "system", "feedback"];
 
     public static readonly Dictionary<string, string[]> WidgetIds = new()
     {
@@ -14,6 +14,7 @@ public static class LookoutShape
         ["engagement"] = ["tiles", "active-per-day", "active-per-week", "days-active", "retention"],
         ["devices"] = ["platforms", "versions", "adoption"],
         ["releases"] = ["deployed", "apk", "ci"],
+        ["health"] = ["api", "requests", "latency", "errors", "slowest"],
         ["feedback"] = ["feedback"],
         ["notices"] = ["notices"],
         ["system"] = ["services", "database", "disks", "backup"],
@@ -22,6 +23,7 @@ public static class LookoutShape
     private static readonly Dictionary<string, string> Types = new()
     {
         ["tiles"] = "stats", ["new-users"] = "bars", ["active-per-day"] = "bars", ["active-per-week"] = "bars", ["days-active"] = "bars", ["retention"] = "stats",
+        ["api"] = "stats", ["requests"] = "bars", ["latency"] = "bars", ["errors"] = "bars", ["slowest"] = "stats",
         ["platforms"] = "bars", ["versions"] = "bars", ["adoption"] = "stats",
         ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
         ["backup"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["ci"] = "ci",

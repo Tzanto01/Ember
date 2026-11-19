@@ -46,12 +46,13 @@ public static class LookoutApi
         lookout.MapGet("/summary", SummaryAsync);
 
         lookout.MapGet("/pages/{pageId}", async (string pageId, IMemoryCache cache, OpsDatabases db, TimeProvider time, SystemInfo system,
-            NoticeStore notices, CancellationToken ct) => pageId switch
+            NoticeStore notices, ApiTimings timings, CancellationToken ct) => pageId switch
         {
             "overview" => Results.Ok(LookoutPages.Overview(await OpsApp.OverviewAsync(cache, db, time, ct), await OpsApp.ActivityAsync(cache, db, time, ct))),
             "engagement" => Results.Ok(LookoutPages.Engagement(await OpsApp.ActivityAsync(cache, db, time, ct), await OpsApp.OverviewSeriesAsync(cache, db, time, ct))),
             "devices" => Results.Ok(LookoutPages.Devices(await OpsApp.DevicesAsync(cache, db, time, ct))),
             "releases" => Results.Ok(LookoutPages.Releases(await OpsApp.SystemAsync(cache, system, ct))),
+            "health" => Results.Ok(LookoutPages.Health(await OpsApp.ApiHealthAsync(cache, timings, ct))),
             "feedback" => Results.Ok(LookoutPages.Feedback(await FeedbackStore.ListAsync(db, ct), time.GetUtcNow().UtcDateTime)),
             "notices" => Results.Ok(LookoutPages.Notices(await notices.GetAsync(ct), time.GetUtcNow().UtcDateTime)),
             "system" => Results.Ok(LookoutPages.System(await OpsApp.SystemAsync(cache, system, ct))),
@@ -133,8 +134,8 @@ public static class LookoutApi
         return actor.Length is >= 1 and <= MaxActorLength && !actor.Any(char.IsControl) ? actor : null;
     }
 
-    private static async Task<IResult> SummaryAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, SystemInfo system, ILoggerFactory loggers,
-        CancellationToken ct)
+    private static async Task<IResult> SummaryAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, SystemInfo system, ApiTimings timings,
+        ILoggerFactory loggers, CancellationToken ct)
     {
         var log = loggers.CreateLogger("Ember.Ops.Lookout");
         async Task<T?> Read<T>(Func<Task<T>> load) where T : class
@@ -152,10 +153,10 @@ public static class LookoutApi
 
         var overview = await Read(() => OpsApp.OverviewCountersAsync(cache, db, time, ct));
         var series = await Read(() => OpsApp.OverviewSeriesAsync(cache, db, time, ct));
-        var activity = await Read(() => OpsApp.ActivityAsync(cache, db, time, ct));
+        var api = await Read(() => OpsApp.ApiHealthAsync(cache, timings, ct));
         var feedback = await Read(() => FeedbackStore.ListAsync(db, ct));
         var report = await OpsApp.SystemAsync(cache, system, ct);
-        return Results.Ok(LookoutPages.Summary(overview, feedback, report, time.GetUtcNow().UtcDateTime, series, activity));
+        return Results.Ok(LookoutPages.Summary(overview, feedback, report, time.GetUtcNow().UtcDateTime, series, api));
     }
 
     private static IResult Notices(IResult result) =>

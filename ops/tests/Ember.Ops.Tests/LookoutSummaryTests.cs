@@ -32,7 +32,7 @@ public sealed class LookoutSummaryTests
 
         summary.State.Should().Be("ok");
         summary.Alerts.Should().BeEmpty();
-        summary.Tiles.Select(t => t.Label).Should().Equal("Users", "Active 7 days", "Stickiness", "Open feedback");
+        summary.Tiles.Select(t => t.Label).Should().Equal("Users", "Active 7 days", "API p95", "Open feedback");
         summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal("6", "4", null, "2");
     }
 

@@ -13,12 +13,13 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 | `overview` | Users (total with a 12-week trend), new users this week and per week, active today, in the last 7 and 14 days, stickiness, active users per day |
 | `engagement` | Users seen today, per day and per week from the dashboard's sign-in snapshots, average per day and stickiness of the last full week, retention 1, 2 and 4 weeks after sign-up |
 | `devices` | Users of the last 7 days by sign-in platform and by app version, web push on, Android app installs, Discord linked |
+| `health` | Ember's API over the last 24 hours (requests per minute, p50, p95, 5xx rate), the same per 2 hours over 7 days, and the 10 slowest route templates by p95 |
 | `releases` | Deployed SHA of production and staging, the provider's build SHA, the published APK version, CI of `main`, `test` and `v2/next` |
 | `feedback` | The reports, one column per Ember status (open, planned, implemented, released, declined). Each card has its description, pictures, platform, version, send time, whether it was sent anonymously, and its comments. A move sets the status and the card position. Moves are not logged |
 | `notices` | Live, scheduled and ended notices: info or maintenance, English and German, up to 280 characters each, up to 10 notices in a 16 KiB document. Publish, end now or delete. Each change is written to `NoticeLog` in `emberops` with the author |
-| `system` | Container states, whether reminders are advancing (a health check only), `emberdb` size and latest migration, free space per disk, newest pre-deploy dump |
+| `system` | Container states, whether reminders are advancing (a health check only), `emberdb` size, connections in use against `max_connections` and latest migration, free space per disk, newest pre-deploy dump |
 
-The overview, releases, notices and system pages refresh every 30 seconds, the engagement and devices pages every 60. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the series at most every 5 minutes, shared by all viewers.
+The overview, releases, notices and system pages refresh every 30 seconds, the engagement, devices and health pages every 60. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the series at most every 5 minutes, shared by all viewers.
 
 Lookout shows how the app is doing, never what people do in it: no habits, routines, reminders, streaks, grace days, designs or other in-app settings, not even as counts.
 
@@ -27,6 +28,9 @@ Limits of the data:
 - Platforms and app versions come from `AuthSessions.Platform` and `AppVersion`. Without those columns the two widgets are unavailable with a note. Older sessions without a value count as "Not recorded".
 - "Active" means a web or app sign-in was used (`AuthSessions`, last seen or created). A session expires after 14 days unused and Ember then deletes it, so live windows stop at 14 days. Sign-outs and Discord-only use (no sign-in, and the bot keeps no usage time outside check-ins) are not counted.
 - `LastSeenUtc` is overwritten, so activity history comes from the dashboard's own snapshots every 5 minutes: per Berlin day the users seen that day and in the 7 days up to it, per week the users seen that week, and of the users who signed up 1, 2 and 4 weeks before this week those seen this week, the highest value kept. It starts on the day the dashboard first ran the version that stores it (the notes say so). Only counts are stored, never user ids.
+- API timings come from Ember's API, which keeps request counts, 5xx counts and a latency histogram per minute and route template for 24 hours in memory and serves them on its internal port 9090 (`GET /metrics/v1`, bearer key `Ops:MetricsKeyFile`; never published on the host or the tunnel). Every 5 minutes the provider pulls them with the same key (`Ops__ApiMetricsUrl`, `Ops__ApiMetricsKeyFile`) and stores them per hour and route template in `emberops.api_hours` for 30 days. Without the key or while the API doesn't answer, the health widgets are unavailable. p50 and p95 are interpolated inside the histogram buckets (5 ms to 5 s). The hub draws at most 120 bars, so the 7-day charts use 2-hour slots. Outside uptime and response time, and container CPU and memory, come from Lookout.
+- Connections count every backend attached to a database on the shared Postgres server: without `pg_read_all_stats` the role can't see other roles' backend types, so autovacuum workers are counted too. Slow queries are left out (`pg_stat_statements` isn't installed).
+- Background jobs: the bot's Quartz scheduler keeps its state in memory, so Ember records no last run or failure per job anywhere the role could read. "Reminders advancing" is the only job health check.
 - Retention pools the finished weeks of the last 12 sign-up weeks; the current week is left out until it ends.
 - Not shown, because the data does not support it honestly: days active per user (needs per-user day history, which the snapshots do not keep; the widget says so).
 - The dashboard reads no check-ins, journal, low days, let-go habits or slips, or Fireside data: those are health data.
@@ -60,8 +64,8 @@ Routes, all under `/lookout/v1`:
 | Method and path | What it does |
 |---|---|
 | `GET /manifest` | Name, build SHA as `version`, pages and refresh times |
-| `GET /summary` | The summary card: Users, Active 7 days, Stickiness and Open feedback, a state and up to five alerts |
-| `GET /pages/{pageId}` | One page: `overview`, `engagement`, `devices`, `releases`, `notices`, `system` or `feedback`. Other ids get 404 |
+| `GET /summary` | The summary card: Users, Active 7 days, API p95 and Open feedback, a state and up to five alerts |
+| `GET /pages/{pageId}` | One page: `overview`, `engagement`, `devices`, `releases`, `health`, `notices`, `system` or `feedback`. Other ids get 404 |
 | `GET /widgets/feedback/cards/{id}/comments` | Comments on a report |
 | `POST /widgets/feedback/cards/{id}/comments` | Add a comment (201). Needs `Lookout-Actor`. 1 to 4000 characters, no NUL |
 | `PUT /widgets/feedback/cards/{id}/move` | Set a report's status and position (204). Needs `Lookout-Actor` |
