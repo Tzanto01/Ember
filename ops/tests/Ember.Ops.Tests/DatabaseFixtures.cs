@@ -66,14 +66,25 @@ public abstract class DatabaseFixture(bool productionSchema, bool seed = true) :
     }
 }
 
-/// <summary>Ember migrated with every migration (v2 schema).</summary>
-public sealed class V2DatabaseFixture() : DatabaseFixture(productionSchema: false);
+/// <summary>Ember migrated with every migration (v2 schema), minus the columns production does not have yet (<c>AspNetUsers."CreatedUtc"</c>, <c>AuthSessions."Platform"</c> and <c>"AppVersion"</c>).</summary>
+public sealed class V2DatabaseFixture() : DatabaseFixture(productionSchema: false)
+{
+    protected override async Task PrepareAsync()
+    {
+        await using var connection = await OpenAsync("emberdb");
+        await using var drop = new NpgsqlCommand("""
+            ALTER TABLE "AspNetUsers" DROP COLUMN "CreatedUtc";
+            ALTER TABLE "AuthSessions" DROP COLUMN "Platform", DROP COLUMN "AppVersion";
+            """, connection);
+        await drop.ExecuteNonQueryAsync();
+    }
+}
 
 /// <summary>Ember migrated only as far as production (<c>main</c>) is.</summary>
 public sealed class ProductionDatabaseFixture() : DatabaseFixture(productionSchema: true);
 
 /// <summary>
-/// Ember with every migration plus the columns Ember is adding (<c>AspNetUsers."CreatedUtc"</c>, <c>AuthSessions."Platform"</c> and
+/// Ember with every migration (including the columns <c>AspNetUsers."CreatedUtc"</c>, <c>AuthSessions."Platform"</c> and
 /// <c>"AppVersion"</c>), the grant script re-run, and the dataset dated and tagged: u1 to u3 created 2026-11-10, u4 2026-11-03, u5 unknown,
 /// u6 2026-11-17; u1's sessions web without a version, u2's last seen one Android 1.4.0 and its never-seen one unrecorded; and sessions
 /// seen today for u3 (Android 1.4.0), u4 (Android 1.3.2), u5 (an unknown platform, 1.3.2) and u6 (Discord 1.4.0).
@@ -82,12 +93,6 @@ public sealed class ComingColumnsDatabaseFixture() : DatabaseFixture(productionS
 {
     protected override async Task PrepareAsync()
     {
-        await using (var connection = await OpenAsync("emberdb"))
-        await using (var alter = new NpgsqlCommand("""
-            ALTER TABLE "AspNetUsers" ADD COLUMN "CreatedUtc" timestamp with time zone;
-            ALTER TABLE "AuthSessions" ADD COLUMN "Platform" text, ADD COLUMN "AppVersion" text;
-            """, connection))
-            await alter.ExecuteNonQueryAsync();
         await Database.RunScriptAsync(Path.Combine(OpsRoot(), "sql", "ember_dashboard.sql"), "emberdb", "DASH_PW", File.ReadAllText(Database.EmberPasswordFile).Trim());
 
         var u = Data.UserIds;
