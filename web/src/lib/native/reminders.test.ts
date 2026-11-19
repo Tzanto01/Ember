@@ -597,8 +597,27 @@ describe('Reminders', () => {
       expect(schedule).toHaveBeenCalledTimes(1);
     });
 
+    it('replaces a key left from before once per run and after a sign-out, and keeps its own', async () => {
+      widget.hasKey = async () => ({ value: true });
+      const rebuildWithKey = async (key?: string) => {
+        const done = reminders.rebuild('u1', zone);
+        (await mock.next('GET', '/api/habits')).respond(200, [reminded]);
+        (await mock.next('GET', '/api/routines')).respond(200, []);
+        if (key) (await mock.next('POST', '/api/me/widget-key')).respond(200, { key });
+        await phoneRegistered();
+        await done;
+      };
+
+      await rebuildWithKey('synthetic-key-1');
+      await rebuildWithKey();
+      await reminders.clearAll();
+      await rebuildWithKey('synthetic-key-2');
+
+      expect(keyRequests()).toHaveLength(2);
+      expect(setKey.mock.calls.map(([options]) => options.key)).toEqual(['synthetic-key-1', 'synthetic-key-2']);
+    });
+
     it.each([
-      ['the widget already has a key', () => (widget.hasKey = async () => ({ value: true }))],
       ['the native build has no hasKey', () => delete widget.hasKey],
       ['the API base is not an absolute https URL', () => (env.apiBase = '')],
     ])('requests no key when %s', async (_, arrange) => {

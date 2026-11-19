@@ -88,6 +88,7 @@ export function checkInTarget(extra: unknown, userId: string): CheckInTarget | n
 export class Reminders {
   private chain: Promise<void> = Promise.resolve();
   private channelLanguage: string | null = null;
+  private keyHandedOff = false;
 
   constructor(
     private readonly api: ApiClient,
@@ -143,6 +144,7 @@ export class Reminders {
    */
   async clearAll(): Promise<void> {
     reminderNames.set(false);
+    this.keyHandedOff = false;
     forgetPhone();
     localStorage.removeItem(issuedKey);
     localStorage.removeItem(plannedKey);
@@ -435,16 +437,18 @@ export class Reminders {
   }
 
   /**
-   * Gives the widget a key for its own check-ins when it has none (native builds that know `hasKey`, an absolute
+   * Gives the widget a fresh key for its own check-ins once per app run and after every sign-out, and again whenever
+   * it has none, so a key left from an ended session never outlives it (native builds that know `hasKey`, an absolute
    * `https://` API base only). Never throws.
    */
   private async handOffKey(): Promise<void> {
     if (!env.apiBase.startsWith('https://')) return;
     await this.toWidget(async (widget) => {
       if (typeof widget.hasKey !== 'function' || typeof widget.setKey !== 'function') return;
-      if ((await widget.hasKey()).value) return;
+      if (this.keyHandedOff && (await widget.hasKey()).value) return;
       const { key } = await this.api.createWidgetKey();
       await widget.setKey({ key, apiBase: new URL(env.apiBase).origin });
+      this.keyHandedOff = true;
     });
   }
 

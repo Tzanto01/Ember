@@ -450,6 +450,19 @@ describe('Http native bearer with TokenStore', () => {
     },
   );
 
+  it('refreshes an expired token for a sign-out, so the server session still ends', async () => {
+    await signIn();
+
+    const done = http.request('POST', '/api/auth/logout');
+    (await mock.next('POST', '/api/auth/logout')).respond(401);
+    (await mock.next('POST', '/api/auth/refresh')).respond(200, tokens('access-2', 'refresh-2'));
+    const retry = await mock.next('POST', '/api/auth/logout');
+    expect(retry.headers.get('Authorization')).toBe('Bearer access-2');
+    retry.respond(204);
+
+    await expect(done).resolves.toBeUndefined();
+  });
+
   it('never refreshes a 401 from the login endpoint', async () => {
     await signIn();
 

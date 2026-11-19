@@ -228,7 +228,11 @@ public class WidgetCheckInApiTests(PostgresFixture postgres) : ApiTestBase(postg
 [Collection("Postgres")]
 public class WidgetCheckInRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
-    protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:WidgetPerIpPerMinute"] = "3" };
+    protected override Dictionary<string, string?>? Settings => new()
+    {
+        ["Ember:RateLimits:WidgetPerIpPerMinute"] = "3",
+        ["Ember:RateLimits:AuthPerIpPerMinute"] = "3",
+    };
 
     [DockerFact]
     public async Task Check_ins_are_limited_per_client_ip_apart_from_sign_in()
