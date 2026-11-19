@@ -76,7 +76,7 @@ public sealed class ProductionDatabaseFixture() : DatabaseFixture(productionSche
 /// Ember with every migration plus the columns Ember is adding (<c>AspNetUsers."CreatedUtc"</c>, <c>AuthSessions."Platform"</c> and
 /// <c>"AppVersion"</c>), the grant script re-run, and the dataset dated and tagged: u1 to u3 created 2026-11-10, u4 2026-11-03, u5 unknown,
 /// u6 2026-11-17; u1's sessions web without a version, u2's last seen one Android 1.4.0 and its never-seen one unrecorded; and sessions
-/// seen today for u3 (Android 1.4.0), u4 (Android 1.3.2) and u6 (iOS 1.4.0).
+/// seen today for u3 (Android 1.4.0), u4 (Android 1.3.2), u5 (an unknown platform, 1.3.2) and u6 (Discord 1.4.0).
 /// </summary>
 public sealed class ComingColumnsDatabaseFixture() : DatabaseFixture(productionSchema: false)
 {
@@ -100,7 +100,7 @@ public sealed class ComingColumnsDatabaseFixture() : DatabaseFixture(productionS
             Command("""UPDATE "AspNetUsers" SET "CreatedUtc" = '2026-11-17T12:00:00Z' WHERE "Id" = $1""", u[5]),
             Command("""UPDATE "AuthSessions" SET "Platform" = 'web' WHERE "UserId" = $1""", u[0]),
             Command("""UPDATE "AuthSessions" SET "Platform" = 'Android', "AppVersion" = '1.4.0' WHERE "UserId" = $1 AND "LastSeenUtc" IS NOT NULL""", u[1]),
-            .. new (Guid User, string Platform, string Version)[] { (u[2], "android", "1.4.0"), (u[3], "android", "1.3.2"), (u[5], "ios", "1.4.0") }.Select(x => Command("""
+            .. new (Guid User, string Platform, string Version)[] { (u[2], "android", "1.4.0"), (u[3], "android", "1.3.2"), (u[5], "discord", "1.4.0"), (u[4], "smartwatch", "1.3.2") }.Select(x => Command("""
                 INSERT INTO "AuthSessions" ("Id", "UserId", "CreatedUtc", "ExpiresUtc", "LastSeenUtc", "Platform", "AppVersion") VALUES (gen_random_uuid(), $1, $2, $3, $2, $4, $5)
                 """, x.User, seen, seen.AddDays(60), x.Platform, x.Version)),
         ];

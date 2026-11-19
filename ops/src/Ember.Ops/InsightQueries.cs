@@ -141,7 +141,7 @@ public static class InsightQueries
         ];
         if (features.SessionPlatform)
             commands.Add(Db.Command($"""
-                SELECT CASE lower("Platform") WHEN 'web' THEN 'Web' WHEN 'android' THEN 'Android app' WHEN 'ios' THEN 'iOS app'
+                SELECT CASE lower("Platform") WHEN 'web' THEN 'Web' WHEN 'android' THEN 'Android' WHEN 'discord' THEN 'Discord bot'
                        ELSE CASE WHEN "Platform" IS NULL THEN 'Not recorded' ELSE 'Other' END END, count(DISTINCT "UserId")::int
                 {recent} GROUP BY 1 ORDER BY 2 DESC, 1
                 """, today));

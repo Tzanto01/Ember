@@ -46,7 +46,7 @@ public sealed class ComingColumnsTests(ComingColumnsDatabaseFixture fixture) : I
         var tiles = LookoutShape.Widget(page, "tiles");
         LookoutShape.Item(tiles, "Users").GetProperty("trend").EnumerateArray().Select(t => t.GetDouble()).Should().Equal(1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 5, 6);
         LookoutShape.Item(tiles, "New users this week").GetProperty("value").GetInt32().Should().Be(1, "u6 was created yesterday");
-        LookoutShape.Item(tiles, "Active 7 days").GetProperty("value").GetInt32().Should().Be(5);
+        LookoutShape.Item(tiles, "Active 7 days").GetProperty("value").GetInt32().Should().Be(6);
         LookoutShape.Widget(page, "new-users").GetProperty("note").GetString().Should().Be("by account creation");
     }
 
@@ -56,8 +56,19 @@ public sealed class ComingColumnsTests(ComingColumnsDatabaseFixture fixture) : I
         var page = await PageAsync("devices");
 
         LookoutShape.AssertPage(page, "devices");
-        Bars(LookoutShape.Widget(page, "platforms")).Should().Equal(("Android app", 3d));
+        Bars(LookoutShape.Widget(page, "platforms")).Should().Equal(("Android", 3d));
         Bars(LookoutShape.Widget(page, "versions")).Should().Equal(("1.4.0", 3d));
+    }
+
+    [Fact]
+    public async Task Platforms_map_web_android_and_discord_and_count_anything_else_as_other()
+    {
+        await using var db = fixture.OpenOpsDatabases();
+
+        var devices = await InsightQueries.DevicesAsync(db.Ember, await EmberFeatures.DetectAsync(db.Ember, default), fixture.Time, default);
+
+        devices.Platforms!.Select(p => (p.Label, p.Users)).Should().Equal(
+            ("Android", 3), ("Discord bot", 1), ("Not recorded", 1), ("Other", 1), ("Web", 1));
     }
 
     [Fact]

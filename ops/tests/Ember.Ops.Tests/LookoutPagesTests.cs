@@ -216,10 +216,10 @@ public sealed class LookoutPagesTests
     public void Devices_leave_out_buckets_of_one_or_two_people_and_mark_missing_columns_unavailable()
     {
         var page = LookoutPages.Devices(new(Now, 10, 4, 3, 5,
-            [new("Web", 6, 6), new("Android app", 3, 3), new("iOS app", 2, 2), new("Not recorded", 1, 1)],
+            [new("Web", 6, 6), new("Android", 3, 3), new("Discord bot", 2, 2), new("Not recorded", 1, 1)],
             [new("1.4.0", 5, 5), new("1.3.2", 2, 2), new("Not recorded", 0, 0)]));
 
-        ((BarsWidget)Widget(page, "platforms")).Bars.Select(b => (b.Label, b.Values[0])).Should().Equal(("Web", 6), ("Android app", 3));
+        ((BarsWidget)Widget(page, "platforms")).Bars.Select(b => (b.Label, b.Values[0])).Should().Equal(("Web", 6), ("Android", 3));
         ((BarsWidget)Widget(page, "platforms")).Note.Should().Contain("1 or 2 people are left out");
         ((BarsWidget)Widget(page, "versions")).Bars.Select(b => b.Label).Should().Equal("1.4.0", "Not recorded");
         Stats(Widget(page, "adoption")).Items.Should().Equal(
