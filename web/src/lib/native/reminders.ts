@@ -1,6 +1,7 @@
 import type { LocalNotificationsPlugin } from '@capacitor/local-notifications';
 import type { ApiClient } from '../api-client';
 import { type DeviceStore, withDayEdit } from '../device-store';
+import { env } from '../env';
 import { currentLanguage, t } from '../i18n';
 import { addDays, isLocalDate } from '../local-date';
 import { localModeOn } from '../local/mode';
@@ -187,33 +188,76 @@ export class Reminders {
     const target = checkInTarget(extra, userId);
     if (!target) return null;
     try {
-      const habit = (await this.load(userId, timeZone))?.habits.find(
-        ({ id }) => id === target.habitId,
-      );
-      if (!habit || isLetGo(habit)) return null;
-      const count =
-        habit.today.date === target.date
-          ? habit.today.count
-          : ((await this.api.getDays(habit.id, target.date, target.date))[0]?.count ?? 0);
-      const timesPerDay = habit.timesPerDay ?? 1;
-      if (count < timesPerDay) {
-        const edit = { habitId: habit.id, date: target.date, completed: null, count: count + 1 };
-        await this.api
-          .setDayCount(edit.habitId, edit.date, edit.count)
-          .catch(async (error: unknown) => {
-            if (!unreachable(error) || !(await queue.add(edit))) throw error;
-          });
-      }
-      return habit.name;
+      const loaded = await this.load(userId, timeZone);
+      const day = loaded && loaded !== 'signedOut' ? await this.day(loaded.habits, target) : null;
+      if (!day) return null;
+      if (day.count < day.timesPerDay) await this.sendCount(target, day.count + 1, queue);
+      return day.habit.name;
     } catch {
       return null;
     }
   }
 
+  /**
+   * Native build only: takes the widget's pending check-ins and, for each valid one of `userId` (a
+   * {@link checkInTarget} with an integer `count` of at least 1), sends the absolute `PUT { count }` (capped at
+   * `timesPerDay`) only while the habit's current count (as in {@link checkIn}) is lower, so a check-in the server
+   * already has is never repeated; queued in `queue` when the API is unreachable. Without any habit list (offline,
+   * nothing cached) each is queued as is; on a 401 they are dropped, as are unknown and let-go habits. Never throws.
+   */
+  async replayWidget(userId: string, timeZone: string, queue: OfflineQueue): Promise<void> {
+    try {
+      const { EmberWidget } = await this.widget();
+      if (typeof EmberWidget.takePending !== 'function') return;
+      const { checkIns } = await EmberWidget.takePending();
+      const pending = (Array.isArray(checkIns) ? checkIns : []).flatMap((entry) => {
+        const target = checkInTarget(entry, userId);
+        return target && Number.isSafeInteger(entry.count) && entry.count >= 1 ? [{ target, count: entry.count }] : [];
+      });
+      if (!pending.length) return;
+      const loaded = await this.load(userId, timeZone);
+      if (loaded === 'signedOut') return;
+      for (const { target, count } of pending) {
+        try {
+          if (!loaded) {
+            await queue.add({ ...target, completed: null, count });
+            continue;
+          }
+          const day = await this.day(loaded.habits, target);
+          const aimed = day ? Math.min(count, day.timesPerDay) : 0;
+          if (day && day.count < aimed) await this.sendCount(target, aimed, queue);
+        } catch {}
+      }
+    } catch {}
+  }
+
+  /** The non-let-go habit `target` names in `habits` with its count that day (today's from the list, else `getDays`); null when unknown. */
+  private async day(habits: AnyHabit[], target: CheckInTarget) {
+    const habit = habits.find(({ id }) => id === target.habitId);
+    if (!habit || isLetGo(habit)) return null;
+    const count =
+      habit.today.date === target.date
+        ? habit.today.count
+        : ((await this.api.getDays(habit.id, target.date, target.date))[0]?.count ?? 0);
+    return { habit, count, timesPerDay: habit.timesPerDay ?? 1 };
+  }
+
+  /** The absolute `PUT { count }` for `target`, queued in `queue` when the API is unreachable; rejects otherwise. */
+  private async sendCount(target: CheckInTarget, count: number, queue: OfflineQueue): Promise<void> {
+    const edit = { ...target, completed: null, count };
+    await this.api.setDayCount(edit.habitId, edit.date, edit.count).catch(async (error: unknown) => {
+      if (!unreachable(error) || !(await queue.add(edit))) throw error;
+    });
+  }
+
+  /**
+   * The habit list: live (and cached), or when the API can't answer the cached one with queued day edits applied;
+   * `signedOut` on a 401, null when nothing is cached.
+   */
   private async load(
     userId: string,
     timeZone: string,
-  ): Promise<{ habits: AnyHabit[]; routines: Routine[]; live: boolean } | null> {
+  ): Promise<{ habits: AnyHabit[]; routines: Routine[]; live: boolean } | 'signedOut' | null> {
     try {
       const habits = await this.api.listHabits();
       const routines = await this.api
@@ -222,7 +266,7 @@ export class Reminders {
       await this.store.saveHabits({ userId, timeZone, habits, routines }).catch(() => undefined);
       return { habits, routines: routines ?? [], live: true };
     } catch (error) {
-      if (asApiError(error).status === 401) return null;
+      if (asApiError(error).status === 401) return 'signedOut';
       const cached = await this.store.habits(userId).catch(() => null);
       if (!cached) return null;
       const queued = await this.store.edits(userId).catch(() => []);
@@ -236,7 +280,7 @@ export class Reminders {
 
   private async run(userId: string, timeZone: string, secondMinutes: number): Promise<void> {
     const loaded = await this.load(userId, timeZone);
-    if (!loaded) return;
+    if (!loaded || loaded === 'signedOut') return;
     const { habits, routines, live } = loaded;
     const now = Date.now();
     const today = localDate(now, timeZone);
@@ -247,6 +291,7 @@ export class Reminders {
         next: { date: next.date, habits: next.habits, more: next.more },
       }),
     );
+    if (live && !localModeOn()) await this.handOffKey();
     const plugin = (await this.notifications()).LocalNotifications;
     const target: ReminderTarget = localModeOn()
       ? { mode: 'local' }
@@ -381,6 +426,20 @@ export class Reminders {
     const plugin = (await this.notifications()).LocalNotifications;
     const status = await plugin.changeExactNotificationSetting().catch(() => null);
     return status?.exact_alarm === 'granted';
+  }
+
+  /**
+   * Gives the widget a key for its own check-ins when it has none (native builds that know `hasKey`, an absolute
+   * `https://` API base only). Never throws.
+   */
+  private async handOffKey(): Promise<void> {
+    if (!env.apiBase.startsWith('https://')) return;
+    await this.toWidget(async (widget) => {
+      if (typeof widget.hasKey !== 'function' || typeof widget.setKey !== 'function') return;
+      if ((await widget.hasKey()).value) return;
+      const { key } = await this.api.createWidgetKey();
+      await widget.setKey({ key, apiBase: new URL(env.apiBase).origin });
+    });
   }
 
   private toWidget(call: (widget: EmberWidgetPlugin) => Promise<void>): Promise<void> {

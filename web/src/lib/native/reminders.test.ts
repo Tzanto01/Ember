@@ -4,6 +4,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { ApiClient } from '../api-client';
 import { DeviceStore } from '../device-store';
+import { env } from '../env';
 import { Http } from '../http';
 import type { AnyHabit, Habit, ReminderDestination, Routine } from '../models';
 import { OfflineQueue } from '../offline-queue';
@@ -29,6 +30,7 @@ describe('Reminders', () => {
   let checkExact: Mock;
   let changeExact: Mock;
   let exactAlarms: boolean;
+  let widget: Partial<EmberWidgetPlugin>;
 
   beforeEach(async () => {
     (globalThis as unknown as { indexedDB: unknown }).indexedDB = new IDBFactory();
@@ -55,16 +57,16 @@ describe('Reminders', () => {
       registerActionTypes: async () => undefined,
       schedule,
     } as unknown as LocalNotificationsPlugin;
-    const widget = {
+    widget = {
       update: async () => undefined,
       clear: async () => undefined,
-    } as unknown as EmberWidgetPlugin;
+    };
     const api = new ApiClient(new Http({ native: true, apiBase: '' }), new OfflineQueue(device));
     reminders = new Reminders(
       api,
       device,
       async () => ({ LocalNotifications: plugin }),
-      async () => ({ EmberWidget: widget }),
+      async () => ({ EmberWidget: widget as EmberWidgetPlugin }),
       () => exactAlarms,
     );
     await device.saveHabits({ userId: 'u1', timeZone: zone, habits: [reminded] });
@@ -75,6 +77,7 @@ describe('Reminders', () => {
     vi.unstubAllGlobals();
     reminderNames.set(false);
     localStorage.clear();
+    env.apiBase = '';
   });
 
   const phone: ReminderDestination = {
@@ -568,6 +571,166 @@ describe('Reminders', () => {
     );
 
     expect(await native.requestPermission()).toBe(true);
+  });
+
+  describe('widget key', () => {
+    let setKey: Mock;
+
+    beforeEach(() => {
+      env.apiBase = 'https://ember.example/base';
+      setKey = vi.fn(async () => undefined);
+      widget.hasKey = async () => ({ value: false });
+      widget.setKey = setKey;
+    });
+
+    const keyRequests = () => mock.all.filter((c) => c.url === '/api/me/widget-key');
+
+    it('requests a key on a live rebuild while the widget has none and stores it with the API origin', async () => {
+      const done = reminders.rebuild('u1', zone);
+      (await mock.next('GET', '/api/habits')).respond(200, [reminded]);
+      (await mock.next('GET', '/api/routines')).respond(200, []);
+      (await mock.next('POST', '/api/me/widget-key')).respond(200, { key: 'synthetic-widget-key' });
+      await phoneRegistered();
+      await done;
+
+      expect(setKey).toHaveBeenCalledWith({ key: 'synthetic-widget-key', apiBase: 'https://ember.example' });
+      expect(schedule).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['the widget already has a key', () => (widget.hasKey = async () => ({ value: true }))],
+      ['the native build has no hasKey', () => delete widget.hasKey],
+      ['the API base is not an absolute https URL', () => (env.apiBase = '')],
+    ])('requests no key when %s', async (_, arrange) => {
+      arrange();
+
+      await rebuildOnline([reminded]);
+
+      expect(keyRequests()).toEqual([]);
+      expect(setKey).not.toHaveBeenCalled();
+    });
+
+    it('requests no key in no-account mode', async () => {
+      localStorage.setItem('ember.mode', 'local');
+
+      const done = reminders.rebuild('u1', zone);
+      (await mock.next('GET', '/api/habits')).respond(200, [reminded]);
+      (await mock.next('GET', '/api/routines')).respond(200, []);
+      await done;
+
+      expect(keyRequests()).toEqual([]);
+      expect(schedule).toHaveBeenCalledTimes(1);
+    });
+
+    it('still schedules the reminders when the key request fails', async () => {
+      const done = reminders.rebuild('u1', zone);
+      (await mock.next('GET', '/api/habits')).respond(200, [reminded]);
+      (await mock.next('GET', '/api/routines')).respond(200, []);
+      (await mock.next('POST', '/api/me/widget-key')).respond(500);
+      await phoneRegistered();
+      await done;
+
+      expect(setKey).not.toHaveBeenCalled();
+      expect(schedule).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('widget pending check-ins', () => {
+    const twice: Habit = { ...habit, timesPerDay: 2 };
+    let queue: OfflineQueue;
+    let takePending: Mock;
+
+    beforeEach(() => {
+      queue = new OfflineQueue(device);
+      queue.userId.set('u1');
+      takePending = vi.fn(async () => ({
+        checkIns: [{ userId: 'u1', habitId: 1, date: '2026-11-01', count: 2 }],
+      }));
+      widget.takePending = takePending;
+    });
+
+    const puts = () => mock.all.filter((c) => c.method === 'PUT');
+
+    it('sends the absolute count when the server has fewer check-ins', async () => {
+      const done = reminders.replayWidget('u1', zone, queue);
+      (await mock.next('GET', '/api/habits')).respond(200, [{ ...twice, today: { ...twice.today, count: 1 } }]);
+      (await mock.next('GET', '/api/routines')).respond(200, []);
+      const put = await mock.next('PUT', '/api/habits/1/days/2026-11-01');
+      expect(put.body).toEqual({ count: 2 });
+      put.respond(200, twice);
+      await done;
+    });
+
+    it('caps the count at timesPerDay', async () => {
+      takePending.mockResolvedValue({ checkIns: [{ userId: 'u1', habitId: 1, date: '2026-11-01', count: 5 }] });
+
+      const done = reminders.replayWidget('u1', zone, queue);
+      (await mock.next('GET', '/api/habits')).respond(200, [twice]);
+      (await mock.next('GET', '/api/routines')).respond(200, []);
+      const put = await mock.next('PUT', '/api/habits/1/days/2026-11-01');
+      expect(put.body).toEqual({ count: 2 });
+      put.respond(200, twice);
+      await done;
+    });
+
+    it('sends nothing when the server already has the check-in', async () => {
+      const done = reminders.replayWidget('u1', zone, queue);
+      (await mock.next('GET', '/api/habits')).respond(200, [{ ...twice, today: { ...twice.today, count: 2 } }]);
+      (await mock.next('GET', '/api/routines')).respond(200, []);
+      await done;
+
+      expect(puts()).toEqual([]);
+      expect(await device.edits('u1')).toEqual([]);
+    });
+
+    it("drops another user's and malformed entries without asking the server", async () => {
+      takePending.mockResolvedValue({
+        checkIns: [
+          { userId: 'u2', habitId: 1, date: '2026-11-01', count: 1 },
+          { userId: 'u1', habitId: 1, date: '2026-11-01', count: 0 },
+          { userId: 'u1', habitId: 1, date: '2026-11-01', count: 1.5 },
+        ],
+      });
+
+      await reminders.replayWidget('u1', zone, queue);
+
+      expect(mock.all).toEqual([]);
+      expect(await device.edits('u1')).toEqual([]);
+    });
+
+    it('queues the absolute count when the API is unreachable', async () => {
+      await device.saveHabits({ userId: 'u1', timeZone: zone, habits: [twice] });
+
+      const done = reminders.replayWidget('u1', zone, queue);
+      (await mock.next('GET', '/api/habits')).fail();
+      (await mock.next('PUT', '/api/habits/1/days/2026-11-01')).fail();
+      await done;
+
+      expect(await device.edits('u1')).toMatchObject([{ habitId: 1, date: '2026-11-01', count: 2 }]);
+    });
+
+    it('queues the entry as is when the API is unreachable and nothing is cached', async () => {
+      queue.userId.set('u3');
+      takePending.mockResolvedValue({ checkIns: [{ userId: 'u3', habitId: 1, date: '2026-11-01', count: 2 }] });
+
+      const done = reminders.replayWidget('u3', zone, queue);
+      (await mock.next('GET', '/api/habits')).fail();
+      await done;
+
+      expect(await device.edits('u3')).toMatchObject([{ habitId: 1, date: '2026-11-01', count: 2 }]);
+    });
+
+    it('drops the entries on a 401', async () => {
+      queue.userId.set('u3');
+      takePending.mockResolvedValue({ checkIns: [{ userId: 'u3', habitId: 1, date: '2026-11-01', count: 2 }] });
+
+      const done = reminders.replayWidget('u3', zone, queue);
+      (await mock.next('GET', '/api/habits')).respond(401);
+      await done;
+
+      expect(puts()).toEqual([]);
+      expect(await device.edits('u3')).toEqual([]);
+    });
   });
 });
 
