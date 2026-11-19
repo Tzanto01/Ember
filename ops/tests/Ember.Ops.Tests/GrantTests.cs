@@ -11,14 +11,9 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     {
         string[] reads =
         [
-            """SELECT "Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "FiresideEnabled" FROM "AspNetUsers" """,
+            """SELECT "Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders" FROM "AspNetUsers" """,
             """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "Kind" FROM "Habits" """,
-            """SELECT "HabitId", "Date", "Completed" FROM "HabitLogs" """,
-            """SELECT "Date" FROM "DayNotes" """,
-            """SELECT "Date", "Kind" FROM "DayMarks" """,
-            """SELECT "HabitId", "Date", "Count" FROM "HabitSlips" """,
-            """SELECT "Id" FROM "FiresideLinks" """,
-            """SELECT "SentAtUtc" FROM "Warmth" """,
+            """SELECT "UserId", "CreatedUtc", "LastSeenUtc" FROM "AuthSessions" """,
             """SELECT "Id", "Date" FROM "ReminderMessages" """,
             """SELECT "Id", "Date" FROM "PushReminders" """,
             """SELECT "Id", "Title", "Text", "Platform", "Version", "CreatedAt", "Status", "ResolvedAt", "UserId" FROM "Feedback" """,
@@ -41,6 +36,15 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     [InlineData("""SELECT "Name" FROM "Habits" """)]
     [InlineData("""SELECT * FROM "Habits" """)]
     [InlineData("""SELECT "Text" FROM "DayNotes" """)]
+    [InlineData("""SELECT "Date" FROM "DayNotes" """)]
+    [InlineData("""SELECT "Date" FROM "HabitLogs" """)]
+    [InlineData("""SELECT "Date" FROM "DayMarks" """)]
+    [InlineData("""SELECT "Date" FROM "HabitSlips" """)]
+    [InlineData("""SELECT "Id" FROM "FiresideLinks" """)]
+    [InlineData("""SELECT "SentAtUtc" FROM "Warmth" """)]
+    [InlineData("""SELECT "FiresideEnabled" FROM "AspNetUsers" """)]
+    [InlineData("""SELECT "Id" FROM "AuthSessions" """)]
+    [InlineData("""SELECT "ExpiresUtc" FROM "AuthSessions" """)]
     [InlineData("""SELECT * FROM "Moods" """)]
     [InlineData("""SELECT "Email" FROM "AspNetUsers" """)]
     [InlineData("""SELECT "PasswordHash" FROM "AspNetUsers" """)]
@@ -98,6 +102,32 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
         var owner = await fixture.ScalarAsync<string>("postgres", "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'emberops'");
 
         owner.Should().Be("emberops");
+    }
+
+    [Fact]
+    public async Task Rerunning_the_grant_script_revokes_the_health_grants_an_older_script_gave()
+    {
+        await using (var superuser = await fixture.OpenAsync("emberdb"))
+        await using (var old = new NpgsqlCommand("""
+            GRANT SELECT ("HabitId", "Date", "Completed") ON "HabitLogs" TO ember_dashboard;
+            GRANT SELECT ("Date") ON "DayNotes" TO ember_dashboard;
+            GRANT SELECT ("Date", "Kind") ON "DayMarks" TO ember_dashboard;
+            GRANT SELECT ("HabitId", "Date", "Count") ON "HabitSlips" TO ember_dashboard;
+            GRANT SELECT ("Id") ON "FiresideLinks" TO ember_dashboard;
+            GRANT SELECT ("SentAtUtc") ON "Warmth" TO ember_dashboard;
+            GRANT SELECT ("FiresideEnabled") ON "AspNetUsers" TO ember_dashboard;
+            """, superuser))
+            await old.ExecuteNonQueryAsync();
+
+        await fixture.Database.RunScriptAsync(Path.Combine(DatabaseFixture.OpsRoot(), "sql", "ember_dashboard.sql"), "emberdb", "DASH_PW",
+            File.ReadAllText(fixture.Database.EmberPasswordFile).Trim());
+
+        var left = await fixture.ScalarAsync<long>("emberdb", """
+            SELECT count(*) FROM information_schema.column_privileges
+            WHERE grantee = 'ember_dashboard' AND (table_name IN ('HabitLogs', 'DayNotes', 'DayMarks', 'HabitSlips', 'FiresideLinks', 'Warmth')
+                OR (table_name = 'AspNetUsers' AND column_name = 'FiresideEnabled'))
+            """);
+        left.Should().Be(0);
     }
 
     [Fact]

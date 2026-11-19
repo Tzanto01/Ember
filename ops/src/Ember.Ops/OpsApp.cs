@@ -77,8 +77,7 @@ public static class OpsApp
     internal static async Task<Overview> OverviewAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
     {
         var counters = await OverviewCountersAsync(cache, db, time, ct);
-        var features = await FeaturesAsync(cache, db, ct);
-        return Overview.From(counters, await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, features, time, ct)));
+        return Overview.From(counters, await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, time, ct)));
     }
 
     internal static Task<ReminderCounters> ReminderCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>

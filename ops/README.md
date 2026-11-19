@@ -10,23 +10,24 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 
 | Page | What it shows |
 |---|---|
-| `overview` | Users (total, active in the last 7 and 30 days by completed check-ins, new per week by first habit), check-ins per day (90 days), habits (build and let-go, paused, with reminder), routines, journal days, low days, streak settings, Fireside (users on, friendships, warmth per day), let-go slips per week |
+| `overview` | Users (total, active in the last 7 and 30 days by sign-ins, new per week by first habit), habits (build and let-go, paused, with reminder), routines, streak settings |
 | `reminders` | Reminders still open per day and channel, sent reminders per day from the dashboard's own snapshots, Discord DMs on, failing and paused, second reminders, push subscriptions and phones, overdue reminders |
 | `feedback` | The reports, one column per Ember status (open, planned, implemented, released, declined). Each card has its description, pictures, platform, version, send time, whether it was sent anonymously, and its comments. A move sets the status and the card position. Moves are not logged |
 | `notices` | Live, scheduled and ended notices: info or maintenance, English and German, up to 280 characters each, up to 10 notices in a 16 KiB document. Publish, end now or delete. Each change is written to `NoticeLog` in `emberops` with the author |
 | `system` | Container states, whether reminders are advancing, `emberdb` size and latest migration, free space per disk, newest pre-deploy dump, deployed SHA of production and staging, the provider's build SHA, CI of `main`, `test` and `v2/next`, the live notice, the published APK version |
 
-The overview, reminders, notices and system pages refresh every 30 seconds. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the 90-day and 12-week series at most every 5 minutes, shared by all viewers.
+The overview, reminders, notices and system pages refresh every 30 seconds. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the 12-week series at most every 5 minutes, shared by all viewers.
 
 Limits of the data:
 - Ember stores no sign-up date, so "new users" is the week of a user's first habit.
+- "Active" means a web or app sign-in was used in the window (`AuthSessions`, last seen or created). Ember deletes a session when it expires or signs out, and Discord-only use has no sign-in, so both undercount.
+- The dashboard reads no check-ins, journal, low days, let-go slips or Fireside data: those are health data.
 - Ember deletes a reminder row once it closes. "Still open" counts only the rows Ember still keeps. "Sent" comes from the dashboard's snapshots of the reminder id sequences every 5 minutes, so it starts when the dashboard was first deployed and includes second reminders and resends.
-- Fireside and let-go sections show "Not on production yet" until those tables reach production and the grant script is re-run.
 - Days are Europe/Berlin days.
 
 ## Privacy
 
-Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on ids, dates, counts, flags and kinds, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, journal text, moods, Fireside names or messages, or push endpoints. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
+Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on ids, dates, counts, flags and kinds, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table. Re-running the script revokes grants older versions gave on those tables. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
 
 `Feedback.UserId` is readable only so the board can say whether a report was anonymous. The app uses it only as `"UserId" IS NULL` and never returns it.
 

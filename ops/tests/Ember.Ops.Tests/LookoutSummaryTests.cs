@@ -9,7 +9,7 @@ public sealed class LookoutSummaryTests
     private const long Gb = 1024L * 1024 * 1024;
 
     private static OverviewCounters Overview() =>
-        new(Now, 6, 4, 5, new HabitCounts(6, 2, 1, 3), new RoutineCounts(2, 1), new StreakCounts(3, 2, []), null, null);
+        new(Now, 6, 4, 5, new HabitCounts(6, 2, 1, 3), new RoutineCounts(2, 1), new StreakCounts(3, 2, []));
 
     private static ReminderCounters Reminders(int habits = 0, int routines = 0) =>
         new(Now, [], new DiscordCounts(0, 0, 0), new SecondReminderCounts(0, [], 0), new PushCounts(0, 0), new PhoneCounts(0, 0), new OverdueCounts(habits, routines));

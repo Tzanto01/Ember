@@ -7,7 +7,6 @@ namespace Ember.Ops.Lookout;
 public static class LookoutPages
 {
     private static readonly TimeZoneInfo Berlin = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
-    private const string NotOnProduction = "Not on production yet";
 
     /// <summary>The manifest; <paramref name="buildSha"/> becomes the version when set.</summary>
     public static Manifest Manifest(string? buildSha) => new(1, "ember", "Ember", "flame",
@@ -36,28 +35,11 @@ public static class LookoutPages
                 new("Streak users", streaks.Users, Hint: $"{Pct(streaks.ShowStreaks, streaks.Users)} show streaks"),
             ]),
             Bars("new-users", "New users per week", "week", ["Count"], users.NewPerWeek.Select(w => new Bar(Date(w.Week), [w.Count])), "by first habit, proxy"),
-            Bars("check-ins", "Check-ins per day", "day", ["Count"], Days(o.CheckInsPerDay), "last 90 days, completed"),
-            Bars("journal", "Journal days per day", "day", ["Count"], Days(o.JournalPerDay), "journal days (note or mood)"),
-            Bars("low-days", "Low days per day", "day", ["Low days"], Days(o.LowDaysPerDay)),
             Panel("grace", "Users by grace days per week", null,
             [
                 Bars("grace-days", "Users by grace days per week", "category", ["Users"], streaks.Grace.Select(g => new Bar($"{g.Days} d", [g.Count]))),
                 Stats("grace-habits", "Habits", "list", [new("Habits paused", habits.Paused), new("Habits with a reminder", habits.WithReminder)]),
             ]),
-            o.Fireside is { } fireside
-                ? Panel("fireside", "Fireside", null,
-                [
-                    Stats("fireside-counts", "Counts", "list", [new("Users with Fireside on", fireside.UsersOn), new("Friendships", fireside.Friendships)]),
-                    Bars("warmth", "Warmth per day", "day", ["Count"], Days(fireside.WarmthPerDay), "kept rows (30-day retention)"),
-                ])
-                : Panel("fireside", "Fireside", NotOnProduction, []),
-            o.LetGoSlipsPerWeek is { } slips
-                ? Panel("let-go", "Let go", null,
-                [
-                    Bars("slips", "Slips per week", "week", ["Slips"], slips.Select(w => new Bar(Date(w.Week), [w.Slips])), "sum of slip counts"),
-                    Stats("slip-totals", "Totals", "list", [new("Slips, 12 weeks", slips.Sum(w => w.Slips)), new("Days with a slip, 12 weeks", slips.Sum(w => w.Days))]),
-                ])
-                : Panel("let-go", "Let go", NotOnProduction, []),
         ]);
     }
 
@@ -262,8 +244,6 @@ public static class LookoutPages
 
     private static PanelWidget Panel(string id, string title, string? unavailable, IReadOnlyList<Widget> children) =>
         new() { Id = id, Title = title, Unavailable = unavailable, Children = children };
-
-    private static IEnumerable<Bar> Days(IEnumerable<DayCount> days) => days.Select(d => new Bar(Date(d.Date), [d.Count]));
 
     private static IEnumerable<Bar> Channels(IEnumerable<ChannelDay> days) => days.Select(d => new Bar(Date(d.Date), [d.Discord, d.Push]));
 

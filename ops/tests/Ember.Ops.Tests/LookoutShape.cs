@@ -10,7 +10,7 @@ public static class LookoutShape
 
     public static readonly Dictionary<string, string[]> WidgetIds = new()
     {
-        ["overview"] = ["tiles", "new-users", "check-ins", "journal", "low-days", "grace", "fireside", "let-go"],
+        ["overview"] = ["tiles", "new-users", "grace"],
         ["reminders"] = ["tiles", "open", "sent", "discord", "second", "push", "overdue"],
         ["feedback"] = ["feedback"],
         ["notices"] = ["notices"],
@@ -19,8 +19,7 @@ public static class LookoutShape
 
     private static readonly Dictionary<string, string> Types = new()
     {
-        ["tiles"] = "stats", ["new-users"] = "bars", ["check-ins"] = "bars", ["journal"] = "bars", ["low-days"] = "bars", ["grace"] = "panel",
-        ["fireside"] = "panel", ["let-go"] = "panel", ["open"] = "bars", ["sent"] = "bars", ["discord"] = "stats", ["second"] = "panel", ["push"] = "stats",
+        ["tiles"] = "stats", ["new-users"] = "bars", ["grace"] = "panel", ["open"] = "bars", ["sent"] = "bars", ["discord"] = "stats", ["second"] = "panel", ["push"] = "stats",
         ["overdue"] = "stats", ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
         ["backup"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["live-notice"] = "list", ["ci"] = "ci",
     };
