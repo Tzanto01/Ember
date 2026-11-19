@@ -6,30 +6,25 @@ namespace Ember.Ops.Tests;
 /// <summary>Asserts the widget shapes of provider-v1.ts on a decoded page.</summary>
 public static class LookoutShape
 {
-    public static readonly string[] PageIds = ["overview", "activity", "habits", "users", "reminders", "feedback", "feedback-trends", "notices", "system"];
+    public static readonly string[] PageIds = ["overview", "engagement", "devices", "releases", "notices", "system", "feedback"];
 
     public static readonly Dictionary<string, string[]> WidgetIds = new()
     {
-        ["overview"] = ["tiles", "new-users", "grace"],
-        ["activity"] = ["tiles", "active-per-day", "active-per-week"],
-        ["habits"] = ["tiles", "schedule", "times-per-day", "reminder-hours", "habits-per-user", "created"],
-        ["users"] = ["tiles", "destinations", "designs"],
-        ["reminders"] = ["tiles", "open", "sent", "delivery", "discord", "second", "push", "overdue"],
-        ["feedback-trends"] = ["tiles", "per-week", "flow", "by-status", "versions"],
+        ["overview"] = ["tiles", "new-users", "active-per-day"],
+        ["engagement"] = ["tiles", "active-per-day", "active-per-week", "days-active", "retention"],
+        ["devices"] = ["platforms", "versions", "adoption"],
+        ["releases"] = ["deployed", "apk", "ci"],
         ["feedback"] = ["feedback"],
         ["notices"] = ["notices"],
-        ["system"] = ["services", "database", "disks", "backup", "deployed", "apk", "live-notice", "ci"],
+        ["system"] = ["services", "database", "disks", "backup"],
     };
 
     private static readonly Dictionary<string, string> Types = new()
     {
-        ["tiles"] = "stats", ["new-users"] = "bars", ["grace"] = "panel",
-        ["open"] = "bars", ["sent"] = "bars", ["discord"] = "stats", ["second"] = "panel", ["push"] = "stats",
-        ["overdue"] = "stats", ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
-        ["backup"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["live-notice"] = "list", ["ci"] = "ci",
-        ["active-per-day"] = "bars", ["active-per-week"] = "bars", ["schedule"] = "bars", ["times-per-day"] = "bars", ["reminder-hours"] = "bars", ["habits-per-user"] = "bars",
-        ["created"] = "bars", ["destinations"] = "bars", ["designs"] = "bars", ["delivery"] = "stats", ["per-week"] = "bars", ["flow"] = "bars",
-        ["by-status"] = "bars", ["versions"] = "bars",
+        ["tiles"] = "stats", ["new-users"] = "bars", ["active-per-day"] = "bars", ["active-per-week"] = "bars", ["days-active"] = "bars", ["retention"] = "stats",
+        ["platforms"] = "bars", ["versions"] = "bars", ["adoption"] = "stats",
+        ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
+        ["backup"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["ci"] = "ci",
     };
 
     public static void AssertPage(JsonElement page, string pageId)

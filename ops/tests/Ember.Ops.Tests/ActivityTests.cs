@@ -32,7 +32,7 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
         await ClearAsync();
     }
 
-    private Task ClearAsync() => RunAsync("emberops", "TRUNCATE activity_days, activity_weeks");
+    private Task ClearAsync() => RunAsync("emberops", "TRUNCATE activity_days, activity_weeks, activity_retention");
 
     private async Task RunAsync(string database, string sql, params object[] parameters)
     {
@@ -58,6 +58,11 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
     private Task<List<string>> StoredWeeksAsync() =>
         TextsAsync("emberops", "SELECT week::text || ' ' || users FROM activity_weeks ORDER BY week");
 
+    private Task<List<string>> StoredRetentionAsync() =>
+        TextsAsync("emberops", "SELECT cohort::text || ' ' || week::text || ' ' || users FROM activity_retention ORDER BY cohort");
+
+    private static readonly EmberFeatures WithoutNewColumns = new(UserCreated: false, SessionPlatform: false, SessionAppVersion: false);
+
     private async Task SeedAsync(IEnumerable<(int Ago, int Users, int Active7)> days, IEnumerable<(DateOnly Week, int Users)>? weeks = null)
     {
         foreach (var (ago, users, active7) in days)
@@ -82,6 +87,17 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
 
         (await StoredDaysAsync()).Should().Equal("2026-11-18 1 2");
         (await StoredWeeksAsync()).Should().Equal("2026-11-16 2");
+    }
+
+    [Fact]
+    public async Task A_snapshot_stores_of_the_users_whose_first_habit_is_1_2_and_4_weeks_old_those_seen_this_week()
+    {
+        await using var db = fixture.OpenOpsDatabases();
+
+        await InsightQueries.SnapshotActivityAsync(db.Ember, db.Ops, fixture.Time, default);
+
+        (await StoredRetentionAsync()).Should().Equal(new[] { "2026-10-19 2026-11-16 0", "2026-11-02 2026-11-16 1", "2026-11-09 2026-11-16 0" },
+            "u2 and u3 started in the week of 2026-11-02 and only u2 was seen since Monday");
     }
 
     [Fact]
@@ -125,6 +141,8 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
             .Should().Equal("day", "users", "active7");
         (await TextsAsync("emberops", "SELECT column_name FROM information_schema.columns WHERE table_name = 'activity_weeks' ORDER BY ordinal_position"))
             .Should().Equal("week", "users");
+        (await TextsAsync("emberops", "SELECT column_name FROM information_schema.columns WHERE table_name = 'activity_retention' ORDER BY ordinal_position"))
+            .Should().Equal("cohort", "week", "users");
     }
 
     [Fact]
@@ -173,7 +191,7 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
         await SeedAsync([(20, 9, 9), (13, 1, 1), (7, 2, 4), (3, 3, 5), (0, 4, 6)]);
         await using var db = fixture.OpenOpsDatabases();
 
-        var series = await OverviewQueries.SeriesAsync(db.Ember, db.Ops, fixture.Time, default);
+        var series = await OverviewQueries.SeriesAsync(db.Ember, db.Ops, WithoutNewColumns, fixture.Time, default);
 
         series.Active7PerDay.Should().Equal(new DayCount(Today.AddDays(-13), 1), new DayCount(Today.AddDays(-7), 4), new DayCount(Today.AddDays(-3), 5), new DayCount(Today, 6));
         series.Active7Before.Should().Be(4);
@@ -186,7 +204,7 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
         await SeedAsync([(8, 1, 1), (0, 4, 6)]);
         await using var db = fixture.OpenOpsDatabases();
 
-        var series = await OverviewQueries.SeriesAsync(db.Ember, db.Ops, fixture.Time, default);
+        var series = await OverviewQueries.SeriesAsync(db.Ember, db.Ops, WithoutNewColumns, fixture.Time, default);
 
         series.Active7Before.Should().BeNull();
         series.Active7PerDay.Select(d => d.Count).Should().Equal(1, 6);
@@ -205,18 +223,25 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
     }
 
     [Fact]
-    public async Task The_activity_page_reads_the_snapshots()
+    public async Task The_engagement_page_reads_the_snapshots_and_suppresses_retention_of_a_week_with_two_new_users()
     {
         await SeedAsync(Enumerable.Range(9, 7).Select(d => (Ago: 18 - d, Users: d == 15 ? 5 : 4, Active7: 6)).Append((0, 5, 6)).Append((16, 3, 3)),
             [(new DateOnly(2026, 11, 2), 4), (new DateOnly(2026, 11, 9), 6), (new DateOnly(2026, 11, 16), 7)]);
+        await RunAsync("emberops", "INSERT INTO activity_retention (cohort, week, users) VALUES ('2026-11-02', '2026-11-09', 1)");
 
-        var page = await PageAsync("activity");
+        var page = await PageAsync("engagement");
 
-        LookoutShape.AssertPage(page, "activity");
+        LookoutShape.AssertPage(page, "engagement");
         var tiles = LookoutShape.Widget(page, "tiles");
         LookoutShape.Item(tiles, "Active today").GetProperty("value").GetInt32().Should().Be(5);
         LookoutShape.Item(tiles, "Average per day").GetProperty("value").GetDouble().Should().Be(4.1);
         LookoutShape.Item(tiles, "Stickiness").GetProperty("value").GetDouble().Should().BeApproximately(29d / 7 / 6, 1e-9);
         tiles.GetProperty("note").GetString().Should().Contain("history starts 2026-11-02");
+        var retention = LookoutShape.Widget(page, "retention");
+        LookoutShape.Item(retention, "After 1 week").GetProperty("value").GetString().Should().Be("<3");
+        LookoutShape.Item(retention, "After 2 weeks").GetProperty("value").ValueKind.Should().Be(JsonValueKind.Null);
+        retention.GetProperty("note").GetString().Should().Contain("by first habit").And.Contain("history starts 2026-11-09");
+        LookoutShape.Widget(await PageAsync("overview"), "tiles").GetProperty("items").EnumerateArray()
+            .Single(i => i.GetProperty("label").GetString() == "Active today").GetProperty("value").GetInt32().Should().Be(5);
     }
 }

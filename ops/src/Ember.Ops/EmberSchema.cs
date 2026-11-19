@@ -1,4 +1,34 @@
+using Npgsql;
+
 namespace Ember.Ops;
+
+/// <summary>Which of Ember's newer columns this database has and the dashboard role may read.</summary>
+public sealed record EmberFeatures(bool UserCreated, bool SessionPlatform, bool SessionAppVersion)
+{
+    /// <summary>Reads the columns visible to the current role, so an ungranted column counts as missing.</summary>
+    public static async Task<EmberFeatures> DetectAsync(NpgsqlDataSource ember, CancellationToken ct)
+    {
+        await using var command = ember.CreateCommand("""
+            SELECT table_name || '.' || column_name FROM information_schema.columns
+            WHERE table_schema = 'public' AND (table_name, column_name) IN (('AspNetUsers', 'CreatedUtc'), ('AuthSessions', 'Platform'), ('AuthSessions', 'AppVersion'))
+            """);
+        var found = new HashSet<string>();
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct)) found.Add(reader.GetString(0));
+        return new(found.Contains("AspNetUsers.CreatedUtc"), found.Contains("AuthSessions.Platform"), found.Contains("AuthSessions.AppVersion"));
+    }
+
+    /// <summary>
+    /// One row per user (<c>user_id</c>, <c>created</c>): account creation when Ember records it (unknown ones as <c>-infinity</c>),
+    /// else the user's first habit as a proxy, which leaves out users without a habit.
+    /// </summary>
+    public string Signups => UserCreated
+        ? """SELECT "Id" AS user_id, coalesce("CreatedUtc", '-infinity') AS created FROM "AspNetUsers" """
+        : """SELECT "UserId" AS user_id, min("CreatedAt") AS created FROM "Habits" GROUP BY 1""";
+
+    /// <summary>The note for counts by <see cref="Signups"/>.</summary>
+    public string SignupNote => UserCreated ? "by account creation" : "by first habit, a proxy until Ember records account creation";
+}
 
 /// <summary>Calendar helpers shared by the sections.</summary>
 public static class OpsCalendar

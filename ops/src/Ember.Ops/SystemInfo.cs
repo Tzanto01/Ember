@@ -66,8 +66,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         try
         {
             database = await DatabaseAsync(ct);
-            var counters = await OpsApp.Cached(cache, OpsApp.ReminderCountersKey, OpsApp.CounterCache, () => ReminderQueries.CountersAsync(db.Ember, time, ct));
-            overdue = counters.Overdue.Habits + counters.Overdue.Routines;
+            overdue = await ReminderQueries.OverdueAsync(db.Ember, ct);
         }
         catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
         {
@@ -80,7 +79,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
             var health = string.IsNullOrEmpty(c.Health) || c.Health == "none" ? null : c.Health;
             return new ServiceState(c.Name, c.State == "running" && health is null or "healthy", health is null ? c.State : $"{c.State}, {health}");
         }).ToList();
-        if (overdue is { } late) services.Add(new("Reminders advancing", late == 0, late == 0 ? null : $"{late} overdue"));
+        if (overdue is { } late) services.Add(new(Lookout.LookoutPages.RemindersAdvancing, late == 0, late == 0 ? null : $"{late} overdue"));
 
         var (ci, notice, apk) = (await ciTask, await noticeTask, await apkTask);
         if (ci.Error is not null) errors["ci"] = ci.Error;

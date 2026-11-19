@@ -157,7 +157,7 @@ public static class OpsSeed
         await transaction.CommitAsync(ct);
     }
 
-    /// <summary>Adds hourly reminder snapshots for the past week and a few comments to emberops.</summary>
+    /// <summary>Adds a few comments to emberops.</summary>
     public static async Task SeedOpsAsync(string superuserOpsConnection, DateTime utcNow, CancellationToken ct = default)
     {
         await using var connection = new NpgsqlConnection(superuserOpsConnection);
@@ -166,11 +166,6 @@ public static class OpsSeed
         {
             BatchCommands =
             {
-                new("""
-                    INSERT INTO reminder_counters (at, discord_max_id, push_max_id)
-                    SELECT $1 - make_interval(hours => h), 1000 - h * 3, 500 - h * 2 FROM generate_series(1, 168) h
-                    ON CONFLICT DO NOTHING
-                    """) { Parameters = { new() { Value = utcNow } } },
                 new("""
                     INSERT INTO comments (feedback_id, author, body, created_at) VALUES
                         (1, 'e2e@example.test', 'Synthetic first comment.', $1 - interval '2 hours'),

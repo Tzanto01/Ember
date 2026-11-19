@@ -8,11 +8,7 @@ public sealed class LookoutSummaryTests
     private static readonly DateTime Now = new(2026, 11, 18, 12, 0, 0, DateTimeKind.Utc);
     private const long Gb = 1024L * 1024 * 1024;
 
-    private static OverviewCounters Overview() =>
-        new(Now, 6, 4, 5, new HabitCounts(8, 1, 3), new RoutineCounts(2, 1), new StreakCounts(3, 2, []));
-
-    private static ReminderCounters Reminders(int habits = 0, int routines = 0) =>
-        new(Now, [], new DiscordCounts(0, 0, 0), new SecondReminderCounts(0, [], 0), new PushCounts(0, 0), new PhoneCounts(0, 0), new OverdueCounts(habits, routines));
+    private static OverviewCounters Overview() => new(Now, 6, 4, 5);
 
     private static FeedbackList Feedback(params string[] statuses) =>
         new(statuses.Select((s, i) => new FeedbackItem(i + 1, "t", "x", "web", null, Now, s, null, false, [], 0, i)).ToList());
@@ -27,8 +23,7 @@ public sealed class LookoutSummaryTests
         new(Now, Now, services ?? [new("API", true, null)], null, disks ?? [Disk("/", 50)], null, null, ci ?? [Ci("main", "success")], null, null, null,
             statusError is null ? new Dictionary<string, string>() : new Dictionary<string, string> { ["status"] = statusError });
 
-    private static Summary Build(SystemReport? system = null, ReminderCounters? reminders = null) =>
-        LookoutPages.Summary(Overview(), reminders ?? Reminders(), Feedback("open", "open", "planned"), system ?? System(), Now);
+    private static Summary Build(SystemReport? system = null) => LookoutPages.Summary(Overview(), Feedback("open", "open", "planned"), system ?? System(), Now);
 
     [Fact]
     public void Everything_healthy_is_ok_without_alerts_and_counts_the_tiles()
@@ -37,8 +32,8 @@ public sealed class LookoutSummaryTests
 
         summary.State.Should().Be("ok");
         summary.Alerts.Should().BeEmpty();
-        summary.Tiles.Select(t => t.Label).Should().Equal("Users", "Active 7 days", "Overdue reminders", "Open feedback");
-        summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal("6", "4", "0", "2");
+        summary.Tiles.Select(t => t.Label).Should().Equal("Users", "Active 7 days", "Stickiness", "Open feedback");
+        summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal("6", "4", null, "2");
     }
 
     [Fact]
@@ -69,45 +64,25 @@ public sealed class LookoutSummaryTests
     }
 
     [Fact]
-    public void Overdue_reminders_are_bad_with_an_alert_and_a_bad_tile()
+    public void A_failing_service_alerts_with_its_detail_and_failing_reminders_advancing_as_reminders_not_advancing()
     {
-        var summary = Build(reminders: Reminders(habits: 1, routines: 1200));
+        var summary = Build(System([new("Database", false, "connection refused"), new("Reminders advancing", false, "1,201 overdue"), new("Cache", false, null)]));
 
         summary.State.Should().Be("bad");
-        summary.Alerts.Should().Equal(new Alert("1,201 reminders overdue", "bad", "reminders"));
-        var tile = summary.Tiles.Single(t => t.Label == "Overdue reminders");
-        tile.Value.Should().Be(1201);
-        tile.Tone.Should().Be("bad");
-    }
-
-    [Fact]
-    public void A_failing_service_alerts_with_its_detail_but_failing_reminders_advancing_does_not()
-    {
-        var summary = Build(System([new("Database", false, "connection refused"), new("Reminders advancing", false, "stuck"), new("Cache", false, null)]));
-
-        summary.State.Should().Be("bad");
-        summary.Alerts.Select(a => a.Text).Should().Equal("Database: connection refused", "Cache: failing");
-    }
-
-    [Fact]
-    public void Only_a_failing_reminders_advancing_service_is_bad_without_an_alert()
-    {
-        var summary = Build(System([new("Reminders advancing", false, "stuck")]));
-
-        summary.State.Should().Be("bad");
-        summary.Alerts.Should().BeEmpty();
+        summary.Alerts.Should().Equal(new Alert("Database: connection refused", "bad", "system"), new Alert("Cache: failing", "bad", "system"),
+            new Alert("Reminders not advancing", "bad", "system"));
+        summary.Tiles.Select(t => t.Label).Should().NotContain("Overdue reminders");
     }
 
     [Fact]
     public void A_failed_database_read_nulls_the_tiles_and_leads_with_its_alert()
     {
-        var summary = LookoutPages.Summary(null, Reminders(), Feedback(), System([new("API", false, "down")]), Now);
+        var summary = LookoutPages.Summary(null, Feedback(), System([new("API", false, "down")]), Now);
 
         summary.State.Should().Be("bad");
-        summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal(null, null, "0", "0");
+        summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal(null, null, null, "0");
         summary.Alerts.Select(a => a.Text).Should().Equal("Database unavailable", "API: down");
-        LookoutPages.Summary(Overview(), null, Feedback(), System(), Now).Tiles.Single(t => t.Label == "Overdue reminders").Value.Should().BeNull();
-        LookoutPages.Summary(Overview(), Reminders(), null, System(), Now).Tiles.Single(t => t.Label == "Open feedback").Value.Should().BeNull();
+        LookoutPages.Summary(Overview(), null, System(), Now).Tiles.Single(t => t.Label == "Open feedback").Value.Should().BeNull();
     }
 
     [Theory]
@@ -125,12 +100,12 @@ public sealed class LookoutSummaryTests
     }
 
     [Fact]
-    public void At_most_five_alerts_survive_in_the_order_service_overdue_ci_status_disk()
+    public void At_most_five_alerts_survive_in_the_order_service_reminders_ci_status_disk()
     {
-        var summary = Build(System([new("API", false, "down")], [Disk("/a", 3), Disk("/b", 3), Disk("/c", 3)], [Ci("main")], "status file missing"),
-            Reminders(habits: 2));
+        var summary = Build(System([new("API", false, "down"), new("Reminders advancing", false, "2 overdue")], [Disk("/a", 3), Disk("/b", 3), Disk("/c", 3)], [Ci("main")],
+            "status file missing"));
 
-        summary.Alerts.Select(a => a.Text).Should().Equal("API: down", "2 reminders overdue", "CI failed on main", "Host status: status file missing", "Disk /a: 3% free");
+        summary.Alerts.Select(a => a.Text).Should().Equal("API: down", "Reminders not advancing", "CI failed on main", "Host status: status file missing", "Disk /a: 3% free");
     }
 
     private static StatsWidget DisksWidget(SystemReport report) =>

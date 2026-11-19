@@ -11,19 +11,16 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     {
         string[] reads =
         [
-            """SELECT "Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "Theme" FROM "AspNetUsers" """,
+            """SELECT "Id" FROM "AspNetUsers" """,
             """SELECT "UserId", "LoginProvider" FROM "AspNetUserLogins" """,
-            """SELECT "Id", "UserId", "NextReminderUtc", "SecondReminderUtc", "ReminderTime", "CreatedAt" FROM "Routines" """,
+            """SELECT "UserId", "CreatedAt", "NextReminderUtc" FROM "Habits" """,
+            """SELECT "NextReminderUtc" FROM "Routines" """,
             """SELECT "UserId", "CreatedUtc", "LastSeenUtc" FROM "AuthSessions" """,
-            """SELECT "Id", "UserId", "Enabled" FROM "PushSubscriptions" """,
-            """SELECT "Id", "UserId", "Enabled" FROM "ReminderPhones" """,
-            """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "FrequencyType", "TimesPerDay", "ReminderTimes" FROM "Habits" """,
-            """SELECT "Id", "Date" FROM "ReminderMessages" """,
-            """SELECT "Id", "Date" FROM "PushReminders" """,
+            """SELECT "UserId", "Enabled" FROM "PushSubscriptions" """,
+            """SELECT count(*) FROM "ReminderPhones" """,
             """SELECT "Id", "Title", "Text", "Platform", "Version", "CreatedAt", "Status", "ResolvedAt", "UserId" FROM "Feedback" """,
             """SELECT "Id", "FeedbackId", "ContentType", "Size", "Data" FROM "FeedbackImages" """,
             """SELECT "MigrationId" FROM "__EFMigrationsHistory" """,
-            """SELECT pg_sequence_last_value(pg_get_serial_sequence('"ReminderMessages"', 'Id'))""",
         ];
 
         await using var connection = fixture.DashboardConnection();
@@ -60,6 +57,19 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     [InlineData("""SELECT "SentAtUtc" FROM "Warmth" """)]
     [InlineData("""SELECT "FiresideEnabled" FROM "AspNetUsers" """)]
     [InlineData("""SELECT "Kind" FROM "Habits" """)]
+    [InlineData("""SELECT "ShowStreaks" FROM "AspNetUsers" """)]
+    [InlineData("""SELECT "GraceDaysPerWeek" FROM "AspNetUsers" """)]
+    [InlineData("""SELECT "Theme" FROM "AspNetUsers" """)]
+    [InlineData("""SELECT "DiscordReminders" FROM "AspNetUsers" """)]
+    [InlineData("""SELECT "ReminderTimes" FROM "Habits" """)]
+    [InlineData("""SELECT "PausedUntil" FROM "Habits" """)]
+    [InlineData("""SELECT "RoutineId" FROM "Habits" """)]
+    [InlineData("""SELECT "ReminderTime" FROM "Routines" """)]
+    [InlineData("""SELECT "UserId" FROM "Routines" """)]
+    [InlineData("""SELECT "Enabled" FROM "ReminderPhones" """)]
+    [InlineData("""SELECT "Date" FROM "ReminderMessages" """)]
+    [InlineData("""SELECT "Date" FROM "PushReminders" """)]
+    [InlineData("""SELECT pg_sequence_last_value(pg_get_serial_sequence('"ReminderMessages"', 'Id'))""")]
     [InlineData("""UPDATE "Feedback" SET "Title" = 'changed' """)]
     [InlineData("""UPDATE "Habits" SET "NextReminderUtc" = NULL""")]
     [InlineData("""INSERT INTO "Feedback" ("Title") VALUES ('x')""")]
@@ -169,5 +179,39 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
             WHERE grantee = 'ember_dashboard' AND table_name = 'AuthSessions' AND privilege_type = 'SELECT'
             """);
         sessions.Should().Be("CreatedUtc,LastSeenUtc,UserId");
+    }
+
+    [Fact]
+    public async Task Rerunning_the_grant_script_revokes_the_habit_reminder_and_setting_columns_the_revision_4_script_had_granted()
+    {
+        await using (var superuser = await fixture.OpenAsync("emberdb"))
+        await using (var grant = new NpgsqlCommand("""
+            GRANT SELECT ("ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "Theme") ON "AspNetUsers" TO ember_dashboard;
+            GRANT SELECT ("Id", "RoutineId", "PausedFrom", "PausedUntil", "SecondReminderUtc", "FrequencyType", "TimesPerDay", "ReminderTimes") ON "Habits" TO ember_dashboard;
+            GRANT SELECT ("Id", "UserId", "SecondReminderUtc", "ReminderTime", "CreatedAt") ON "Routines" TO ember_dashboard;
+            GRANT SELECT ("Id", "Date") ON "ReminderMessages" TO ember_dashboard;
+            GRANT SELECT ("Id", "Date") ON "PushReminders" TO ember_dashboard;
+            GRANT SELECT ("Id") ON "PushSubscriptions" TO ember_dashboard;
+            GRANT SELECT ("UserId", "Enabled") ON "ReminderPhones" TO ember_dashboard;
+            """, superuser))
+            await grant.ExecuteNonQueryAsync();
+        await using (var superuser = await fixture.OpenAsync("emberdb"))
+        await using (var sequence = new NpgsqlCommand("""SELECT format('GRANT SELECT ON SEQUENCE %s TO ember_dashboard', pg_get_serial_sequence('"ReminderMessages"', 'Id'))""", superuser))
+        await using (var run = new NpgsqlCommand((string)(await sequence.ExecuteScalarAsync())!, superuser))
+            await run.ExecuteNonQueryAsync();
+
+        await fixture.Database.RunScriptAsync(Path.Combine(DatabaseFixture.OpsRoot(), "sql", "ember_dashboard.sql"), "emberdb", "DASH_PW",
+            File.ReadAllText(fixture.Database.EmberPasswordFile).Trim());
+
+        var granted = await fixture.ScalarAsync<string>("emberdb", """
+            SELECT string_agg(table_name || '.' || column_name, ',' ORDER BY table_name, column_name) FROM information_schema.column_privileges
+            WHERE grantee = 'ember_dashboard' AND table_schema = 'public' AND privilege_type = 'SELECT'
+              AND table_name IN ('AspNetUsers', 'Habits', 'Routines', 'ReminderMessages', 'PushReminders', 'PushSubscriptions', 'ReminderPhones')
+            """);
+        granted.Should().Be("AspNetUsers.Id,Habits.CreatedAt,Habits.NextReminderUtc,Habits.UserId,PushSubscriptions.Enabled,PushSubscriptions.UserId,ReminderPhones.Id,Routines.NextReminderUtc");
+        (await fixture.ScalarAsync<long>("emberdb", """
+            SELECT count(*) FROM pg_class c, aclexplode(c.relacl) a
+            WHERE c.relkind = 'S' AND a.grantee = 'ember_dashboard'::regrole
+            """)).Should().Be(0);
     }
 }

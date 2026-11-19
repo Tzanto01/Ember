@@ -48,15 +48,13 @@ public static class LookoutApi
         lookout.MapGet("/pages/{pageId}", async (string pageId, IMemoryCache cache, OpsDatabases db, TimeProvider time, SystemInfo system,
             NoticeStore notices, CancellationToken ct) => pageId switch
         {
-            "overview" => Results.Ok(LookoutPages.Overview(await OpsApp.OverviewAsync(cache, db, time, ct))),
-            "reminders" => Results.Ok(LookoutPages.Reminders(await OpsApp.RemindersAsync(cache, db, time, ct))),
+            "overview" => Results.Ok(LookoutPages.Overview(await OpsApp.OverviewAsync(cache, db, time, ct), await OpsApp.ActivityAsync(cache, db, time, ct))),
+            "engagement" => Results.Ok(LookoutPages.Engagement(await OpsApp.ActivityAsync(cache, db, time, ct), await OpsApp.OverviewSeriesAsync(cache, db, time, ct))),
+            "devices" => Results.Ok(LookoutPages.Devices(await OpsApp.DevicesAsync(cache, db, time, ct))),
+            "releases" => Results.Ok(LookoutPages.Releases(await OpsApp.SystemAsync(cache, system, ct))),
             "feedback" => Results.Ok(LookoutPages.Feedback(await FeedbackStore.ListAsync(db, ct), time.GetUtcNow().UtcDateTime)),
             "notices" => Results.Ok(LookoutPages.Notices(await notices.GetAsync(ct), time.GetUtcNow().UtcDateTime)),
             "system" => Results.Ok(LookoutPages.System(await OpsApp.SystemAsync(cache, system, ct))),
-            "activity" => Results.Ok(LookoutPages.Activity(await OpsApp.ActivityAsync(cache, db, time, ct))),
-            "habits" => Results.Ok(LookoutPages.Habits(await OpsApp.HabitsAsync(cache, db, time, ct))),
-            "users" => Results.Ok(LookoutPages.Users(await OpsApp.UsersAsync(cache, db, time, ct))),
-            "feedback-trends" => Results.Ok(LookoutPages.FeedbackTrends(await OpsApp.FeedbackStatsAsync(cache, db, ct), time.GetUtcNow().UtcDateTime)),
             _ => Problem(StatusCodes.Status404NotFound, "No page with that id"),
         });
 
@@ -154,10 +152,10 @@ public static class LookoutApi
 
         var overview = await Read(() => OpsApp.OverviewCountersAsync(cache, db, time, ct));
         var series = await Read(() => OpsApp.OverviewSeriesAsync(cache, db, time, ct));
-        var reminders = await Read(() => OpsApp.ReminderCountersAsync(cache, db, time, ct));
+        var activity = await Read(() => OpsApp.ActivityAsync(cache, db, time, ct));
         var feedback = await Read(() => FeedbackStore.ListAsync(db, ct));
         var report = await OpsApp.SystemAsync(cache, system, ct);
-        return Results.Ok(LookoutPages.Summary(overview, reminders, feedback, report, time.GetUtcNow().UtcDateTime, series));
+        return Results.Ok(LookoutPages.Summary(overview, feedback, report, time.GetUtcNow().UtcDateTime, series, activity));
     }
 
     private static IResult Notices(IResult result) =>

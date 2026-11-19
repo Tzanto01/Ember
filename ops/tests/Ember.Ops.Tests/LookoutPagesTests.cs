@@ -11,27 +11,29 @@ public sealed class LookoutPagesTests
     private static readonly DateOnly Monday = new(2026, 11, 16);
 
     /// <summary>History from <paramref name="since"/>; every week from its Monday to this one is listed, with 0 where <paramref name="weeks"/> has none.</summary>
-    private static ActivityInsights Activity(DateOnly since, Dictionary<DateOnly, int> days, Dictionary<DateOnly, int> weeks)
+    private static ActivityInsights Activity(DateOnly since, Dictionary<DateOnly, int> days, Dictionary<DateOnly, int> weeks, IReadOnlyList<RetainedCount>? retained = null)
     {
         var first = since > Today.AddDays(-89) ? since : Today.AddDays(-89);
         var mondays = Enumerable.Range(0, 12).Select(i => Monday.AddDays(-7 * (11 - i))).Where(w => w >= OpsCalendar.Monday(since));
         return new(Now, since, OpsCalendar.Days(first, Today, days),
-            mondays.Select(w => new UserBucket(w.ToString("yyyy-MM-dd"), weeks.GetValueOrDefault(w), weeks.GetValueOrDefault(w))).ToList());
+            mondays.Select(w => new UserBucket(w.ToString("yyyy-MM-dd"), weeks.GetValueOrDefault(w), weeks.GetValueOrDefault(w))).ToList(), retained ?? []);
     }
 
     /// <summary>History from 2026-11-02; last full week 2026-11-09 to 11-15 averages 29 / 7 users a day and had 6 different users.</summary>
-    private static ActivityInsights FullHistory(int today = 5, int lastWeekUsers = 6) => Activity(new(2026, 11, 2),
+    private static ActivityInsights FullHistory(int today = 5, int lastWeekUsers = 6, IReadOnlyList<RetainedCount>? retained = null) => Activity(new(2026, 11, 2),
         new() { [new(2026, 11, 9)] = 4, [new(2026, 11, 10)] = 4, [new(2026, 11, 11)] = 4, [new(2026, 11, 12)] = 4, [new(2026, 11, 13)] = 4, [new(2026, 11, 14)] = 4, [new(2026, 11, 15)] = 5, [Today] = today },
-        new() { [new(2026, 11, 2)] = 4, [new(2026, 11, 9)] = lastWeekUsers, [Monday] = 7 });
+        new() { [new(2026, 11, 2)] = 4, [new(2026, 11, 9)] = lastWeekUsers, [Monday] = 7 }, retained);
+
+    private static Page Engagement(ActivityInsights a, OverviewSeries? series = null) => LookoutPages.Engagement(a, series ?? Series(null));
 
     private static StatsWidget Stats(Widget widget) => (StatsWidget)widget;
 
     private static Widget Widget(Page page, string id) => page.Widgets.Single(w => w.Id == id);
 
     [Fact]
-    public void Activity_shows_today_the_last_full_weeks_average_and_stickiness_with_the_history_start()
+    public void Engagement_shows_today_the_last_full_weeks_average_and_stickiness_with_the_history_start()
     {
-        var page = LookoutPages.Activity(FullHistory());
+        var page = Engagement(FullHistory());
 
         var tiles = Stats(Widget(page, "tiles"));
         tiles.Items.Select(i => (i.Label, i.Value)).Should().Equal(("Active today", 5), ("Average per day", 4.1), ("Stickiness", 29d / 7 / 6));
@@ -46,9 +48,10 @@ public sealed class LookoutPagesTests
     [Fact]
     public void Without_snapshots_every_widget_is_unavailable_and_empty()
     {
-        var page = LookoutPages.Activity(new(Now, null, [], []));
+        var page = Engagement(new(Now, null, [], [], []));
 
-        page.Widgets.Select(w => (w.Id, w.Unavailable)).Should().Equal(("tiles", "No snapshots yet"), ("active-per-day", "No snapshots yet"), ("active-per-week", "No snapshots yet"));
+        page.Widgets.Where(w => w.Id != "days-active").Select(w => (w.Id, w.Unavailable)).Should().Equal(
+            ("tiles", "No snapshots yet"), ("active-per-day", "No snapshots yet"), ("active-per-week", "No snapshots yet"), ("retention", "No snapshots yet"));
         Stats(Widget(page, "tiles")).Items.Should().BeEmpty();
         ((BarsWidget)Widget(page, "active-per-day")).Bars.Should().BeEmpty();
         ((BarsWidget)Widget(page, "active-per-week")).Bars.Should().BeEmpty();
@@ -59,7 +62,7 @@ public sealed class LookoutPagesTests
     [InlineData(1)]
     public void A_figure_of_one_or_two_people_is_the_string_below_3_with_no_hint_trend_delta_max_or_goal(int people)
     {
-        var page = LookoutPages.Activity(FullHistory(today: people, lastWeekUsers: people));
+        var page = Engagement(FullHistory(today: people, lastWeekUsers: people));
 
         Stats(Widget(page, "tiles")).Items.Should().Equal(
             new StatItem("Active today", LookoutPages.Suppressed), new StatItem("Average per day", LookoutPages.Suppressed), new StatItem("Stickiness", LookoutPages.Suppressed));
@@ -68,8 +71,8 @@ public sealed class LookoutPagesTests
     [Fact]
     public void Three_people_show_the_number_and_zero_is_not_suppressed()
     {
-        Stats(Widget(LookoutPages.Activity(FullHistory(today: 3)), "tiles")).Items[0].Value.Should().Be(3);
-        Stats(Widget(LookoutPages.Activity(FullHistory(today: 0)), "tiles")).Items[0].Value.Should().Be(0);
+        Stats(Widget(Engagement(FullHistory(today: 3)), "tiles")).Items[0].Value.Should().Be(3);
+        Stats(Widget(Engagement(FullHistory(today: 0)), "tiles")).Items[0].Value.Should().Be(0);
     }
 
     [Fact]
@@ -79,7 +82,7 @@ public sealed class LookoutPagesTests
             new() { [new(2026, 11, 14)] = 2, [new(2026, 11, 15)] = 3, [new(2026, 11, 17)] = 1, [Today] = 3 },
             new() { [new(2026, 11, 9)] = 2, [Monday] = 5 });
 
-        var page = LookoutPages.Activity(a);
+        var page = Engagement(a);
 
         var perDay = (BarsWidget)Widget(page, "active-per-day");
         perDay.Bars.Select(b => b.Label).Should().Equal("2026-11-15", "2026-11-16", "2026-11-18");
@@ -94,7 +97,7 @@ public sealed class LookoutPagesTests
     public void Average_and_stickiness_need_history_back_to_the_Monday_of_the_last_full_week(int sinceDay, bool covered)
     {
         var days = Enumerable.Range(9, 7).ToDictionary(d => new DateOnly(2026, 11, d), _ => 4);
-        var page = LookoutPages.Activity(Activity(new(2026, 11, sinceDay), days, new() { [new(2026, 11, 9)] = 8, [Monday] = 6 }));
+        var page = Engagement(Activity(new(2026, 11, sinceDay), days, new() { [new(2026, 11, 9)] = 8, [Monday] = 6 }));
 
         var items = Stats(Widget(page, "tiles")).Items;
 
@@ -107,7 +110,7 @@ public sealed class LookoutPagesTests
     public void A_day_without_a_snapshot_is_left_out_and_leaves_the_week_average_and_today_unknown()
     {
         var days = Enumerable.Range(9, 7).Where(d => d != 12).Select(d => new DayCount(new(2026, 11, d), 4)).ToList();
-        var page = LookoutPages.Activity(new(Now, new(2026, 11, 2), days, [new("2026-11-09", 6, 6), new("2026-11-16", 2, 2)]));
+        var page = Engagement(new(Now, new(2026, 11, 2), days, [new("2026-11-09", 6, 6), new("2026-11-16", 2, 2)], []));
 
         Stats(Widget(page, "tiles")).Items.Should().HaveCount(3).And.OnlyContain(i => i.Value == null);
         ((BarsWidget)Widget(page, "active-per-day")).Bars.Should().HaveCount(6);
@@ -116,16 +119,16 @@ public sealed class LookoutPagesTests
     [Fact]
     public void An_empty_last_week_has_an_average_of_zero_and_no_stickiness_to_divide_by()
     {
-        var page = LookoutPages.Activity(Activity(new(2026, 11, 2), new(), new()));
+        var page = Engagement(Activity(new(2026, 11, 2), new(), new()));
 
         Stats(Widget(page, "tiles")).Items.Select(i => i.Value).Should().Equal(0, 0d, null);
     }
 
     private static OverviewSeries Series(int? before, params (int Ago, int Count)[] days) =>
         new(Now, OpsCalendar.Weeks(Today, 12).Select((w, i) => new WeekCount(w, i == 11 ? 2 : 0)).ToList(), UsersBefore: 4,
-            days.OrderByDescending(d => d.Ago).Select(d => new DayCount(Today.AddDays(-d.Ago), d.Count)).ToList(), before);
+            days.OrderByDescending(d => d.Ago).Select(d => new DayCount(Today.AddDays(-d.Ago), d.Count)).ToList(), before, "by account creation");
 
-    private static readonly OverviewCounters Counters = new(Now, 6, 3, 4, new(8, 1, 3), new(2, 1), new(6, 2, []));
+    private static readonly OverviewCounters Counters = new(Now, 6, 3, 4);
 
     [Fact]
     public void The_summary_carries_the_v1_1_fields()
@@ -135,20 +138,19 @@ public sealed class LookoutPagesTests
             new(2, "t", "x", "web", null, Now.AddDays(-20), "open", null, false, [], 0, 2),
         ]);
 
-        var tiles = LookoutPages.Summary(Counters,
-            new(Now, [], new(0, 0, 0), new(0, [], 0), new(0, 0), new(0, 0), new(0, 0)), feedback, EmptySystem(), Now, Series(1, (7, 1), (0, 3))).Tiles;
+        var tiles = LookoutPages.Summary(Counters, feedback, EmptySystem(), Now, Series(1, (7, 1), (0, 3)), FullHistory()).Tiles;
 
         tiles[0].Trend.Should().HaveCount(12).And.EndWith(6);
         tiles[0].Delta.Should().Be(new Delta(2, "last week", "up"));
         tiles[1].Should().BeEquivalentTo(new { Max = 6d, Delta = new Delta(2, "the 7 days before", "up"), Trend = new[] { 1d, 3d } });
-        tiles[2].Goal.Should().Be(new Goal(Below: 1));
+        tiles[2].Should().BeEquivalentTo(new { Label = "Stickiness", Value = (object)(29d / 7 / 6), Format = "percent", Max = 1d });
         tiles[3].Should().BeEquivalentTo(new { Value = (object)2, Goal = new Goal(Below: 5), Delta = new Delta(1, "last week", "down") });
     }
 
     [Fact]
     public void The_active_7_tile_has_no_trend_below_two_points_and_no_delta_without_a_row_for_7_days_ago()
     {
-        var tile = LookoutPages.Summary(Counters, null, null, EmptySystem(), Now, Series(null, (0, 3))).Tiles[1];
+        var tile = LookoutPages.Summary(Counters, null, EmptySystem(), Now, Series(null, (0, 3))).Tiles[1];
 
         tile.Value.Should().Be(3);
         tile.Trend.Should().BeNull();
@@ -156,14 +158,89 @@ public sealed class LookoutPagesTests
     }
 
     [Fact]
-    public void The_overview_lists_users_active_7_and_14_days_without_check_in_journal_or_fireside_widgets()
+    public void The_overview_lists_users_new_users_and_activity_and_no_in_app_figures()
     {
-        var page = LookoutPages.Overview(Overview.From(Counters, Series(null)));
+        var page = LookoutPages.Overview(Overview.From(Counters, Series(null)), FullHistory());
 
-        page.Widgets.Select(w => w.Id).Should().Equal("tiles", "new-users", "grace");
+        page.Widgets.Select(w => w.Id).Should().Equal("tiles", "new-users", "active-per-day");
         var tiles = Stats(Widget(page, "tiles")).Items;
-        tiles.Select(i => i.Label).Should().Equal("Users", "Active 7 days", "Active 14 days", "Habits", "Routines", "Streak users");
-        tiles[2].Should().Be(new StatItem("Active 14 days", 4, Hint: "67% of users", Max: 6));
+        tiles.Select(i => i.Label).Should().Equal("Users", "New users this week", "Active today", "Active 7 days", "Active 14 days", "Stickiness");
+        tiles[1].Should().Be(new StatItem("New users this week", 2, Hint: "by account creation"));
+        tiles[2].Should().Be(new StatItem("Active today", 5, Max: 6));
+        tiles[4].Should().Be(new StatItem("Active 14 days", 4, Hint: "67% of users", Max: 6));
+        ((BarsWidget)Widget(page, "new-users")).Note.Should().Be("by account creation");
+        Stats(Widget(LookoutPages.Overview(Overview.From(Counters, Series(null)), FullHistory(today: 2)), "tiles")).Items[2]
+            .Should().Be(new StatItem("Active today", LookoutPages.Suppressed));
+    }
+
+    /// <summary>New users per week: 4 in the week of 2026-10-26, 2 in 11-02, 5 in 11-09; this week is 2026-11-16.</summary>
+    private static OverviewSeries Cohorts() =>
+        new(Now, OpsCalendar.Weeks(Today, 12).Select(w => new WeekCount(w, w.Day switch { 26 => 4, 2 => 2, 9 => 5, _ => 0 })).ToList(), 0, [], null, "by account creation");
+
+    [Fact]
+    public void Retention_pools_the_finished_weeks_leaves_out_this_one_and_suppresses_one_or_two_returning_users()
+    {
+        RetainedCount R(int cohortMonth, int cohortDay, int weeksLater, int users)
+        {
+            var cohort = new DateOnly(2026, cohortMonth, cohortDay);
+            return new(cohort, cohort.AddDays(7 * weeksLater), users);
+        }
+        var retained = new[] { R(10, 26, 1, 3), R(11, 2, 1, 2), R(11, 9, 1, 4), R(10, 26, 2, 1), R(11, 2, 2, 1) };
+
+        var widget = Stats(Widget(Engagement(FullHistory(retained: retained), Cohorts()), "retention"));
+
+        widget.Items.Should().Equal(
+            new StatItem("After 1 week", 5d / 6, "percent", Hint: "5 of 6 new users", Max: 1),
+            new StatItem("After 2 weeks", LookoutPages.Suppressed),
+            new StatItem("After 4 weeks", null, "percent", Hint: "no finished week yet", Max: 1));
+        widget.Note.Should().Contain("by account creation").And.Contain("history starts 2026-11-02");
+    }
+
+    [Fact]
+    public void Retention_without_a_finished_week_has_no_value_and_without_snapshots_is_unavailable()
+    {
+        var thisWeek = Stats(Widget(Engagement(FullHistory(retained: [new(new(2026, 11, 9), Monday, 4)]), Cohorts()), "retention"));
+        var none = Stats(Widget(Engagement(FullHistory(), Cohorts()), "retention"));
+
+        thisWeek.Items.Should().OnlyContain(i => i.Value == null && i.Hint == "no finished week yet");
+        none.Unavailable.Should().Be("No snapshots yet");
+    }
+
+    [Fact]
+    public void Days_active_per_user_is_unavailable_with_the_reason()
+    {
+        Widget(Engagement(FullHistory()), "days-active").Unavailable.Should().Contain("without storing user ids");
+    }
+
+    [Fact]
+    public void Devices_leave_out_buckets_of_one_or_two_people_and_mark_missing_columns_unavailable()
+    {
+        var page = LookoutPages.Devices(new(Now, 10, 4, 3, 5,
+            [new("Web", 6, 6), new("Android app", 3, 3), new("iOS app", 2, 2), new("Not recorded", 1, 1)],
+            [new("1.4.0", 5, 5), new("1.3.2", 2, 2), new("Not recorded", 0, 0)]));
+
+        ((BarsWidget)Widget(page, "platforms")).Bars.Select(b => (b.Label, b.Values[0])).Should().Equal(("Web", 6), ("Android app", 3));
+        ((BarsWidget)Widget(page, "platforms")).Note.Should().Contain("1 or 2 people are left out");
+        ((BarsWidget)Widget(page, "versions")).Bars.Select(b => b.Label).Should().Equal("1.4.0", "Not recorded");
+        Stats(Widget(page, "adoption")).Items.Should().Equal(
+            new StatItem("Web push on", 4, Hint: "40% of users", Max: 10),
+            new StatItem("Android app installs", 3, Hint: "phones registered with the app"),
+            new StatItem("Discord linked", 5, Hint: "50% of users", Max: 10));
+
+        var missing = LookoutPages.Devices(new(Now, 10, 4, 3, 5, null, null));
+        missing.Widgets.Take(2).Select(w => w.Unavailable).Should().Equal("Ember doesn't record the sign-in platform yet", "Ember doesn't record the app version on sign-in yet");
+    }
+
+    [Fact]
+    public void Releases_carry_the_deployed_shas_the_apk_and_ci_and_the_system_page_no_longer_does()
+    {
+        var system = EmptySystem() with { Deployed = new("abc1234", "def5678"), Apk = new("1.4.0", 14) };
+
+        var releases = LookoutPages.Releases(system);
+
+        releases.Widgets.Select(w => w.Id).Should().Equal("deployed", "apk", "ci");
+        Stats(Widget(releases, "deployed")).Items.Select(i => i.Value).Should().Equal("abc1234", "def5678", null);
+        LookoutPages.System(system).Widgets.Select(w => w.Id).Should().Equal("services", "database", "disks", "backup");
     }
 
     [Fact]
@@ -175,40 +252,6 @@ public sealed class LookoutPagesTests
         var disk = Stats(Widget(LookoutPages.System(system), "disks")).Items.Single();
 
         (disk.Max, disk.Goal).Should().Be((100d * gb, new Goal(Above: 10d * gb)));
-    }
-
-    [Fact]
-    public void Feedback_trends_count_by_week_platform_status_and_version()
-    {
-        FeedbackItem Item(int id, string platform, string? version, int daysAgo, string status, double? resolvedHours = null) =>
-            new(id, "t", "x", platform, version, Now.AddDays(-daysAgo), status, resolvedHours is { } h ? Now.AddDays(-daysAgo).AddHours(h) : null, false, [], 0, id);
-        var list = new FeedbackList([
-            Item(1, "web", "1.2.0", 1, "open"),
-            Item(2, "android", "1.2.0", 3, "planned"),
-            Item(3, "discord", null, 9, "released", resolvedHours: 10),
-            Item(4, "web", "1.1.0", 10, "declined", resolvedHours: 30),
-            Item(5, "web", "1.1.0", 40, "released", resolvedHours: 50),
-        ]);
-
-        var page = LookoutPages.FeedbackTrends(list, Now);
-
-        Stats(Widget(page, "tiles")).Items.Should().BeEquivalentTo(new object[]
-        {
-            new { Label = "Open", Value = (object)1, Goal = new Goal(Below: 5) },
-            new { Label = "New, 7 days", Value = (object)2, Delta = new Delta(0, "the 7 days before", "down") },
-            new { Label = "Resolved, 30 days", Value = (object)2 },
-            new { Label = "Median time to resolve", Value = (object)30d, Format = "hours" },
-        }, o => o.WithStrictOrdering());
-        var perWeek = (BarsWidget)Widget(page, "per-week");
-        perWeek.Series.Select(s => s.Label).Should().Equal("Web", "Android", "Discord", "Other");
-        perWeek.Bars.Should().HaveCount(12);
-        perWeek.Bars[^1].Values.Should().Equal(1, 0, 0, 0);
-        perWeek.Bars[^2].Values.Should().Equal(0, 1, 1, 0);
-        ((BarsWidget)Widget(page, "by-status")).Bars.Select(b => (b.Label, b.Values.Sum())).Should()
-            .Equal(("Open", 1), ("Planned", 1), ("Implemented", 0), ("Released", 2), ("Declined", 1));
-        ((BarsWidget)Widget(page, "versions")).Bars.Select(b => (b.Label, b.Values[0])).Should().Equal(("1.2.0", 2), ("1.1.0", 2), ("Unknown", 1));
-        ((BarsWidget)Widget(page, "flow")).Bars[^2].Values.Should().Equal(2, 2);
-        Stats(Widget(LookoutPages.FeedbackTrends(new([list.Items[2], list.Items[3]]), Now), "tiles")).Items[3].Value.Should().Be(20d, "the median of two is their mean");
     }
 
     private static SystemReport EmptySystem() =>

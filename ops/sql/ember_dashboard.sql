@@ -30,9 +30,9 @@ ALTER ROLE ember_dashboard SET jit = off;
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ember_dashboard;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ember_dashboard;
 DO $$
-DECLARE t text;
+DECLARE t text; c text;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['HabitLogs', 'DayNotes', 'DayMarks', 'JournalKeys', 'HabitSlips', 'FiresideLinks', 'Warmth'] LOOP
+    FOREACH t IN ARRAY ARRAY['HabitLogs', 'DayNotes', 'DayMarks', 'JournalKeys', 'HabitSlips', 'FiresideLinks', 'Warmth', 'ReminderMessages', 'PushReminders'] LOOP
         IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
             EXECUTE format('REVOKE ALL ON public.%I FROM ember_dashboard', t);
         END IF;
@@ -43,33 +43,47 @@ BEGIN
     IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Habits' AND column_name = 'Kind') THEN
         REVOKE ALL ("Kind") ON "Habits" FROM ember_dashboard;
     END IF;
+    FOR t, c IN VALUES
+        ('AspNetUsers', 'ShowStreaks'), ('AspNetUsers', 'GraceDaysPerWeek'), ('AspNetUsers', 'SecondReminderMinutes'), ('AspNetUsers', 'DmFailureCount'),
+        ('AspNetUsers', 'DmRemindersPausedAt'), ('AspNetUsers', 'DiscordReminders'), ('AspNetUsers', 'Theme'),
+        ('Habits', 'Id'), ('Habits', 'RoutineId'), ('Habits', 'PausedFrom'), ('Habits', 'PausedUntil'), ('Habits', 'SecondReminderUtc'),
+        ('Habits', 'FrequencyType'), ('Habits', 'TimesPerDay'), ('Habits', 'ReminderTimes'),
+        ('Routines', 'Id'), ('Routines', 'UserId'), ('Routines', 'SecondReminderUtc'), ('Routines', 'ReminderTime'), ('Routines', 'CreatedAt'),
+        ('PushSubscriptions', 'Id'), ('ReminderPhones', 'UserId'), ('ReminderPhones', 'Enabled')
+    LOOP
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = t AND column_name = c) THEN
+            EXECUTE format('REVOKE ALL (%I) ON public.%I FROM ember_dashboard', c, t);
+        END IF;
+    END LOOP;
 END
 $$;
 
 GRANT CONNECT ON DATABASE emberdb TO ember_dashboard;
 GRANT USAGE ON SCHEMA public TO ember_dashboard;
 
-GRANT SELECT ("Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "Theme")
-    ON "AspNetUsers" TO ember_dashboard;
+GRANT SELECT ("Id") ON "AspNetUsers" TO ember_dashboard;
 GRANT SELECT ("UserId", "LoginProvider") ON "AspNetUserLogins" TO ember_dashboard;
-GRANT SELECT ("Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "FrequencyType", "TimesPerDay", "ReminderTimes")
-    ON "Habits" TO ember_dashboard;
-GRANT SELECT ("Id", "UserId", "NextReminderUtc", "SecondReminderUtc", "ReminderTime", "CreatedAt") ON "Routines" TO ember_dashboard;
+GRANT SELECT ("UserId", "CreatedAt", "NextReminderUtc") ON "Habits" TO ember_dashboard;
+GRANT SELECT ("NextReminderUtc") ON "Routines" TO ember_dashboard;
 GRANT SELECT ("UserId", "CreatedUtc", "LastSeenUtc") ON "AuthSessions" TO ember_dashboard;
-GRANT SELECT ("Id", "Date") ON "ReminderMessages" TO ember_dashboard;
-GRANT SELECT ("Id", "Date") ON "PushReminders" TO ember_dashboard;
-GRANT SELECT ("Id", "UserId", "Enabled") ON "PushSubscriptions" TO ember_dashboard;
-GRANT SELECT ("Id", "UserId", "Enabled") ON "ReminderPhones" TO ember_dashboard;
+GRANT SELECT ("UserId", "Enabled") ON "PushSubscriptions" TO ember_dashboard;
+GRANT SELECT ("Id") ON "ReminderPhones" TO ember_dashboard;
 GRANT SELECT ("Id", "Title", "Text", "Platform", "Version", "CreatedAt", "Status", "ResolvedAt", "UserId") ON "Feedback" TO ember_dashboard;
 GRANT UPDATE ("Status", "ResolvedAt") ON "Feedback" TO ember_dashboard;
 GRANT SELECT ("Id", "FeedbackId", "ContentType", "Size", "Data") ON "FeedbackImages" TO ember_dashboard;
 GRANT SELECT ("MigrationId") ON "__EFMigrationsHistory" TO ember_dashboard;
 
-SELECT format('GRANT SELECT ON SEQUENCE %s TO ember_dashboard', pg_get_serial_sequence('"ReminderMessages"', 'Id')) \gexec
-SELECT format('GRANT SELECT ON SEQUENCE %s TO ember_dashboard', pg_get_serial_sequence('"PushReminders"', 'Id')) \gexec
-
 DO $$
 BEGIN
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'AspNetUsers' AND column_name = 'CreatedUtc') THEN
+        GRANT SELECT ("CreatedUtc") ON "AspNetUsers" TO ember_dashboard;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'AuthSessions' AND column_name = 'Platform') THEN
+        GRANT SELECT ("Platform") ON "AuthSessions" TO ember_dashboard;
+    END IF;
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'AuthSessions' AND column_name = 'AppVersion') THEN
+        GRANT SELECT ("AppVersion") ON "AuthSessions" TO ember_dashboard;
+    END IF;
 END
 $$;
 

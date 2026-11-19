@@ -125,19 +125,17 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         (manifest.GetProperty("id").GetString(), manifest.GetProperty("name").GetString(), manifest.GetProperty("icon").GetString(), manifest.GetProperty("timeZone").GetString())
             .Should().Be(("ember", "Ember", "flame", "Europe/Berlin"));
         manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("id").GetString()).Should().Equal(LookoutShape.PageIds);
-        manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("refreshSeconds").GetInt32()).Should().Equal(30, 60, 60, 60, 30, 0, 60, 30, 30);
+        manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("refreshSeconds").GetInt32()).Should().Equal(30, 60, 60, 30, 30, 30, 0);
     }
 
     [Theory]
     [InlineData("overview")]
-    [InlineData("reminders")]
-    [InlineData("feedback")]
+    [InlineData("engagement")]
+    [InlineData("devices")]
+    [InlineData("releases")]
     [InlineData("notices")]
     [InlineData("system")]
-    [InlineData("activity")]
-    [InlineData("habits")]
-    [InlineData("users")]
-    [InlineData("feedback-trends")]
+    [InlineData("feedback")]
     public async Task Every_page_has_the_contract_shape(string pageId)
     {
         using var client = Hub();
@@ -157,7 +155,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         var feedback = LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/feedback"), "feedback");
 
         LookoutShape.Item(tiles, "Users").GetProperty("value").GetInt32().Should().Be(6);
-        LookoutShape.Item(tiles, "Habits").GetProperty("value").GetInt32().Should().Be(8);
+        LookoutShape.Item(tiles, "New users this week").GetProperty("value").GetInt32().Should().Be(1);
         var card = feedback.GetProperty("cards").EnumerateArray().Single(c => c.GetProperty("id").GetString() == database.Data.FeedbackOpen.ToString());
         card.GetProperty("column").GetString().Should().Be("open");
         card.GetProperty("imageIds").GetArrayLength().Should().Be(1);
@@ -176,9 +174,9 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         summary.GetProperty("generatedAt").GetString().Should().EndWith("Z");
         summary.GetProperty("state").GetString().Should().BeOneOf("ok", "warn", "bad");
         summary.GetProperty("tiles").EnumerateArray().Select(t => t.GetProperty("label").GetString()).Should()
-            .Equal("Users", "Active 7 days", "Overdue reminders", "Open feedback");
+            .Equal("Users", "Active 7 days", "Stickiness", "Open feedback");
         summary.GetProperty("tiles")[0].GetProperty("value").GetInt32().Should().Be(6);
-        summary.GetProperty("tiles")[2].GetProperty("value").GetInt32().Should().Be(2);
+        summary.GetProperty("alerts").EnumerateArray().Select(a => a.GetProperty("text").GetString()).Should().Contain("Reminders not advancing");
         summary.GetProperty("alerts").GetArrayLength().Should().BeInRange(1, 5);
     }
 
