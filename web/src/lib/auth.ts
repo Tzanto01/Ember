@@ -214,6 +214,7 @@ export class AuthService {
    * refreshes antiforgery and goes to `/login`. `everywhere` ends every session of the account on every device
    * (in the native build too). Resolves false and keeps the session when the server couldn't end it (offline, 5xx, and
    * for `everywhere` any failure, a 401 included), because only the server can clear the auth cookie or the other sessions.
+   * A plain native sign-out ends the server session (and its widget key) best-effort and always signs the device out.
    * Never throws.
    */
   async logout(everywhere = false): Promise<boolean> {
@@ -224,7 +225,7 @@ export class AuthService {
       } catch (error) {
         if (everywhere || asApiError(error).status !== 401) return false;
       }
-    }
+    } else await this.api.logout().catch(() => undefined);
     await this.wipeDevice();
     this.clearSession();
     this.consentPrompted = false;

@@ -709,6 +709,32 @@ describe('Reminders', () => {
       expect(await device.edits('u1')).toMatchObject([{ habitId: 1, date: '2026-11-01', count: 2 }]);
     });
 
+    it.each([
+      [503, [{ habitId: 1, date: '2026-11-01', count: 2 }]],
+      [404, []],
+    ])('after the PUT answers %i keeps the entry in the queue unless the queue would drop it', async (status, kept) => {
+      const done = reminders.replayWidget('u1', zone, queue);
+      (await mock.next('GET', '/api/habits')).respond(200, [twice]);
+      (await mock.next('GET', '/api/routines')).respond(200, []);
+      (await mock.next('PUT', '/api/habits/1/days/2026-11-01')).respond(status);
+      await done;
+
+      expect(await device.edits('u1')).toMatchObject(kept);
+    });
+
+    it("queues an earlier day's entry when reading that day fails", async () => {
+      takePending.mockResolvedValue({ checkIns: [{ userId: 'u1', habitId: 1, date: '2026-10-31', count: 1 }] });
+
+      const done = reminders.replayWidget('u1', zone, queue);
+      (await mock.next('GET', '/api/habits')).respond(200, [twice]);
+      (await mock.next('GET', '/api/routines')).respond(200, []);
+      (await mock.next('GET', '/api/habits/1/days?from=2026-10-31&to=2026-10-31')).respond(503);
+      await done;
+
+      expect(puts()).toEqual([]);
+      expect(await device.edits('u1')).toMatchObject([{ habitId: 1, date: '2026-10-31', count: 1 }]);
+    });
+
     it('queues the entry as is when the API is unreachable and nothing is cached', async () => {
       queue.userId.set('u3');
       takePending.mockResolvedValue({ checkIns: [{ userId: 'u3', habitId: 1, date: '2026-11-01', count: 2 }] });

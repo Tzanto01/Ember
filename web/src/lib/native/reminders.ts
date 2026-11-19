@@ -6,7 +6,7 @@ import { currentLanguage, t } from '../i18n';
 import { addDays, isLocalDate } from '../local-date';
 import { localModeOn } from '../local/mode';
 import { type AnyHabit, isLetGo, type LocalDateString, type ReminderDestination, type Routine } from '../models';
-import type { OfflineQueue } from '../offline-queue';
+import { type OfflineQueue, shouldDrop } from '../offline-queue';
 import { asApiError } from '../problem';
 import { notificationColor } from '../theme';
 import { reminderNames } from './reminder-names';
@@ -202,8 +202,9 @@ export class Reminders {
    * Native build only: takes the widget's pending check-ins and, for each valid one of `userId` (a
    * {@link checkInTarget} with an integer `count` of at least 1), sends the absolute `PUT { count }` (capped at
    * `timesPerDay`) only while the habit's current count (as in {@link checkIn}) is lower, so a check-in the server
-   * already has is never repeated; queued in `queue` when the API is unreachable. Without any habit list (offline,
-   * nothing cached) each is queued as is; on a 401 they are dropped, as are unknown and let-go habits. Never throws.
+   * already has is never repeated; queued in `queue` when that `PUT` fails in any way the queue would retry
+   * ({@link shouldDrop}). Without any habit list (offline, nothing cached) each is queued as is; when the habit list
+   * answers 401 they are dropped, as are unknown and let-go habits. Never throws.
    */
   async replayWidget(userId: string, timeZone: string, queue: OfflineQueue): Promise<void> {
     try {
@@ -225,8 +226,13 @@ export class Reminders {
           }
           const day = await this.day(loaded.habits, target);
           const aimed = day ? Math.min(count, day.timesPerDay) : 0;
-          if (day && day.count < aimed) await this.sendCount(target, aimed, queue);
-        } catch {}
+          if (day && day.count < aimed)
+            await this.sendCount(target, aimed, queue).catch(async (error: unknown) => {
+              if (!shouldDrop(asApiError(error))) await queue.add({ ...target, completed: null, count: aimed });
+            });
+        } catch (error) {
+          if (!shouldDrop(asApiError(error))) await queue.add({ ...target, completed: null, count }).catch(() => undefined);
+        }
       }
     } catch {}
   }
