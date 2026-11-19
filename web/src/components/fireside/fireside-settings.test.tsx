@@ -7,7 +7,7 @@ import { me, mockFetch } from '@/lib/test-support';
 import SettingsPage from '@/pages/settings';
 import { renderPage } from '@/test-utils';
 
-const off: Fireside = { enabled: false, name: null, notify: false, askingUntil: null, code: null, friends: [], warmth: [] };
+const off: Fireside = { enabled: false, name: null, notify: false, askingUntil: null, code: null, friends: [], warmth: [], consentVersion: '2026-11', consentGiven: true };
 const on: Fireside = { ...off, enabled: true, name: 'Mara' };
 
 async function openPeople(state: Fireside) {
@@ -73,11 +73,11 @@ describe('Settings › People › Fireside', { timeout: 15_000 }, () => {
     const { toggle, puts, fetch } = await openPeople(on);
 
     await user.click(toggle);
-    expect(await screen.findByText("You'll leave everyone's fireside.")).toBeInTheDocument();
+    expect(await screen.findByText('You leave every fireside, and your Fireside consent ends.')).toBeInTheDocument();
     expect(puts()).toHaveLength(0);
 
     await user.click(screen.getByRole('button', { name: 'Keep it on' }));
-    expect(screen.queryByText("You'll leave everyone's fireside.")).toBeNull();
+    expect(screen.queryByText('You leave every fireside, and your Fireside consent ends.')).toBeNull();
     expect(puts()).toHaveLength(0);
     expect(toggle).toBeChecked();
 
@@ -87,5 +87,26 @@ describe('Settings › People › Fireside', { timeout: 15_000 }, () => {
     expect(put.body).toEqual({ enabled: false });
     put.respond(200, off);
     await waitFor(() => expect(toggle).not.toBeChecked());
+  });
+
+  it('without a current Fireside consent, asks first: cancel sends nothing, agree sends the consent version', async () => {
+    const user = userEvent.setup();
+    const { toggle, puts, fetch } = await openPeople({ ...off, consentGiven: false });
+    await user.type(screen.getByRole('textbox', { name: /Your name at the fireside/ }), 'Mara');
+
+    await user.click(toggle);
+    expect(screen.getByRole('heading', { name: 'Before you turn on Fireside' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('heading', { name: 'Before you turn on Fireside' })).toBeNull();
+    expect(toggle).not.toBeChecked();
+    expect(puts()).toHaveLength(0);
+
+    await user.click(toggle);
+    await user.click(screen.getByRole('button', { name: 'Agree and turn on' }));
+    const put = await fetch.next('PUT', '/api/fireside');
+    expect(put.body).toEqual({ enabled: true, name: 'Mara', consentVersion: '2026-11' });
+    put.respond(200, on);
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(screen.queryByRole('heading', { name: 'Before you turn on Fireside' })).toBeNull();
   });
 });

@@ -19,7 +19,7 @@ const mara: FiresideFriend = {
   canSendWarmth: true,
 };
 
-const data: Fireside = { enabled: true, name: 'Nia', notify: false, askingUntil: null, code: null, friends: [mara], warmth: [] };
+const data: Fireside = { enabled: true, name: 'Nia', notify: false, askingUntil: null, code: null, friends: [mara], warmth: [], consentVersion: '2026-11', consentGiven: true };
 
 async function open() {
   auth.setMe(me);

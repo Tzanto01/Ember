@@ -7,16 +7,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
 
-/// <summary>A Fireside friend as the caller sees them; <see cref="Id"/> is the caller's own link id, never a user id.</summary>
+/// <summary>
+/// A Fireside friend as the caller sees them; <see cref="Id"/> is the caller's own link id, never a user id. <see cref="CheckedInToday"/> is
+/// null when the friend doesn't share their flame with the caller or withdrew their health-data consent.
+/// </summary>
 public sealed record FiresideFriend(int Id, string Name, bool Asking, bool? CheckedInToday, bool Muted, bool ShareFlame,
     string? RenamedFrom, bool JoinedViaMyCode, bool CanSendWarmth);
 
 /// <summary>Undismissed warmth to the caller; <see cref="FriendId"/> is the caller's link id for the sender.</summary>
 public sealed record FiresideWarmth(int Id, int FriendId, string Name, string Message, DateTime SentAt);
 
-/// <summary>The caller's Fireside page. <see cref="CodeProtected"/> and <see cref="CodeExpiresAt"/> are null without an active code.</summary>
+/// <summary>
+/// The caller's Fireside page. <see cref="CodeProtected"/> and <see cref="CodeExpiresAt"/> are null without an active code.
+/// <see cref="ConsentGiven"/> is whether the stored Fireside consent is for <see cref="FiresideService.CurrentConsentVersion"/>.
+/// </summary>
 public sealed record FiresideState(bool Enabled, string? Name, bool Notify, DateTime? AskingUntil, string? CodeProtected,
-    DateTime? CodeExpiresAt, IReadOnlyList<FiresideFriend> Friends, IReadOnlyList<FiresideWarmth> Warmth);
+    DateTime? CodeExpiresAt, IReadOnlyList<FiresideFriend> Friends, IReadOnlyList<FiresideWarmth> Warmth, bool ConsentGiven);
 
 /// <summary>A new friend code (8 characters, shown <c>XXXX XXXX</c>) and when (UTC) it stops working.</summary>
 public sealed record FiresideNewCode(string Code, DateTime ExpiresAt);
@@ -66,6 +72,9 @@ public enum FiresideSettingsResult
 
     /// <summary>The user doesn't exist.</summary>
     NotFound,
+
+    /// <summary>Turning Fireside on without current Fireside consent needs <see cref="FiresideService.CurrentConsentVersion"/>.</summary>
+    ConsentRequired,
 }
 
 /// <summary>A notification the bot should deliver: warmth (<see cref="Message"/> set) or "joined your fireside" (<see cref="Message"/> null).</summary>
@@ -80,6 +89,9 @@ public class FiresideService
 {
     /// <summary>Most friends one account can have.</summary>
     public const int MaxFriends = 20;
+
+    /// <summary>Version of the explicit consent to sharing through Fireside; consent for an older version no longer counts.</summary>
+    public const string CurrentConsentVersion = "2026-11";
 
     /// <summary>Longest Fireside name, after trimming.</summary>
     public const int MaxNameLength = 32;
@@ -158,12 +170,13 @@ public class FiresideService
     {
         var now = Now;
         var user = await _db.Users.AsNoTracking().Where(u => u.Id == userId)
-            .Select(u => new { u.FiresideEnabled, u.FiresideName, u.FiresideNotify, u.WarmthAskUntilUtc })
+            .Select(u => new { u.FiresideEnabled, u.FiresideName, u.FiresideNotify, u.WarmthAskUntilUtc, u.FiresideConsentVersion })
             .FirstOrDefaultAsync(cancellationToken);
         if (user is null) return null;
+        var consentGiven = user.FiresideConsentVersion == CurrentConsentVersion;
 
         if (!user.FiresideEnabled)
-            return new FiresideState(false, user.FiresideName, user.FiresideNotify, null, null, null, [], []);
+            return new FiresideState(false, user.FiresideName, user.FiresideNotify, null, null, null, [], [], consentGiven);
 
         var code = await _db.FiresideCodes.AsNoTracking()
             .Where(c => c.UserId == userId && c.ExpiresAtUtc > now)
@@ -180,7 +193,7 @@ public class FiresideService
 
         return new FiresideState(user.FiresideEnabled, user.FiresideName, user.FiresideNotify,
             user.WarmthAskUntilUtc > now ? user.WarmthAskUntilUtc : null,
-            code?.CodeProtected, code?.ExpiresAtUtc, await GetFriendsAsync(userId, null, cancellationToken), warmth);
+            code?.CodeProtected, code?.ExpiresAtUtc, await GetFriendsAsync(userId, null, cancellationToken), warmth, consentGiven);
     }
 
     /// <summary>The caller's friend with link <paramref name="linkId"/>, or null when it isn't the caller's.</summary>
@@ -206,7 +219,8 @@ public class FiresideService
                 Name = l.Friend.FiresideName,
                 l.Friend.Timezone,
                 l.Friend.WarmthAskUntilUtc,
-                FlameShared = _db.FiresideLinks.Any(r => r.OwnerId == l.FriendId && r.FriendId == userId && r.ShareFlame),
+                FlameShared = l.Friend.ConsentWithdrawnAt == null
+                    && _db.FiresideLinks.Any(r => r.OwnerId == l.FriendId && r.FriendId == userId && r.ShareFlame),
                 SentToday = _db.Warmth.Count(w => w.FromUserId == userId && w.ToUserId == l.FriendId && w.SentAtUtc >= start && w.SentAtUtc < end),
             })
             .ToListAsync(cancellationToken);
@@ -235,17 +249,29 @@ public class FiresideService
     /// <summary>
     /// Turns Fireside on or off, with an optional new <paramref name="name"/> (already validated by <see cref="ValidName"/>) and
     /// <paramref name="notify"/> setting. Turning it off deletes the user's code, every link in both directions and all warmth from or
-    /// to the user and stops asking; the name is kept so turning it on again can prefill it.
+    /// to the user and stops asking, and clears the Fireside consent; the name is kept so turning it on again can prefill it.
+    /// Turning it on without current Fireside consent needs <paramref name="consentVersion"/> equal to <see cref="CurrentConsentVersion"/>,
+    /// which is then stored as given now.
     /// </summary>
     public async Task<FiresideSettingsResult> UpdateSettingsAsync(Guid userId, bool enabled, string? name, bool? notify,
-        CancellationToken cancellationToken = default)
+        string? consentVersion = null, CancellationToken cancellationToken = default)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         await LockUsersAsync(userId, userId, cancellationToken);
-        var stored = await _db.Users.Where(u => u.Id == userId).Select(u => new { u.FiresideName }).FirstOrDefaultAsync(cancellationToken);
+        var stored = await _db.Users.Where(u => u.Id == userId)
+            .Select(u => new { u.FiresideName, u.FiresideConsentAt, u.FiresideConsentVersion }).FirstOrDefaultAsync(cancellationToken);
         if (stored is null) return FiresideSettingsResult.NotFound;
         name ??= stored.FiresideName;
         if (enabled && name is null) return FiresideSettingsResult.NameRequired;
+        var consentAt = stored.FiresideConsentAt;
+        var storedVersion = stored.FiresideConsentVersion;
+        if (!enabled)
+            (consentAt, storedVersion) = (null, null);
+        else if (storedVersion != CurrentConsentVersion)
+        {
+            if (consentVersion != CurrentConsentVersion) return FiresideSettingsResult.ConsentRequired;
+            (consentAt, storedVersion) = (Now, CurrentConsentVersion);
+        }
 
         if (!enabled)
         {
@@ -258,6 +284,8 @@ public class FiresideService
             .SetProperty(u => u.FiresideEnabled, enabled)
             .SetProperty(u => u.FiresideName, name)
             .SetProperty(u => u.FiresideNotify, u => notify ?? u.FiresideNotify)
+            .SetProperty(u => u.FiresideConsentAt, consentAt)
+            .SetProperty(u => u.FiresideConsentVersion, storedVersion)
             .SetProperty(u => u.WarmthAskUntilUtc, u => enabled ? u.WarmthAskUntilUtc : null), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return FiresideSettingsResult.Saved;

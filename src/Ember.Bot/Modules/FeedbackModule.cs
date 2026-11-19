@@ -65,6 +65,7 @@ public class FeedbackModule : InteractionModuleBase<SocketInteractionContext>
         return new ModalBuilder()
             .WithTitle(t.Get("feedback.modal.title"))
             .WithCustomId(ModalId)
+            .AddTextDisplay(t.Get("feedback.modal.health"))
             .AddTextInput(t.Get("feedback.modal.feedback-title"), "feedback_title", TextInputStyle.Short,
                 minLength: 1, maxLength: HabitService.MaxFeedbackTitleLength, required: true)
             .AddTextInput(t.Get("feedback.modal.text"), "feedback_text", TextInputStyle.Paragraph,

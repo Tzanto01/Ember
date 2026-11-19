@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Ember.Api.Email;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -33,13 +32,16 @@ public abstract class FeedbackDigestTestBase(PostgresFixture postgres) : ApiTest
         await ActivatorUtilities.CreateInstance<FeedbackDigest>(scope.ServiceProvider, (IEmailTransport)Transport).RunAsync(default);
     }
 
-    protected Task Submit(string text, Guid? userId = null, string platform = "web", string? version = "1.0")
-        => Host.Run(s => s.SaveFeedbackAsync(userId, platform, version, text));
+    protected Task Submit(string text, Guid? userId = null, string platform = "web", string? version = "1.0", string? title = null,
+        IReadOnlyList<Ember.Core.Models.FeedbackImage>? images = null)
+        => Host.Run(s => s.SaveFeedbackAsync(userId, platform, version, text, title: title, images: images));
 
     protected Task<List<Ember.Core.Models.Feedback>> Stored()
         => Host.Db(db => db.Feedback.AsNoTracking().OrderBy(f => f.Id).ToListAsync());
 
-    protected static int ItemsIn(SentMail mail) => Regex.Matches(mail.Body, @"^#\d+ · ", RegexOptions.Multiline).Count;
+    protected string BerlinNow()
+        => TimeZoneInfo.ConvertTimeFromUtc(Host.Time.GetUtcNow().UtcDateTime, FeedbackDigest.Zone)
+            .ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 [Collection("Postgres")]
@@ -48,10 +50,12 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
     protected override Dictionary<string, string?>? Settings => new() { ["Feedback:DigestTo"] = Recipient };
 
     [DockerFact]
-    public async Task One_email_carries_all_pending_feedback_oldest_first_and_the_next_run_sends_nothing()
+    public async Task One_email_counts_all_pending_feedback_with_the_oldest_and_newest_time_and_the_next_run_sends_nothing()
     {
+        var oldest = BerlinNow();
         await Submit("first thing");
         Host.Time.Advance(TimeSpan.FromMinutes(5));
+        var newest = BerlinNow();
         await Submit("second thing", platform: "android", version: null);
 
         await RunDigest();
@@ -60,10 +64,23 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
         var mail = Transport.Sent.Should().ContainSingle().Subject;
         mail.To.Should().Be(Recipient);
         mail.Subject.Should().Be("Ember feedback: 2 new");
-        mail.Body.Should().Contain("first thing").And.Contain("second thing");
-        mail.Body.IndexOf("first thing", StringComparison.Ordinal).Should().BeLessThan(mail.Body.IndexOf("second thing", StringComparison.Ordinal));
-        mail.Body.Should().Contain("web 1.0").And.Contain("android unknown version").And.Contain("anonymous");
+        mail.Body.Should().Contain("New feedback: 2").And.Contain($"{oldest} to {newest}").And.Contain("Read them on the Lookout board.");
         (await Stored()).Should().OnlyContain(f => f.DigestedAt != null);
+    }
+
+    [DockerFact]
+    public async Task The_email_holds_no_title_text_picture_id_platform_or_version()
+    {
+        await Submit("my meds make me dizzy, see https://evil.example.test/x", platform: "android", version: "1.4.2", title: "Dizzy after meds",
+            images: [new Ember.Core.Models.FeedbackImage { Id = Guid.NewGuid(), ContentType = "image/png", Size = 3, Data = [1, 2, 3] }]);
+        var pictureId = (await Host.Db(db => db.FeedbackImages.AsNoTracking().Select(i => i.Id).ToListAsync())).Single();
+
+        await RunDigest();
+
+        var body = Transport.Sent.Should().ContainSingle().Subject.Body;
+        body.Should().Contain("New feedback: 1");
+        body.Should().NotContain("Dizzy").And.NotContain("meds").And.NotContain("evil").And.NotContain(pictureId.ToString())
+            .And.NotContain("android").And.NotContain("1.4.2").And.NotContain("#");
     }
 
     [DockerFact]
@@ -76,7 +93,7 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
         await RunDigest();
 
         Transport.Sent.Should().HaveCount(2);
-        Transport.Sent[1].Body.Should().Contain("new").And.NotContain("old");
+        Transport.Sent[1].Body.Should().Contain("New feedback: 1");
     }
 
     [DockerFact]
@@ -99,7 +116,7 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
         Transport.Fail = false;
         Transport.Sent.Clear();
         await RunDigest();
-        Transport.Sent.Should().ContainSingle().Which.Body.Should().Contain("keep me");
+        Transport.Sent.Should().ContainSingle().Which.Body.Should().Contain("New feedback: 1");
         (await Stored()).Should().OnlyContain(f => f.DigestedAt != null);
     }
 
@@ -118,18 +135,6 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
     }
 
     [DockerFact]
-    public async Task Every_line_of_the_feedback_text_is_quoted_so_it_cannot_pose_as_digest_structure()
-    {
-        await Submit("line one\n---\n#999 · fake header\nline four");
-
-        await RunDigest();
-
-        var mail = Transport.Sent.Single();
-        mail.Body.Should().Contain("> line one\n> ---\n> #999 · fake header\n> line four");
-        ItemsIn(mail).Should().Be(1);
-    }
-
-    [DockerFact]
     public async Task Feedback_older_than_12_months_is_deleted_and_not_mailed_while_newer_is_kept()
     {
         await Submit("ancient");
@@ -139,7 +144,7 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
         await RunDigest();
 
         (await Stored()).Should().ContainSingle().Which.Text.Should().Be("recent");
-        Transport.Sent.Should().ContainSingle().Which.Body.Should().Contain("recent").And.NotContain("ancient");
+        Transport.Sent.Should().ContainSingle().Which.Body.Should().Contain("New feedback: 1");
     }
 
     [DockerFact]
@@ -186,16 +191,14 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
 
         Transport.Sent.Should().HaveCount(2);
         var (first, second) = (Transport.Sent[0], Transport.Sent[1]);
-        ItemsIn(first).Should().Be(300);
         first.Subject.Should().Be("Ember feedback: 300 new");
-        first.Body.Should().Contain("5 more pending").And.Contain("item-000").And.Contain("item-299").And.NotContain("item-300");
-        ItemsIn(second).Should().Be(5);
-        second.Body.Should().Contain("item-300").And.Contain("item-304").And.NotContain("more pending");
+        first.Body.Should().Contain("New feedback: 300").And.Contain("5 more pending");
+        second.Body.Should().Contain("New feedback: 5").And.NotContain("more pending");
         (await Stored()).Should().OnlyContain(f => f.DigestedAt != null);
     }
 
     [DockerFact]
-    public async Task The_email_holds_no_account_id_and_no_email_address_but_marks_signed_in_feedback()
+    public async Task The_email_holds_no_account_id_and_no_email_address()
     {
         var user = await Host.SignedInAsync(consent: false);
         var userId = await user.IdAsync();
@@ -204,19 +207,8 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
         await RunDigest();
 
         var body = Transport.Sent.Should().ContainSingle().Subject.Body;
-        body.Should().Contain("signed in");
         body.Should().NotContain(userId.ToString()).And.NotContain(userId.ToString("N"));
         body.Should().NotContain(user.Email).And.NotContain("@");
-    }
-
-    [DockerFact]
-    public async Task The_email_flags_user_written_content_as_untrusted()
-    {
-        await Submit("see https://evil.example.test/x");
-
-        await RunDigest();
-
-        Transport.Sent.Single().Body.Should().StartWith("The feedback below is written by users");
     }
 }
 

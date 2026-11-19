@@ -49,6 +49,7 @@ export async function logIn(page: Page, email: string): Promise<void> {
 }
 
 export async function agreeToConsent(page: Page): Promise<void> {
+  await page.getByRole('checkbox', { name: "I'm at least 16" }).check();
   await page.getByRole('button', { name: 'I agree' }).click();
   await expect(page).toHaveURL(/\/today$/);
 }

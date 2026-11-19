@@ -33,6 +33,7 @@ test.describe.serial('Fireside', () => {
     await expect(nav(page)).toHaveCount(0);
     await page.getByLabel('Your name at the fireside').fill(who.name);
     await page.locator('#fireside-enabled').click();
+    await page.getByRole('button', { name: 'Agree and turn on' }).click();
     await expect(page.locator('#fireside-enabled')).toBeChecked();
     await expect(nav(page)).toBeVisible();
   }
@@ -158,7 +159,7 @@ test.describe.serial('Fireside', () => {
   test('turning Fireside off leaves every fireside and removes the nav item', async () => {
     await b.page.goto('/settings/people');
     await b.page.locator('#fireside-enabled').click();
-    await expect(b.page.getByText("You'll leave everyone's fireside.")).toBeVisible();
+    await expect(b.page.getByText('You leave every fireside, and your Fireside consent ends.')).toBeVisible();
     await b.page.getByRole('button', { name: 'Turn Fireside off' }).click();
     await expect(b.page.locator('#fireside-enabled')).not.toBeChecked();
     await expect(nav(b.page)).toHaveCount(0);

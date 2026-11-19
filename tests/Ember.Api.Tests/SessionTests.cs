@@ -46,6 +46,49 @@ public class SessionTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task A_session_records_the_client_header_at_sign_in_and_on_its_touch_and_keeps_it_on_an_invalid_one()
+    {
+        var user = await Host.ConfirmedUserAsync();
+        user.Http.DefaultRequestHeaders.Add(AuthSessions.ClientHeader, "android/1.4.2");
+        await user.LoginAsync();
+        var userId = await user.IdAsync();
+        Task<(string?, string?)> Stored() => Host.Db(db => db.AuthSessions.Where(s => s.UserId == userId)
+            .Select(s => new ValueTuple<string?, string?>(s.Platform, s.AppVersion)).SingleAsync());
+        var sessionId = await Host.Db(db => db.AuthSessions.Where(s => s.UserId == userId).Select(s => s.Id).SingleAsync());
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, userId.ToString()), new Claim(AuthSessions.ClaimType, sessionId.ToString())], "test"));
+        async Task TouchWith(string header)
+        {
+            Host.Time.Advance(TimeSpan.FromMinutes(6));
+            var http = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            http.Request.Headers[AuthSessions.ClientHeader] = header;
+            using var scope = Host.Services.CreateScope();
+            var sessions = new AuthSessions(scope.ServiceProvider.GetRequiredService<EmberDbContext>(), new MemoryCache(new MemoryCacheOptions()),
+                Host.Time, new Microsoft.AspNetCore.Http.HttpContextAccessor { HttpContext = http });
+            (await sessions.IsActiveAsync(principal)).Should().BeTrue();
+        }
+
+        (await Stored()).Should().Be(("android", "1.4.2"));
+        await TouchWith("ios/1.5.0");
+        (await Stored()).Should().Be(("android", "1.4.2"));
+        await TouchWith("web/0.11.0-beta.1");
+        (await Stored()).Should().Be(("web", "0.11.0-beta.1"));
+    }
+
+    [Theory]
+    [InlineData("android/1.4.2", true)]
+    [InlineData("discord/2026.11+3_a-b", true)]
+    [InlineData("ios/1.0", false)]
+    [InlineData("Android/1.0", false)]
+    [InlineData("web/", false)]
+    [InlineData("web", false)]
+    [InlineData("web/1.0/extra", false)]
+    [InlineData("web/1.0 (Pixel 7)", false)]
+    [InlineData("web/123456789012345678901234567890123", false)]
+    public void The_client_header_needs_a_known_platform_and_a_short_plain_version(string value, bool valid)
+        => AuthSessions.ParseClient(value).HasValue.Should().Be(valid);
+
+    [DockerFact]
     public async Task Logout_on_one_device_leaves_the_others_signed_in()
     {
         var a = await Host.SignedInAsync(consent: false);
@@ -177,7 +220,7 @@ public class SessionTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var userId = (await sp.GetRequiredService<UserManager<User>>().FindByEmailAsync(user.Email))!.Id;
         var cache = new MemoryCache(new MemoryCacheOptions());
         var options = sp.GetRequiredService<DbContextOptions<EmberDbContext>>();
-        var sessions = new AuthSessions(sp.GetRequiredService<EmberDbContext>(), cache, Host.Time);
+        var sessions = new AuthSessions(sp.GetRequiredService<EmberDbContext>(), cache, Host.Time, new Microsoft.AspNetCore.Http.HttpContextAccessor());
         var id = await sessions.StartAsync(userId);
         Host.Time.Advance(idle);
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
@@ -185,7 +228,7 @@ public class SessionTests(PostgresFixture postgres) : ApiTestBase(postgres)
 
         await using var racing = new EmberDbContext(new DbContextOptionsBuilder<EmberDbContext>(options)
             .AddInterceptors(new AfterSessionRead(() => duringRead(sessions, id, sp))).Options);
-        var during = await new AuthSessions(racing, cache, Host.Time).IsActiveAsync(principal);
+        var during = await new AuthSessions(racing, cache, Host.Time, new Microsoft.AspNetCore.Http.HttpContextAccessor()).IsActiveAsync(principal);
         return (during, await sessions.IsActiveAsync(principal));
     }
 

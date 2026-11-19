@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -54,7 +55,9 @@ export default defineConfig(({ mode }) => {
   if (mobile && !(vars['VITE_API_BASE'] && vars['VITE_WEB_ORIGIN'])) {
     throw new Error('The mobile build needs VITE_API_BASE and VITE_WEB_ORIGIN (see .env.mobile).');
   }
+  const [newest] = JSON.parse(readFileSync(`${root}/public/release-notes.json`, 'utf8')) as { version: string }[];
   return {
+    define: { __EMBER_VERSION__: JSON.stringify(newest?.version ?? '') },
     plugins: [
       react(),
       tailwindcss(),

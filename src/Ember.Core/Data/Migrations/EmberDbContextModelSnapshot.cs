@@ -28,6 +28,10 @@ namespace Ember.Core.Data.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<DateTimeOffset>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -36,6 +40,10 @@ namespace Ember.Core.Data.Migrations
 
                     b.Property<DateTimeOffset?>("LastSeenUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -785,6 +793,15 @@ namespace Ember.Core.Data.Migrations
                     b.Property<DateOnly?>("ConsentPromptedOn")
                         .HasColumnType("date");
 
+                    b.Property<DateTime?>("ConsentWithdrawnAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletionReminderSentAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool?>("DiscordReminders")
                         .HasColumnType("boolean");
 
@@ -820,6 +837,13 @@ namespace Ember.Core.Data.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("FiresideConsentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FiresideConsentVersion")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<bool>("FiresideEnabled")
                         .HasColumnType("boolean");

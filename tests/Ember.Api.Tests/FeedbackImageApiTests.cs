@@ -201,7 +201,7 @@ public class FeedbackImageDigestTests(PostgresFixture postgres) : FeedbackDigest
     private Task<List<FeedbackImage>> Pictures() => Host.Db(db => db.FeedbackImages.AsNoTracking().OrderBy(i => i.Id).ToListAsync());
 
     [DockerFact]
-    public async Task The_digest_lists_picture_ids_and_the_anonymous_marker_but_never_attaches_or_names_a_command()
+    public async Task The_digest_names_no_picture_id_or_title_and_never_attaches_or_names_a_command()
     {
         await Report("With pictures", 2);
         await Report("Without", 0);
@@ -210,8 +210,9 @@ public class FeedbackImageDigestTests(PostgresFixture postgres) : FeedbackDigest
 
         var mail = Transport.Sent.Should().ContainSingle().Subject;
         var ids = (await Pictures()).Select(i => i.Id.ToString()).ToList();
-        mail.Body.Should().Contain($"Pictures: {ids[0]}, {ids[1]}").And.Contain("> With pictures").And.Contain("anonymous");
-        mail.Body.Split("Pictures:").Should().HaveCount(2, "only the report with pictures has the line");
+        ids.Should().HaveCount(2);
+        mail.Body.Should().Contain("New feedback: 2").And.NotContain(ids[0]).And.NotContain(ids[1]).And.NotContain("Pictures")
+            .And.NotContain("With pictures").And.NotContain("Without");
         mail.Body.Should().NotContain("docker").And.NotContain("Ember.Api.dll");
     }
 
@@ -245,17 +246,6 @@ public class FeedbackImageDigestTests(PostgresFixture postgres) : FeedbackDigest
 
         (await Host.Db(db => db.Feedback.Where(f => f.Images.Any()).Select(f => f.Title).ToListAsync())).Should().Equal("half a year");
         (await Stored()).Should().HaveCount(2);
-    }
-
-    [DockerFact]
-    public async Task A_title_with_a_unicode_line_separator_is_quoted_line_by_line_so_it_cannot_fake_a_header()
-    {
-        await Report("legacy", 0);
-        await Host.Db(db => db.Feedback.ExecuteUpdateAsync(s => s.SetProperty(f => f.Title, "a\u2028#999 · fake header")));
-
-        await RunDigest();
-
-        Transport.Sent.Should().ContainSingle().Which.Body.Should().Contain("> a\n> #999 · fake header\n>\n");
     }
 }
 

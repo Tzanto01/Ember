@@ -32,7 +32,17 @@ export interface Me {
   secondReminderMinutes: SecondReminderMinutes;
   /** The account's theme id; null when never chosen (the app shows the default). */
   theme: ThemeId | null;
-  consent: { given: boolean; policyVersion: string | null; currentPolicyVersion: string };
+  /**
+   * Health-data consent. `withdrawnAt` (ISO UTC) is set while consent is withdrawn or declined, and `given` is then
+   * false; `deletesAt` is when Ember deletes the health data, null when there is none to delete.
+   */
+  consent: {
+    given: boolean;
+    policyVersion: string | null;
+    currentPolicyVersion: string;
+    withdrawnAt: string | null;
+    deletesAt: string | null;
+  };
   dmReminders: { paused: boolean };
   /**
    * v1.7 private journal: `encrypted` once a journal key exists; `turningOff` while a switch-off is under way;
@@ -473,6 +483,7 @@ export type ProblemType =
   | 'unauthenticated'
   | 'forbidden'
   | 'consent_required'
+  | 'fireside_consent_required'
   | 'antiforgery'
   | 'not_found'
   | 'habit_limit'

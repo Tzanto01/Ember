@@ -334,6 +334,68 @@ public class PostgresMigrationTests(PostgresFixture postgres)
         (await db.Routines.AsNoTracking().OrderBy(r => r.Id).Select(r => r.Position).ToListAsync()).Should().Equal(2, 0, 0, 1);
     }
 
+    [DockerFact]
+    public async Task ConsentWithdrawalMigration_WithdrawsOnlyUsersWithHealthDataWhoNeverAgreed_AndTurnsFiresideOffForEveryone()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        var migrator = db.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261119070014_AddWidgetKey");
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO \"AspNetUsers\" (\"Id\", \"Timezone\", \"GraceDaysPerWeek\", \"DmFailureCount\", \"EmailConfirmed\", " +
+            "\"PhoneNumberConfirmed\", \"TwoFactorEnabled\", \"LockoutEnabled\", \"AccessFailedCount\", \"HealthDataConsentAt\", \"ConsentPolicyVersion\") VALUES " +
+            "('00000000-0000-0000-0000-000000000001', 'UTC', 1, 0, FALSE, FALSE, FALSE, FALSE, 0, NULL, NULL), " +
+            "('00000000-0000-0000-0000-000000000002', 'UTC', 1, 0, FALSE, FALSE, FALSE, FALSE, 0, NULL, NULL), " +
+            "('00000000-0000-0000-0000-000000000003', 'UTC', 1, 0, FALSE, FALSE, FALSE, FALSE, 0, '2026-11-01', '2026-11');" +
+            "INSERT INTO \"DayMarks\" (\"UserId\", \"Date\", \"Kind\") VALUES " +
+            "('00000000-0000-0000-0000-000000000001', '2026-11-10', 0), ('00000000-0000-0000-0000-000000000003', '2026-11-10', 0);" +
+            "UPDATE \"AspNetUsers\" SET \"FiresideEnabled\" = TRUE, \"FiresideName\" = 'Fi', \"WarmthAskUntilUtc\" = now() + interval '1 hour' " +
+            "WHERE \"Id\" IN ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003');" +
+            "INSERT INTO \"FiresideLinks\" (\"OwnerId\", \"FriendId\", \"Muted\", \"ShareFlame\", \"KnownName\", \"JoinedViaMyCode\", \"JoinNotifyPending\", \"CreatedAt\") VALUES " +
+            "('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003', FALSE, TRUE, 'Fi', FALSE, FALSE, now()), " +
+            "('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', FALSE, TRUE, 'Fi', TRUE, FALSE, now());" +
+            "INSERT INTO \"Warmth\" (\"FromUserId\", \"ToUserId\", \"Message\", \"SentAtUtc\", \"NotifyPending\") VALUES " +
+            "('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'thinking', now(), FALSE);" +
+            "INSERT INTO \"FiresideCodes\" (\"UserId\", \"CodeHash\", \"ExpiresAtUtc\") VALUES " +
+            "('00000000-0000-0000-0000-000000000001', 'hash', now() + interval '30 minutes')");
+
+        await migrator.MigrateAsync();
+
+        var withdrawn = await db.Users.AsNoTracking().OrderBy(u => u.Id).Select(u => u.ConsentWithdrawnAt).ToListAsync();
+        withdrawn[0].Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(5));
+        withdrawn.Skip(1).Should().OnlyContain(w => w == null).And.HaveCount(2);
+        (await db.Users.AsNoTracking().AnyAsync(u => u.FiresideEnabled || u.WarmthAskUntilUtc != null)).Should().BeFalse();
+        (await db.FiresideLinks.CountAsync(), await db.Warmth.CountAsync(), await db.FiresideCodes.CountAsync()).Should().Be((0, 0, 0));
+        (await db.Users.AsNoTracking().CountAsync(u => u.FiresideName == "Fi")).Should().Be(2, "the name is kept for turning it on again");
+    }
+
+    [DockerFact]
+    public async Task AccountCreatedMigration_BackfillsTheEarliestOfTheFirstHabitAndTheFirstSession_ElseNull()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        var migrator = db.GetService<IMigrator>();
+        await migrator.MigrateAsync();
+        Guid Id(int n) => Guid.Parse($"00000000-0000-0000-0000-{n:D12}");
+        DateTime At(int month, int day) => new(2026, month, day, 8, 0, 0, DateTimeKind.Utc);
+        db.Users.AddRange(new User { Id = Id(1) }, new User { Id = Id(2) }, new User { Id = Id(3) });
+        db.Habits.AddRange(new Habit { UserId = Id(1), Name = "Read", CreatedAt = At(10, 1) }, new Habit { UserId = Id(1), Name = "Walk", CreatedAt = At(10, 5) },
+            new Habit { UserId = Id(2), Name = "Stretch", CreatedAt = At(9, 20) });
+        db.AuthSessions.AddRange(
+            new AuthSession { Id = Guid.NewGuid(), UserId = Id(1), CreatedUtc = At(9, 15), ExpiresUtc = At(12, 1) },
+            new AuthSession { Id = Guid.NewGuid(), UserId = Id(2), CreatedUtc = At(10, 2), ExpiresUtc = At(12, 1) });
+        await db.SaveChangesAsync();
+
+        await migrator.MigrateAsync("20261119102403_ConsentWithdrawal");
+        await migrator.MigrateAsync();
+
+        (await db.Users.AsNoTracking().OrderBy(u => u.Id).Select(u => u.CreatedUtc).ToListAsync())
+            .Should().Equal(At(9, 15), At(9, 20), null);
+    }
+
     private static async Task<DateOnly> CurrentDateAsync(EmberDbContext db)
         => (await db.Database.SqlQueryRaw<DateOnly>("SELECT CURRENT_DATE AS \"Value\"").ToListAsync()).Single();
 

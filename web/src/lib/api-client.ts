@@ -217,9 +217,19 @@ export class ApiClient {
     return this.http.request('PUT', `/api/me/tips/${encodeURIComponent(id)}`);
   }
 
-  /** `POST /api/me/consent`: 400 unless `policyVersion` is the current one. */
-  giveConsent(policyVersion: string): Promise<void> {
-    return this.http.request('POST', '/api/me/consent', { body: { policyVersion } });
+  /** `POST /api/me/consent`: 400 unless `policyVersion` is the current one and `ageConfirmed` is true. Cancels a withdrawal. */
+  giveConsent(policyVersion: string, ageConfirmed: boolean): Promise<void> {
+    return this.http.request('POST', '/api/me/consent', { body: { policyVersion, ageConfirmed } });
+  }
+
+  /** `POST /api/me/consent/withdraw` → 204 (idempotent): Ember saves nothing new and deletes the health data after 30 days. */
+  withdrawConsent(): Promise<void> {
+    return this.http.request('POST', '/api/me/consent/withdraw');
+  }
+
+  /** `POST /api/me/consent/decline` → 204: "No thanks" on the consent step, which starts the same 30 days. */
+  declineConsent(): Promise<void> {
+    return this.http.request('POST', '/api/me/consent/decline');
   }
 
   /** `POST /api/me/dm-reminders/resume`. */

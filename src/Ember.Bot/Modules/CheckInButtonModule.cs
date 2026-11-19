@@ -6,6 +6,7 @@ using Ember.Bot.Jobs;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace Ember.Bot.Modules;
 
@@ -22,11 +23,13 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
 {
     private readonly HabitService _habits;
     private readonly TimeProvider _time;
+    private readonly IConfiguration _config;
 
-    public CheckInButtonModule(HabitService habits, TimeProvider time)
+    public CheckInButtonModule(HabitService habits, TimeProvider time, IConfiguration config)
     {
         _habits = habits;
         _time = time;
+        _config = config;
     }
 
     /// <summary>The user's local day at <paramref name="timestampStr"/> (unix seconds), or null when the timestamp is malformed.</summary>
@@ -105,6 +108,9 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
         {
             case DayEditResult.Saved:
                 break;
+            case DayEditResult.ConsentRequired:
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                return;
             case DayEditResult.BeforeHabitStart:
                 await RespondAsync(t.Get("checkin.before-start"), ephemeral: true);
                 return;

@@ -27,6 +27,8 @@ const loaded: Fireside = {
   code: null,
   friends: [mara],
   warmth: [],
+  consentVersion: '2026-11',
+  consentGiven: true,
 };
 
 function renderAsk(cached: Fireside | null) {

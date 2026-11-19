@@ -486,6 +486,7 @@ for (const { code, locale, strings } of languages) {
         await page.getByRole('button', { name: tr('confirm.submit') }).click();
       }
       await expect(consent).toBeVisible();
+      await page.getByRole('checkbox', { name: tr('consent.age') }).check();
       await page.getByRole('button', { name: tr('consent.agree') }).click();
       await expect(page).toHaveURL(/\/keep-data$/);
       await expect(heading(page, tr('keepData.title'))).toBeVisible();

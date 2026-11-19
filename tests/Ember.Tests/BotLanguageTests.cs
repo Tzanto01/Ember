@@ -90,8 +90,8 @@ public class BotLanguageTests
     }
 
     [Theory]
-    [InlineData("de", "Eine kurze Frage 💙", "Ich stimme zu")]
-    [InlineData("en-GB", "One quick question 💙", "I agree")]
+    [InlineData("de", "Eine kurze Frage 💙", "Ich stimme zu, ich bin mindestens 16")]
+    [InlineData("en-GB", "One quick question 💙", "I agree, I'm at least 16")]
     public async Task Consent_prompt_for_someone_Ember_does_not_know_yet_follows_their_Discord_locale(string locale, string title, string agree)
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false);

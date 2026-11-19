@@ -25,6 +25,7 @@ export class DeviceSync {
   private userId: string | null = null;
   private timeZone: string | null = null;
   private secondMinutes: number | null = null;
+  private withdrawn = false;
 
   /** Bumps after a replay sent or dropped something, so screens can reload. */
   readonly synced = new Store(0);
@@ -72,10 +73,11 @@ export class DeviceSync {
     this.rebuildReminders();
   }
 
-  /** Native build only: rebuilds the local reminders for the signed-in user. */
+  /** Native build only: rebuilds the local reminders for the signed-in user, or pauses them while the consent is withdrawn. */
   rebuildReminders(): void {
     const me = this.auth.me.get();
-    if (this.reminders && me) void this.reminders.rebuild(me.id, me.timezone, me.secondReminderMinutes);
+    if (!this.reminders || !me) return;
+    void (me.consent?.withdrawnAt ? this.reminders.pause() : this.reminders.rebuild(me.id, me.timezone, me.secondReminderMinutes));
   }
 
   private follow(): void {
@@ -91,9 +93,11 @@ export class DeviceSync {
     }
     const timeZone = me?.timezone ?? null;
     const secondMinutes = me?.secondReminderMinutes ?? null;
-    if (timeZone !== this.timeZone || secondMinutes !== this.secondMinutes) {
+    const withdrawn = !!me?.consent?.withdrawnAt;
+    if (timeZone !== this.timeZone || secondMinutes !== this.secondMinutes || withdrawn !== this.withdrawn) {
       this.timeZone = timeZone;
       this.secondMinutes = secondMinutes;
+      this.withdrawn = withdrawn;
       this.rebuildReminders();
     }
   }

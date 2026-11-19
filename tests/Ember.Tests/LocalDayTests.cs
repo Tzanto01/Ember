@@ -21,7 +21,8 @@ public class LocalDayTests
         return await host.WithScopeAsync(async sp =>
         {
             var db = sp.GetRequiredService<EmberDbContext>();
-            db.Users.Add(new User { Id = TestUsers.Id(userId), Logins = TestUsers.Discord(userId), Timezone = timezone });
+            db.Users.Add(new User { Id = TestUsers.Id(userId), Logins = TestUsers.Discord(userId), Timezone = timezone,
+                HealthDataConsentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ConsentPolicyVersion = Ember.Core.Services.HabitService.CurrentConsentPolicyVersion });
             var habit = new Habit { UserId = TestUsers.Id(userId), Name = "Stretch", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
             db.Habits.Add(habit);
             await db.SaveChangesAsync();

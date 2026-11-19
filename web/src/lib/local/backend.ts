@@ -483,7 +483,7 @@ export class LocalBackend {
       graceDaysPerWeek: profile.graceDaysPerWeek,
       secondReminderMinutes: profile.secondReminderMinutes ?? 0,
       theme: profile.theme,
-      consent: { given: true, policyVersion: devicePolicyVersion, currentPolicyVersion: devicePolicyVersion },
+      consent: { given: true, policyVersion: devicePolicyVersion, currentPolicyVersion: devicePolicyVersion, withdrawnAt: null, deletesAt: null },
       dmReminders: { paused: false },
       journal: { encrypted: false, turningOff: false, plaintextLeft: 0, encryptedLeft: 0 },
       showStreaks: profile.showStreaks ?? true,

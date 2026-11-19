@@ -112,6 +112,7 @@ internal static class HabitEndpoints
                 ValidateLetGo(frequency, request.TimesPerDay, request.WeeklyTarget, request.Days, request.ReminderTimes?.Length, errors);
             var exclusions = await ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
+            if (name is not null && name != habit.Name && !await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
 
             if (frequency is not null || request.WeeklyTarget is not null || request.Days is not null || request.TimesPerDay is not null)
                 await habits.SetScheduleAsync(userId, id, newFrequency!.Value, request.WeeklyTarget ?? habit.WeeklyTarget, days, timesPerDay);
@@ -249,6 +250,7 @@ internal static class HabitEndpoints
         SlipResult.NotLetGo => Problems.Validation("kind", "Only for let-go habits."),
         SlipResult.InFuture => Problems.Validation("date", "Can't be after today."),
         SlipResult.BeforeHabitStart => Problems.Validation("date", "Can't be before the habit's start."),
+        SlipResult.ConsentRequired => Problems.ConsentRequired(),
         _ => throw new ArgumentOutOfRangeException(nameof(result), result, null),
     };
 

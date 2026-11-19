@@ -31,9 +31,9 @@ public static class ExportBuilder
     public const string CsvHeader =
         "record_type,timezone,grace_days_per_week,theme," +
         "dm_failure_count,dm_reminders_paused_at,dm_pause_notice_sent_at," +
-        "health_data_consent_at,consent_policy_version,consent_prompted_on," +
+        "health_data_consent_at,consent_policy_version,consent_prompted_on,consent_withdrawn_at," +
         "habit_id,name,frequency,weekly_target,reminder_time,paused_until,paused_from,created_at,next_reminder_utc," +
-        "date,completed,guild_id,kind,reminder_exclusions,endpoint,email,discord_id," +
+        "date,completed,guild_id,kind,reminder_exclusions,endpoint,email,discord_id,account_created_at," +
         "two_factor_enabled,days,times_per_day,routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived," +
         "cipher_version,cipher_iv,cipher_text,version,turning_off," +
         "passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped," +
@@ -61,7 +61,7 @@ public static class ExportBuilder
         int DmFailureCount, DateTime? DmRemindersPausedAt, DateTime? DmPauseNoticeSentAt,
         DateTime? HealthDataConsentAt, string? ConsentPolicyVersion, DateOnly? ConsentPromptedOn, bool TwoFactorEnabled,
         int SecondReminderMinutes, bool ShowStreaks, string Language, bool CalmMode, IReadOnlyList<string> TipsSeen,
-        bool FiresideEnabled = false, string? FiresideName = null, bool FiresideNotify = false);
+        bool FiresideEnabled = false, string? FiresideName = null, bool FiresideNotify = false, DateTime? ConsentWithdrawnAt = null);
 
     /// <summary>
     /// One habit. Dates are ISO 8601; <c>CreatedAt</c> and <c>NextReminderUtc</c> are UTC. <c>ReminderExclusions</c> lists the reminder destination ids (<c>discord</c>, <c>browser-…</c>, <c>phone-…</c>) the habit does not remind on.
@@ -119,8 +119,11 @@ public static class ExportBuilder
     /// <summary>One mark on a local day, such as a low day (<c>Kind</c> = <c>low_day</c>).</summary>
     public sealed record DayMarkRecord(DateOnly Date, string Kind);
 
-    /// <summary>The account's email (null for accounts created through Discord) and Discord ID (a string, null when not linked).</summary>
-    public sealed record AccountRecord(string? Email, string? DiscordId);
+    /// <summary>
+    /// The account's email (null for accounts created through Discord), Discord ID (a string, null when not linked) and creation time
+    /// (UTC, null when unknown).
+    /// </summary>
+    public sealed record AccountRecord(string? Email, string? DiscordId, DateTime? CreatedAt = null);
 
     /// <summary>
     /// The JSON export document. <c>JournalKey</c> is null while the private journal is off. <c>HelpsEncrypted</c> is the "What helps me"
@@ -152,7 +155,7 @@ public static class ExportBuilder
                 user.DmFailureCount, AsUtc(user.DmRemindersPausedAt), AsUtc(user.DmPauseNoticeSentAt),
                 AsUtc(user.HealthDataConsentAt), user.ConsentPolicyVersion, user.ConsentPromptedOn, user.TwoFactorEnabled,
                 user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode, user.TipsSeen,
-                user.FiresideEnabled, user.FiresideName, user.FiresideNotify),
+                user.FiresideEnabled, user.FiresideName, user.FiresideNotify, AsUtc(user.ConsentWithdrawnAt)),
             habits.Select(h => new HabitRecord(
                 h.Id, h.Name, h.FrequencyType.ToString().ToLowerInvariant(), h.WeeklyTarget,
                 h.ReminderTime, h.PausedUntil, h.PausedFrom, DateTime.SpecifyKind(h.CreatedAt, DateTimeKind.Utc),
@@ -164,7 +167,7 @@ public static class ExportBuilder
                 h.Id, l.Date, l.Completed, l.GuildId?.ToString(CultureInfo.InvariantCulture), l.Count))).ToList(),
             user.DayMarks.OrderBy(m => m.Date).ThenBy(m => m.Kind)
                 .Select(m => new DayMarkRecord(m.Date, JsonNamingPolicy.SnakeCaseLower.ConvertName(m.Kind.ToString()))).ToList(),
-            full ? new AccountRecord(user.Email, user.DiscordId() is { } discordId ? DiscordLogin.Key(discordId) : null) : null,
+            full ? new AccountRecord(user.Email, user.DiscordId() is { } discordId ? DiscordLogin.Key(discordId) : null, AsUtc(user.CreatedUtc)) : null,
             full
                 ? user.PushSubscriptions.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
                     .Select(p => new PushSubscriptionRecord(p.Endpoint, DateTime.SpecifyKind(p.CreatedAt, DateTimeKind.Utc), p.Label, p.Enabled)).ToList()
@@ -219,7 +222,9 @@ public static class ExportBuilder
             ("dm_failure_count", Num(s.DmFailureCount)), ("dm_reminders_paused_at", Utc(s.DmRemindersPausedAt)),
             ("dm_pause_notice_sent_at", Utc(s.DmPauseNoticeSentAt)), ("health_data_consent_at", Utc(s.HealthDataConsentAt)),
             ("consent_policy_version", s.ConsentPolicyVersion ?? ""), ("consent_prompted_on", Date(s.ConsentPromptedOn)),
+            ("consent_withdrawn_at", Utc(s.ConsentWithdrawnAt)),
             ("email", doc.Account?.Email ?? ""), ("discord_id", doc.Account?.DiscordId ?? ""),
+            ("account_created_at", Utc(doc.Account?.CreatedAt)),
             ("two_factor_enabled", Bool(s.TwoFactorEnabled)), ("second_reminder_minutes", Num(s.SecondReminderMinutes)),
             ("show_streaks", Bool(s.ShowStreaks)), ("language", s.Language), ("calm_mode", Bool(s.CalmMode)),
             ("tips_seen", string.Join(';', s.TipsSeen)), ("fireside_enabled", Bool(s.FiresideEnabled)),

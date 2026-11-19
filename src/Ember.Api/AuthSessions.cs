@@ -16,9 +16,15 @@ namespace Ember.Api;
 /// <see cref="CacheFor"/>; ending a session drops the cached entry at once, and a lookup that read the session before it ended
 /// doesn't cache it. A user keeps at most <see cref="MaxPerUser"/> sessions; a new one ends the oldest.
 /// </summary>
-internal sealed class AuthSessions(EmberDbContext db, IMemoryCache cache, TimeProvider time)
+internal sealed class AuthSessions(EmberDbContext db, IMemoryCache cache, TimeProvider time, IHttpContextAccessor http)
 {
     public const string ClaimType = "ember:sid";
+
+    /// <summary>
+    /// The request header naming the client, <c>{platform}/{version}</c> (for example <c>android/1.4.2</c>), stored on the session
+    /// (<see cref="AuthSession.Platform"/>, <see cref="AuthSession.AppVersion"/>). Anything else is ignored.
+    /// </summary>
+    public const string ClientHeader = "X-Ember-Client";
 
     /// <summary>Matches the cookie and refresh-token lifetime; slides forward while the session is in use.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromDays(14);
@@ -29,13 +35,29 @@ internal sealed class AuthSessions(EmberDbContext db, IMemoryCache cache, TimePr
 
     private sealed record Entry(Guid UserId, DateTimeOffset ExpiresUtc);
 
+    /// <summary>
+    /// The platform (one of <see cref="AuthSession.Platforms"/>) and version (1 to 32 of <c>0-9A-Za-z.+_-</c>) in a
+    /// <see cref="ClientHeader"/> value, or null when it isn't exactly that.
+    /// </summary>
+    public static (string Platform, string Version)? ParseClient(string? value)
+    {
+        var parts = value?.Split('/');
+        if (parts is not [var platform, var version] || !AuthSession.Platforms.Contains(platform)
+            || version.Length is 0 or > 32 || !version.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '+' or '_' or '-'))
+            return null;
+        return (platform, version);
+    }
+
+    private (string Platform, string Version)? RequestClient()
+        => http.HttpContext?.Request.Headers.TryGetValue(ClientHeader, out var values) == true && values.Count == 1 ? ParseClient(values[0]) : null;
+
     /// <summary>The session ID in <paramref name="principal"/>, or null.</summary>
     public static Guid? IdOf(ClaimsPrincipal? principal)
         => Guid.TryParse(principal?.FindFirstValue(ClaimType), out var id) ? id : null;
 
     /// <summary>
     /// Starts a session for <paramref name="userId"/>, ending its oldest beyond <see cref="MaxPerUser"/>, and deletes every expired
-    /// session and every phone whose session no longer exists.
+    /// session and every phone whose session no longer exists. Records the client from <see cref="ClientHeader"/>.
     /// </summary>
     public async Task<Guid> StartAsync(Guid userId)
     {
@@ -45,12 +67,20 @@ internal sealed class AuthSessions(EmberDbContext db, IMemoryCache cache, TimePr
         await EndManyAsync(await db.AuthSessions.Where(s => s.UserId == userId).OrderByDescending(s => s.CreatedUtc)
             .Skip(MaxPerUser - 1).Select(s => s.Id).ToListAsync());
         var id = Guid.NewGuid();
-        db.AuthSessions.Add(new AuthSession { Id = id, UserId = userId, CreatedUtc = now, ExpiresUtc = now + Lifetime, LastSeenUtc = now });
+        var client = RequestClient();
+        db.AuthSessions.Add(new AuthSession
+        {
+            Id = id, UserId = userId, CreatedUtc = now, ExpiresUtc = now + Lifetime, LastSeenUtc = now,
+            Platform = client?.Platform, AppVersion = client?.Version,
+        });
         await db.SaveChangesAsync();
         return id;
     }
 
-    /// <summary>Whether <paramref name="principal"/> carries a live session of its own user; extends the session while in use.</summary>
+    /// <summary>
+    /// Whether <paramref name="principal"/> carries a live session of its own user; extends the session while in use, and then also
+    /// updates its client from a valid <see cref="ClientHeader"/>.
+    /// </summary>
     public async Task<bool> IsActiveAsync(ClaimsPrincipal principal)
     {
         if (IdOf(principal) is not { } id || !Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)) return false;
@@ -62,8 +92,12 @@ internal sealed class AuthSessions(EmberDbContext db, IMemoryCache cache, TimePr
             if (row is not null && row.ExpiresUtc > now && (row.LastSeenUtc is not { } seen || now - seen >= TouchEvery))
             {
                 var expires = now + Lifetime;
+                var client = RequestClient();
+                var platform = client?.Platform;
+                var version = client?.Version;
                 var touched = await db.AuthSessions.Where(s => s.Id == id)
-                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresUtc, expires).SetProperty(x => x.LastSeenUtc, now));
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.ExpiresUtc, expires).SetProperty(x => x.LastSeenUtc, now)
+                        .SetProperty(x => x.Platform, x => platform ?? x.Platform).SetProperty(x => x.AppVersion, x => version ?? x.AppVersion));
                 if (touched == 0) row = null;
                 else row.ExpiresUtc = expires;
             }

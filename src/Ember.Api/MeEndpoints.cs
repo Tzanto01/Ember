@@ -17,7 +17,11 @@ namespace Ember.Api;
 internal static class MeEndpoints
 {
     public sealed record DiscordDto(bool Linked, string? Id);
-    public sealed record ConsentDto(bool Given, string? PolicyVersion, string CurrentPolicyVersion);
+    /// <summary>
+    /// <see cref="WithdrawnAt"/> is when the consent was withdrawn or declined (null otherwise); <see cref="DeletesAt"/> is when the health
+    /// data is deleted, set only while withdrawn with health data left.
+    /// </summary>
+    public sealed record ConsentDto(bool Given, string? PolicyVersion, string CurrentPolicyVersion, DateTime? WithdrawnAt, DateTime? DeletesAt);
     public sealed record DmRemindersDto(bool Paused);
 
     public sealed record MeDto(
@@ -28,7 +32,7 @@ internal static class MeEndpoints
 
     public sealed record MePatch(string? Timezone, int? GraceDaysPerWeek, string? Theme, int? SecondReminderMinutes, bool? ShowStreaks,
         string? Language, bool? CalmMode);
-    public sealed record ConsentRequest(string? PolicyVersion);
+    public sealed record ConsentRequest(string? PolicyVersion, bool? AgeConfirmed);
     public sealed record DeleteRequest(string? Password, string? Confirm);
     public sealed record WidgetKeyDto(string Key);
 
@@ -79,10 +83,24 @@ internal static class MeEndpoints
 
         api.MapPost("/me/consent", async (ConsentRequest request, ClaimsPrincipal principal, HabitService habits) =>
         {
+            if (request.AgeConfirmed != true)
+                return Problems.Validation("ageConfirmed", "Confirm that you are at least 16.");
             if (request.PolicyVersion != HabitService.CurrentConsentPolicyVersion)
                 return Problems.Validation("policyVersion", "Not the current policy version.");
 
             await habits.GiveHealthDataConsentAsync(principal.UserId());
+            return Results.NoContent();
+        });
+
+        api.MapPost("/me/consent/withdraw", async (ClaimsPrincipal principal, HabitService habits) =>
+        {
+            await habits.WithdrawHealthDataConsentAsync(principal.UserId());
+            return Results.NoContent();
+        });
+
+        api.MapPost("/me/consent/decline", async (ClaimsPrincipal principal, HabitService habits) =>
+        {
+            await habits.DeclineConsentPromptAsync(principal.UserId());
             return Results.NoContent();
         });
 
@@ -183,7 +201,9 @@ internal static class MeEndpoints
             new DiscordDto(discordId is not null, discordId),
             user.Timezone, await habits.HasTimezoneSetAsync(user.Id), TimezoneHelper.LocalToday(user.Timezone, time),
             user.GraceDaysPerWeek, user.Theme, user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode,
-            new ConsentDto(await habits.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, HabitService.CurrentConsentPolicyVersion),
+            new ConsentDto(await habits.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, HabitService.CurrentConsentPolicyVersion,
+                user.ConsentWithdrawnAt,
+                user.ConsentWithdrawnAt is { } withdrawn && await habits.HasHealthDataAsync(user.Id) ? HabitService.DeletionDueUtc(withdrawn, user.DeletionReminderSentAt) : null),
             new DmRemindersDto(user.DmRemindersPausedAt is not null),
             await habits.GetJournalStateAsync(user.Id),
             [.. user.TipsSeen]);

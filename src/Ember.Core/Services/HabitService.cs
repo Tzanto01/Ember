@@ -3,6 +3,7 @@ using Ember.Core.Localization;
 using Ember.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using System.Linq.Expressions;
 
 namespace Ember.Core.Services;
 
@@ -18,10 +19,16 @@ public partial class HabitService
     /// Version of the privacy policy the health-data consent refers to. Consent given for an
     /// older version no longer counts, so changing this asks every user again.
     /// </summary>
-    public const string CurrentConsentPolicyVersion = "2026-11";
+    public const string CurrentConsentPolicyVersion = "2026-11-v2";
 
     /// <summary>Days after a "No thanks" before Ember asks for consent again on its own.</summary>
     public const int ConsentDeclineBackoffDays = 30;
+
+    /// <summary>How long health data is kept after the consent was withdrawn or declined (<see cref="User.ConsentWithdrawnAt"/>).</summary>
+    public static readonly TimeSpan WithdrawnDataLifetime = TimeSpan.FromDays(30);
+
+    /// <summary>How long before the deletion the user is reminded, and the least time between that reminder and the deletion.</summary>
+    public static readonly TimeSpan DeletionReminderLead = TimeSpan.FromDays(3);
 
     /// <summary>Most check-ins a daily or weekdays habit can need per day (<see cref="Habit.TimesPerDay"/>).</summary>
     public const int MaxTimesPerDay = 10;
@@ -35,12 +42,22 @@ public partial class HabitService
         _time = time;
     }
 
-    /// <summary>Whether the user agreed to the current health-data consent (<see cref="CurrentConsentPolicyVersion"/>).</summary>
+    /// <summary>Whether the user agreed to the current health-data consent (<see cref="CurrentConsentPolicyVersion"/>) and hasn't withdrawn it.</summary>
     public async Task<bool> HasHealthDataConsentAsync(Guid userId)
-        => await _db.Users.AnyAsync(u => u.Id == userId
+        => await _db.Users.AnyAsync(u => u.Id == userId && u.ConsentWithdrawnAt == null
             && u.HealthDataConsentAt != null && u.ConsentPolicyVersion == CurrentConsentPolicyVersion);
 
-    /// <summary>Records the user's explicit consent (now, for <see cref="CurrentConsentPolicyVersion"/>).</summary>
+    /// <summary>Whether the user has any health data: a habit, day mark, day note, mood or "What helps me" list.</summary>
+    public async Task<bool> HasHealthDataAsync(Guid userId)
+        => await _db.Users.Where(u => u.Id == userId).AnyAsync(HoldsHealthData);
+
+    private static readonly Expression<Func<User, bool>> HoldsHealthData
+        = u => u.Habits.Any() || u.DayMarks.Any() || u.DayNotes.Any() || u.Moods.Any() || u.Helps != null;
+
+    /// <summary>
+    /// Records the user's explicit consent (now, for <see cref="CurrentConsentPolicyVersion"/>) and cancels a pending deletion by clearing
+    /// <see cref="User.ConsentWithdrawnAt"/> and <see cref="User.DeletionReminderSentAt"/>.
+    /// </summary>
     public async Task GiveHealthDataConsentAsync(Guid userId)
     {
         var now = _time.GetUtcNow().UtcDateTime;
@@ -48,7 +65,28 @@ public partial class HabitService
             .Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(u => u.HealthDataConsentAt, now)
-                .SetProperty(u => u.ConsentPolicyVersion, CurrentConsentPolicyVersion));
+                .SetProperty(u => u.ConsentPolicyVersion, CurrentConsentPolicyVersion)
+                .SetProperty(u => u.ConsentWithdrawnAt, (DateTime?)null)
+                .SetProperty(u => u.DeletionReminderSentAt, (DateTime?)null));
+    }
+
+    /// <summary>
+    /// Withdraws the health-data consent: for a user with current consent or health data who hasn't withdrawn yet, sets
+    /// <see cref="User.ConsentWithdrawnAt"/> to now (deletion follows after <see cref="WithdrawnDataLifetime"/>) and holds back the
+    /// consent prompt like a decline. The past consent stays recorded. Returns false when there was nothing to withdraw.
+    /// </summary>
+    public async Task<bool> WithdrawHealthDataConsentAsync(Guid userId)
+    {
+        var now = _time.GetUtcNow().UtcDateTime;
+        var lastQuietDay = (await GetLocalTodayAsync(userId)).AddDays(ConsentDeclineBackoffDays - 1);
+        return await _db.Users
+            .Where(u => u.Id == userId && u.ConsentWithdrawnAt == null
+                && ((u.HealthDataConsentAt != null && u.ConsentPolicyVersion == CurrentConsentPolicyVersion)
+                    || u.Habits.Any() || u.DayMarks.Any() || u.DayNotes.Any() || u.Moods.Any() || u.Helps != null))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.ConsentWithdrawnAt, now)
+                .SetProperty(u => u.DeletionReminderSentAt, (DateTime?)null)
+                .SetProperty(u => u.ConsentPromptedOn, lastQuietDay)) == 1;
     }
 
     /// <summary>
@@ -76,10 +114,13 @@ public partial class HabitService
 
     /// <summary>
     /// Notes a "No thanks" to the consent prompt, so <see cref="ClaimConsentPromptAsync"/> waits <see cref="ConsentDeclineBackoffDays"/>
-    /// before asking again. Never creates a user.
+    /// before asking again, and withdraws like <see cref="WithdrawHealthDataConsentAsync"/> when there is anything to withdraw. Changes nothing
+    /// while the consent is already withdrawn. Never creates a user.
     /// </summary>
     public async Task DeclineConsentPromptAsync(Guid userId)
     {
+        if (await _db.Users.AnyAsync(u => u.Id == userId && u.ConsentWithdrawnAt != null)) return;
+        if (await WithdrawHealthDataConsentAsync(userId)) return;
         var lastQuietDay = (await GetLocalTodayAsync(userId)).AddDays(ConsentDeclineBackoffDays - 1);
         await _db.Users
             .Where(u => u.Id == userId)
@@ -157,7 +198,8 @@ public partial class HabitService
     /// Logs the habit as done (<see cref="HabitLog.Count"/> = <see cref="Habit.TimesPerDay"/>) or explicitly not done (count 0)
     /// on the user's local <paramref name="date"/>, replacing any earlier log of that day.
     /// Any day from the habit's local start day (<see cref="StartDate"/>) to the user's local today can be logged,
-    /// so past days can be backfilled or corrected; future days are refused.
+    /// so past days can be backfilled or corrected; future days are refused. Needs the health-data consent, like every check-in write
+    /// (<see cref="DayEditResult.ConsentRequired"/>); <see cref="ClearDayAsync"/> doesn't.
     /// </summary>
     public Task<DayEditResult> CheckInAsync(Guid userId, int habitId, DateOnly date, bool completed, ulong? guildId = null)
         => WriteCountAsync(userId, habitId, date, guildId, (habit, _) => completed ? habit.TimesPerDay : 0);
@@ -180,6 +222,7 @@ public partial class HabitService
     {
         var (habit, result) = await FindEditableHabitAsync(userId, habitId, date);
         if (habit is null) return result;
+        if (!await HasHealthDataConsentAsync(userId)) return DayEditResult.ConsentRequired;
 
         var existing = await _db.HabitLogs
             .FirstOrDefaultAsync(l => l.HabitId == habitId && l.Date == date);
@@ -619,6 +662,7 @@ public partial class HabitService
     /// Null when the habit isn't the user's.
     /// </summary>
     /// <exception cref="ArgumentException">More than one reminder time for a let-go habit; nothing is written.</exception>
+    /// <exception cref="ConsentRequiredException">A new name without the current health-data consent; nothing is written.</exception>
     public async Task<Habit?> EditHabitAsync(Guid userId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder,
         IReadOnlyCollection<string>? reminderExclusions = null, IReadOnlyCollection<TimeOnly>? newReminderTimes = null)
     {
@@ -628,6 +672,8 @@ public partial class HabitService
         if (habit is null) return null;
         if (!clearReminder && newReminderTimes is not null)
             GuardLetGo(habit.Kind, FrequencyType.Daily, 1, null, null, newReminderTimes.Distinct().Count());
+        if (newName is not null && newName != habit.Name && !await HasHealthDataConsentAsync(userId))
+            throw new ConsentRequiredException();
 
         if (newName is not null) habit.Name = newName;
         if (reminderExclusions is not null) habit.ReminderExclusions = reminderExclusions.Distinct().ToList();
@@ -708,6 +754,88 @@ public partial class HabitService
             .Where(u => u.Id == userId && u.DmRemindersPausedAt != null && u.DmPauseNoticeSentAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.DmPauseNoticeSentAt, now)) == 1;
     }
+
+    /// <summary>
+    /// Deletes the user's health data (habits with their logs, slips and reminders, day marks, day notes, moods and "What helps me" list)
+    /// when their consent is still withdrawn since <paramref name="cutoff"/> or earlier, checked under a row lock so agreeing again at the
+    /// same time wins. Keeps the account, settings, routines, push subscriptions, journal key and Fireside. Returns whether it deleted.
+    /// </summary>
+    public async Task<bool> DeleteHealthDataAsync(Guid userId, DateTime cutoff, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        if (_db.Database.IsNpgsql())
+            await _db.Database.ExecuteSqlAsync($"""SELECT 1 FROM "AspNetUsers" WHERE "Id" = {userId} FOR UPDATE""", cancellationToken);
+        if (!await _db.Users.AnyAsync(u => u.Id == userId && u.ConsentWithdrawnAt != null && u.ConsentWithdrawnAt <= cutoff, cancellationToken))
+            return false;
+
+        await _db.Habits.Where(h => h.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await _db.DayMarks.Where(m => m.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await _db.DayNotes.Where(n => n.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await _db.Moods.Where(m => m.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await _db.UserHelps.Where(h => h.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
+    /// <summary>
+    /// Ids of users with health data whose consent was withdrawn at or before <paramref name="withdrawnBefore"/> and who haven't had the
+    /// deletion reminder yet.
+    /// </summary>
+    public Task<List<Guid>> GetDeletionReminderDueAsync(DateTime withdrawnBefore, CancellationToken cancellationToken = default)
+        => _db.Users
+            .Where(u => u.ConsentWithdrawnAt != null && u.ConsentWithdrawnAt <= withdrawnBefore && u.DeletionReminderSentAt == null)
+            .Where(HoldsHealthData)
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
+
+    /// <summary>
+    /// Claims the deletion reminder for the user's current withdrawal, at most once per withdrawal. Returns the withdrawal time for the one
+    /// call that claimed it, or null when the consent isn't withdrawn or the reminder was already claimed.
+    /// </summary>
+    public async Task<DateTime?> ClaimDeletionReminderAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var now = _time.GetUtcNow().UtcDateTime;
+        var withdrawnAt = await _db.Users.Where(u => u.Id == userId).Select(u => u.ConsentWithdrawnAt).FirstOrDefaultAsync(cancellationToken);
+        if (withdrawnAt is null) return null;
+        return await _db.Users
+            .Where(u => u.Id == userId && u.ConsentWithdrawnAt == withdrawnAt && u.DeletionReminderSentAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.DeletionReminderSentAt, now), cancellationToken) == 1 ? withdrawnAt : null;
+    }
+
+    /// <summary>Gives back a claimed deletion reminder (<see cref="ClaimDeletionReminderAsync"/>) that reached nobody, so the next run tries again.</summary>
+    public Task ReleaseDeletionReminderAsync(Guid userId, CancellationToken cancellationToken = default)
+        => _db.Users.Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.DeletionReminderSentAt, (DateTime?)null), cancellationToken);
+
+    /// <summary>
+    /// When (UTC) the health data of a user who withdrew at <paramref name="withdrawnAt"/> is deleted: <see cref="WithdrawnDataLifetime"/>
+    /// later, but never sooner than <see cref="DeletionReminderLead"/> after the reminder claimed at <paramref name="reminderSentAt"/>.
+    /// </summary>
+    public static DateTime DeletionDueUtc(DateTime withdrawnAt, DateTime? reminderSentAt)
+    {
+        var due = withdrawnAt + WithdrawnDataLifetime;
+        return reminderSentAt is { } sent && sent + DeletionReminderLead > due ? sent + DeletionReminderLead : due;
+    }
+
+    /// <summary>When the user withdrew and when their deletion reminder was claimed, or null while the consent isn't withdrawn.</summary>
+    public async Task<(DateTime WithdrawnAt, DateTime? ReminderSentAt)?> GetConsentWithdrawalAsync(Guid userId)
+    {
+        var row = await _db.Users.Where(u => u.Id == userId && u.ConsentWithdrawnAt != null)
+            .Select(u => new { u.ConsentWithdrawnAt, u.DeletionReminderSentAt }).FirstOrDefaultAsync();
+        return row is null ? null : (row.ConsentWithdrawnAt!.Value, row.DeletionReminderSentAt);
+    }
+
+    /// <summary>
+    /// Ids of users with health data whose consent was withdrawn at or before <paramref name="withdrawnBefore"/> and whose deletion reminder
+    /// was claimed at or before <paramref name="remindedBefore"/>.
+    /// </summary>
+    public Task<List<Guid>> GetHealthDataDeletionDueAsync(DateTime withdrawnBefore, DateTime remindedBefore, CancellationToken cancellationToken = default)
+        => _db.Users
+            .Where(u => u.ConsentWithdrawnAt != null && u.ConsentWithdrawnAt <= withdrawnBefore
+                && u.DeletionReminderSentAt != null && u.DeletionReminderSentAt <= remindedBefore)
+            .Where(HoldsHealthData)
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
 
     /// <summary>Permanently deletes the user; the database cascades to all their habits, logs, day marks, routines, journal entries, own moods, journal key and "What helps me" list (reminders live on the habits and routines).</summary>
     public async Task DeleteUserDataAsync(Guid userId)
@@ -916,11 +1044,11 @@ public partial class HabitService
     public Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)
         => _db.Users.AnyAsync(u => u.Id == userId, cancellationToken);
 
-    /// <summary>Id and timezone of every user with at least one habit.</summary>
+    /// <summary>Id and timezone of every user with at least one habit whose consent isn't withdrawn.</summary>
     public async Task<List<(Guid UserId, string Timezone)>> GetUserTimezonesWithHabitsAsync(CancellationToken cancellationToken = default)
     {
         var rows = await _db.Users
-            .Where(u => u.Habits.Any())
+            .Where(u => u.Habits.Any() && u.ConsentWithdrawnAt == null)
             .Select(u => new { u.Id, u.Timezone })
             .ToListAsync(cancellationToken);
         return rows.Select(r => (r.Id, r.Timezone)).ToList();
@@ -944,10 +1072,10 @@ public partial class HabitService
             .ToListAsync(cancellationToken);
     }
 
-    /// <summary>Id and due time of each habit whose next reminder is due at or before <paramref name="nowUtc"/>.</summary>
+    /// <summary>Id and due time of each habit whose next reminder is due at or before <paramref name="nowUtc"/>, skipping users who withdrew consent.</summary>
     public async Task<List<(int Id, DateTime DueAt)>> GetDueReminderHabitsAsync(DateTime nowUtc, CancellationToken cancellationToken = default)
         => (await _db.Habits
-            .Where(h => h.NextReminderUtc != null && h.NextReminderUtc <= nowUtc)
+            .Where(h => h.NextReminderUtc != null && h.NextReminderUtc <= nowUtc && h.User.ConsentWithdrawnAt == null)
             .Select(h => new { h.Id, DueAt = h.NextReminderUtc!.Value })
             .ToListAsync(cancellationToken))
             .Select(h => (h.Id, h.DueAt)).ToList();

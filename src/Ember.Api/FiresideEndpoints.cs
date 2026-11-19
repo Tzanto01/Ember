@@ -24,10 +24,10 @@ internal static class FiresideEndpoints
 
     public sealed record CodeDto(string Code, DateTime ExpiresAt);
     public sealed record FiresideDto(bool Enabled, string? Name, bool Notify, DateTime? AskingUntil, CodeDto? Code,
-        IReadOnlyList<FiresideFriend> Friends, IReadOnlyList<FiresideWarmth> Warmth);
+        IReadOnlyList<FiresideFriend> Friends, IReadOnlyList<FiresideWarmth> Warmth, string ConsentVersion, bool ConsentGiven);
     public sealed record AskDto(DateTime AskingUntil);
 
-    public sealed record SettingsRequest(bool? Enabled, string? Name, bool? Notify);
+    public sealed record SettingsRequest(bool? Enabled, string? Name, bool? Notify, string? ConsentVersion);
     public sealed record JoinRequest(string? Code);
     public sealed record WarmthRequest(string? Message);
     public sealed record FriendPatch(bool? Muted, bool? ShareFlame);
@@ -49,10 +49,11 @@ internal static class FiresideEndpoints
                 return Problems.Validation("name", NameMessage);
 
             var userId = principal.UserId();
-            return await service.UpdateSettingsAsync(userId, enabled, name, request.Notify) switch
+            return await service.UpdateSettingsAsync(userId, enabled, name, request.Notify, request.ConsentVersion) switch
             {
                 FiresideSettingsResult.Saved => await StateAsync(userId, service, protection),
                 FiresideSettingsResult.NameRequired => Problems.Validation("name", NameMessage),
+                FiresideSettingsResult.ConsentRequired => Problems.FiresideConsentRequired(),
                 _ => Problems.NotFound(),
             };
         });
@@ -146,6 +147,7 @@ internal static class FiresideEndpoints
             }
         }
 
-        return Results.Ok(new FiresideDto(state.Enabled, state.Name, state.Notify, state.AskingUntil, code, state.Friends, state.Warmth));
+        return Results.Ok(new FiresideDto(state.Enabled, state.Name, state.Notify, state.AskingUntil, code, state.Friends, state.Warmth,
+            FiresideService.CurrentConsentVersion, state.ConsentGiven));
     }
 }

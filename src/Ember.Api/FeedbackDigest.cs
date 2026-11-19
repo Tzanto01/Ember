@@ -36,9 +36,9 @@ internal sealed class FeedbackDigest(
 
     /// <summary>
     /// Deletes feedback older than <see cref="RetentionMonths"/> and the pictures of feedback resolved more than
-    /// <see cref="ImageRetentionDays"/> ago or due for that deletion within a day (so they never outlive it between runs), then mails the pending feedback (up to <see cref="MaxItems"/>, oldest first) in one
-    /// email, every line of their title and text quoted with <c>&gt; </c> and their picture ids (never the pictures) on a
-    /// <c>Pictures:</c> line, and marks exactly those as digested. Sends
+    /// <see cref="ImageRetentionDays"/> ago or due for that deletion within a day (so they never outlive it between runs), then mails a
+    /// content-free notice of the pending feedback (up to <see cref="MaxItems"/>, oldest first): only how many and the oldest and newest
+    /// submission time, never titles, text, pictures, platform, version or ids. Marks exactly those as digested. Sends
     /// nothing when none is pending. Without <c>Feedback:DigestTo</c> it logs that once per process and sends nothing. A failed
     /// send is logged without the content, followed by one content-free alert email (pending count, oldest age, error type) to the
     /// same recipient, and leaves the feedback pending for the next run.
@@ -71,21 +71,9 @@ internal sealed class FeedbackDigest(
         if (items.Count == 0) return;
 
         var itemIds = items.Select(f => f.Id).ToList();
-        var pictures = (await db.FeedbackImages.Where(i => itemIds.Contains(i.FeedbackId)).OrderBy(i => i.Id)
-                .Select(i => new { i.FeedbackId, i.Id }).ToListAsync(cancellationToken))
-            .ToLookup(i => i.FeedbackId, i => i.Id);
-
-        var body = new StringBuilder(UntrustedNotice);
-        foreach (var item in items)
-        {
-            var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(item.CreatedAt, DateTimeKind.Utc), Zone);
-            body.Append("\n\n---\n\n")
-                .Append(CultureInfo.InvariantCulture,
-                    $"#{item.Id} · {local:yyyy-MM-dd HH:mm} · {item.Platform} {item.Version ?? "unknown version"} · {(item.UserId is null ? "anonymous" : "signed in")}")
-                .Append('\n').AppendJoin('\n', Quote(item.Title)).Append("\n>\n")
-                .AppendJoin('\n', Quote(item.Text));
-            if (pictures[item.Id].Any()) body.Append("\nPictures: ").AppendJoin(", ", pictures[item.Id]);
-        }
+        static DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zone);
+        var body = new StringBuilder().Append(CultureInfo.InvariantCulture,
+            $"New feedback: {items.Count}\nSubmitted: {Local(items[0].CreatedAt):yyyy-MM-dd HH:mm} to {Local(items[^1].CreatedAt):yyyy-MM-dd HH:mm} (Europe/Berlin)\n\nRead them on the Lookout board.");
         if (pendingCount > items.Count)
             body.Append("\n\n---\n\n").Append(CultureInfo.InvariantCulture, $"{pendingCount - items.Count} more pending, they come with the next digest.");
 

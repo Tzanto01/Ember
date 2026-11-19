@@ -7,7 +7,7 @@ import type { Fireside } from '@/lib/fireside';
 import { auth, localMode } from '@/lib/services';
 import { me, mockFetch } from '@/lib/test-support';
 
-const base: Fireside = { enabled: true, name: 'Mara', notify: false, askingUntil: null, code: null, friends: [], warmth: [] };
+const base: Fireside = { enabled: true, name: 'Mara', notify: false, askingUntil: null, code: null, friends: [], warmth: [], consentVersion: '2026-11', consentGiven: true };
 
 function renderShell() {
   const router = createMemoryRouter([

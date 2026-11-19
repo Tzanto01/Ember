@@ -138,4 +138,7 @@
   <data name="fireside.send.description" xml:space="preserve">
     <value>Schick jemandem etwas Wärme</value>
   </data>
+  <data name="privacy.withdraw.description" xml:space="preserve">
+    <value>Einwilligung widerrufen: nichts Neues speichern, Erinnerungen stoppen</value>
+  </data>
 </root>

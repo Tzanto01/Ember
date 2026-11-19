@@ -110,6 +110,7 @@ public class PostgresIdentityMigrationTests(PostgresFixture postgres)
 
         (await service.GetHabitsAsync((ulong)Alice)).Select(h => h.Name).Should().Equal("Stretch", "Read");
         (await service.HasHealthDataConsentAsync((ulong)Alice)).Should().BeTrue();
+        await service.GiveHealthDataConsentAsync((ulong)Bob);
         (await service.CheckInAsync((ulong)Bob, 3, new DateOnly(2026, 10, 4), completed: true)).Should().Be(DayEditResult.Saved);
         (await service.CheckInAsync((ulong)Bob, 1, new DateOnly(2026, 10, 4), completed: true)).Should().Be(DayEditResult.HabitNotFound, "habit 1 is Alice's");
 

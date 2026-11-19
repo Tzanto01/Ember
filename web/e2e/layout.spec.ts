@@ -228,6 +228,7 @@ for (const { code, locale, strings } of languages) {
       await confirmEmail(page, email);
       await expect(page.locator('html')).toHaveAttribute('lang', 'en');
       await check(page, '/consent (the account language can only change after consent)', 'en', found);
+      await page.getByRole('checkbox', { name: "I'm at least 16" }).check();
       await page.getByRole('button', { name: 'I agree' }).click();
       await expect(page).toHaveURL(/\/today$/);
       await setAccountLanguage(page, code);

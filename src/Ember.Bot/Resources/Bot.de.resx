@@ -26,15 +26,15 @@ Du kannst das jederzeit in Embers Einstellungen ändern.</value>
     <value>Eine kurze Frage 💙</value>
   </data>
   <data name="consent.body" xml:space="preserve">
-    <value>Die Namen deiner Habits, deine Check-ins, Tiefs, Tagesnotizen und Stimmungen können etwas über deine Gesundheit verraten (etwa „Tabletten nehmen“ oder „8 Stunden schlafen“). Ember speichert sie nur, um Ember für dich zu betreiben. Sie werden nie verkauft oder für Werbung genutzt und gehen nur an die Dienste, die Ember betreiben, zum Beispiel Discord. Die Datenschutzerklärung listet sie auf.
+    <value>Ember speichert die Namen deiner Habits, deine Check-ins, Tiefs, Tagesnotizen, Habit-Notizen, Stimmungen, Ausrutscher mit den Gründen, die du angibst, und deine Liste „Was mir hilft“. Sie können etwas über deine Gesundheit verraten (etwa „Tabletten nehmen“ oder „8 Stunden schlafen“). Ember nutzt sie nur, um Ember für dich zu betreiben, verkauft sie nie und nutzt sie nicht für Werbung. Sie gehen nur an die Dienste, mit denen Ember läuft: Discord bekommt deine Erinnerungen, Cloudflare leitet die Verbindung zur Web-App weiter. Der Betreiber hat technisch Zugriff auf den Server.
 
-Ist das okay für dich? Du kannst jederzeit mit `/privacy delete` widerrufen, das löscht alles.</value>
+Ist das okay für dich? Du kannst jederzeit mit `/privacy withdraw` widerrufen. Dann speichert Ember nichts Neues, die Erinnerungen hören auf, und nach 30 Tagen löscht Ember deine Daten.</value>
   </data>
   <data name="consent.policy-link" xml:space="preserve">
     <value>[Datenschutzerklärung]({0})</value>
   </data>
   <data name="consent.agree" xml:space="preserve">
-    <value>Ich stimme zu</value>
+    <value>Ich stimme zu, ich bin mindestens 16</value>
   </data>
   <data name="consent.decline" xml:space="preserve">
     <value>Nein danke</value>
@@ -523,7 +523,7 @@ So lange ruhen die Erinnerungen. Erhol dich gut. 💙</value>
     <value>Danke, alles bereit. 💙 Wenn du gerade einen Habit anlegen wolltest, führ den Befehl einfach noch einmal aus.</value>
   </data>
   <data name="consent.declined" xml:space="preserve">
-    <value>Kein Problem. 💙 Ember kann Habits nur mit deinem OK speichern, deshalb lege ich keine neuen an. Was du hier schon hast, bleibt so, bis du dich entscheidest. Du kannst jederzeit Ja sagen, indem du einen Habit anlegst, oder unten alles löschen, was Ember über dich speichert.</value>
+    <value>Kein Problem. 💙 Ohne dein OK speichert Ember nichts Neues und schickt dir keine Erinnerungen mehr. Was du schon hast, kannst du mit `/export` herunterladen. Stimmst du nicht innerhalb von 30 Tagen zu, löscht Ember es, ein paar Tage vorher erinnere ich dich. Du kannst jederzeit Ja sagen, indem du einen Habit anlegst, oder unten alles löschen, was Ember über dich speichert.</value>
   </data>
   <data name="consent.delete-button" xml:space="preserve">
     <value>Meine Daten löschen</value>
@@ -645,6 +645,7 @@ Habits sind ein Teil davon: ohne schlechtes Gewissen, ohne Druck.</value>
   </data>
   <data name="help.privacy.body" xml:space="preserve">
     <value>`/export`: deine Habits, Check-ins und Einstellungen per DM bekommen
+`/privacy withdraw`: Einwilligung widerrufen, dann wird nichts Neues gespeichert und Erinnerungen stoppen
 `/privacy delete`: alle deine Ember-Daten endgültig löschen</value>
   </data>
   <data name="help.fireside.title" xml:space="preserve">
@@ -1432,5 +1433,35 @@ Gilt einmal, für 30 Minuten.</value>
   </data>
   <data name="fireside.message.blanket" xml:space="preserve">
     <value>Ich schick dir eine warme Decke</value>
+  </data>
+  <data name="privacy.withdraw.confirm" xml:space="preserve">
+    <value>Willst du deine Einwilligung widerrufen? Dann speichert Ember nichts Neues mehr, und deine Erinnerungen hören sofort auf. Deine Daten kannst du noch mit `/export` herunterladen. Nach 30 Tagen löscht Ember sie, ein paar Tage vorher erinnere ich dich. Dein Konto und deine Einstellungen bleiben.</value>
+  </data>
+  <data name="privacy.withdraw.button" xml:space="preserve">
+    <value>Einwilligung widerrufen</value>
+  </data>
+  <data name="privacy.withdraw.done" xml:space="preserve">
+    <value>Erledigt, deine Einwilligung ist widerrufen. 💙 Am {0} löscht Ember deine Daten. Überlegst du es dir anders, leg einfach einen Habit an und stimm wieder zu, dann bleibt alles. Sofort löschen kannst du alles mit dem Knopf unten.</value>
+  </data>
+  <data name="privacy.withdraw.none" xml:space="preserve">
+    <value>Gerade gibt es keine Einwilligung, die du widerrufen könntest.</value>
+  </data>
+  <data name="privacy.withdraw.cancelled" xml:space="preserve">
+    <value>Okay, alles bleibt, wie es ist.</value>
+  </data>
+  <data name="consent.deletion-reminder" xml:space="preserve">
+    <value>Hallo 💙 In 3 Tagen, am {0}, löscht Ember deine Habits, Check-ins, Tiefs, Tagesnotizen, Stimmungen, Ausrutscher und deine Liste „Was mir hilft“, weil du der Speicherung nicht zugestimmt hast. Mit `/export` kannst du sie vorher herunterladen. Willst du sie behalten, stimm unten zu.</value>
+  </data>
+  <data name="consent.deletion-push.title" xml:space="preserve">
+    <value>Ember löscht bald deine Daten</value>
+  </data>
+  <data name="consent.deletion-push.body" xml:space="preserve">
+    <value>Am {0}. Öffne Ember, um sie zu exportieren oder wieder zuzustimmen.</value>
+  </data>
+  <data name="feedback.modal.health" xml:space="preserve">
+    <value>Wenn dein Feedback oder ein Bild Angaben zu deiner Gesundheit enthält, willigst du mit dem Absenden ausdrücklich ein, dass der Betreiber sie zur Bearbeitung deines Feedbacks verarbeitet (Art. 9 Abs. 2 lit. a DSGVO). Du kannst das jederzeit per E-Mail an contact@nicowoellnitz.de widerrufen.</value>
+  </data>
+  <data name="date.full" xml:space="preserve">
+    <value>dd.MM.yyyy</value>
   </data>
 </root>
