@@ -243,6 +243,31 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task An_encrypted_habit_note_imports_under_the_new_habit_id_with_its_iv_and_ct_and_ct_over_4096_characters_is_a_400()
+    {
+        var user = await Host.SignedInAsync();
+        var iv = Convert.ToBase64String(Enumerable.Range(1, 12).Select(i => (byte)i).ToArray());
+        var ct = Convert.ToBase64String(Enumerable.Range(0, 3072).Select(i => (byte)(i % 251)).ToArray());
+        ct.Length.Should().Be(4096);
+        object Note(string cipherText) => new { habit_id = 1, date = "2026-10-25", encrypted = new { v = 1, iv, ct = cipherText } };
+
+        var tooLong = await ErrorsAsync(await Import(user, WithHabitNotes(Doc(journalKey: Key), Note(B64(3075)))));
+        tooLong.EnumerateObject().Select(e => e.Name).Should().Contain(name => name.StartsWith("habit_notes[0].encrypted"));
+        (await HabitCountAsync(await user.IdAsync())).Should().Be(0);
+        (await Host.Db(db => db.HabitNotes.CountAsync())).Should().Be(0);
+
+        await (await Import(user, WithHabitNotes(Doc(journalKey: Key), Note(ct)))).Expect(HttpStatusCode.NoContent);
+
+        var habitId = (await (await user.Get("/api/habits")).ExpectJson()).EnumerateArray().Single().GetProperty("id").GetInt32();
+        var stored = (await (await user.Get("/api/habit-notes")).ExpectJson()).EnumerateArray().Single();
+        stored.GetProperty("habitId").GetInt32().Should().Be(habitId);
+        stored.GetProperty("date").GetString().Should().Be("2026-10-25");
+        stored.Has("text").Should().BeFalse();
+        var encrypted = stored.GetProperty("encrypted");
+        (encrypted.GetProperty("iv").GetString(), encrypted.GetProperty("ct").GetString()).Should().Be((iv, ct));
+    }
+
+    [DockerFact]
     public async Task Import_refuses_slips_on_a_build_habit_and_logs_on_a_let_go_habit_and_writes_nothing()
     {
         var user = await Host.SignedInAsync();
