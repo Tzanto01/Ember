@@ -75,9 +75,6 @@
     <queries>
         <package android:name="com.google.android.apps.wellbeing" />
         <package android:name="com.samsung.android.forest" />
-        <intent>
-            <action android:name="android.settings.action.APP_USAGE_SETTINGS" />
-        </intent>
     </queries>
 
     <!-- Permissions -->

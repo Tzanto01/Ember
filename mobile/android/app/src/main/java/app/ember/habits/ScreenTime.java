@@ -13,11 +13,10 @@ import java.util.function.Predicate;
  */
 final class ScreenTime {
 
-    /** In order of preference: {package, activity} of a screen-time app, or {action} of a public Settings screen. */
+    /** In order of preference: {package, activity} of the system's screen-time app. */
     static final List<String[]> CANDIDATES = Arrays.asList(
         new String[] { "com.google.android.apps.wellbeing", "com.google.android.apps.wellbeing.settings.TopLevelSettingsActivity" },
-        new String[] { "com.samsung.android.forest", "com.samsung.android.forest.launcher.LauncherActivity" },
-        new String[] { "android.settings.action.APP_USAGE_SETTINGS" }
+        new String[] { "com.samsung.android.forest", "com.samsung.android.forest.launcher.LauncherActivity" }
     );
 
     private ScreenTime() {}
@@ -31,14 +30,9 @@ final class ScreenTime {
     /** An intent for the first candidate with an exported activity on this device, or null. */
     static Intent intent(Context context) {
         String[] candidate = first(CANDIDATES, c -> {
-            ResolveInfo info = context.getPackageManager().resolveActivity(intent(context, c), 0);
+            ResolveInfo info = context.getPackageManager().resolveActivity(new Intent().setClassName(c[0], c[1]), 0);
             return info != null && info.activityInfo != null && info.activityInfo.exported;
         });
-        return candidate == null ? null : intent(context, candidate);
-    }
-
-    private static Intent intent(Context context, String[] candidate) {
-        if (candidate.length == 2) return new Intent().setClassName(candidate[0], candidate[1]);
-        return new Intent(candidate[0]).putExtra(Intent.EXTRA_PACKAGE_NAME, context.getPackageName());
+        return candidate == null ? null : new Intent().setClassName(candidate[0], candidate[1]);
     }
 }

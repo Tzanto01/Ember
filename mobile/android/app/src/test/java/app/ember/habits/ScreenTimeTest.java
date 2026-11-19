@@ -17,14 +17,13 @@ public class ScreenTimeTest {
 
     @Test
     public void prefersGoogleDigitalWellbeing() {
-        String[] picked = pick("android.settings.action.APP_USAGE_SETTINGS", "com.samsung.android.forest", "com.google.android.apps.wellbeing");
+        String[] picked = pick("com.samsung.android.forest", "com.google.android.apps.wellbeing");
         assertEquals("com.google.android.apps.wellbeing", picked[0]);
     }
 
     @Test
-    public void fallsBackToSamsungThenToTheSettingsScreen() {
-        assertEquals("com.samsung.android.forest", pick("android.settings.action.APP_USAGE_SETTINGS", "com.samsung.android.forest")[0]);
-        assertEquals("android.settings.action.APP_USAGE_SETTINGS", pick("android.settings.action.APP_USAGE_SETTINGS")[0]);
+    public void fallsBackToSamsung() {
+        assertEquals("com.samsung.android.forest", pick("com.samsung.android.forest")[0]);
     }
 
     @Test
