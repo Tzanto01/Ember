@@ -15,6 +15,7 @@ internal sealed class RateLimitSettings
 {
     public int AuthPerIpPerMinute { get; set; } = 30;
     public int AuthOtherPerIpPerMinute { get; set; } = 300;
+    public int WidgetPerIpPerMinute { get; set; } = 60;
     public int MailPerEmailPerHour { get; set; } = 5;
     public int MailPerEmailAnyClientPerHour { get; set; } = 20;
     public int MailPerIpPerHour { get; set; } = 10;
@@ -26,7 +27,8 @@ internal sealed class RateLimitSettings
 /// <summary>
 /// Per client IP on the credential endpoints of <c>/api/auth</c> (the strict <see cref="AuthPolicy"/> policy) and on every
 /// other <c>/api/auth</c> request (the loose <see cref="AuthOtherPolicy"/> policy, and the same limit as a global limiter on
-/// the Discord OAuth callback, which the authentication handler answers before any endpoint runs), and on the mail-sending
+/// the Discord OAuth callback, which the authentication handler answers before any endpoint runs), on the widget check-in (its
+/// own <see cref="WidgetPolicy"/> policy, so widget taps never use up sign-in attempts), and on the mail-sending
 /// endpoints per endpoint, normalized email and client IP, per email, per client IP and in total per day, and <c>POST /api/feedback</c> per user (with a daily picture byte budget), or per client IP and in total per
 /// day for anonymous senders (the singleton <see cref="PartitionedRateLimiter{TResource}"/> of <see cref="string"/>, keyed by <see cref="MailKeys"/> and
 /// <see cref="FeedbackKeys"/>, which never share a partition).
@@ -35,6 +37,7 @@ internal static class RateLimits
 {
     public const string AuthPolicy = "auth";
     public const string AuthOtherPolicy = "auth-other";
+    public const string WidgetPolicy = "widget";
     private static readonly TimeSpan AuthWindow = TimeSpan.FromMinutes(1);
     public static readonly TimeSpan MailWindow = TimeSpan.FromHours(1);
     private static readonly TimeSpan MailDayWindow = TimeSpan.FromDays(1);
@@ -74,6 +77,7 @@ internal static class RateLimits
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddPolicy(AuthPolicy, http => PerIp(http, http.RequestServices.GetRequiredService<IOptions<RateLimitSettings>>().Value.AuthPerIpPerMinute));
             options.AddPolicy(AuthOtherPolicy, http => PerIp(http, http.RequestServices.GetRequiredService<IOptions<RateLimitSettings>>().Value.AuthOtherPerIpPerMinute));
+            options.AddPolicy(WidgetPolicy, http => PerIp(http, http.RequestServices.GetRequiredService<IOptions<RateLimitSettings>>().Value.WidgetPerIpPerMinute));
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
                 http.Request.Path.Equals(DiscordEndpoints.CallbackPath, StringComparison.OrdinalIgnoreCase)
                     ? PerIp(http, http.RequestServices.GetRequiredService<IOptions<RateLimitSettings>>().Value.AuthOtherPerIpPerMinute)

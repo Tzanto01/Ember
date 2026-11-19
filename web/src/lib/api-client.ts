@@ -227,6 +227,11 @@ export class ApiClient {
     return this.http.request('POST', '/api/me/dm-reminders/resume');
   }
 
+  /** `POST /api/me/widget-key` (native build, bearer only): a new key for widget check-ins, replacing this session's earlier one. */
+  createWidgetKey(): Promise<{ key: string }> {
+    return this.http.request('POST', '/api/me/widget-key');
+  }
+
   /** `GET /api/me/export`: the file as a blob. Pass the result to `saveFile()`. */
   async exportData(format: ExportFormat): Promise<ExportFile> {
     const { blob, headers } = await this.http.download('/api/me/export', { format }, longRequestTimeoutMs);

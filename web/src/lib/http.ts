@@ -237,7 +237,7 @@ export class Http {
       return this.exchange(method, url, options, null);
     }
     const response = await this.exchange(method, url, options, bearer.accessToken);
-    if (response.status !== 401 || (url.includes('/api/auth/') && !url.endsWith('/api/auth/logout-everywhere'))) return response;
+    if (response.status !== 401 || (url.includes('/api/auth/') && !/\/api\/auth\/logout(-everywhere)?$/.test(url))) return response;
     if (await bearer.refresh()) return this.exchange(method, url, options, bearer.accessToken);
     if (bearer.lastTransientError) throw bearer.lastTransientError;
     return response;

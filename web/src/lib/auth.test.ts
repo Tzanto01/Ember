@@ -377,14 +377,13 @@ describe('AuthService', () => {
       localStorage.removeItem('unrelated');
     });
 
-    it('in the native build wipes reminders, then tokens, then the queue, then the remembered channels, without a request', async () => {
+    it('in the native build ends the server session with the bearer token, then wipes reminders, tokens, the queue and the remembered channels even when that request fails', async () => {
       const order: string[] = [];
       const http = new Http({ native: true, apiBase: '' });
       const device = new DeviceStore();
       queue = new OfflineQueue(device);
       const api = new ApiClient(http, queue);
       const memory = memorySecureStore();
-      memory.secure.set('ember.refreshToken', 'refresh-1');
       const tokens = new TokenStore(http, {
         ...memory.store,
         remove: async (key) => {
@@ -405,16 +404,32 @@ describe('AuthService', () => {
       });
       localStorage.setItem('ember.channelsBeforePhone.7', '["discord"]');
       const auth = new AuthService(api, queue, null, { tokens, reminders });
+      http.session = auth;
+      http.bearer = tokens;
+      const signedIn = tokens.signIn('a@example.test', 'pw-synthetic', true);
+      (await mock.next('POST', '/api/auth/login')).respond(200, {
+        tokenType: 'Bearer',
+        accessToken: 'access-1',
+        expiresIn: 900,
+        refreshToken: 'refresh-1',
+      });
+      await signedIn;
+      order.length = 0;
       auth.setMe(me);
 
-      await auth.logout();
+      const done = auth.logout();
+      const logout = await mock.next('POST', '/api/auth/logout');
+      expect(logout.headers.get('Authorization')).toBe('Bearer access-1');
+      expect(order).toEqual([]);
+      logout.respond(503);
 
+      await expect(done).resolves.toBe(true);
       expect(order).toEqual(['reminders', 'tokens', 'queue']);
       expect(queue.clear).toHaveBeenCalledWith('u1');
       expect(memory.secure.size).toBe(0);
       expect(localStorage.getItem('ember.channelsBeforePhone.7')).toBeNull();
       expect(auth.me.get()).toBeNull();
-      expect(mock.all).toEqual([]);
+      expect(mock.all.map((c) => c.url)).toEqual(['/api/auth/login', '/api/auth/logout']);
       expect(navigate).toHaveBeenCalledWith('/login');
     });
   });

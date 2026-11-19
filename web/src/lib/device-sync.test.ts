@@ -169,7 +169,7 @@ describe('DeviceSync', () => {
       setNavigator((path) => paths.push(path));
       sync.start();
       await vi.waitFor(() => expect(native.listeners.has('widgetTap')).toBe(true));
-      return { fetch, sync, paths, device, auth, rebuild };
+      return { fetch, sync, paths, device, auth, rebuild, reminders, queue };
     }
 
     afterEach(() => setNavigator(null));
@@ -235,6 +235,33 @@ describe('DeviceSync', () => {
       (await fetch.next('PUT', '/api/habits/1/days/2026-11-01')).respond(200, twice);
 
       await vi.waitFor(() => expect(paths).toEqual(['/today']));
+    });
+
+    it('only opens Today at the habit for a widget tap marked open, writing nothing', async () => {
+      const { fetch, sync, paths } = await setup();
+
+      native.listeners.get('widgetTap')?.({ ...today, open: true });
+
+      await vi.waitFor(() => expect(paths).toEqual(['/today?habit=1']));
+      expect(fetch.all.filter((call) => call.method !== 'GET')).toEqual([]);
+      expect(sync.nativeCheckIn.get()).toBeNull();
+    });
+
+    it("replays the widget's pending check-ins after the queue on every sync", async () => {
+      const { sync, reminders, queue } = await setup();
+      const order: string[] = [];
+      const replayWidget = vi.spyOn(reminders, 'replayWidget').mockImplementation(async () => {
+        order.push('widget');
+      });
+      vi.spyOn(queue, 'replay').mockImplementation(async () => {
+        order.push('queue');
+        return { sent: 0, dropped: 0, remaining: 0 };
+      });
+
+      await sync.sync();
+
+      expect(replayWidget).toHaveBeenCalledWith('u1', me.timezone, queue);
+      expect(order).toEqual(['queue', 'widget']);
     });
 
     const send = (source: 'reminder' | 'widget', extra: unknown) =>

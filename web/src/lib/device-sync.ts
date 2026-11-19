@@ -17,7 +17,8 @@ import { themeApplied } from './theme';
  * whenever `me` holds a new time zone or second reminder setting or the theme changes (the reminder icon follows
  * its colour). When a user is known whose zone was never set, it sends the device's zone (not UTC) once per user
  * on this device (a failure waits for the next app start). Native "Done" taps on a reminder this app issued ({@link Reminders.wasIssued})
- * and widget row taps check in through {@link Reminders.checkIn} and open Today; a plain tap on a habit reminder opens Today
+ * and widget row taps check in through {@link Reminders.checkIn} and open Today (a widget tap with `open: true` only opens Today
+ * at that habit); a plain tap on a habit reminder opens Today
  * at that habit (`/today?habit=<id>`).
  */
 export class DeviceSync {
@@ -53,7 +54,10 @@ export class DeviceSync {
     if (this.reminders) void this.listenNative();
   }
 
-  /** Replays the signed-in user's queue, then (native) rebuilds the reminders. Never throws. */
+  /**
+   * Replays the signed-in user's queue, then (native) the widget's pending check-ins ({@link Reminders.replayWidget}, after
+   * the queue so a queued count can't lower one) and rebuilds the reminders. Never throws.
+   */
   async sync(): Promise<void> {
     const me = this.auth.me.get();
     if (!me) return;
@@ -64,6 +68,7 @@ export class DeviceSync {
       .catch(() => null);
     if (result?.dropped) this.dropped.update((count) => count + result.dropped);
     if (result && (result.sent || result.dropped)) this.synced.update((count) => count + 1);
+    await this.reminders?.replayWidget(me.id, me.timezone, this.queue);
     this.rebuildReminders();
   }
 
@@ -116,7 +121,9 @@ export class DeviceSync {
       void this.checkIn(done ? extra : null, event.actionId === doneAction ? null : extra);
     });
     const { EmberWidget } = await capacitorWidget();
-    await EmberWidget.addListener('widgetTap', (tap) => void this.checkIn(tap));
+    await EmberWidget.addListener('widgetTap', (tap) =>
+      (tap as { open?: unknown } | null)?.open === true ? void this.checkIn(null, tap) : void this.checkIn(tap),
+    );
   }
 
   /**

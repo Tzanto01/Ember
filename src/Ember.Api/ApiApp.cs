@@ -194,6 +194,7 @@ public static class ApiApp
         api.MapHabitTemplates();
         api.MapPush();
         api.MapReminders();
+        api.MapWidget();
         api.MapFeedback();
 
         mapExtra?.Invoke(app);
