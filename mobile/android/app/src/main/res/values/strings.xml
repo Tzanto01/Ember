@@ -14,7 +14,9 @@
     <string name="widget_state_open">Not done yet</string>
     <string name="widget_state_rest">Rest</string>
     <string name="widget_row_description">Check in %1$s, %2$s</string>
+    <string name="widget_row_open_description">Open %1$s, %2$s</string>
     <string name="widget_more">+%1$d more</string>
+    <string name="widget_not_saved">%1$s · not saved yet</string>
     <string name="moment_label">I need a moment</string>
     <string name="moment_short_label">A moment</string>
     <string name="moment_widget_name">I need a moment</string>

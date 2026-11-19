@@ -11,8 +11,10 @@ import org.json.JSONObject;
 
 /**
  * Bridge to the "Today in Ember" widget: {@code update} stores a validated snapshot of today's habits in
- * app-private storage and redraws, {@code clear} forgets it, and validated widget taps arrive as
- * {@code widgetTap} events (retained until JS listens, so a cold-start tap is not lost). The "I need a moment" door
+ * app-private storage and redraws, {@code clear} forgets it with the widget key and pending check-ins, and validated
+ * widget taps that open the app arrive as {@code widgetTap} events (retained until JS listens, so a cold-start tap is
+ * not lost). {@code setKey} and {@code hasKey} manage the key the widget checks in with on its own, and
+ * {@code takePending} hands its unconfirmed check-ins to JS. The "I need a moment" door
  * is a pending launch action on a cold start ({@code takeLaunchAction}) and an {@code openMoment} event on a warm one.
  */
 @CapacitorPlugin(name = "EmberWidget")
@@ -46,6 +48,41 @@ public class EmberWidgetPlugin extends Plugin {
     public void clear(PluginCall call) {
         TodayWidget.clear(getContext());
         call.resolve();
+    }
+
+    /**
+     * Stores the widget check-in key ({@code key}, base64url) for {@code apiBase} (an absolute https origin without
+     * path), sealed with an AndroidKeyStore key, then redraws. Rejects invalid input.
+     */
+    @PluginMethod
+    public void setKey(PluginCall call) {
+        try {
+            WidgetKey.set(getContext(), call.getString("key"), call.getString("apiBase"));
+        } catch (Exception e) {
+            call.reject("Invalid widget key");
+            return;
+        }
+        TodayWidget.refresh(getContext());
+        call.resolve();
+    }
+
+    /** Resolves {@code { value }}, true when a stored widget key decrypts. */
+    @PluginMethod
+    public void hasKey(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("value", WidgetKey.get(getContext()) != null);
+        call.resolve(result);
+    }
+
+    /**
+     * Resolves {@code { checkIns: [{ userId, habitId, date, count }] }} with the widget's unconfirmed check-ins
+     * ({@code count} is the absolute count each tap aimed for) and removes them.
+     */
+    @PluginMethod
+    public void takePending(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("checkIns", TodayWidget.takePending(getContext()));
+        call.resolve(result);
     }
 
     /**

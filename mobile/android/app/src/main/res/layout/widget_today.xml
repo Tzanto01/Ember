@@ -25,20 +25,6 @@
             android:textColor="@color/ember_widget_text"
             android:textSize="15sp"
             android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/widget_moment"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:gravity="center_vertical"
-            android:maxLines="1"
-            android:minHeight="48dp"
-            android:paddingHorizontal="8dp"
-            android:text="@string/moment_label"
-            android:textColor="@color/ember_widget_accent"
-            android:textSize="14sp"
-            android:textStyle="bold" />
     </LinearLayout>
 
     <TextView
