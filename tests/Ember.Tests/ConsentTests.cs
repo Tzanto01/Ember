@@ -238,6 +238,42 @@ public class ConsentTests
     }
 
     [Fact]
+    public async Task Renaming_AHabit_NeedsConsent_ButItsRemindersCanStillChange()
+    {
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
+        await SeedConsentedUserWithDueRemindersAsync(host, 1);
+        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+        var habitId = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Select(h => h.Id).SingleAsync());
+
+        var rename = () => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(1UL, habitId, "Take meds", null, false));
+        await rename.Should().ThrowAsync<ConsentRequiredException>();
+        var edited = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(1UL, habitId, null, new TimeOnly(7, 0), false));
+
+        edited!.Name.Should().Be("Walk");
+        edited.ReminderTime.Should().Be(new TimeOnly(7, 0));
+    }
+
+    [Fact]
+    public async Task NoThanks_WhenAlreadyWithdrawn_ChangesNothing_AndAnswersWithTheDeletionDay()
+    {
+        var time = new FakeTimeProvider(Now);
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
+        await SeedExistingUserAsync(host, 1);
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
+        var before = await UserAsync(host, 1);
+        time.Advance(TimeSpan.FromDays(28));
+
+        var withdrawal = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetConsentWithdrawalAsync(1UL));
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
+
+        var after = await UserAsync(host, 1);
+        (after.ConsentWithdrawnAt, after.ConsentPromptedOn).Should().Be((before.ConsentWithdrawnAt, before.ConsentPromptedOn));
+        ConsentModule.DeclinedText(Ember.Bot.BotTexts.English, withdrawal, TimeZoneInfo.FindSystemTimeZoneById("Pacific/Auckland"))
+            .Should().Contain("February 14, 2027", "30 days after the withdrawal at midnight UTC is the 14th in Auckland");
+        ConsentModule.DeclinedText(Ember.Bot.BotTexts.English, null, TimeZoneInfo.Utc).Should().Be(Ember.Bot.BotTexts.English.Get("consent.declined"));
+    }
+
+    [Fact]
     public async Task NoThanks_ByAUserWithHabits_WithdrawsAndHoldsBackThePrompt_ButNotForSomeoneWithNothingStored()
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));

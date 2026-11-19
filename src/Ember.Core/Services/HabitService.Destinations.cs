@@ -123,12 +123,13 @@ public partial class HabitService
 
     /// <summary>
     /// Bot only: up to <see cref="MaxDiscordAsksPerRun"/> users with a Discord login who never answered or were asked about Discord
-    /// reminders and have a habit with reminder times or a routine with a reminder time, with their Discord ids.
+    /// reminders, haven't withdrawn their health-data consent and have a habit with reminder times or a routine with a reminder time, with
+    /// their Discord ids.
     /// </summary>
     public async Task<List<(Guid UserId, ulong DiscordUserId)>> GetDiscordAskUserIdsAsync(CancellationToken cancellationToken = default)
     {
         var rows = await _db.Users
-            .Where(u => u.DiscordReminders == null && u.DiscordRemindersAskedAt == null
+            .Where(u => u.DiscordReminders == null && u.DiscordRemindersAskedAt == null && u.ConsentWithdrawnAt == null
                 && (u.Habits.Any(h => h.ReminderTimes.Count > 0) || u.Routines.Any(r => r.ReminderTime != null)))
             .SelectMany(u => u.Logins.Where(l => l.LoginProvider == DiscordLogin.Provider), (u, l) => new { u.Id, l.ProviderKey })
             .OrderBy(r => r.Id)

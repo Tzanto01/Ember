@@ -1,4 +1,7 @@
+using System.Net;
+using System.Security.Cryptography;
 using Discord;
+using Ember.Bot.Services;
 using Ember.Bot.Jobs;
 using Ember.Core.Data;
 using Ember.Core.Models;
@@ -15,7 +18,40 @@ public class HealthDataDeletionTests
 {
     private static readonly DateTimeOffset Now = new(2027, 1, 15, 9, 0, 0, TimeSpan.Zero);
 
-    private static async Task SeedWithdrawnUserAsync(IntegrationTestHost host, long id)
+    private sealed class FakePushService : HttpMessageHandler
+    {
+        private int _count;
+        public int Count => _count;
+        public HttpStatusCode Status { get; set; } = HttpStatusCode.Created;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _count);
+            return Task.FromResult(new HttpResponseMessage(Status));
+        }
+    }
+
+    private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static (string Public, string Private) NewKeyPair()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var parameters = key.ExportParameters(true);
+        return (Base64Url([0x04, .. parameters.Q.X!, .. parameters.Q.Y!]), Base64Url(parameters.D!));
+    }
+
+    private static async Task<(IntegrationTestHost Host, FakePushService Push)> CreateAsync(FakeTimeProvider time)
+    {
+        var push = new FakePushService();
+        var (publicKey, privateKey) = NewKeyPair();
+        var host = await IntegrationTestHost.CreateAsync(start: false, time: time,
+            args: [$"--WebPush:PublicKey={publicKey}", $"--WebPush:PrivateKey={privateKey}", "--WebPush:Subject=mailto:test@example.test"],
+            configureServices: services => services.AddHttpClient(WebPushReminderChannel.HttpClientName)
+                .ConfigurePrimaryHttpMessageHandler(() => push));
+        return (host, push);
+    }
+
+    private static async Task SeedWithdrawnUserAsync(IntegrationTestHost host, long id, bool discord = true, bool push = false)
     {
         await host.WithScopeAsync(async sp =>
         {
@@ -23,9 +59,8 @@ public class HealthDataDeletionTests
             var user = new User
             {
                 Id = TestUsers.Id(id),
-                Logins = TestUsers.Discord(id),
+                Logins = discord ? TestUsers.Discord(id) : [],
                 Timezone = "UTC",
-                DiscordReminders = true,
                 GraceDaysPerWeek = 2,
                 HealthDataConsentAt = Now.UtcDateTime.AddDays(-60),
                 ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion,
@@ -39,6 +74,11 @@ public class HealthDataDeletionTests
             user.Moods.Add(new Mood { Label = "Tired" });
             user.Helps = new UserHelps { Encrypted = "c3ludGhldGlj", Version = 1, UpdatedAt = Now.UtcDateTime };
             user.Routines.Add(new Routine { Name = "Morning" });
+            if (push)
+                user.PushSubscriptions.Add(new Ember.Core.Models.PushSubscription
+                {
+                    Endpoint = $"https://fcm.googleapis.com/send/u{id}", P256dh = NewKeyPair().Public, Auth = Base64Url(RandomNumberGenerator.GetBytes(16)),
+                });
             db.Users.Add(user);
             await db.SaveChangesAsync();
         });
@@ -70,7 +110,7 @@ public class HealthDataDeletionTests
         => components!.Components.OfType<ActionRowComponent>().SelectMany(r => r.Components).OfType<ButtonComponent>().Select(b => b.CustomId);
 
     [Fact]
-    public async Task Withdrawn_user_is_reminded_once_at_27_days_and_their_health_data_is_deleted_at_30_days_keeping_account_and_routines()
+    public async Task Withdrawn_user_is_reminded_once_at_27_days_even_without_discord_reminders_and_deleted_at_30_days_keeping_account_and_routines()
     {
         var time = new FakeTimeProvider(Now);
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
@@ -87,6 +127,7 @@ public class HealthDataDeletionTests
         dm.UserId.Should().Be(10UL);
         dm.Text.Should().Contain("February 14, 2027").And.Contain("/export");
         ButtonIds(dm.Components).Should().Equal("consent:agree:10", "consent:decline:10");
+        dm.Embed!.Title.Should().Be(Ember.Bot.BotTexts.English.Get("consent.title"));
         (await CountsAsync(host, 10)).Should().Be((1, 1, 1, 1, 1, 1, 1, 1, 2));
 
         time.Advance(TimeSpan.FromDays(3));
@@ -105,12 +146,95 @@ public class HealthDataDeletionTests
 
         time.Advance(TimeSpan.FromDays(31));
         await RunJobAsync(host);
-        host.Discord.Messages.Should().ContainSingle();
+        host.Discord.Messages.Should().ContainSingle().Which.Text.Should().Contain("February 18, 2027", "three days after the late reminder, not a past day");
         (await CountsAsync(host, 11)).Habits.Should().Be(1, "the reminder only just went out");
 
         time.Advance(TimeSpan.FromDays(3));
         await RunJobAsync(host);
         (await CountsAsync(host, 11)).Habits.Should().Be(0);
+    }
+
+    private static Task<DateTime?> ClaimAsync(IntegrationTestHost host, long id)
+        => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.Where(u => u.Id == TestUsers.Id(id))
+            .Select(u => u.DeletionReminderSentAt).SingleAsync());
+
+    [Fact]
+    public async Task The_reminder_goes_to_every_enabled_push_subscription_of_a_user_without_discord()
+    {
+        var time = new FakeTimeProvider(Now);
+        var (host, push) = await CreateAsync(time);
+        await using var _ = host;
+        await SeedWithdrawnUserAsync(host, 14, discord: false, push: true);
+
+        time.Advance(TimeSpan.FromDays(27));
+        await RunJobAsync(host);
+
+        push.Count.Should().Be(1);
+        (await ClaimAsync(host, 14)).Should().Be(time.GetUtcNow().UtcDateTime);
+    }
+
+    [Fact]
+    public async Task A_reminder_that_reaches_nobody_is_given_back_and_sent_on_the_next_run()
+    {
+        var time = new FakeTimeProvider(Now);
+        var (host, push) = await CreateAsync(time);
+        await using var _ = host;
+        await SeedWithdrawnUserAsync(host, 15, push: true);
+        host.Discord.Deliver = _ => DeliveryOutcome.Undeliverable;
+        push.Status = HttpStatusCode.InternalServerError;
+
+        time.Advance(TimeSpan.FromDays(27));
+        await RunJobAsync(host);
+        (await ClaimAsync(host, 15)).Should().BeNull();
+
+        host.Discord.Deliver = _ => DeliveryOutcome.Delivered;
+        push.Status = HttpStatusCode.Created;
+        time.Advance(TimeSpan.FromDays(1));
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().HaveCount(2);
+        push.Count.Should().Be(2);
+        (await ClaimAsync(host, 15)).Should().Be(time.GetUtcNow().UtcDateTime);
+        (await CountsAsync(host, 15)).Habits.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_reminder_that_never_arrives_stops_holding_back_the_deletion_a_week_after_the_deletion_date()
+    {
+        var time = new FakeTimeProvider(Now);
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
+        await SeedWithdrawnUserAsync(host, 17);
+        host.Discord.Deliver = _ => DeliveryOutcome.Undeliverable;
+
+        time.Advance(TimeSpan.FromDays(27));
+        for (var day = 27; day < 30 + 7; day++)
+        {
+            await RunJobAsync(host);
+            time.Advance(TimeSpan.FromDays(1));
+        }
+        (await CountsAsync(host, 17)).Habits.Should().Be(1);
+
+        await RunJobAsync(host);
+        (await ClaimAsync(host, 17)).Should().NotBeNull();
+        time.Advance(TimeSpan.FromDays(3));
+        await RunJobAsync(host);
+        (await CountsAsync(host, 17)).Habits.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_user_without_any_target_keeps_the_claim_and_is_deleted_three_days_later()
+    {
+        var time = new FakeTimeProvider(Now);
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
+        await SeedWithdrawnUserAsync(host, 16, discord: false);
+
+        time.Advance(TimeSpan.FromDays(27));
+        await RunJobAsync(host);
+        (await ClaimAsync(host, 16)).Should().NotBeNull();
+
+        time.Advance(TimeSpan.FromDays(3));
+        await RunJobAsync(host);
+        (await CountsAsync(host, 16)).Habits.Should().Be(0);
     }
 
     [Fact]

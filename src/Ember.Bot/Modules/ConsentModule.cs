@@ -81,19 +81,32 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
+    /// <summary>
+    /// The answer to "No thanks": <c>consent.declined</c>, or for a user whose consent was already withdrawn (<paramref name="withdrawn"/>),
+    /// <c>privacy.withdraw.done</c> with the deletion day (<see cref="HabitService.DeletionDueUtc"/>) in <paramref name="tz"/>.
+    /// </summary>
+    internal static string DeclinedText(Texts t, (DateTime WithdrawnAt, DateTime? ReminderSentAt)? withdrawn, TimeZoneInfo tz)
+        => withdrawn is { } w
+            ? t.Format("privacy.withdraw.done", DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
+                    DateTime.SpecifyKind(HabitService.DeletionDueUtc(w.WithdrawnAt, w.ReminderSentAt), DateTimeKind.Utc), tz))
+                .ToString(t.Get("date.full"), t.Culture))
+            : t.Get("consent.declined");
+
     [ComponentInteraction("consent:decline:*")]
     public async Task OnDeclineAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        var withdrawn = await _habits.GetConsentWithdrawalAsync(Context.User.Id);
         if (!await TryAnswerAsync(_habits, ownerIdStr, Context.User.Id, agreed: false))
         {
             await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
             return;
         }
 
+        var content = DeclinedText(t, withdrawn, await _habits.GetUserTzAsync(Context.User.Id));
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Get("consent.declined");
+            m.Content    = content;
             m.Embed      = null;
             m.Components = new ComponentBuilder()
                 .WithButton(t.Get("consent.delete-button"), $"privacy:delete:start:{Context.User.Id}", ButtonStyle.Secondary)

@@ -114,10 +114,12 @@ public partial class HabitService
 
     /// <summary>
     /// Notes a "No thanks" to the consent prompt, so <see cref="ClaimConsentPromptAsync"/> waits <see cref="ConsentDeclineBackoffDays"/>
-    /// before asking again, and withdraws like <see cref="WithdrawHealthDataConsentAsync"/> when there is anything to withdraw. Never creates a user.
+    /// before asking again, and withdraws like <see cref="WithdrawHealthDataConsentAsync"/> when there is anything to withdraw. Changes nothing
+    /// while the consent is already withdrawn. Never creates a user.
     /// </summary>
     public async Task DeclineConsentPromptAsync(Guid userId)
     {
+        if (await _db.Users.AnyAsync(u => u.Id == userId && u.ConsentWithdrawnAt != null)) return;
         if (await WithdrawHealthDataConsentAsync(userId)) return;
         var lastQuietDay = (await GetLocalTodayAsync(userId)).AddDays(ConsentDeclineBackoffDays - 1);
         await _db.Users
@@ -660,6 +662,7 @@ public partial class HabitService
     /// Null when the habit isn't the user's.
     /// </summary>
     /// <exception cref="ArgumentException">More than one reminder time for a let-go habit; nothing is written.</exception>
+    /// <exception cref="ConsentRequiredException">A new name without the current health-data consent; nothing is written.</exception>
     public async Task<Habit?> EditHabitAsync(Guid userId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder,
         IReadOnlyCollection<string>? reminderExclusions = null, IReadOnlyCollection<TimeOnly>? newReminderTimes = null)
     {
@@ -669,6 +672,8 @@ public partial class HabitService
         if (habit is null) return null;
         if (!clearReminder && newReminderTimes is not null)
             GuardLetGo(habit.Kind, FrequencyType.Daily, 1, null, null, newReminderTimes.Distinct().Count());
+        if (newName is not null && newName != habit.Name && !await HasHealthDataConsentAsync(userId))
+            throw new ConsentRequiredException();
 
         if (newName is not null) habit.Name = newName;
         if (reminderExclusions is not null) habit.ReminderExclusions = reminderExclusions.Distinct().ToList();
@@ -795,6 +800,29 @@ public partial class HabitService
         return await _db.Users
             .Where(u => u.Id == userId && u.ConsentWithdrawnAt == withdrawnAt && u.DeletionReminderSentAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.DeletionReminderSentAt, now), cancellationToken) == 1 ? withdrawnAt : null;
+    }
+
+    /// <summary>Gives back a claimed deletion reminder (<see cref="ClaimDeletionReminderAsync"/>) that reached nobody, so the next run tries again.</summary>
+    public Task ReleaseDeletionReminderAsync(Guid userId, CancellationToken cancellationToken = default)
+        => _db.Users.Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.DeletionReminderSentAt, (DateTime?)null), cancellationToken);
+
+    /// <summary>
+    /// When (UTC) the health data of a user who withdrew at <paramref name="withdrawnAt"/> is deleted: <see cref="WithdrawnDataLifetime"/>
+    /// later, but never sooner than <see cref="DeletionReminderLead"/> after the reminder claimed at <paramref name="reminderSentAt"/>.
+    /// </summary>
+    public static DateTime DeletionDueUtc(DateTime withdrawnAt, DateTime? reminderSentAt)
+    {
+        var due = withdrawnAt + WithdrawnDataLifetime;
+        return reminderSentAt is { } sent && sent + DeletionReminderLead > due ? sent + DeletionReminderLead : due;
+    }
+
+    /// <summary>When the user withdrew and when their deletion reminder was claimed, or null while the consent isn't withdrawn.</summary>
+    public async Task<(DateTime WithdrawnAt, DateTime? ReminderSentAt)?> GetConsentWithdrawalAsync(Guid userId)
+    {
+        var row = await _db.Users.Where(u => u.Id == userId && u.ConsentWithdrawnAt != null)
+            .Select(u => new { u.ConsentWithdrawnAt, u.DeletionReminderSentAt }).FirstOrDefaultAsync();
+        return row is null ? null : (row.ConsentWithdrawnAt!.Value, row.DeletionReminderSentAt);
     }
 
     /// <summary>

@@ -418,6 +418,10 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
         await (await friend.Client.Put($"/api/habits/{habitId}/days/{Host.Today.Iso()}", new { completed = true })).ExpectJson();
         (await FriendAsync(viewer, friend)).GetProperty("checkedInToday").GetBoolean().Should().BeTrue();
         (await FriendAsync(friend, viewer)).GetProperty("checkedInToday").GetBoolean().Should().BeFalse();
+
+        await (await friend.Client.Post("/api/me/consent/withdraw")).Expect(HttpStatusCode.NoContent);
+        (await FriendAsync(viewer, friend)).GetProperty("checkedInToday").ValueKind.Should().Be(JsonValueKind.Null,
+            "a friend who withdrew their health-data consent shares no check-ins");
     }
 
     [DockerFact]
@@ -594,7 +598,9 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
         var id = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
         await Host.Run(s => s.GiveHealthDataConsentAsync(id));
         await Host.Db(db => db.Users.Where(u => u.Id == id).ExecuteUpdateAsync(s => s
-            .SetProperty(u => u.FiresideEnabled, true).SetProperty(u => u.FiresideName, prefix).SetProperty(u => u.FiresideNotify, true)));
+            .SetProperty(u => u.FiresideEnabled, true).SetProperty(u => u.FiresideName, prefix).SetProperty(u => u.FiresideNotify, true)
+            .SetProperty(u => u.FiresideConsentAt, new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc))
+            .SetProperty(u => u.FiresideConsentVersion, FiresideService.CurrentConsentVersion)));
         return (id, discordId);
     }
 
@@ -645,8 +651,9 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
 
         var adopted = await StateAsync(off);
 
-        (adopted.GetProperty("enabled").GetBoolean(), adopted.GetProperty("name").GetString(), adopted.GetProperty("notify").GetBoolean())
-            .Should().Be((true, "SourceOne", true));
+        (adopted.GetProperty("enabled").GetBoolean(), adopted.GetProperty("name").GetString(), adopted.GetProperty("notify").GetBoolean(),
+                adopted.GetProperty("consentGiven").GetBoolean())
+            .Should().Be((true, "SourceOne", true, true), "Fireside stays on only together with the consent that turned it on");
 
         var on = await PersonAsync("On");
         var onSource = await SeededSourceAsync("SourceTwo");

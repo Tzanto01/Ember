@@ -203,7 +203,7 @@ internal static class MeEndpoints
             user.GraceDaysPerWeek, user.Theme, user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode,
             new ConsentDto(await habits.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, HabitService.CurrentConsentPolicyVersion,
                 user.ConsentWithdrawnAt,
-                user.ConsentWithdrawnAt is { } withdrawn && await habits.HasHealthDataAsync(user.Id) ? withdrawn + HabitService.WithdrawnDataLifetime : null),
+                user.ConsentWithdrawnAt is { } withdrawn && await habits.HasHealthDataAsync(user.Id) ? HabitService.DeletionDueUtc(withdrawn, user.DeletionReminderSentAt) : null),
             new DmRemindersDto(user.DmRemindersPausedAt is not null),
             await habits.GetJournalStateAsync(user.Id),
             [.. user.TipsSeen]);

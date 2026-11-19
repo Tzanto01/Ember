@@ -7,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
 
-/// <summary>A Fireside friend as the caller sees them; <see cref="Id"/> is the caller's own link id, never a user id.</summary>
+/// <summary>
+/// A Fireside friend as the caller sees them; <see cref="Id"/> is the caller's own link id, never a user id. <see cref="CheckedInToday"/> is
+/// null when the friend doesn't share their flame with the caller or withdrew their health-data consent.
+/// </summary>
 public sealed record FiresideFriend(int Id, string Name, bool Asking, bool? CheckedInToday, bool Muted, bool ShareFlame,
     string? RenamedFrom, bool JoinedViaMyCode, bool CanSendWarmth);
 
@@ -216,7 +219,8 @@ public class FiresideService
                 Name = l.Friend.FiresideName,
                 l.Friend.Timezone,
                 l.Friend.WarmthAskUntilUtc,
-                FlameShared = _db.FiresideLinks.Any(r => r.OwnerId == l.FriendId && r.FriendId == userId && r.ShareFlame),
+                FlameShared = l.Friend.ConsentWithdrawnAt == null
+                    && _db.FiresideLinks.Any(r => r.OwnerId == l.FriendId && r.FriendId == userId && r.ShareFlame),
                 SentToday = _db.Warmth.Count(w => w.FromUserId == userId && w.ToUserId == l.FriendId && w.SentAtUtc >= start && w.SentAtUtc < end),
             })
             .ToListAsync(cancellationToken);

@@ -195,12 +195,14 @@ public partial class HabitService
         }
 
         var source = await _db.Users.Where(u => u.Id == sourceUserId)
-            .Select(u => new { u.FiresideEnabled, u.FiresideName, u.FiresideNotify, u.WarmthAskUntilUtc })
+            .Select(u => new { u.FiresideEnabled, u.FiresideName, u.FiresideNotify, u.WarmthAskUntilUtc, u.FiresideConsentAt, u.FiresideConsentVersion })
             .FirstAsync(cancellationToken);
         await _db.Users
             .Where(u => u.Id == targetUserId && !u.FiresideEnabled)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(u => u.FiresideEnabled, source.FiresideEnabled)
+                .SetProperty(u => u.FiresideConsentAt, source.FiresideConsentAt)
+                .SetProperty(u => u.FiresideConsentVersion, source.FiresideConsentVersion)
                 .SetProperty(u => u.FiresideName, u => source.FiresideName ?? u.FiresideName)
                 .SetProperty(u => u.FiresideNotify, source.FiresideNotify)
                 .SetProperty(u => u.WarmthAskUntilUtc, source.WarmthAskUntilUtc), cancellationToken);

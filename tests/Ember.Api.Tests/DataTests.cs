@@ -104,6 +104,12 @@ public class DataTests(PostgresFixture postgres) : ApiTestBase(postgres)
             .ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
         await (await user.Post($"/api/habits/{letGoId}/slips", new { date = Host.Today.Iso() }))
             .ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
+        await (await user.Patch($"/api/habits/{habitId}", new { name = "Take meds", reminderTimes = new[] { "07:00" } }))
+            .ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
+        (await (await user.Get($"/api/habits/{habitId}")).ExpectJson()).GetProperty("reminderTimes").GetArrayLength()
+            .Should().Be(0, "a refused rename writes nothing");
+        (await (await user.Patch($"/api/habits/{habitId}", new { reminderTimes = new[] { "08:00" } })).ExpectJson())
+            .GetProperty("reminderTimes").EnumerateArray().Select(t => t.GetString()).Should().Equal("08:00");
 
         await user.GiveConsentAsync();
 

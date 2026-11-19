@@ -64,6 +64,19 @@ public class DiscordReminderAskTests
     }
 
     [Fact]
+    public async Task A_user_who_withdrew_their_consent_is_not_asked()
+    {
+        var withdrawn = DiscordUser(70);
+        withdrawn.ConsentWithdrawnAt = Now.UtcDateTime.AddDays(-1);
+        await using var host = await CreateAsync(withdrawn, DiscordUser(80));
+
+        await RunAskAsync(host);
+
+        host.Discord.Messages.Select(m => m.UserId).Should().Equal(80UL);
+        (await UserAsync(host, 70)).DiscordRemindersAskedAt.Should().BeNull();
+    }
+
+    [Fact]
     public async Task An_undelivered_ask_is_never_repeated()
     {
         await using var host = await CreateAsync(DiscordUser(10));

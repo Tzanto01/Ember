@@ -101,6 +101,9 @@ public partial class HabitService
     public async Task<bool> WithdrawHealthDataConsentAsync(ulong discordUserId)
         => await WithdrawHealthDataConsentAsync(await FindDiscordUserAsync(discordUserId));
 
+    public async Task<(DateTime WithdrawnAt, DateTime? ReminderSentAt)?> GetConsentWithdrawalAsync(ulong discordUserId)
+        => await GetConsentWithdrawalAsync(await FindDiscordUserAsync(discordUserId));
+
     public async Task DeclineConsentPromptAsync(ulong discordUserId)
         => await DeclineConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
 

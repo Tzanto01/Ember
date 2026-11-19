@@ -286,7 +286,16 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var habit = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: name, newReminderTime: null, clearReminder: false);
+        Habit? habit;
+        try
+        {
+            habit = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: name, newReminderTime: null, clearReminder: false);
+        }
+        catch (ConsentRequiredException)
+        {
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            return;
+        }
 
         if (habit is null) { await NotFoundAsync(t); return; }
 

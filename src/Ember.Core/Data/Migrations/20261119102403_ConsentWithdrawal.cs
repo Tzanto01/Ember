@@ -37,7 +37,7 @@ namespace Ember.Core.Data.Migrations
                 nullable: true);
 
             migrationBuilder.Sql("""
-                UPDATE "AspNetUsers" u SET "ConsentWithdrawnAt" = now() at time zone 'utc'
+                UPDATE "AspNetUsers" u SET "ConsentWithdrawnAt" = now()
                 WHERE u."HealthDataConsentAt" IS NULL AND (
                     EXISTS (SELECT 1 FROM "Habits" h WHERE h."UserId" = u."Id")
                     OR EXISTS (SELECT 1 FROM "DayMarks" m WHERE m."UserId" = u."Id")
