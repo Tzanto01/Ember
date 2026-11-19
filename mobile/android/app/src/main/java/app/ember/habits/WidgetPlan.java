@@ -34,6 +34,7 @@ final class WidgetPlan {
      */
     static final float[][] SIZES = {
         { 110, 110 },
+        { 180, 110 },
         { WIDE_DP, 110 },
         { WIDE_DP, 152 },
         { WIDE_DP, 200 },

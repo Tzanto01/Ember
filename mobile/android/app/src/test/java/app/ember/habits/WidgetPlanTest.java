@@ -37,7 +37,9 @@ public class WidgetPlanTest {
         assertEquals(WidgetPlan.SINGLE, plan.layout);
         assertEquals(2, plan.start);
         assertEquals(1, plan.shown);
-        assertTrue(WidgetPlan.dots(plan.layout, 186, DAY.size()));
+        float[] rendered = launcherPick(186, 212);
+        assertEquals(WidgetPlan.SINGLE, WidgetPlan.layout(rendered[0], rendered[1]));
+        assertTrue(WidgetPlan.dots(WidgetPlan.SINGLE, rendered[0], DAY.size()));
     }
 
     @Test
