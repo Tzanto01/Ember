@@ -84,6 +84,9 @@ BEGIN
     IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'AuthSessions' AND column_name = 'AppVersion') THEN
         GRANT SELECT ("AppVersion") ON "AuthSessions" TO ember_dashboard;
     END IF;
+    IF to_regclass('public."LookoutOutbox"') IS NOT NULL THEN
+        GRANT SELECT ("CreatedAt", "SentAt", "ParkedAt") ON "LookoutOutbox" TO ember_dashboard;
+    END IF;
 END
 $$;
 

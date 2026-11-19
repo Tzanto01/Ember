@@ -108,6 +108,38 @@ public sealed class LookoutSummaryTests
         summary.Alerts.Select(a => a.Text).Should().Equal("API: down", "Reminders not advancing", "CI failed on main", "Host status: status file missing", "Disk /a: 3% free");
     }
 
+    [Theory]
+    [InlineData(0, 59, null)]
+    [InlineData(1, 0, "Lookout outbox: 1 parked")]
+    [InlineData(0, 61, "Lookout outbox: oldest pending 1 h")]
+    public void Parked_outbox_rows_or_a_pending_row_over_an_hour_old_warn_on_the_system_page(int parked, int oldestMinutes, string? alert)
+    {
+        var summary = Build(System() with { Outbox = new(3, parked, TimeSpan.FromMinutes(oldestMinutes)) });
+
+        summary.State.Should().Be(alert is null ? "ok" : "warn");
+        if (alert is null) summary.Alerts.Should().BeEmpty();
+        else summary.Alerts.Should().Equal(new Alert(alert, "warn", "system"));
+    }
+
+    [Fact]
+    public void The_outbox_widget_shows_the_counts_and_tones_each_warning()
+    {
+        var widget = LookoutPages.System(System() with { Outbox = new(4, 2, TimeSpan.FromMinutes(150)) }).Widgets.OfType<StatsWidget>().Single(w => w.Id == "outbox");
+
+        widget.Items.Select(i => (i.Label, i.Value, i.Format, i.Tone)).Should().Equal(
+            ("Pending", (object?)4, (string?)null, (string?)null), ("Parked", 2, null, "warn"), ("Oldest pending", 2.5, "hours", "warn"));
+    }
+
+    [Fact]
+    public void An_empty_outbox_has_no_oldest_pending_age_and_no_warning()
+    {
+        var report = System() with { Outbox = new(0, 0, null) };
+        var widget = LookoutPages.System(report).Widgets.OfType<StatsWidget>().Single(w => w.Id == "outbox");
+
+        widget.Items.Select(i => (i.Label, i.Value, i.Tone)).Should().Equal(("Pending", (object?)0, (string?)null), ("Parked", 0, null), ("Oldest pending", null, null));
+        Build(report).Alerts.Should().BeEmpty();
+    }
+
     private static StatsWidget DisksWidget(SystemReport report) =>
         LookoutPages.System(report).Widgets.OfType<StatsWidget>().Single(w => w.Id == "disks");
 

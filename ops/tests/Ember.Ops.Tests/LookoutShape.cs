@@ -17,7 +17,7 @@ public static class LookoutShape
         ["health"] = ["api", "requests", "latency", "errors", "slowest"],
         ["feedback"] = ["feedback"],
         ["notices"] = ["notices"],
-        ["system"] = ["services", "database", "disks", "backup"],
+        ["system"] = ["services", "database", "disks", "backup", "outbox"],
     };
 
     private static readonly Dictionary<string, string> Types = new()
@@ -26,7 +26,7 @@ public static class LookoutShape
         ["api"] = "stats", ["requests"] = "bars", ["latency"] = "bars", ["errors"] = "bars", ["slowest"] = "stats",
         ["platforms"] = "bars", ["versions"] = "bars", ["adoption"] = "stats",
         ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
-        ["backup"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["ci"] = "ci",
+        ["backup"] = "stats", ["outbox"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["ci"] = "ci",
     };
 
     public static void AssertPage(JsonElement page, string pageId)

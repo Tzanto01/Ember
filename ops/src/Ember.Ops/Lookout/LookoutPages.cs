@@ -110,7 +110,29 @@ public static class LookoutPages
             Section(s, "backup", "Newest pre-deploy dump", s.Backup is { } backup
                 ? [new("File", backup.Name, "code"), new("Written", Iso(backup.At), "time"), new("Age", backup.AgeHours, "hours"), new("Size", backup.SizeBytes, "bytes")]
                 : null),
+            Section(s, "outbox", "Lookout outbox", s.Outbox is { } outbox
+                ?
+                [
+                    new("Pending", outbox.Pending),
+                    new("Parked", outbox.Parked, Tone: outbox.Parked > 0 ? "warn" : null, Hint: "refused by Lookout, not sent again"),
+                    outbox.OldestPending is { } age
+                        ? new("Oldest pending", Math.Round(age.TotalHours, 1), "hours", Tone: age > OutboxPendingLimit ? "warn" : null)
+                        : new("Oldest pending", null, "hours", Hint: "nothing waiting"),
+                ]
+                : null),
         ]);
+    }
+
+    /// <summary>How long the oldest pending outbox row may wait before the system page and the summary warn.</summary>
+    public static readonly TimeSpan OutboxPendingLimit = TimeSpan.FromHours(1);
+
+    /// <summary>The outbox warnings: parked rows, and a pending row older than <see cref="OutboxPendingLimit"/>.</summary>
+    private static IEnumerable<Alert> OutboxAlerts(OutboxInfo? outbox)
+    {
+        if (outbox is null) yield break;
+        if (outbox.Parked > 0) yield return new($"Lookout outbox: {N(outbox.Parked)} parked", "warn", "system");
+        if (outbox.OldestPending is { } age && age > OutboxPendingLimit)
+            yield return new($"Lookout outbox: oldest pending {Math.Round(age.TotalHours, 1).ToString(CultureInfo.InvariantCulture)} h", "warn", "system");
     }
 
     public static Page Releases(SystemReport s) => new("releases", "Releases", s.GeneratedAt,
@@ -240,6 +262,7 @@ public static class LookoutPages
     /// <summary>
     /// The summary card. A null overview or feedback is a failed database read: its tiles are null, the state is bad and the first alert says so.
     /// Overdue reminders show only as the failing "Reminders advancing" health check.
+    /// Parked Lookout outbox rows and a pending one older than <see cref="OutboxPendingLimit"/> are warnings; a missing outbox raises nothing.
     /// </summary>
     public static Summary Summary(OverviewCounters? overview, FeedbackList? feedback, SystemReport system, DateTime now,
         OverviewSeries? series = null, ApiHealth? api = null)
@@ -256,10 +279,12 @@ public static class LookoutPages
         if (statusError is not null) alerts.Add(new($"Host status: {statusError}", "warn", "system"));
         var lowDisks = (system.Disks ?? []).Where(d => DiskTone(d) is not null).ToList();
         alerts.AddRange(lowDisks.Select(d => new Alert($"Disk {d.Mount}: {Pct(d.FreeBytes, d.TotalBytes)} free", DiskTone(d)!, "system")));
+        var outboxAlerts = OutboxAlerts(system.Outbox).ToList();
+        alerts.AddRange(outboxAlerts);
 
         var bad = databaseFailed || system.Services.Any(x => !x.Ok) || failedCi.Any(run => run.Branch == "main") || lowDisks.Any(d => DiskTone(d) == "bad");
         var generatedAt = new[] { overview?.GeneratedAt, feedback is null ? null : now, system.GeneratedAt }.Where(t => t is not null).Min()!.Value;
-        return new(generatedAt, bad ? "bad" : statusError is not null || lowDisks.Count > 0 ? "warn" : "ok",
+        return new(generatedAt, bad ? "bad" : statusError is not null || lowDisks.Count > 0 || outboxAlerts.Count > 0 ? "warn" : "ok",
         [
             overview is null ? new("Users", null) : UsersItem(overview.Users, series),
             overview is null ? new("Active 7 days", null) : Active7Item(overview.Active7, overview.Users, series),

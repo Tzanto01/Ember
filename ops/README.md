@@ -17,7 +17,7 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 | `releases` | Deployed SHA of production and staging, the provider's build SHA, the published APK version, CI of `main`, `test` and `v2/next` |
 | `feedback` | The reports, one column per Ember status (open, planned, implemented, released, declined). Each card has its description, pictures, platform, version, send time, whether it was sent anonymously, and its comments. A move sets the status and the card position. Moves are not logged |
 | `notices` | Live, scheduled and ended notices: info or maintenance, English and German, up to 280 characters each, up to 10 notices in a 16 KiB document. Publish, end now or delete. Each change is written to `NoticeLog` in `emberops` with the author |
-| `system` | Container states, whether reminders are advancing (a health check only), `emberdb` size, connections in use against `max_connections` and latest migration, free space per disk, newest pre-deploy dump |
+| `system` | Container states, whether reminders are advancing (a health check only), `emberdb` size, connections in use against `max_connections` and latest migration, free space per disk, newest pre-deploy dump, Lookout outbox (pending and parked rows and the oldest pending row's age; a warning when any row is parked or one has waited over an hour; unavailable before Ember has the outbox) |
 
 The overview, releases, notices and system pages refresh every 30 seconds, the engagement, devices and health pages every 60. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the series at most every 5 minutes, shared by all viewers.
 
@@ -39,7 +39,7 @@ Limits of the data:
 
 ## Privacy
 
-Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on the ids, dates and flags the pages count, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table, or which habits are let-go habits (`Habits.Kind`), and no habit, routine, reminder or settings columns beyond the next reminder time the health check needs. Re-running the script revokes grants older versions gave on those. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
+Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on the ids, dates and flags the pages count, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table, or which habits are let-go habits (`Habits.Kind`), and no habit, routine, reminder or settings columns beyond the next reminder time the health check needs. Of `LookoutOutbox` it reads only the three times the outbox health counts with, never kinds, keys or user refs. Re-running the script revokes grants older versions gave on those. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
 
 `Feedback.UserId` is readable only so the board can say whether a report was anonymous. The app uses it only as `"UserId" IS NULL` and never returns it.
 

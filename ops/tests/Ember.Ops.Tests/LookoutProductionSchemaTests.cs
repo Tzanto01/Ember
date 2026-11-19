@@ -35,6 +35,20 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
     }
 
     [Fact]
+    public async Task Without_the_outbox_table_the_system_page_marks_it_unavailable_and_the_summary_raises_nothing_for_it()
+    {
+        using var client = Hub();
+
+        var system = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/system");
+        var summary = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/summary");
+
+        var outbox = LookoutShape.Widget(system, "outbox");
+        outbox.GetProperty("unavailable").GetString().Should().Be("Unavailable: Ember has no Lookout outbox yet");
+        outbox.GetProperty("items").GetArrayLength().Should().Be(0);
+        summary.GetProperty("alerts").EnumerateArray().Select(a => a.GetProperty("text").GetString()).Should().NotContain(t => t!.Contains("outbox"));
+    }
+
+    [Fact]
     public async Task The_overview_counts_users_and_sign_in_activity_on_the_production_schema()
     {
         using var client = Hub();

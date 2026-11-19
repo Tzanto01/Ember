@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace Ember.Ops.Tests;
 
@@ -33,6 +34,41 @@ public sealed class SystemTests(V2DatabaseFixture database) : IDisposable
             """);
 
         report.Disks.Should().Equal(new HostDisk("/", 10, 110), new HostDisk("/srv/data", 3400, 3600));
+    }
+
+    [Fact]
+    public async Task The_outbox_counts_pending_and_parked_rows_and_ages_the_oldest_pending_one()
+    {
+        var now = database.Time.GetUtcNow().UtcDateTime;
+        await using var ember = await database.OpenAsync("emberdb");
+        await using (var insert = new NpgsqlCommand("""
+            INSERT INTO "LookoutOutbox" ("Kind", "UserRef", "CreatedAt", "SentAt", "ParkedAt", "ParkedStatus") VALUES
+                ('user-delete', 'synthetic-ref-1', $1, NULL, NULL, NULL),
+                ('user-delete', 'synthetic-ref-2', $2, NULL, NULL, NULL),
+                ('user-delete', 'synthetic-ref-3', $3, $2, NULL, NULL),
+                ('user-delete', 'synthetic-ref-4', $3, NULL, $2, 409)
+            """, ember) { Parameters = { new() { Value = now.AddHours(-3) }, new() { Value = now.AddMinutes(-30) }, new() { Value = now.AddHours(-6) } } })
+            await insert.ExecuteNonQueryAsync();
+        try
+        {
+            var report = await SystemAsync("""{"writtenAt":"2026-11-18T12:00:00Z"}""");
+
+            report.Outbox.Should().Be(new OutboxInfo(2, 1, TimeSpan.FromHours(3)));
+            report.Errors.Should().NotContainKey("outbox");
+        }
+        finally
+        {
+            await using var clear = new NpgsqlCommand("""DELETE FROM "LookoutOutbox" """, ember);
+            await clear.ExecuteNonQueryAsync();
+        }
+    }
+
+    [Fact]
+    public async Task An_empty_outbox_has_no_oldest_pending_row()
+    {
+        var report = await SystemAsync("""{"writtenAt":"2026-11-18T12:00:00Z"}""");
+
+        report.Outbox.Should().Be(new OutboxInfo(0, 0, null));
     }
 
     [Fact]

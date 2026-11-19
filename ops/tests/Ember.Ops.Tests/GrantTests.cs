@@ -21,6 +21,7 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
             """SELECT "Id", "Title", "Text", "Platform", "Version", "CreatedAt", "Status", "ResolvedAt", "UserId" FROM "Feedback" """,
             """SELECT "Id", "FeedbackId", "ContentType", "Size", "Data" FROM "FeedbackImages" """,
             """SELECT "MigrationId" FROM "__EFMigrationsHistory" """,
+            """SELECT count(*), min("CreatedAt"), max("SentAt"), max("ParkedAt") FROM "LookoutOutbox" """,
         ];
 
         await using var connection = fixture.DashboardConnection();
@@ -70,6 +71,13 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     [InlineData("""SELECT "Date" FROM "ReminderMessages" """)]
     [InlineData("""SELECT "Date" FROM "PushReminders" """)]
     [InlineData("""SELECT pg_sequence_last_value(pg_get_serial_sequence('"ReminderMessages"', 'Id'))""")]
+    [InlineData("""SELECT "Key" FROM "LookoutOutbox" """)]
+    [InlineData("""SELECT "UserRef" FROM "LookoutOutbox" """)]
+    [InlineData("""SELECT "Kind" FROM "LookoutOutbox" """)]
+    [InlineData("""SELECT "FeedbackId" FROM "LookoutOutbox" """)]
+    [InlineData("""SELECT "ParkedStatus" FROM "LookoutOutbox" """)]
+    [InlineData("""SELECT * FROM "LookoutOutbox" """)]
+    [InlineData("""SELECT "Ref" FROM "LookoutUserRefs" """)]
     [InlineData("""UPDATE "Feedback" SET "Title" = 'changed' """)]
     [InlineData("""UPDATE "Habits" SET "NextReminderUtc" = NULL""")]
     [InlineData("""INSERT INTO "Feedback" ("Title") VALUES ('x')""")]
@@ -83,6 +91,17 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
         var run = async () => await command.ExecuteNonQueryAsync();
 
         (await run.Should().ThrowAsync<PostgresException>()).Which.SqlState.Should().Be("42501");
+    }
+
+    [Fact]
+    public async Task Of_the_Lookout_outbox_the_role_is_granted_only_the_three_times()
+    {
+        var granted = await fixture.ScalarAsync<string>("emberdb", """
+            SELECT string_agg(column_name || ':' || privilege_type, ',' ORDER BY column_name, privilege_type) FROM information_schema.column_privileges
+            WHERE grantee = 'ember_dashboard' AND table_name IN ('LookoutOutbox', 'LookoutUserRefs')
+            """);
+
+        granted.Should().Be("CreatedAt:SELECT,ParkedAt:SELECT,SentAt:SELECT");
     }
 
     [Fact]

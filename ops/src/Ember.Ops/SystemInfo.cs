@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace Ember.Ops;
 
@@ -16,12 +17,14 @@ public sealed record BackupInfo(string Name, DateTime At, double AgeHours, long 
 public sealed record DeployedShas(string? Production, string? Staging);
 public sealed record CiRun(string Branch, string Status, string? Conclusion, string Url, DateTime At, string Sha);
 public sealed record ApkInfo(string VersionName, long VersionCode);
+/// <summary>Ember's Lookout outbox: rows still to send, rows Lookout refused for good, and how long the oldest row to send has waited.</summary>
+public sealed record OutboxInfo(int Pending, int Parked, TimeSpan? OldestPending);
 
 /// <summary>The system report. A failing part is null and named in <see cref="Errors"/>; it never fails the whole call.</summary>
 public sealed record SystemReport(
     DateTime GeneratedAt, DateTime? StatusWrittenAt, IReadOnlyList<ServiceState> Services, DatabaseInfo? Database, IReadOnlyList<HostDisk>? Disks,
     BackupInfo? Backup, DeployedShas? Deployed, IReadOnlyList<CiRun>? Ci, JsonElement? Notice, ApkInfo? Apk, string? DashboardSha,
-    IReadOnlyDictionary<string, string> Errors);
+    IReadOnlyDictionary<string, string> Errors, OutboxInfo? Outbox = null);
 
 /// <summary>The status file <c>ops/host/ops-status.sh</c> writes every minute. <see cref="Disk"/> is the single <c>/home</c> disk of files written before <see cref="Disks"/>.</summary>
 public sealed record HostStatus(DateTime WrittenAt, DiskInfo? Disk, HostBackup? Backup, DeployedShas? Deployed, IReadOnlyList<HostContainer>? Containers,
@@ -77,6 +80,18 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
             errors["database"] = "database unavailable";
         }
 
+        OutboxInfo? outbox = null;
+        try
+        {
+            outbox = await OutboxAsync(now, ct);
+            if (outbox is null) errors["outbox"] = "Ember has no Lookout outbox yet";
+        }
+        catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            logger.LogWarning(e, "System: outbox read failed");
+            errors["outbox"] = "outbox unavailable";
+        }
+
         var services = (status?.Containers ?? []).Select(c =>
         {
             var health = string.IsNullOrEmpty(c.Health) || c.Health == "none" ? null : c.Health;
@@ -92,7 +107,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         var backup = status?.Backup is { } b ? new BackupInfo(b.Name, b.At, Math.Round((now - b.At).TotalHours, 1), b.SizeBytes) : null;
         IReadOnlyList<HostDisk>? disks = status?.Disks ?? (status?.Disk is { } d ? [new("/home", d.FreeBytes, d.TotalBytes)] : null);
         return new(now, status?.WrittenAt, services, database, disks, backup, status?.Deployed, ci.Value, notice.Value, apk.Value,
-            string.IsNullOrWhiteSpace(o.BuildSha) ? null : o.BuildSha, errors);
+            string.IsNullOrWhiteSpace(o.BuildSha) ? null : o.BuildSha, errors, outbox);
     }
 
     /// <summary>Reads the host status file; null with an error message when it is missing or unreadable.</summary>
@@ -134,6 +149,25 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         await reader.NextResultAsync(ct);
         await reader.RowAsync(ct);
         return new(size, latest, reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
+    }
+
+    /// <summary>Counts and the oldest age only; null when the role sees no <c>LookoutOutbox</c> columns (Ember before the outbox, or not granted yet).</summary>
+    private async Task<OutboxInfo?> OutboxAsync(DateTime now, CancellationToken ct)
+    {
+        await using var connection = await db.Ember.OpenConnectionAsync(ct);
+        await using (var detect = new NpgsqlCommand("""
+            SELECT count(*) FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'LookoutOutbox' AND column_name IN ('CreatedAt', 'SentAt', 'ParkedAt')
+            """, connection))
+            if ((long)(await detect.ExecuteScalarAsync(ct))! < 3) return null;
+
+        await using var command = new NpgsqlCommand("""
+            SELECT count(*) FILTER (WHERE "SentAt" IS NULL AND "ParkedAt" IS NULL)::int, count(*) FILTER (WHERE "ParkedAt" IS NOT NULL)::int,
+                   min("CreatedAt") FILTER (WHERE "SentAt" IS NULL AND "ParkedAt" IS NULL)
+            FROM "LookoutOutbox"
+            """, connection);
+        await using var reader = await (await command.ExecuteReaderAsync(ct)).RowAsync(ct);
+        return new(reader.GetInt32(0), reader.GetInt32(1), reader.IsDBNull(2) ? null : now - reader.GetDateTime(2));
     }
 
     private async Task<Fetched<T>> Cached<T>(string key, TimeSpan ttl, Func<Task<Fetched<T>>> load, TimeSpan? failureTtl = null) =>
