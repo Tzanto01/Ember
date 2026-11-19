@@ -255,6 +255,7 @@ test.describe('sign-up language', () => {
     const tr = translator(languages[1].strings);
     await signUpAndConfirmLocalized(page, tr);
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+    await page.getByRole('checkbox', { name: tr('consent.age') }).check();
     await page.getByRole('button', { name: tr('consent.agree') }).click();
     await expect(page).toHaveURL(/\/today$/);
     await expect(page.getByRole('heading', { name: tr('today.title'), exact: true })).toBeVisible();

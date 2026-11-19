@@ -133,6 +133,7 @@ test('no-account mode moves device data into a new account', async ({ page }) =>
   const email = uniqueEmail();
   await signUp(page, email);
   await confirmEmail(page, email);
+  await page.getByRole('checkbox', { name: "I'm at least 16" }).check();
   await page.getByRole('button', { name: 'I agree' }).click();
   await expect(page).toHaveURL(/\/keep-data/);
   await expect(page.getByRole('heading', { name: 'Keep your data' })).toBeVisible();

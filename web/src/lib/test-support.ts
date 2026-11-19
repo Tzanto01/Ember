@@ -112,7 +112,7 @@ export const me: Me = {
   graceDaysPerWeek: 1,
   secondReminderMinutes: 0,
   theme: null,
-  consent: { given: true, policyVersion: '1', currentPolicyVersion: '1' },
+  consent: { given: true, policyVersion: '1', currentPolicyVersion: '1', withdrawnAt: null, deletesAt: null },
   dmReminders: { paused: false },
   journal: { encrypted: false, turningOff: false, plaintextLeft: 0, encryptedLeft: 0 },
   showStreaks: true,

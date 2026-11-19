@@ -18,6 +18,13 @@ export function forgetUnreachable(): void {
   unreachableUntil = 0;
 }
 
+const writePaths = ['/today', '/history', '/habits', '/routines', '/moments'];
+
+function writePath(url: string): boolean {
+  const path = url.split(/[?#]/)[0] ?? url;
+  return writePaths.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
 /** Today's date in `timeZone` by this device's clock, or null for an unknown zone. */
 export function deviceToday(timeZone: string, now = new Date()): LocalDateString | null {
   try {
@@ -50,7 +57,8 @@ export function rememberedMe(now = new Date()): Me | null {
 /**
  * Signed-in route guard for `url` (path plus query): null lets the user through (loads `me` once).
  * Signed out → `/login?returnUrl=…` (forgetting the {@link rememberedMe}); API unreachable → the same with
- * `reason=offline`. Offers the consent step
+ * `reason=offline`. While consent is withdrawn (export-only), Today, History, Habits, Routines and Moments go to
+ * `/consent`. Offers the consent step
  * once per app session when consent is missing, which also covers the return from Discord sign-in. While device
  * data waits for the account (mode `upgrading`), sends the user to `/keep-data` (after the consent step).
  * Web build, API unreachable (status 0) with a {@link rememberedMe} from today: lets the user through on that cached
@@ -71,6 +79,7 @@ export async function signedIn(
       rememberMe(null);
       return `/login?${queryString({ returnUrl: url })}`;
     }
+    if (me.consent.withdrawnAt && writePath(url)) return '/consent';
     if (!url.startsWith('/consent') && session.takeConsentPrompt()) {
       return `/consent?${queryString({ returnUrl: url })}`;
     }

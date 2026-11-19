@@ -44,6 +44,18 @@ describe('signedIn guard', () => {
     expect(await signedIn('/today', session)).toBeNull();
   });
 
+  it('while consent is withdrawn, sends the data pages to /consent but keeps settings, Fireside and the rest reachable', async () => {
+    const withdrawn = { ...me, consent: { ...me.consent, given: false, withdrawnAt: '2026-11-01T10:00:00Z', deletesAt: '2026-12-01T10:00:00Z' } };
+    const session = fakeSession(async () => withdrawn);
+
+    for (const url of ['/today', '/history?month=2026-10', '/habits/3/edit', '/routines', '/moments']) {
+      expect(await signedIn(url, session)).toBe('/consent');
+    }
+    for (const url of ['/consent', '/settings/privacy', '/fireside', '/feedback', '/help', '/about', '/moment', '/whats-new']) {
+      expect(await signedIn(url, session)).toBeNull();
+    }
+  });
+
   it('lets a signed-in user with consent through', async () => {
     expect(await signedIn('/today', fakeSession(async () => me))).toBeNull();
   });

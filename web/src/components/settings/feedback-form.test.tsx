@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
@@ -52,6 +52,18 @@ describe('FeedbackForm', () => {
     expect(screen.getByRole('textbox', { name: /Title/ })).toHaveValue('');
     expect(screen.getByRole('textbox', { name: /Description/ })).toHaveValue('');
     expect(screen.queryByText('Please fill this in.')).toBeNull();
+  });
+
+  it('right above Send, tells signed-out and signed-in people that health details mean explicit consent', () => {
+    const notice = /sending it means you explicitly agree that the operator processes it/;
+    renderPage('/feedback', FeedbackPage, '/feedback');
+    expect(screen.getByText(notice).nextElementSibling).toContainElement(screen.getByRole('button', { name: 'Send' }));
+    cleanup();
+
+    auth.setMe(me);
+    renderPage('/feedback', FeedbackPage, '/feedback');
+    expect(screen.getByText(notice)).toBeInTheDocument();
+    auth.clearSession();
   });
 
   it('adds the app version and the android platform when native', async () => {

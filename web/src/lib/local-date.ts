@@ -113,6 +113,17 @@ export function formatDate(
   return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(toUtc(date));
 }
 
+/** Formats the date of the instant `iso` in `timeZone` (UTC for an unknown zone) as a long date, for example "December 1, 2026". */
+export function formatInstantDate(iso: string, timeZone: string, locale: string = currentLanguage()): string {
+  const format = (zone: string) =>
+    new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: zone }).format(new Date(iso));
+  try {
+    return format(timeZone);
+  } catch {
+    return format('UTC');
+  }
+}
+
 /** Formats an `HH:MM` wall-clock time for display in the user's locale, for example "1:00 PM" or "13:00". */
 export function formatTime(time: string, locale: string = currentLanguage()): string {
   const [hours, minutes] = time.split(':').map(Number);

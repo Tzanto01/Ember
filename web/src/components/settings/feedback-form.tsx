@@ -385,6 +385,7 @@ export function FeedbackForm() {
           <p>{problem}</p>
         </Notice>
       )}
+      <p className="text-[0.875rem] text-muted-foreground">{t('feedback.health')}</p>
       <div>
         <BusyButton
           type="submit"

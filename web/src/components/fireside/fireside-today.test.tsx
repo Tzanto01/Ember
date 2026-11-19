@@ -28,6 +28,8 @@ const fireside = (over: Partial<Fireside> = {}): Fireside => ({
   code: null,
   friends: [friend()],
   warmth: [],
+  consentVersion: '2026-11',
+  consentGiven: true,
   ...over,
 });
 

@@ -203,6 +203,9 @@ export const routes: RouteObject[] = [
       {
         Component: AppShell,
         loader: requireSignedIn,
+        shouldRevalidate: ({ currentUrl, nextUrl, defaultShouldRevalidate }) =>
+          defaultShouldRevalidate ||
+          (currentUrl.pathname !== nextUrl.pathname && !!auth.me.get()?.consent.withdrawnAt),
         children: [
           { path: 'today', ...page('title.today', () => import('./pages/today')) },
           { path: 'history', ...page('title.history', () => import('./pages/history')) },

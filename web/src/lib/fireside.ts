@@ -48,13 +48,21 @@ export interface Fireside {
   code: FiresideCode | null;
   friends: FiresideFriend[];
   warmth: FiresideWarmth[];
+  /** The current Fireside consent version, to send when turning Fireside on. */
+  consentVersion: string;
+  /** Whether the stored Fireside consent is the current version. */
+  consentGiven: boolean;
 }
 
-/** `PUT /api/fireside` body. */
+/**
+ * `PUT /api/fireside` body. Turning on without a current Fireside consent needs `consentVersion`, else 403
+ * `fireside_consent_required`.
+ */
 export interface FiresidePut {
   enabled: boolean;
   name?: string;
   notify?: boolean;
+  consentVersion?: string;
 }
 
 /** Most characters a Fireside name may have after trimming. */

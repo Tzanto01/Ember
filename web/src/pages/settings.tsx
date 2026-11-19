@@ -41,7 +41,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { saveFile } from '@/lib/api-client';
 import { env } from '@/lib/env';
-import { browserTimeZone, isValidTimeZone, timeZoneLabel } from '@/lib/local-date';
+import { browserTimeZone, formatInstantDate, isValidTimeZone, timeZoneLabel } from '@/lib/local-date';
 import {
   type ExportFormat,
   graceOptions,
@@ -71,6 +71,7 @@ type Section =
   | 'push'
   | 'appearance'
   | 'export'
+  | 'consent'
   | 'password'
   | 'signout'
   | 'everywhere'
@@ -209,6 +210,8 @@ export default function SettingsPage() {
   const everywhereButton = useRef<HTMLButtonElement>(null);
   const everywhereText = useRef<HTMLParagraphElement>(null);
   const linkDiscordButton = useRef<HTMLButtonElement>(null);
+  const withdrawButton = useRef<HTMLButtonElement>(null);
+  const withdrawText = useRef<HTMLParagraphElement>(null);
   const claimed = useRef<Promise<void> | null>(null);
 
   const [busy, setBusy] = useState<Section | null>(null);
@@ -223,6 +226,7 @@ export default function SettingsPage() {
   const [zoneTouched, setZoneTouched] = useState(false);
   const [zoneServerError, setZoneServerError] = useState<string | null>(null);
   const [confirmEverywhere, setConfirmEverywhere] = useState(false);
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [linkingDiscord, setLinkingDiscord] = useState(false);
   const [deleteErrors, setDeleteErrors] = useState<{ password?: string; confirm?: string }>({});
   const [notificationsOff, setNotificationsOff] = useState(false);
@@ -557,6 +561,26 @@ export default function SettingsPage() {
     });
   }
 
+  function askWithdraw(open: boolean): void {
+    flushSync(() => setConfirmWithdraw(open));
+    (open ? withdrawText : withdrawButton).current?.focus();
+  }
+
+  async function withdrawConsent(): Promise<void> {
+    if (busyRef.current) return;
+    start('consent');
+    try {
+      await api.withdrawConsent();
+      await auth.loadMe(true);
+    } catch (error) {
+      fail('consent', asApiError(error));
+      finish();
+      return;
+    }
+    finish();
+    await navigate('/consent');
+  }
+
   async function deleteAccount(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busyRef.current || !me) return;
@@ -619,6 +643,7 @@ export default function SettingsPage() {
         ]),
     ...(updaterAvailable() ? [{ id: 'app-updates', title: t('settings.card.appUpdates') }] : []),
     { id: 'helps', title: t('settings.card.helps') },
+    ...(local ? [] : [{ id: 'consent', title: t('settings.card.privacy') }]),
     ...(local ? [] : [{ id: 'export', title: t('settings.card.export') }]),
     { id: 'delete', title: local ? t('settings.card.deleteDevice') : t('settings.card.deleteAccount') },
     { id: 'feedback', title: t('settings.card.feedback') },
@@ -1328,6 +1353,58 @@ export default function SettingsPage() {
             {shown('helps') && (
               <SettingsCard id="helps" title={title('helps')}>
                 <HelpsSettings />
+              </SettingsCard>
+            )}
+
+            {shown('consent') && me && (
+              <SettingsCard id="consent" title={title('consent')}>
+                {me.consent.given ? (
+                  <>
+                    <p>{t('settings.privacy.given')}</p>
+                    {!confirmWithdraw && (
+                      <div>
+                        <Button ref={withdrawButton} type="button" variant="secondary" onClick={() => askWithdraw(true)}>
+                          {t('settings.privacy.withdraw')}
+                        </Button>
+                      </div>
+                    )}
+                    {confirmWithdraw && (
+                      <div className="flex flex-col gap-3 rounded-md border-[length:var(--border-width)] border-border p-3">
+                        <p ref={withdrawText} tabIndex={-1} className="focus:outline-none">
+                          {t('settings.privacy.withdrawConfirm')}
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          <BusyButton
+                            type="button"
+                            variant="destructive"
+                            busy={busy === 'consent'}
+                            busyLabel={t('auth.saving')}
+                            onClick={() => void withdrawConsent()}
+                          >
+                            {t('settings.privacy.withdrawYes')}
+                          </BusyButton>
+                          <Button type="button" variant="ghost" onClick={() => askWithdraw(false)}>
+                            {t('settings.privacy.withdrawNo')}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      {!me.consent.withdrawnAt
+                        ? t('settings.privacy.missing')
+                        : me.consent.deletesAt
+                          ? t('settings.privacy.withdrawn', { date: formatInstantDate(me.consent.deletesAt, me.timezone) })
+                          : t('settings.privacy.withdrawnNoData')}
+                    </p>
+                    <div>
+                      <TapLink to="/consent">{t('settings.privacy.give')}</TapLink>
+                    </div>
+                  </>
+                )}
+                {outcome('consent')}
               </SettingsCard>
             )}
 

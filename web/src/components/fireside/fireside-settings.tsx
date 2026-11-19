@@ -23,7 +23,8 @@ function nameError(value: string): string | null {
 
 /**
  * Settings › People › Fireside (screen 1): what Fireside is, "Use Fireside" and the name friends see. Turning it on
- * needs a name; turning it off asks first. Renders nothing until the Fireside has loaded.
+ * needs a name and, without a current Fireside consent, asks for it first; turning it off asks first. Renders nothing
+ * until the Fireside has loaded.
  */
 export function FiresideSettings() {
   const { t } = useTranslation();
@@ -34,15 +35,21 @@ export function FiresideSettings() {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState<'on' | 'off' | 'name' | null>(null);
   const [confirmOff, setConfirmOff] = useState(false);
+  const [askConsent, setAskConsent] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLParagraphElement>(null);
+  const consentRef = useRef<HTMLHeadingElement>(null);
   const switchRef = useRef<HTMLButtonElement>(null);
   const value = name ?? data?.name ?? '';
 
   useEffect(() => {
     if (confirmOff) confirmRef.current?.focus();
   }, [confirmOff]);
+
+  useEffect(() => {
+    if (askConsent) consentRef.current?.focus();
+  }, [askConsent]);
 
   if (!data) {
     return isError ? (
@@ -60,8 +67,8 @@ export function FiresideSettings() {
     );
   }
 
-  async function save(kind: 'on' | 'off' | 'name', body: FiresidePut, done: string): Promise<void> {
-    if (busy) return;
+  async function save(kind: 'on' | 'off' | 'name', body: FiresidePut, done: string): Promise<boolean> {
+    if (busy) return false;
     setBusy(kind);
     setProblem(null);
     setAnnouncement('');
@@ -69,15 +76,20 @@ export function FiresideSettings() {
       queryClient.setQueryData(firesideKey, await firesideApi.put(body));
       setName(null);
       setAnnouncement(done);
+      return true;
     } catch (caught) {
       const apiError = asApiError(caught);
-      if (!apiError.handled) {
+      if (apiError.type === 'fireside_consent_required') {
+        setAskConsent(true);
+        void refetch();
+      } else if (!apiError.handled) {
         const friendly = problemToMessage(apiError);
         if (friendly.fields['name']) {
           setError(t('fireside.settings.nameInvalid', { max: firesideNameMax }));
           nameRef.current?.focus();
         } else setProblem(friendly.message);
       }
+      return false;
     } finally {
       setBusy(null);
     }
@@ -94,7 +106,23 @@ export function FiresideSettings() {
       nameRef.current?.focus();
       return;
     }
+    if (!data?.consentGiven) {
+      setAskConsent(true);
+      return;
+    }
     void save('on', { enabled: true, name: value.trim() }, t('fireside.settings.turnedOn'));
+  }
+
+  async function agreeAndTurnOn(): Promise<void> {
+    if (!data) return;
+    if (!(await save('on', { enabled: true, name: value.trim(), consentVersion: data.consentVersion }, t('fireside.settings.turnedOn')))) return;
+    flushSync(() => setAskConsent(false));
+    switchRef.current?.focus();
+  }
+
+  function cancelConsent(): void {
+    flushSync(() => setAskConsent(false));
+    switchRef.current?.focus();
   }
 
   function cancelOff(): void {
@@ -133,10 +161,35 @@ export function FiresideSettings() {
           ref={switchRef}
           id="fireside-enabled"
           checked={data.enabled}
-          aria-disabled={busy !== null || confirmOff || undefined}
-          onCheckedChange={(on) => !busy && !confirmOff && toggle(on)}
+          aria-disabled={busy !== null || confirmOff || askConsent || undefined}
+          onCheckedChange={(on) => !busy && !confirmOff && !askConsent && toggle(on)}
         />
       </div>
+      {askConsent && (
+        <div
+          role="group"
+          aria-labelledby="fireside-consent-heading"
+          className="flex flex-col gap-3 rounded-md border-[length:var(--border-width)] border-border p-3"
+        >
+          <h3 id="fireside-consent-heading" ref={consentRef} tabIndex={-1} className="font-semibold focus:outline-none">
+            {t('fireside.consent.title')}
+          </h3>
+          <p>{t('fireside.consent.body')}</p>
+          <div className="flex flex-wrap gap-2">
+            <BusyButton
+              type="button"
+              busy={busy === 'on'}
+              busyLabel={t('fireside.settings.turningOn')}
+              onClick={() => void agreeAndTurnOn()}
+            >
+              {t('fireside.consent.agree')}
+            </BusyButton>
+            <Button type="button" variant="ghost" onClick={cancelConsent}>
+              {t('fireside.consent.cancel')}
+            </Button>
+          </div>
+        </div>
+      )}
       {confirmOff && (
         <div className="flex flex-col gap-3 rounded-md border-[length:var(--border-width)] border-border p-3">
           <p ref={confirmRef} tabIndex={-1} className="focus:outline-none">

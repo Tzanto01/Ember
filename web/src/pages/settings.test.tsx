@@ -230,6 +230,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
       'journal',
       'moments',
       'helps',
+      'consent',
       'export',
       'delete',
     ]);
@@ -719,6 +720,46 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(fetch.all.some((call) => call.url === '/api/auth/logout')).toBe(false);
   });
 
+  it('withdraws consent only after the confirmation, reloads me and lands on /consent', async () => {
+    const user = userEvent.setup();
+    const { fetch, router } = await open('/settings/privacy');
+    const card = within(screen.getByRole('region', { name: 'Privacy' }));
+
+    await user.click(card.getByRole('button', { name: 'Withdraw consent' }));
+    expect(card.getByText(/Ember then saves nothing new, your reminders stop/)).toHaveFocus();
+    await user.click(card.getByRole('button', { name: 'Keep it' }));
+    expect(card.getByRole('button', { name: 'Withdraw consent' })).toHaveFocus();
+    await settle();
+    expect(fetch.all.some((call) => call.url === '/api/me/consent/withdraw')).toBe(false);
+
+    await user.click(card.getByRole('button', { name: 'Withdraw consent' }));
+    await user.click(card.getByRole('button', { name: 'Withdraw' }));
+    (await fetch.next('POST', '/api/me/consent/withdraw')).respond(204);
+    (await fetch.next('GET', '/api/me')).respond(200, {
+      ...me,
+      consent: { ...me.consent, given: false, withdrawnAt: '2026-11-01T09:00:00Z', deletesAt: '2026-12-01T09:00:00Z' },
+    });
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/consent'));
+  });
+
+  it('while consent is withdrawn, shows the deletion date and a way to give it again', async () => {
+    const withdrawn = {
+      ...me,
+      timezone: 'Europe/Berlin',
+      consent: { ...me.consent, given: false, withdrawnAt: '2026-11-01T09:00:00Z', deletesAt: '2026-12-01T09:00:00Z' },
+    };
+    auth.setMe(withdrawn);
+    const fetch = mockFetch();
+    renderPage('/settings/:group?', SettingsPage, '/settings/privacy');
+    (await fetch.next('GET', '/api/me')).respond(200, withdrawn);
+    const card = within(await screen.findByRole('region', { name: 'Privacy' }));
+
+    expect(card.getByText('You withdrew your consent. Ember deletes your data on December 1, 2026.')).toBeInTheDocument();
+    expect(card.getByRole('link', { name: 'Give consent' })).toHaveAttribute('href', '/consent');
+    expect(card.queryByRole('button', { name: 'Withdraw consent' })).toBeNull();
+  });
+
   it('cancelling sign out everywhere sends nothing and keeps the session', async () => {
     const user = userEvent.setup();
     const { fetch } = await open('/settings/account');
@@ -821,7 +862,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
     await act(() => router.navigate('/settings/privacy'));
     expect(screen.getByRole('button', { name: 'Delete everything on this device' })).toBeInTheDocument();
-    for (const name of ['Discord', 'Two-step sign-in', 'Private journal', 'Your data', 'Delete your account']) {
+    for (const name of ['Discord', 'Two-step sign-in', 'Private journal', 'Privacy', 'Your data', 'Delete your account']) {
       expect(screen.queryByRole('heading', { name })).toBeNull();
     }
     expect(screen.queryByRole('button', { name: 'Delete my account' })).toBeNull();
