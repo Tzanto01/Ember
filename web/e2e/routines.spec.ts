@@ -25,7 +25,7 @@ test('a routine groups its habits on Today in order, overrides their reminder, a
 
   const group = page.getByRole('region', { name: 'Morning', exact: true });
   await page.goto('/today');
-  await expect(group.getByRole('heading', { level: 3 })).toHaveText(['Journal', 'Stretch']);
+  await expect(group.getByRole('heading', { level: 4 })).toHaveText(['Journal', 'Stretch']);
 
   await page.getByRole('link', { name: 'Edit Morning routine' }).first().click();
   await page.getByRole('button', { name: 'Move Stretch up' }).click();
@@ -34,9 +34,9 @@ test('a routine groups its habits on Today in order, overrides their reminder, a
   await expect(page.getByText('Saved.')).toBeVisible();
 
   await page.goto('/today');
-  await expect(group.getByRole('heading', { level: 3 })).toHaveText(['Stretch', 'Journal']);
+  await expect(group.getByRole('heading', { level: 4 })).toHaveText(['Stretch', 'Journal']);
   await page.reload();
-  await expect(group.getByRole('heading', { level: 3 })).toHaveText(['Stretch', 'Journal']);
+  await expect(group.getByRole('heading', { level: 4 })).toHaveText(['Stretch', 'Journal']);
 
   await page.getByRole('link', { name: 'Edit Stretch' }).click();
   await expect(page.getByLabel('Reminder time')).toHaveValue('08:00');
@@ -52,17 +52,17 @@ test('a routine groups its habits on Today in order, overrides their reminder, a
   await expect(page.getByText('No routines yet')).toBeVisible();
 
   await page.goto('/today');
-  await expect(page.getByRole('heading', { name: 'Stretch', level: 2 })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Journal', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Stretch', level: 3 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Journal', level: 3 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Morning' })).toHaveCount(0);
-  await expect(page.getByRole('heading', { level: 3 })).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 4 })).toHaveCount(0);
 
   await page.getByRole('link', { name: 'Edit Stretch' }).click();
   await expect(page.getByText(/reminds you at/)).toHaveCount(0);
   await expect(page.getByLabel('Reminder time')).toHaveValue('08:00');
 });
 
-test('Move up and Move down on Routines reorder them, the order survives a reload, and Today follows it', async ({ page }) => {
+test('Move up and Move down on Routines reorder them and the order survives a reload, while Today orders them by name', async ({ page }) => {
   await createWebUser(page);
   const routines = ['Morning', 'Lunch', 'Evening'];
   for (const name of routines) {
@@ -89,5 +89,9 @@ test('Move up and Move down on Routines reorder them, the order survives a reloa
   await page.reload();
   await expect(names).toHaveText(['Evening', 'Morning', 'Lunch']);
   await page.getByRole('link', { name: 'Back to Today' }).click();
-  await expect(names).toHaveText(['Evening', 'Morning', 'Lunch']);
+  await expect(page.getByRole('heading', { level: 3, name: /^(Morning|Lunch|Evening)$/ })).toHaveText([
+    'Evening',
+    'Lunch',
+    'Morning',
+  ]);
 });
