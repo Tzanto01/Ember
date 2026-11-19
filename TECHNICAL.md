@@ -111,12 +111,12 @@ Back up the database before you deploy a build with a new migration.
 
 **Migrations without the bot.** The bot applies database migrations when it starts. An instance without a bot (for example staging) can apply them and exit with `docker compose run --rm ember --migrate-only` (or `dotnet Ember.Bot.dll --migrate-only`); it needs only the connection string.
 
-**Restoring a backup (maintainer).** A restore brings back what users deleted after the backup was taken. Ember keeps a deletion ledger for that: one line per account deletion and per health-data deletion, with only the account id and the time, kept for 40 days. To restore:
+**Restoring a backup (maintainer).** A restore brings back what users deleted after the backup was taken. Ember keeps a deletion ledger for that: one line per account deletion, health-data deletion and consent withdrawal (including a "No thanks" that withdraws), with only the account id, the kind and the time, kept for 40 days. To restore:
 
 1. Stop Ember: `docker compose --profile api --profile lookout stop`.
 2. Restore the dump into `emberdb`.
 3. If the backup is older than the deployed build, apply the migrations: `docker compose run --rm ember --migrate-only`.
-4. Repeat the deletions since the backup's time, in UTC: `docker compose --profile api run --rm api --replay-deletions 2026-11-19T03:00:00Z`. Accounts are deleted the normal way, so Lookout gets their deletion too, and health data is deleted again unless the account is gone. It prints counts only and is safe to run again. It refuses a missing or unreadable ledger and a time without `Z` or an offset.
+4. Repeat the deletions since the backup's time, in UTC: `docker compose --profile api run --rm api --replay-deletions 2026-11-19T03:00:00Z`. Accounts are deleted the normal way, so Lookout gets their deletion too, health data is deleted again unless the account is gone, and a consent the backup still has as given is withdrawn again from the original time, so the deletion after 30 days runs on schedule. A consent given again after the withdrawal isn't recorded, so those users are simply asked again. It prints counts only and is safe to run again. It refuses a missing or unreadable ledger and a time without `Z` or an offset.
 5. Start Ember again.
 
 When unsure of the backup's time, give an earlier one: that only repeats more deletions.

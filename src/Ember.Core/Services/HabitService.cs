@@ -76,13 +76,14 @@ public partial class HabitService
     /// <summary>
     /// Withdraws the health-data consent: for a user with current consent or health data who hasn't withdrawn yet, sets
     /// <see cref="User.ConsentWithdrawnAt"/> to now (deletion follows after <see cref="WithdrawnDataLifetime"/>) and holds back the
-    /// consent prompt like a decline. The past consent stays recorded. Returns false when there was nothing to withdraw.
+    /// consent prompt like a decline. The past consent stays recorded. Records the withdrawal in the <see cref="DeletionLedger"/>. Returns
+    /// false when there was nothing to withdraw.
     /// </summary>
     public async Task<bool> WithdrawHealthDataConsentAsync(Guid userId)
     {
         var now = _time.GetUtcNow().UtcDateTime;
         var lastQuietDay = (await GetLocalTodayAsync(userId)).AddDays(ConsentDeclineBackoffDays - 1);
-        return await _db.Users
+        var withdrawn = await _db.Users
             .Where(u => u.Id == userId && u.ConsentWithdrawnAt == null
                 && ((u.HealthDataConsentAt != null && u.ConsentPolicyVersion == CurrentConsentPolicyVersion)
                     || u.Habits.Any() || u.DayMarks.Any() || u.DayNotes.Any() || u.Moods.Any() || u.Helps != null))
@@ -90,7 +91,20 @@ public partial class HabitService
                 .SetProperty(u => u.ConsentWithdrawnAt, now)
                 .SetProperty(u => u.DeletionReminderSentAt, (DateTime?)null)
                 .SetProperty(u => u.ConsentPromptedOn, lastQuietDay)) == 1;
+        if (withdrawn) _ledger?.Record(DeletionLedger.Withdraw, userId);
+        return withdrawn;
     }
+
+    /// <summary>
+    /// Sets the consent back to withdrawn at <paramref name="withdrawnAt"/> unless it is withdrawn already, to repeat a recorded withdrawal
+    /// after a backup restore; the deletion and its reminder then run from that time. Returns whether it changed the account.
+    /// </summary>
+    public async Task<bool> RepeatConsentWithdrawalAsync(Guid userId, DateTime withdrawnAt, CancellationToken cancellationToken = default)
+        => await _db.Users
+            .Where(u => u.Id == userId && u.ConsentWithdrawnAt == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.ConsentWithdrawnAt, withdrawnAt)
+                .SetProperty(u => u.DeletionReminderSentAt, (DateTime?)null), cancellationToken) == 1;
 
     /// <summary>
     /// For a user who already has habits but no current consent: marks today's consent prompt as shown and

@@ -5,8 +5,8 @@ using Microsoft.Extensions.Logging;
 namespace Ember.Core.Services;
 
 /// <summary>
-/// The list of committed deletions an operator repeats after restoring a backup: one JSON line <c>{"at","kind","userId"}</c> per
-/// account deletion or health-data deletion, ids and UTC times only, in the file <see cref="FileSetting"/> names. Off when that
+/// The list of committed deletions and consent withdrawals an operator repeats after restoring a backup: one JSON line
+/// <c>{"at","kind","userId"}</c> per account deletion, health-data deletion or consent withdrawal, ids and UTC times only, in the file <see cref="FileSetting"/> names. Off when that
 /// setting is unset or empty. The bot and the API append to the same file, so every access holds an exclusive lock on it.
 /// </summary>
 public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<DeletionLedger> logger)
@@ -20,12 +20,15 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
     /// <summary><see cref="Entry.Kind"/> of deleted health data.</summary>
     public const string Health = "health";
 
+    /// <summary><see cref="Entry.Kind"/> of a withdrawn health-data consent (also a "No thanks" that withdraws).</summary>
+    public const string Withdraw = "withdraw";
+
     /// <summary>How long <see cref="Prune"/> keeps an entry.</summary>
     public static readonly TimeSpan Retention = TimeSpan.FromDays(40);
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    /// <summary>One deletion: when it committed (UTC), <see cref="Account"/> or <see cref="Health"/>, and whose.</summary>
+    /// <summary>One entry: when it committed (UTC), <see cref="Account"/>, <see cref="Health"/> or <see cref="Withdraw"/>, and whose.</summary>
     public sealed record Entry(DateTime At, string Kind, Guid UserId);
 
     /// <summary>The ledger file, or null when the ledger is off.</summary>
@@ -93,7 +96,7 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
     {
         try
         {
-            return JsonSerializer.Deserialize<Entry>(line, Json) is { Kind: Account or Health } entry && entry.UserId != Guid.Empty
+            return JsonSerializer.Deserialize<Entry>(line, Json) is { Kind: Account or Health or Withdraw } entry && entry.UserId != Guid.Empty
                 && entry.At.Kind == DateTimeKind.Utc ? entry : null;
         }
         catch (JsonException)

@@ -56,29 +56,45 @@ internal static partial class DeletionReplayCli
     }
 
     /// <summary>
-    /// Repeats the <paramref name="entries"/> at or after <paramref name="since"/> in time order: an account that still exists is
-    /// deleted the normal way (<see cref="HabitService.DeleteUserDataAsync(Guid)"/>, which queues its Lookout deletion); a health-data
-    /// deletion is repeated (<see cref="HabitService.RepeatHealthDataDeletionAsync"/>) while the account exists and holds any. Records
-    /// nothing in the ledger. Prints the counts and returns 0.
+    /// Repeats the <paramref name="entries"/> at or after <paramref name="since"/> in time order, for accounts that still exist: an
+    /// account is deleted the normal way (<see cref="HabitService.DeleteUserDataAsync(Guid)"/>, which queues its Lookout deletion); a
+    /// withdrawal or a health-data deletion sets a consent that isn't withdrawn back to withdrawn at the entry's time
+    /// (<see cref="HabitService.RepeatConsentWithdrawalAsync"/>), and a health-data deletion then deletes any health data again
+    /// (<see cref="HabitService.RepeatHealthDataDeletionAsync"/>). Records nothing in the ledger. Prints the counts and returns 0.
     /// </summary>
     internal static async Task<int> ReplayAsync(EmberDbContext db, IReadOnlyList<DeletionLedger.Entry> entries, DateTime since, TextWriter output,
         TimeProvider time, CancellationToken cancellationToken = default)
     {
         var habits = new HabitService(db, time);
-        int accounts = 0, health = 0, done = 0;
+        int accounts = 0, health = 0, withdrawals = 0, done = 0;
         foreach (var entry in entries.Where(e => e.At >= since).OrderBy(e => e.At))
         {
-            var exists = await db.Users.AnyAsync(u => u.Id == entry.UserId, cancellationToken);
-            if (exists && entry.Kind == DeletionLedger.Account)
+            if (!await db.Users.AnyAsync(u => u.Id == entry.UserId, cancellationToken))
+            {
+                done++;
+                continue;
+            }
+            if (entry.Kind == DeletionLedger.Account)
             {
                 await habits.DeleteUserDataAsync(entry.UserId);
                 accounts++;
+                continue;
             }
-            else if (exists && await habits.RepeatHealthDataDeletionAsync(entry.UserId, cancellationToken)) health++;
-            else done++;
+            var changed = false;
+            if (await habits.RepeatConsentWithdrawalAsync(entry.UserId, entry.At, cancellationToken))
+            {
+                withdrawals++;
+                changed = true;
+            }
+            if (entry.Kind == DeletionLedger.Health && await habits.RepeatHealthDataDeletionAsync(entry.UserId, cancellationToken))
+            {
+                health++;
+                changed = true;
+            }
+            if (!changed) done++;
         }
         await output.WriteLineAsync(string.Create(CultureInfo.InvariantCulture,
-            $"Deleted again: {accounts} accounts, health data of {health} users. Already deleted: {done}."));
+            $"Deleted again: {accounts} accounts, health data of {health} users. Withdrawn again: {withdrawals} consents. Already done: {done}."));
         return 0;
     }
 

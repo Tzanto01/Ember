@@ -34,6 +34,8 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
 
     private Task<int> Habits(Guid id) => Host.Db(db => db.Habits.CountAsync(h => h.UserId == id));
 
+    private Task<DateTime?> WithdrawnAt(Guid id) => Host.Db(db => db.Users.Where(u => u.Id == id).Select(u => u.ConsentWithdrawnAt).SingleAsync());
+
     private List<JsonElement> Lines() => File.ReadAllLines(Ledger).Select(l => JsonDocument.Parse(l).RootElement.Clone()).ToList();
 
     private async Task<(int Exit, string Output)> Replay(DateTime since)
@@ -63,7 +65,59 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
         var lines = Lines();
         lines.Select(l => l.EnumerateObject().Select(p => p.Name)).Should().AllSatisfy(names => names.Should().Equal("at", "kind", "userId"));
         lines.Select(l => (l.GetProperty("at").GetString(), l.GetProperty("kind").GetString(), l.GetProperty("userId").GetGuid())).Should().Equal(
-            ("2026-11-01T12:00:00Z", "account", deleted), ("2026-11-01T12:05:00Z", "health", withdrawn));
+            ("2026-11-01T12:00:00Z", "withdraw", withdrawn), ("2026-11-01T12:00:00Z", "account", deleted), ("2026-11-01T12:05:00Z", "health", withdrawn));
+    }
+
+    [DockerFact]
+    public Task Withdrawing_in_the_web_app_appends_a_withdraw_line() => WithdrawLine("web withdraw");
+
+    [DockerFact]
+    public Task No_thanks_in_the_web_app_appends_a_withdraw_line() => WithdrawLine("web no thanks");
+
+    [DockerFact]
+    public Task Privacy_withdraw_in_Discord_appends_a_withdraw_line() => WithdrawLine("discord withdraw");
+
+    [DockerFact]
+    public Task No_thanks_in_Discord_appends_a_withdraw_line() => WithdrawLine("discord no thanks");
+
+    private async Task WithdrawLine(string path)
+    {
+        var discordId = ApiHost.NewDiscordId();
+        ApiClient? client = path.StartsWith("web") ? await Host.SignedInAsync() : null;
+        var id = client is not null ? await client.IdAsync() : await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
+        if (client is null) await Host.Run(s => s.GiveHealthDataConsentAsync(discordId));
+
+        switch (path)
+        {
+            case "web withdraw": await (await client!.Post("/api/me/consent/withdraw")).Expect(System.Net.HttpStatusCode.NoContent); break;
+            case "web no thanks": await (await client!.Post("/api/me/consent/decline")).Expect(System.Net.HttpStatusCode.NoContent); break;
+            case "discord withdraw": (await Host.Service(s => s.WithdrawHealthDataConsentAsync(discordId))).Should().BeTrue(); break;
+            default: await Host.Run(s => s.DeclineConsentPromptAsync(discordId)); break;
+        }
+        await Host.Run(s => s.WithdrawHealthDataConsentAsync(id));
+
+        Lines().Select(l => (l.GetProperty("at").GetString(), l.GetProperty("kind").GetString(), l.GetProperty("userId").GetGuid()))
+            .Should().Equal(("2026-11-01T12:00:00Z", "withdraw", id));
+    }
+
+    [DockerFact]
+    public async Task Replay_withdraws_a_consent_the_backup_has_as_given_from_the_original_time_and_leaves_a_withdrawn_one_alone()
+    {
+        var consented = await UserWithHabit();
+        var withdrawn = await UserWithHabit();
+        await Host.Run(s => s.WithdrawHealthDataConsentAsync(withdrawn));
+        var original = await WithdrawnAt(withdrawn);
+        var since = new DateTime(2026, 10, 30, 3, 0, 0, DateTimeKind.Utc);
+        File.WriteAllLines(Ledger, [Line(since.AddHours(5), "withdraw", consented), Line(since.AddHours(6), "withdraw", withdrawn)]);
+
+        var (exit, output) = await Replay(since);
+
+        exit.Should().Be(0);
+        output.Should().Be("Deleted again: 0 accounts, health data of 0 users. Withdrawn again: 1 consents. Already done: 1.");
+        (await WithdrawnAt(consented)).Should().Be(since.AddHours(5));
+        (await Host.Service(s => s.HasHealthDataConsentAsync(consented))).Should().BeFalse();
+        (await Habits(consented)).Should().Be(1, "the deletion runs 30 days after the withdrawal, as without a restore");
+        (await WithdrawnAt(withdrawn)).Should().Be(original);
     }
 
     [DockerFact]
@@ -138,12 +192,14 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
         var (exit, output) = await Replay(since);
 
         exit.Should().Be(0);
-        output.Should().Be("Deleted again: 1 accounts, health data of 1 users. Already deleted: 3.");
+        output.Should().Be("Deleted again: 1 accounts, health data of 1 users. Withdrawn again: 2 consents. Already done: 2.");
         (await Exists(before)).Should().BeTrue();
         (await Habits(before)).Should().Be(1);
         (await Exists(account)).Should().BeFalse();
         (await Exists(health)).Should().BeTrue();
         (await Habits(health)).Should().Be(0);
+        (await WithdrawnAt(health)).Should().Be(since.AddHours(1), "the health data stays deleted under a withdrawn consent");
+        (await WithdrawnAt(emptied)).Should().Be(since.AddHours(2));
         (await Host.Db(db => db.LookoutOutbox.Where(o => o.Kind == LookoutOutbox.UserDelete).Select(o => o.UserRef).ToListAsync())).Should().Equal(userRef);
         File.ReadAllLines(Ledger).Should().HaveCount(6, "a replay records nothing");
     }
@@ -159,8 +215,8 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
         var first = await Replay(since);
         var second = await Replay(since);
 
-        first.Output.Should().Be("Deleted again: 1 accounts, health data of 1 users. Already deleted: 0.");
-        second.Should().Be((0, "Deleted again: 0 accounts, health data of 0 users. Already deleted: 2."));
+        first.Output.Should().Be("Deleted again: 1 accounts, health data of 1 users. Withdrawn again: 1 consents. Already done: 0.");
+        second.Should().Be((0, "Deleted again: 0 accounts, health data of 0 users. Withdrawn again: 0 consents. Already done: 2."));
         (await Exists(health)).Should().BeTrue();
     }
 
