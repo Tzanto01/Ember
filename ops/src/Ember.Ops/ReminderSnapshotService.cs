@@ -1,6 +1,9 @@
 namespace Ember.Ops;
 
-/// <summary>Every five minutes stores Ember's reminder id sequence values in emberops when they changed (<see cref="ReminderQueries.SnapshotAsync"/>).</summary>
+/// <summary>
+/// Every five minutes stores Ember's reminder id sequence values in emberops when they changed (<see cref="ReminderQueries.SnapshotAsync"/>),
+/// and removes comments and card positions of deleted feedback (<see cref="FeedbackStore.PurgeOrphansAsync"/>).
+/// </summary>
 public sealed class ReminderSnapshotService(OpsDatabases db, TimeProvider time, ILogger<ReminderSnapshotService> logger) : BackgroundService
 {
     public static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
@@ -17,6 +20,14 @@ public sealed class ReminderSnapshotService(OpsDatabases db, TimeProvider time, 
             catch (Exception e) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogWarning(e, "Reminder snapshot failed");
+            }
+            try
+            {
+                await FeedbackStore.PurgeOrphansAsync(db, stoppingToken);
+            }
+            catch (Exception e) when (!stoppingToken.IsCancellationRequested)
+            {
+                logger.LogWarning(e, "Feedback comment purge failed");
             }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }

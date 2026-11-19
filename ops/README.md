@@ -36,6 +36,8 @@ Aggregates only. The database role enforces it: `ember_dashboard` has column-lev
 
 `Feedback.UserId` is readable only so the board can say whether a report was anonymous. The app uses it only as `"UserId" IS NULL` and never returns it.
 
+Every 5 minutes, with the reminder snapshot, the app deletes the comments and card positions in `emberops` whose report Ember no longer has (Ember deletes feedback after 12 months or with the account).
+
 Moving a card to released or declined sets `ResolvedAt` the same way `--feedback-status` does, so Ember deletes the pictures 30 days later. Moving it back clears `ResolvedAt`.
 
 ## Access
