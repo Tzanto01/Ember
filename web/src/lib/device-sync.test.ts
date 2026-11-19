@@ -79,6 +79,31 @@ describe('DeviceSync', () => {
     expect(rebuild).toHaveBeenCalledTimes(1);
   });
 
+  it('pauses the phone reminders while the consent is withdrawn and rebuilds them after agreeing again', () => {
+    (globalThis as unknown as { indexedDB: unknown }).indexedDB = new IDBFactory();
+    mockFetch();
+    const http = new Http({ native: true, apiBase: '' });
+    const device = new DeviceStore();
+    const queue = new OfflineQueue(device);
+    const api = new ApiClient(http, queue);
+    const reminders = new Reminders(api, device);
+    const rebuild = vi.spyOn(reminders, 'rebuild').mockResolvedValue();
+    const pause = vi.spyOn(reminders, 'pause').mockResolvedValue();
+    const tokens = new TokenStore(http, memorySecureStore().store);
+    const auth = new AuthService(api, queue, null, { tokens, reminders });
+    new DeviceSync(auth, api, queue, reminders);
+    auth.setMe(me);
+    rebuild.mockClear();
+
+    const withdrawn = { ...me.consent, given: false, withdrawnAt: '2026-11-19T10:00:00Z', deletesAt: '2026-12-19T10:00:00Z' };
+    auth.setMe({ ...me, consent: withdrawn });
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(rebuild).not.toHaveBeenCalled();
+
+    auth.setMe(me);
+    expect(rebuild).toHaveBeenCalledTimes(1);
+  });
+
   describe('automatic time zone', () => {
     function setup(timeZone = 'America/Halifax') {
       (globalThis as unknown as { indexedDB: unknown }).indexedDB = new IDBFactory();

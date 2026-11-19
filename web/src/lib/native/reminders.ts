@@ -108,6 +108,18 @@ export class Reminders {
     return this.chain;
   }
 
+  /** Cancels every scheduled reminder and clears the widget while the health-data consent is withdrawn. Never throws. */
+  pause(): Promise<void> {
+    this.chain = this.chain
+      .then(async () => {
+        localStorage.removeItem(plannedKey);
+        await this.toWidget((widget) => widget.clear());
+        await this.cancelPending();
+      })
+      .catch(() => undefined);
+    return this.chain;
+  }
+
   /**
    * Asks for the notification permission (Android 13+ `POST_NOTIFICATIONS`); true when granted. In the beta app,
    * once granted, also opens the "Alarms & reminders" setting once per install so reminders can fire on time.
