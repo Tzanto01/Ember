@@ -41,7 +41,7 @@ describe('ConsentPage', () => {
     auth.setMe({ ...me, consent: { given: false, policyVersion: null, currentPolicyVersion: '1' } });
     renderPage('/consent', ConsentPage, '/consent');
 
-    expect(screen.getByText(/your habit names, check-ins, low days, day notes and moods\./)).toBeInTheDocument();
+    expect(screen.getByText(/your habit names, check-ins, low days, day notes, moods, slips/)).toBeInTheDocument();
   });
 
   it('falls back to /today for an off-site returnUrl', async () => {
