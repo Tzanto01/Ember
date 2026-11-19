@@ -75,6 +75,54 @@ public partial class HabitService
     public async Task DeleteDayNoteAsync(Guid userId, DateOnly date)
         => await _db.DayNotes.Where(n => n.UserId == userId && n.Date == date).ExecuteDeleteAsync();
 
+    /// <summary>
+    /// The notes on the user's habits from <paramref name="from"/> to <paramref name="to"/> (inclusive), oldest first, only of
+    /// <paramref name="habitId"/> when set.
+    /// </summary>
+    public Task<List<HabitNote>> GetHabitNotesAsync(Guid userId, DateOnly from, DateOnly to, int? habitId = null)
+        => _db.HabitNotes
+            .AsNoTracking()
+            .Where(n => n.Habit.UserId == userId && n.Date >= from && n.Date <= to && (habitId == null || n.HabitId == habitId))
+            .OrderBy(n => n.Date).ThenBy(n => n.HabitId)
+            .ToListAsync();
+
+    /// <summary>
+    /// Replaces the note on the user's habit <paramref name="habitId"/> for <paramref name="date"/> with plaintext <paramref name="text"/>
+    /// or, when <paramref name="cipher"/> is set, with that blob (clearing the other form). Null when the habit isn't the user's.
+    /// Callers validate the values, the date range and consent.
+    /// </summary>
+    public async Task<HabitNote?> SetHabitNoteAsync(Guid userId, int habitId, DateOnly date, string? text, JournalCipher? cipher)
+    {
+        if (!await _db.Habits.AnyAsync(h => h.Id == habitId && h.UserId == userId)) return null;
+
+        var note = await _db.HabitNotes.FirstOrDefaultAsync(n => n.HabitId == habitId && n.Date == date);
+        var isNew = note is null;
+        note ??= _db.HabitNotes.Add(new HabitNote { HabitId = habitId, Date = date }).Entity;
+        ApplyHabitNote(note, text, cipher);
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (isNew)
+        {
+            _db.Entry(note).State = EntityState.Detached;
+            note = await _db.HabitNotes.FirstOrDefaultAsync(n => n.HabitId == habitId && n.Date == date);
+            if (note is null) throw;
+            ApplyHabitNote(note, text, cipher);
+            await _db.SaveChangesAsync();
+        }
+        return note;
+    }
+
+    /// <summary>Deletes the note on the user's habit for <paramref name="date"/>, if there is one. False when the habit isn't the user's.</summary>
+    public async Task<bool> DeleteHabitNoteAsync(Guid userId, int habitId, DateOnly date)
+    {
+        if (!await _db.Habits.AnyAsync(h => h.Id == habitId && h.UserId == userId)) return false;
+
+        await _db.HabitNotes.Where(n => n.HabitId == habitId && n.Date == date).ExecuteDeleteAsync();
+        return true;
+    }
+
     /// <summary>All the user's own moods, archived ones included, ordered by id.</summary>
     public Task<List<Mood>> GetMoodsAsync(Guid userId)
         => _db.Moods.AsNoTracking().Where(m => m.UserId == userId).OrderBy(m => m.Id).ToListAsync();
@@ -171,7 +219,7 @@ public partial class HabitService
     }
 
     /// <summary>
-    /// Deletes the key and the "What helps me" list. With <paramref name="discardEncrypted"/>, first deletes every encrypted day note and own mood, in one transaction;
+    /// Deletes the key and the "What helps me" list. With <paramref name="discardEncrypted"/>, first deletes every encrypted day note, habit note and own mood, in one transaction;
     /// without it, returns false and deletes nothing while any encrypted entry or mood remains.
     /// </summary>
     public async Task<bool> DeleteJournalKeyAsync(Guid userId, bool discardEncrypted)
@@ -180,9 +228,11 @@ public partial class HabitService
         if (discardEncrypted)
         {
             await _db.DayNotes.Where(n => n.UserId == userId && n.CipherVersion != null).ExecuteDeleteAsync();
+            await _db.HabitNotes.Where(n => n.Habit.UserId == userId && n.CipherVersion != null).ExecuteDeleteAsync();
             await _db.Moods.Where(m => m.UserId == userId && m.CipherVersion != null).ExecuteDeleteAsync();
         }
         else if (await _db.DayNotes.AnyAsync(n => n.UserId == userId && n.CipherVersion != null)
+            || await _db.HabitNotes.AnyAsync(n => n.Habit.UserId == userId && n.CipherVersion != null)
             || await _db.Moods.AnyAsync(m => m.UserId == userId && m.CipherVersion != null))
         {
             return false;
@@ -199,8 +249,10 @@ public partial class HabitService
     {
         var key = await GetJournalKeyAsync(userId);
         var plaintext = await _db.DayNotes.CountAsync(n => n.UserId == userId && n.CipherVersion == null)
+            + await _db.HabitNotes.CountAsync(n => n.Habit.UserId == userId && n.CipherVersion == null)
             + await _db.Moods.CountAsync(m => m.UserId == userId && m.CipherVersion == null);
         var encrypted = await _db.DayNotes.CountAsync(n => n.UserId == userId && n.CipherVersion != null)
+            + await _db.HabitNotes.CountAsync(n => n.Habit.UserId == userId && n.CipherVersion != null)
             + await _db.Moods.CountAsync(m => m.UserId == userId && m.CipherVersion != null);
         return new JournalState(key is not null, key?.TurningOff == true, plaintext, encrypted);
     }
@@ -211,6 +263,14 @@ public partial class HabitService
     {
         note.Text = cipher is null ? text : null;
         note.Mood = cipher is null ? mood : null;
+        note.CipherVersion = cipher?.Version;
+        note.CipherIv = cipher?.Iv;
+        note.CipherText = cipher?.Text;
+    }
+
+    private static void ApplyHabitNote(HabitNote note, string? text, JournalCipher? cipher)
+    {
+        note.Text = cipher is null ? text : null;
         note.CipherVersion = cipher?.Version;
         note.CipherIv = cipher?.Iv;
         note.CipherText = cipher?.Text;

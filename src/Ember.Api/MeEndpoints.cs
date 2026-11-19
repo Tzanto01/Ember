@@ -24,10 +24,12 @@ internal static class MeEndpoints
         Guid Id, string? Email, bool EmailConfirmed, bool HasPassword, DiscordDto Discord,
         string Timezone, bool TimezoneSet, DateOnly LocalToday, int GraceDaysPerWeek, string? Theme, int SecondReminderMinutes,
         bool ShowStreaks, string Language, bool CalmMode, ConsentDto Consent, DmRemindersDto DmReminders, JournalState Journal,
-        string[] TipsSeen);
+        string[] TipsSeen, string[]? TodayOrder, bool OfferHabitNote);
 
     public sealed record MePatch(string? Timezone, int? GraceDaysPerWeek, string? Theme, int? SecondReminderMinutes, bool? ShowStreaks,
-        string? Language, bool? CalmMode);
+        string? Language, bool? CalmMode, bool? OfferHabitNote);
+    public sealed record TodayOrderRequest(List<string?>? Order);
+    public sealed record TodayOrderDto(List<string>? Order);
     public sealed record ConsentRequest(string? PolicyVersion);
     public sealed record DeleteRequest(string? Password, string? Confirm);
     public sealed record WidgetKeyDto(string Key);
@@ -68,6 +70,7 @@ internal static class MeEndpoints
             if (patch.ShowStreaks is { } showStreaks) await habits.SetShowStreaksAsync(userId, showStreaks);
             if (patch.Language is { } language) await habits.SetLanguageAsync(userId, language);
             if (patch.CalmMode is { } calmMode) await habits.SetCalmModeAsync(userId, calmMode);
+            if (patch.OfferHabitNote is { } offer) await habits.SetOfferHabitNoteAsync(userId, offer);
             if (zone is not null)
             {
                 await habits.SetTimezoneAsync(userId, zone.Id);
@@ -75,6 +78,14 @@ internal static class MeEndpoints
             }
 
             return await LoadMe(principal, users, habits, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
+        });
+
+        api.MapPut("/me/today-order", async (TodayOrderRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        {
+            if (request.Order?.Count > User.MaxTodayOrderEntries)
+                return Problems.Validation("order", $"At most {User.MaxTodayOrderEntries} entries.");
+
+            return Results.Ok(new TodayOrderDto(await habits.SetTodayOrderAsync(principal.UserId(), request.Order)));
         });
 
         api.MapPost("/me/consent", async (ConsentRequest request, ClaimsPrincipal principal, HabitService habits) =>
@@ -105,7 +116,7 @@ internal static class MeEndpoints
             if (format is not (null or "json" or "csv"))
                 return Problems.Validation("format", "Must be json or csv.");
 
-            var user = await habits.GetUserForExportAsync(principal.UserId());
+            var user = await habits.GetUserForExportAsync(principal.UserId(), withHabitNotes: true);
             if (user is null) return Problems.NotFound();
 
             var (content, contentType, extension) = format == "csv"
@@ -186,6 +197,6 @@ internal static class MeEndpoints
             new ConsentDto(await habits.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, HabitService.CurrentConsentPolicyVersion),
             new DmRemindersDto(user.DmRemindersPausedAt is not null),
             await habits.GetJournalStateAsync(user.Id),
-            [.. user.TipsSeen]);
+            [.. user.TipsSeen], user.TodayOrder?.ToArray(), user.OfferHabitNote);
     }
 }

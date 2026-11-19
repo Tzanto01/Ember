@@ -14,9 +14,9 @@ internal static class ImportEndpoints
 
     public sealed record ImportDocument(int? FormatVersion, ImportSettings? Settings, List<ImportHabit?>? Habits, List<ImportLog?>? Logs,
         List<ImportDayMark?>? DayMarks, List<ImportRoutine?>? Routines, List<ImportMood?>? Moods, List<ImportDayNote?>? DayNotes,
-        JournalEndpoints.JournalKeyRequest? JournalKey, List<ImportSlip?>? Slips);
+        JournalEndpoints.JournalKeyRequest? JournalKey, List<ImportSlip?>? Slips, List<ImportHabitNote?>? HabitNotes);
     public sealed record ImportSettings(int? GraceDaysPerWeek, string? Theme, int? SecondReminderMinutes, bool? ShowStreaks,
-        string? Language, bool? CalmMode, List<string?>? TipsSeen);
+        string? Language, bool? CalmMode, List<string?>? TipsSeen, bool? OfferHabitNote);
     public sealed record ImportHabit(int? Id, string? Name, string? Frequency, int? WeeklyTarget, TimeOnly? ReminderTime,
         DateOnly? PausedUntil, DateOnly? PausedFrom, DateTimeOffset? CreatedAt, string?[]? Days,
         int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind);
@@ -26,6 +26,7 @@ internal static class ImportEndpoints
     public sealed record ImportRoutine(int? Id, string? Name, TimeOnly? ReminderTime);
     public sealed record ImportMood(int? Id, string? Label, string? Emoji, bool? Archived, JournalEndpoints.EncryptedDto? Encrypted);
     public sealed record ImportDayNote(DateOnly? Date, string? Text, string? Mood, JournalEndpoints.EncryptedDto? Encrypted);
+    public sealed record ImportHabitNote(int? HabitId, DateOnly? Date, string? Text, JournalEndpoints.EncryptedDto? Encrypted);
 
     public static RouteGroupBuilder MapImport(this RouteGroupBuilder api)
     {
@@ -265,6 +266,35 @@ internal static class ImportEndpoints
             Nest(errors, path, local);
         }
 
+        var habitNoted = new HashSet<(Habit, DateOnly)>();
+        foreach (var (n, path) in Items(doc.HabitNotes, "habit_notes", errors))
+        {
+            Habit? habit = null;
+            if (n.HabitId is not { } habitId || !habitById.TryGetValue(habitId, out habit))
+                local["habit_id"] = ["Must be the id of a habit in this file."];
+            if (n.Date is not { } date) local["date"] = [Formats.DateMessage];
+            else if (date > today) local["date"] = ["Can't be after today."];
+            else if (habit is not null && date < HabitService.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
+            else if (habit is not null && !habitNoted.Add((habit, date))) local["date"] = ["Only one note per habit and day."];
+            var cipher = JournalEndpoints.WriteForm(n.Encrypted, n.Text is not null, true, key, local,
+                JournalEndpoints.MaxHabitNoteCipherTextLength);
+            string? text = null;
+            if (n.Encrypted is null)
+            {
+                text = JournalEndpoints.ValidText(n.Text, local, JournalEndpoints.MaxHabitNoteLength);
+                if (text is null && !local.ContainsKey("text")) local["text"] = ["Set text or encrypted."];
+            }
+            habit?.Notes.Add(new HabitNote
+            {
+                Date = n.Date ?? default,
+                Text = text,
+                CipherVersion = cipher?.Version,
+                CipherIv = cipher?.Iv,
+                CipherText = cipher?.Text,
+            });
+            Nest(errors, path, local);
+        }
+
         JournalKey? material = null;
         if (doc.JournalKey is { } journalKey)
         {
@@ -274,7 +304,8 @@ internal static class ImportEndpoints
 
         return new ImportData(routines, habits, marks, moods, notes, material, doc.Settings?.GraceDaysPerWeek, doc.Settings?.Theme,
             doc.Settings?.SecondReminderMinutes ?? 0, doc.Settings?.ShowStreaks, doc.Settings?.Language, doc.Settings?.CalmMode,
-            doc.Settings?.TipsSeen?.Where(t => t is not null && User.TipIds.Contains(t)).Select(t => t!).ToList());
+            doc.Settings?.TipsSeen?.Where(t => t is not null && User.TipIds.Contains(t)).Select(t => t!).ToList(),
+            doc.Settings?.OfferHabitNote);
     }
 
     private const string NotEmptyMessage = "Import only works into an account without habits, routines, moods or journal entries.";

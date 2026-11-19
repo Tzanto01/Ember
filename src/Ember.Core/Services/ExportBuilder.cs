@@ -8,8 +8,9 @@ namespace Ember.Core.Services;
 
 /// <summary>
 /// Builds a user's complete data export (GDPR Art. 15/20): settings, every habit (including habits
-/// without logs), every log, every slip, every day mark, every push subscription endpoint, every registered phone, every routine, journal entry and own mood,
-/// the wrapped private-journal key and the encrypted "What helps me" list. Expects <see cref="User.Habits"/>, each habit's logs and slips, <see cref="User.DayMarks"/>,
+/// without logs), every log, every slip, every day mark, every push subscription endpoint, every registered phone, every routine, journal entry, habit note
+/// and own mood, the wrapped private-journal key and the encrypted "What helps me" list. Expects <see cref="User.Habits"/>, each habit's logs, slips and
+/// (for the full export) notes, <see cref="User.DayMarks"/>,
 /// <see cref="User.Routines"/>, <see cref="User.DayNotes"/>, <see cref="User.Moods"/>, <see cref="User.JournalKey"/> and <see cref="User.Helps"/> to be loaded.
 /// The JSON document is also the import format.
 /// </summary>
@@ -25,7 +26,8 @@ public static class ExportBuilder
     /// <c>second_reminder_minutes</c> (settings); <c>enabled</c> (push_subscription, phone); <c>show_streaks</c>, <c>language</c>, <c>calm_mode</c> (settings);
     /// <c>helps_encrypted</c> (helps); <c>tips_seen</c> (settings, the seen tip ids joined with <c>;</c>);
     /// <c>fireside_enabled</c>, <c>fireside_name</c>, <c>fireside_notify</c> (settings; Fireside friends, warmth and codes are never exported); <c>reasons</c> (slip, its reason ids joined
-    /// with <c>;</c>). <c>reminder_exclusions</c> joins a habit's or routine's excluded reminder destination ids with <c>;</c>. <c>kind</c> is
+    /// with <c>;</c>); <c>offer_habit_note</c>, <c>today_order</c> (settings, the order keys joined with <c>;</c>). A habit_note uses <c>habit_id</c>,
+    /// <c>date</c>, <c>text</c> and the cipher columns. <c>reminder_exclusions</c> joins a habit's or routine's excluded reminder destination ids with <c>;</c>. <c>kind</c> is
     /// <c>build</c> or <c>let_go</c> for a habit, the mark's kind for a day_mark; a slip uses <c>habit_id</c>, <c>date</c> and <c>count</c>.
     /// </summary>
     public const string CsvHeader =
@@ -38,7 +40,7 @@ public static class ExportBuilder
         "cipher_version,cipher_iv,cipher_text,version,turning_off," +
         "passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped," +
         "second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen," +
-        "fireside_enabled,fireside_name,fireside_notify,reasons";
+        "fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order";
 
     private static readonly string[] CsvColumns = CsvHeader.Split(',');
 
@@ -55,13 +57,15 @@ public static class ExportBuilder
     /// <summary>
     /// Settings, reminder delivery state and health-data consent of the exported user. Timestamps are UTC.
     /// <c>TwoFactorEnabled</c> only says whether two-factor sign-in is on; authenticator keys and recovery codes are never exported.
+    /// <c>TodayOrder</c> is the account's Today order (<see cref="User.TodayOrder"/>), only in the full export; import ignores it.
     /// </summary>
     public sealed record SettingsRecord(
         string Timezone, int GraceDaysPerWeek, string? Theme,
         int DmFailureCount, DateTime? DmRemindersPausedAt, DateTime? DmPauseNoticeSentAt,
         DateTime? HealthDataConsentAt, string? ConsentPolicyVersion, DateOnly? ConsentPromptedOn, bool TwoFactorEnabled,
         int SecondReminderMinutes, bool ShowStreaks, string Language, bool CalmMode, IReadOnlyList<string> TipsSeen,
-        bool FiresideEnabled = false, string? FiresideName = null, bool FiresideNotify = false);
+        bool FiresideEnabled = false, string? FiresideName = null, bool FiresideNotify = false, bool OfferHabitNote = false,
+        IReadOnlyList<string>? TodayOrder = null);
 
     /// <summary>
     /// One habit. Dates are ISO 8601; <c>CreatedAt</c> and <c>NextReminderUtc</c> are UTC. <c>ReminderExclusions</c> lists the reminder destination ids (<c>discord</c>, <c>browser-…</c>, <c>phone-…</c>) the habit does not remind on.
@@ -88,6 +92,9 @@ public static class ExportBuilder
 
     /// <summary>The journal entry of one local day: plaintext <c>Text</c>/<c>Mood</c>, or <c>Encrypted</c> with both null.</summary>
     public sealed record DayNoteRecord(DateOnly Date, string? Text, string? Mood, EncryptedRecord? Encrypted);
+
+    /// <summary>The note on one habit for one local day: plaintext <c>Text</c>, or <c>Encrypted</c> with <c>Text</c> null.</summary>
+    public sealed record HabitNoteRecord(int HabitId, DateOnly Date, string? Text, EncryptedRecord? Encrypted);
 
     /// <summary>One own mood: plaintext <c>Label</c>/<c>Emoji</c>, or <c>Encrypted</c> with both null. <c>CreatedAt</c> is UTC.</summary>
     public sealed record MoodRecord(int Id, string? Label, string? Emoji, bool Archived, EncryptedRecord? Encrypted, DateTime CreatedAt);
@@ -124,12 +131,13 @@ public static class ExportBuilder
 
     /// <summary>
     /// The JSON export document. <c>JournalKey</c> is null while the private journal is off. <c>HelpsEncrypted</c> is the "What helps me"
-    /// ciphertext as stored, or null when there is none. <c>Slips</c> holds the let-go habits' slips.
+    /// ciphertext as stored, or null when there is none. <c>Slips</c> holds the let-go habits' slips. <c>HabitNotes</c> holds the notes on habits.
     /// </summary>
     public sealed record ExportDocument(SettingsRecord Settings, List<HabitRecord> Habits, List<LogRecord> Logs, List<DayMarkRecord> DayMarks,
         AccountRecord? Account = null, List<PushSubscriptionRecord>? PushSubscriptions = null,
         List<RoutineRecord>? Routines = null, List<DayNoteRecord>? DayNotes = null, List<MoodRecord>? Moods = null,
-        JournalKeyRecord? JournalKey = null, List<PhoneRecord>? Phones = null, string? HelpsEncrypted = null, List<SlipRecord>? Slips = null)
+        JournalKeyRecord? JournalKey = null, List<PhoneRecord>? Phones = null, string? HelpsEncrypted = null, List<SlipRecord>? Slips = null,
+        List<HabitNoteRecord>? HabitNotes = null)
     {
         /// <summary>The export format version (<see cref="CurrentFormatVersion"/>), written first.</summary>
         [JsonPropertyOrder(-1)]
@@ -141,7 +149,7 @@ public static class ExportBuilder
     /// <see cref="ExportDocument.PushSubscriptions"/> needs <see cref="User.PushSubscriptions"/>, <see cref="ExportDocument.Phones"/>
     /// needs <see cref="User.ReminderPhones"/>.
     /// With <paramref name="forDiscord"/> it holds only what the bot shows (settings, habits, logs, slips, day marks and routines):
-    /// account, push subscriptions, phones, day notes, moods, the journal key and the "What helps me" list are left out.
+    /// account, push subscriptions, phones, day notes, habit notes, the Today order, moods, the journal key and the "What helps me" list are left out.
     /// </summary>
     public static ExportDocument BuildDocument(User user, bool forDiscord = false)
     {
@@ -152,7 +160,7 @@ public static class ExportBuilder
                 user.DmFailureCount, AsUtc(user.DmRemindersPausedAt), AsUtc(user.DmPauseNoticeSentAt),
                 AsUtc(user.HealthDataConsentAt), user.ConsentPolicyVersion, user.ConsentPromptedOn, user.TwoFactorEnabled,
                 user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode, user.TipsSeen,
-                user.FiresideEnabled, user.FiresideName, user.FiresideNotify),
+                user.FiresideEnabled, user.FiresideName, user.FiresideNotify, user.OfferHabitNote, full ? user.TodayOrder : null),
             habits.Select(h => new HabitRecord(
                 h.Id, h.Name, h.FrequencyType.ToString().ToLowerInvariant(), h.WeeklyTarget,
                 h.ReminderTime, h.PausedUntil, h.PausedFrom, DateTime.SpecifyKind(h.CreatedAt, DateTimeKind.Utc),
@@ -191,7 +199,11 @@ public static class ExportBuilder
                     .Select(p => new PhoneRecord(p.Label, p.Enabled, DateTime.SpecifyKind(p.CreatedAt, DateTimeKind.Utc))).ToList()
                 : null,
             full ? user.Helps?.Encrypted : null,
-            habits.SelectMany(h => h.Slips.OrderBy(s => s.Date).Select(s => new SlipRecord(h.Id, s.Date, s.Count, s.Reasons.ToList()))).ToList());
+            habits.SelectMany(h => h.Slips.OrderBy(s => s.Date).Select(s => new SlipRecord(h.Id, s.Date, s.Count, s.Reasons.ToList()))).ToList(),
+            full
+                ? habits.SelectMany(h => h.Notes.OrderBy(n => n.Date).Select(n => new HabitNoteRecord(
+                    h.Id, n.Date, n.Text, Encrypted(n.CipherVersion, n.CipherIv, n.CipherText)))).ToList()
+                : null);
     }
 
     private static EncryptedRecord? Encrypted(int? version, string? iv, string? ct)
@@ -203,7 +215,8 @@ public static class ExportBuilder
     /// <summary>
     /// One CSV file with <see cref="CsvHeader"/> columns: a <c>settings</c> row, one <c>habit</c> row per habit,
     /// one <c>log</c> row per log, one <c>slip</c> row per slip day, one <c>day_mark</c> row per day mark, one <c>push_subscription</c> row per push subscription,
-    /// one <c>phone</c> row per registered phone, one <c>routine</c> row per routine, one <c>day_note</c> row per journal entry, one <c>mood</c> row per own mood and a
+    /// one <c>phone</c> row per registered phone, one <c>routine</c> row per routine, one <c>day_note</c> row per journal entry, one <c>habit_note</c> row per habit note,
+    /// one <c>mood</c> row per own mood and a
     /// <c>journal_key</c> row when the private journal is on and a <c>helps</c> row when there is a "What helps me" list (reminder exclusions and a habit's reminder times are joined with <c>;</c>); columns that don't apply to a record type are empty.
     /// Cells starting with a formula character are prefixed with <c>'</c> so spreadsheets don't evaluate them, except the base64
     /// cipher and journal key columns, which are written verbatim. See <see cref="BuildDocument"/> for <paramref name="forDiscord"/>.
@@ -223,7 +236,8 @@ public static class ExportBuilder
             ("two_factor_enabled", Bool(s.TwoFactorEnabled)), ("second_reminder_minutes", Num(s.SecondReminderMinutes)),
             ("show_streaks", Bool(s.ShowStreaks)), ("language", s.Language), ("calm_mode", Bool(s.CalmMode)),
             ("tips_seen", string.Join(';', s.TipsSeen)), ("fireside_enabled", Bool(s.FiresideEnabled)),
-            ("fireside_name", s.FiresideName ?? ""), ("fireside_notify", Bool(s.FiresideNotify)));
+            ("fireside_name", s.FiresideName ?? ""), ("fireside_notify", Bool(s.FiresideNotify)),
+            ("offer_habit_note", Bool(s.OfferHabitNote)), ("today_order", string.Join(';', s.TodayOrder ?? [])));
 
         foreach (var h in doc.Habits)
             AppendRow(csv, "habit", ("habit_id", Num(h.Id)), ("name", h.Name), ("frequency", h.Frequency),
@@ -259,6 +273,9 @@ public static class ExportBuilder
 
         foreach (var n in doc.DayNotes ?? [])
             AppendRow(csv, "day_note", [("date", Date(n.Date)), ("text", n.Text ?? ""), ("mood", n.Mood ?? ""), .. Cipher(n.Encrypted)]);
+
+        foreach (var n in doc.HabitNotes ?? [])
+            AppendRow(csv, "habit_note", [("habit_id", Num(n.HabitId)), ("date", Date(n.Date)), ("text", n.Text ?? ""), .. Cipher(n.Encrypted)]);
 
         foreach (var m in doc.Moods ?? [])
             AppendRow(csv, "mood", [("mood_id", Num(m.Id)), ("label", m.Label ?? ""), ("emoji", m.Emoji ?? ""),

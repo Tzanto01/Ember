@@ -93,4 +93,5 @@ public class Habit
     public Routine? Routine { get; set; }
     public ICollection<HabitLog> Logs { get; set; } = new List<HabitLog>();
     public ICollection<HabitSlip> Slips { get; set; } = new List<HabitSlip>();
+    public ICollection<HabitNote> Notes { get; set; } = new List<HabitNote>();
 }
