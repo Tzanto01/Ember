@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ViewFlipper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:autoStart="true"
+    android:flipInterval="700"
+    android:importantForAccessibility="no"
+    android:inAnimation="@android:anim/fade_in"
+    android:outAnimation="@android:anim/fade_out">
+
+    <ImageView
+        android:layout_width="18dp"
+        android:layout_height="21dp"
+        android:src="@drawable/widget_flame_0" />
+
+    <ImageView
+        android:layout_width="18dp"
+        android:layout_height="21dp"
+        android:src="@drawable/widget_flame_1" />
+
+    <ImageView
+        android:layout_width="18dp"
+        android:layout_height="21dp"
+        android:src="@drawable/widget_flame_2" />
+
+    <ImageView
+        android:layout_width="18dp"
+        android:layout_height="21dp"
+        android:src="@drawable/widget_flame_3" />
+</ViewFlipper>

@@ -1,5 +1,7 @@
 package app.ember.habits;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -15,8 +17,9 @@ import org.json.JSONObject;
  * widget taps that open the app arrive as {@code widgetTap} events (retained until JS listens, so a cold-start tap is
  * not lost). {@code setStyle} sets its theme, colour scheme and motion. {@code setKey} and {@code hasKey} manage the
  * key the widget checks in with on its own, and {@code takePending} hands its unconfirmed check-ins to JS. The
- * "I need a moment" door
- * is a pending launch action on a cold start ({@code takeLaunchAction}) and an {@code openMoment} event on a warm one.
+ * "I need a moment" door is a pending launch action on a cold start ({@code takeLaunchAction}) and an
+ * {@code openMoment} event on a warm one. {@code canOpenScreenTime} and {@code openScreenTime} point to the system's
+ * screen-time screen.
  */
 @CapacitorPlugin(name = "EmberWidget")
 public class EmberWidgetPlugin extends Plugin {
@@ -112,6 +115,31 @@ public class EmberWidgetPlugin extends Plugin {
             Boolean.TRUE.equals(call.getBoolean("motion", false)),
             call.getString("colorScheme")
         );
+        call.resolve();
+    }
+
+    /** Resolves {@code { available }}, true when this device has a screen-time screen {@link ScreenTime} can open. */
+    @PluginMethod
+    public void canOpenScreenTime(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("available", ScreenTime.intent(getContext()) != null);
+        call.resolve(result);
+    }
+
+    /** Opens the system's screen-time screen in its own task, or rejects when there is none. */
+    @PluginMethod
+    public void openScreenTime(PluginCall call) {
+        Intent intent = ScreenTime.intent(getContext());
+        if (intent == null) {
+            call.reject("Screen time is not available");
+            return;
+        }
+        try {
+            getContext().startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (ActivityNotFoundException | SecurityException e) {
+            call.reject("Screen time is not available");
+            return;
+        }
         call.resolve();
     }
 

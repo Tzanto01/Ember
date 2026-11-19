@@ -59,38 +59,11 @@
                     android:importantForAccessibility="no"
                     android:src="@drawable/widget_flame_0" />
 
-                <ViewFlipper
-                    android:id="@+id/widget_flicker"
+                <FrameLayout
+                    android:id="@+id/widget_flicker_box"
                     android:layout_width="18dp"
                     android:layout_height="21dp"
-                    android:layout_gravity="center"
-                    android:autoStart="true"
-                    android:flipInterval="700"
-                    android:importantForAccessibility="no"
-                    android:inAnimation="@android:anim/fade_in"
-                    android:outAnimation="@android:anim/fade_out"
-                    android:visibility="gone">
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="21dp"
-                        android:src="@drawable/widget_flame_0" />
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="21dp"
-                        android:src="@drawable/widget_flame_1" />
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="21dp"
-                        android:src="@drawable/widget_flame_2" />
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="21dp"
-                        android:src="@drawable/widget_flame_3" />
-                </ViewFlipper>
+                    android:layout_gravity="center" />
             </FrameLayout>
 
             <TextView
@@ -106,6 +79,13 @@
                 android:textColor="@color/ember_widget_text"
                 android:textSize="15sp"
                 android:textStyle="bold" />
+
+            <FrameLayout
+                android:id="@+id/widget_header_space"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_dots_done"

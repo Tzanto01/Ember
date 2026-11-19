@@ -83,10 +83,9 @@ public class TodayWidget extends AppWidgetProvider {
     private static final Pattern ISO_DATE = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
     private static final List<String> STATES = Arrays.asList("done", "partial", "open", "rest");
     private static final int MAX_NAME = 100;
-    private static final int MAX_DOTS = 10;
     private static final String THEME = "theme";
     private static final String COLOR_SCHEME = "colorScheme";
-    private static final String MOTION = "motion";
+    private static final List<String> STYLE = Arrays.asList(THEME, COLOR_SCHEME, WidgetPlan.MOTION);
     private static final float DEFAULT_WIDTH = 250;
     private static final float DEFAULT_HEIGHT = 392;
 
@@ -488,7 +487,7 @@ public class TodayWidget extends AppWidgetProvider {
         }
         int dayTotal = total == null ? habits.length() + more : total;
         int dayDone = done == null ? doneRows : done;
-        if (dayTotal < habits.length() || dayDone < 0 || dayDone > dayTotal) throw new IllegalArgumentException("done");
+        if (!WidgetPlan.counts(dayDone, dayTotal, doneRows, habits.length(), more)) throw new IllegalArgumentException("done");
         return new JSONObject()
             .put("date", date)
             .put("habits", rows)
@@ -498,12 +497,15 @@ public class TodayWidget extends AppWidgetProvider {
     }
 
     /**
-     * Forgets the snapshot, widget key, API origin, pending check-ins and style (sign-out, session end, account
-     * deletion) and redraws the signed-out state.
+     * Forgets the snapshot, widget key, API origin and pending check-ins (sign-out, session end, account deletion),
+     * keeping the style, and redraws the signed-out state.
      */
     static void clear(Context context) {
         synchronized (TodayWidget.class) {
-            prefs(context).edit().clear().commit();
+            SharedPreferences prefs = prefs(context);
+            SharedPreferences.Editor edit = prefs.edit();
+            for (String key : prefs.getAll().keySet()) if (!STYLE.contains(key)) edit.remove(key);
+            edit.commit();
         }
         refresh(context);
     }
@@ -597,18 +599,22 @@ public class TodayWidget extends AppWidgetProvider {
             .edit()
             .putString(THEME, theme)
             .putString(COLOR_SCHEME, colorScheme)
-            .putBoolean(MOTION, motion)
+            .putBoolean(WidgetPlan.MOTION, motion)
             .commit();
         refresh(context);
     }
 
-    /** What every size of one render shares: language, key, unsaved rows, colors (with night ones on 31+) and motion. */
+    /**
+     * What every size of one render shares: language, key, unsaved rows, colors (with night ones on 31+, or none to
+     * keep the layouts' own day and night resource colors) and motion.
+     */
     private static final class Look {
         Context text;
         boolean keyed;
         Set<String> unsaved;
         int[] colors;
         int[] night;
+        boolean resources;
         boolean motion;
     }
 
@@ -621,14 +627,16 @@ public class TodayWidget extends AppWidgetProvider {
         String theme = prefs.getString(THEME, null);
         String scheme = prefs.getString(COLOR_SCHEME, null);
         int uiMode = context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
-        if (Build.VERSION.SDK_INT >= 31 && !"light".equals(scheme) && !"dark".equals(scheme)) {
+        boolean system = !"light".equals(scheme) && !"dark".equals(scheme);
+        look.resources = Build.VERSION.SDK_INT < 31 && system && WidgetPalette.hearthlight(theme);
+        if (Build.VERSION.SDK_INT >= 31 && system) {
             look.colors = WidgetPalette.of(theme, false);
             look.night = WidgetPalette.of(theme, true);
         } else {
             look.colors = WidgetPalette.of(theme, WidgetPalette.dark(scheme, uiMode == Configuration.UI_MODE_NIGHT_YES));
         }
         float scale = Settings.Global.getFloat(context.getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
-        look.motion = WidgetPlan.motion(prefs.contains(MOTION), prefs.getBoolean(MOTION, false), scale);
+        look.motion = WidgetPlan.motion(prefs.getAll(), scale);
         return look;
     }
 
@@ -676,7 +684,10 @@ public class TodayWidget extends AppWidgetProvider {
         tint(views, R.id.widget_single_name, "setTextColor", look, WidgetPalette.TEXT);
         tint(views, R.id.widget_more, "setTextColor", look, WidgetPalette.MUTED);
         views.setViewVisibility(R.id.widget_flame, look.motion ? View.GONE : View.VISIBLE);
-        views.setViewVisibility(R.id.widget_flicker, look.motion ? View.VISIBLE : View.GONE);
+        views.removeAllViews(R.id.widget_flicker_box);
+        if (look.motion) {
+            views.addView(R.id.widget_flicker_box, new RemoteViews(context.getPackageName(), R.layout.widget_today_flicker));
+        }
 
         JSONArray habits = snapshot == null ? null : snapshot.optJSONArray("habits");
         if (habits == null) habits = new JSONArray();
@@ -695,10 +706,12 @@ public class TodayWidget extends AppWidgetProvider {
         boolean single = plan.layout == WidgetPlan.SINGLE;
         boolean empty = snapshot == null || states.isEmpty() && more == 0;
 
-        views.setTextViewText(R.id.widget_title, single ? "" : text.getString(R.string.widget_today));
+        views.setTextViewText(R.id.widget_title, text.getString(R.string.widget_today));
+        views.setViewVisibility(R.id.widget_title, single ? View.GONE : View.VISIBLE);
+        views.setViewVisibility(R.id.widget_header_space, single ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_count, total > 0 ? View.VISIBLE : View.GONE);
         views.setTextViewText(R.id.widget_count, text.getString(R.string.widget_state_partial, done, total));
-        boolean dots = plan.layout != WidgetPlan.TALL && total > 0 && total <= MAX_DOTS;
+        boolean dots = WidgetPlan.dots(plan.layout, width, total);
         views.setViewVisibility(R.id.widget_dots_done, dots && done > 0 ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_dots_open, dots && done < total ? View.VISIBLE : View.GONE);
         views.setTextViewText(R.id.widget_dots_done, dots(done));
@@ -744,15 +757,16 @@ public class TodayWidget extends AppWidgetProvider {
     }
 
     /**
-     * One habit: a row with its name, or (for {@link WidgetPlan#SINGLE}, {@code big}) its circle alone. On API 31+ an
-     * open or partial habit's circle is a CheckBox that checks in, unchecked on every render; a done or rest circle
-     * opens the habit. Below 31 the whole row (or the big circle) does what today's row taps do.
+     * One habit: a row with its name, or (for {@link WidgetPlan#SINGLE}, {@code big}) its circle alone. On API 31+
+     * with a widget key, an open or partial habit's circle is a CheckBox that checks in, unchecked on every render;
+     * without a key it is a plain circle that opens the app to check in. A done or rest circle opens the habit. Below
+     * 31 the whole row (or the big circle) does what today's row taps do.
      */
     private static RemoteViews row(Context context, Look look, JSONObject snapshot, JSONObject habit, boolean big) {
         Context text = look.text;
         String state = habit.optString("state");
         boolean checkIn = WidgetPlan.checkIn(state);
-        boolean check = checkIn && Build.VERSION.SDK_INT >= 31;
+        boolean check = checkIn && look.keyed && Build.VERSION.SDK_INT >= 31;
         int layout = big
             ? check ? R.layout.widget_today_big_check : R.layout.widget_today_big
             : check ? R.layout.widget_today_row_check : R.layout.widget_today_row;
@@ -776,7 +790,7 @@ public class TodayWidget extends AppWidgetProvider {
         boolean background = checkIn && look.keyed;
         Intent tap = new Intent(context, background ? TodayWidget.class : MainActivity.class)
             .setAction(checkIn ? ACTION_CHECK_IN : ACTION_OPEN_HABIT)
-            .setData(Uri.parse(WidgetPlan.uri(checkIn ? "check-in" : "open", habitId, date)))
+            .setData(Uri.parse(WidgetPlan.uri(checkIn, habitId, date)))
             .putExtra("habitId", habitId)
             .putExtra("date", date)
             .putExtra("userId", userId)
@@ -822,8 +836,12 @@ public class TodayWidget extends AppWidgetProvider {
         return row;
     }
 
-    /** Sets a color through {@code method}: as a day and night pair on API 31+ when following the system, else fixed. */
+    /**
+     * Sets a color through {@code method}: as a day and night pair on API 31+ when following the system, none when
+     * keeping resource colors, else fixed.
+     */
     private static void tint(RemoteViews views, int id, String method, Look look, int color) {
+        if (look.resources) return;
         if (look.night != null && Build.VERSION.SDK_INT >= 31) {
             views.setColorInt(id, method, look.colors[color], look.night[color]);
         } else {

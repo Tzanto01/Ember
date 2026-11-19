@@ -7,7 +7,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 
 public class WidgetPlanTest {
@@ -45,6 +47,28 @@ public class WidgetPlanTest {
         assertEquals(2, two.start);
         assertEquals(2, two.shown);
         assertEquals(0, two.more);
+
+        for (int height : new int[] { 180, 199 }) {
+            WidgetPlan plan = WidgetPlan.of(250, height, DAY, 0);
+            assertEquals(WidgetPlan.SHORT, plan.layout);
+            assertEquals(2, plan.shown);
+        }
+    }
+
+    @Test
+    public void threeRowsHighShowsTheWholeDayFromTheTop() {
+        WidgetPlan plan = WidgetPlan.of(250, 200, DAY, 0);
+        assertEquals(WidgetPlan.TALL, plan.layout);
+        assertEquals(0, plan.start);
+        assertEquals(2, plan.shown);
+        assertEquals(4, plan.more);
+    }
+
+    @Test
+    public void tallNeverShowsMoreRowsThanItHas() {
+        WidgetPlan plan = WidgetPlan.of(250, 300, Arrays.asList("open", "done"), 5);
+        assertEquals(2, plan.shown);
+        assertEquals(5, plan.more);
     }
 
     @Test
@@ -125,18 +149,45 @@ public class WidgetPlanTest {
 
     @Test
     public void intentUriIsUniquePerActionHabitAndDate() {
-        assertEquals("ember://widget/check-in/42/2026-11-19", WidgetPlan.uri("check-in", 42, "2026-11-19"));
-        assertNotEquals(WidgetPlan.uri("check-in", 42, "2026-11-19"), WidgetPlan.uri("open", 42, "2026-11-19"));
-        assertNotEquals(WidgetPlan.uri("check-in", 42, "2026-11-19"), WidgetPlan.uri("check-in", 43, "2026-11-19"));
-        assertNotEquals(WidgetPlan.uri("check-in", 42, "2026-11-19"), WidgetPlan.uri("check-in", 42, "2026-11-20"));
+        assertEquals("ember://widget/check-in/42/2026-11-19", WidgetPlan.uri(true, 42, "2026-11-19"));
+        assertEquals("ember://widget/open/42/2026-11-19", WidgetPlan.uri(false, 42, "2026-11-19"));
+        assertNotEquals(WidgetPlan.uri(true, 42, "2026-11-19"), WidgetPlan.uri(true, 43, "2026-11-19"));
+        assertNotEquals(WidgetPlan.uri(true, 42, "2026-11-19"), WidgetPlan.uri(true, 42, "2026-11-20"));
     }
 
     @Test
     public void motionNeedsAStyleTheSettingAndRunningAnimations() {
-        assertTrue(WidgetPlan.motion(true, true, 1f));
-        assertTrue(WidgetPlan.motion(true, true, 0.5f));
-        assertFalse(WidgetPlan.motion(false, true, 1f));
-        assertFalse(WidgetPlan.motion(true, false, 1f));
-        assertFalse(WidgetPlan.motion(true, true, 0f));
+        Map<String, Object> on = new HashMap<>();
+        on.put(WidgetPlan.MOTION, true);
+        Map<String, Object> off = new HashMap<>();
+        off.put(WidgetPlan.MOTION, false);
+        Map<String, Object> unstyled = new HashMap<>();
+        unstyled.put("snapshot", "{}");
+        assertTrue(WidgetPlan.motion(on, 1f));
+        assertTrue(WidgetPlan.motion(on, 0.5f));
+        assertFalse(WidgetPlan.motion(unstyled, 1f));
+        assertFalse(WidgetPlan.motion(off, 1f));
+        assertFalse(WidgetPlan.motion(on, 0f));
+    }
+
+    @Test
+    public void headerDotsOnlyWhenTheyFitBesideFlameAndCount() {
+        assertFalse(WidgetPlan.dots(WidgetPlan.SINGLE, 110, 3));
+        assertTrue(WidgetPlan.dots(WidgetPlan.SINGLE, 170, 5));
+        assertFalse(WidgetPlan.dots(WidgetPlan.SINGLE, 170, 9));
+        assertTrue(WidgetPlan.dots(WidgetPlan.SHORT, 250, 10));
+        assertFalse(WidgetPlan.dots(WidgetPlan.SHORT, 400, 11));
+        assertFalse(WidgetPlan.dots(WidgetPlan.TALL, 400, 3));
+        assertFalse(WidgetPlan.dots(WidgetPlan.SHORT, 250, 0));
+    }
+
+    @Test
+    public void dayCountsMustMatchItsRows() {
+        assertTrue(WidgetPlan.counts(2, 5, 2, 5, 0));
+        assertTrue(WidgetPlan.counts(3, 30, 2, 25, 5));
+        assertFalse(WidgetPlan.counts(1, 5, 2, 5, 0));
+        assertFalse(WidgetPlan.counts(2, 6, 2, 5, 0));
+        assertFalse(WidgetPlan.counts(2, 4, 2, 5, 0));
+        assertFalse(WidgetPlan.counts(6, 5, 2, 5, 0));
     }
 }

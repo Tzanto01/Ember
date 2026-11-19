@@ -35,6 +35,9 @@ public class WidgetPaletteTest {
             int[] light = WidgetPalette.of(theme, false);
             int[] dark = WidgetPalette.of(theme, true);
             assertNotEquals(theme, light[WidgetPalette.BACKGROUND], dark[WidgetPalette.BACKGROUND]);
+            assertNotEquals(theme, light[WidgetPalette.ACCENT], light[WidgetPalette.BORDER]);
+            assertNotEquals(theme, dark[WidgetPalette.ACCENT], dark[WidgetPalette.BORDER]);
+            assertEquals(theme, "hearthlight".equals(theme), WidgetPalette.hearthlight(theme));
             assertTrue(theme, luminance(light[WidgetPalette.BACKGROUND]) > luminance(light[WidgetPalette.TEXT]));
             assertTrue(theme, luminance(dark[WidgetPalette.BACKGROUND]) < luminance(dark[WidgetPalette.TEXT]));
             if (!"hearthlight".equals(theme)) {

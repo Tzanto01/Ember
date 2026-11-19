@@ -1,6 +1,7 @@
 package app.ember.habits;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * What the "Today in Ember" widget shows at a size in dp, from its rows' states: the layout, the first row shown, how
@@ -19,7 +20,11 @@ final class WidgetPlan {
     static final int CHROME_DP = 56;
     static final int ROW_DP = 48;
     static final int WIDE_DP = 180;
-    static final int HIGH_DP = 180;
+    static final int HIGH_DP = CHROME_DP + 3 * ROW_DP;
+    static final int MAX_DOTS = 10;
+    static final int DOT_DP = 7;
+    /** The prefs key of the app's "motion" style flag; it exists only once the app sent a style. */
+    static final String MOTION = "motion";
 
     /**
      * The {width, height} breakpoints for the sized RemoteViews on API 31+, at most 16. Each is the smallest size of
@@ -29,13 +34,11 @@ final class WidgetPlan {
         { 110, 110 },
         { 180, 110 },
         { 180, 152 },
-        { 110, 180 },
         { 110, 200 },
         { 110, 248 },
         { 110, 296 },
         { 110, 344 },
         { 110, 392 },
-        { 180, 180 },
         { 180, 200 },
         { 180, 248 },
         { 180, 296 },
@@ -79,7 +82,7 @@ final class WidgetPlan {
         int n = states.size();
         boolean allDone = allDone(states, more);
         if (layout == TALL) {
-            int shown = n + more > rows ? rows - 1 : n;
+            int shown = n + more > rows ? Math.min(n, rows - 1) : n;
             return new WidgetPlan(layout, 0, shown, n + more - shown, allDone);
         }
         int start = firstOpen(states);
@@ -110,13 +113,37 @@ final class WidgetPlan {
         return Math.max(0, Math.min(total, next));
     }
 
-    /** The data Uri that makes a widget PendingIntent unique per action, habit and date. */
-    static String uri(String action, long habitId, String date) {
-        return "ember://widget/" + action + "/" + habitId + "/" + date;
+    /**
+     * The data Uri of a row's PendingIntent, unique per action (check-in for an open or partial row, else open), habit
+     * and date.
+     */
+    static String uri(boolean checkIn, long habitId, String date) {
+        return "ember://widget/" + (checkIn ? "check-in" : "open") + "/" + habitId + "/" + date;
     }
 
-    /** The flame flickers only once the app sent a style, with motion on, and while system animations run. */
-    static boolean motion(boolean styled, boolean on, float animatorScale) {
-        return styled && on && animatorScale > 0;
+    /**
+     * The flame flickers only once the app sent a style ({@code style} holds {@link #MOTION}), with motion on, and
+     * while system animations run.
+     */
+    static boolean motion(Map<String, ?> style, float animatorScale) {
+        return Boolean.TRUE.equals(style.get(MOTION)) && animatorScale > 0;
+    }
+
+    /**
+     * Whether the header has room for one dot per habit: never on {@link #TALL}, and only up to {@link #MAX_DOTS} and
+     * what the width leaves beside the flame, the count and (except on {@link #SINGLE}) the title.
+     */
+    static boolean dots(int layout, float width, int total) {
+        if (layout == TALL || total <= 0) return false;
+        int room = (int) ((width - (layout == SINGLE ? 110 : 160)) / DOT_DP);
+        return total <= Math.min(MAX_DOTS, room);
+    }
+
+    /**
+     * Whether a day's counts fit its rows: {@code listed} rows ({@code doneRows} of them done) plus {@code more}
+     * unlisted make {@code total}, and {@code done} is at least the done rows and at most {@code total}.
+     */
+    static boolean counts(int done, int total, int doneRows, int listed, int more) {
+        return total == listed + more && done >= doneRows && done <= total;
     }
 }
