@@ -97,7 +97,7 @@ Play requires two things for apps where users create accounts:
 1. **In-app deletion.** Settings, "Delete your account", button "Delete my account" (`POST /api/me/delete`). It needs the password, or the typed word DELETE when the account has no password. Deleting signs the phone out, which cancels reminders and clears the widget and device data.
 2. **A web link** for someone who no longer has the app. There is no public deletion page yet; `/settings` needs sign-in. Recommendation: a public page with the deletion steps, for example `{WebOrigin}/delete-account`.
 
-Deletion form answers. **Deleted:** everything in section 2.1, including the consent record and the Discord link. **Kept:** server logs (rotated by size) and database backups (up to about 5 weeks), as the policy says in sections 3.7 and 7.
+Deletion form answers. **Deleted:** everything in section 2.1, including the consent record and the Discord link. **Kept:** server logs (rotated by size) and database backups (up to about 6 weeks), as the policy says in sections 3.7 and 7.
 
 ### 2.5 Listing text
 
