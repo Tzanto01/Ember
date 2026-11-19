@@ -1447,7 +1447,7 @@
   "guide.privacy.export.q": "Kann ich meine Daten mitnehmen?",
   "guide.privacy.export.a": "Ja. Mit Konto lädst du deine Daten unter „Deine Daten“ im Web als JSON oder CSV herunter. Was in deinem privaten Tagebuch steht, bleibt darin verschlüsselt, und das Tagebuch hat einen eigenen entschlüsselten Export. Ohne Konto exportierst du unter „Auf diesem Gerät“ ein Backup.",
   "guide.privacy.delete.q": "Was wird beim Löschen entfernt?",
-  "guide.privacy.delete.a": "Löschst du dein Konto, ist es mit allem darin weg, und das lässt sich nicht rückgängig machen. Ohne Konto löschst du stattdessen alles auf diesem Gerät. Sichere vorher eine Kopie, wenn du sie behalten möchtest. Willst du dein Konto behalten, widerruf stattdessen unter Datenschutz deine Einwilligung. Dann löscht Ember deine Habits und Einträge nach 30 Tagen.",
+  "guide.privacy.delete.a": "Löschst du dein Konto, ist es mit allem darin weg, und das lässt sich nicht rückgängig machen. Ohne Konto löschst du stattdessen alles auf diesem Gerät. Sichere vorher eine Kopie, wenn du sie behalten möchtest. Willst du dein Konto behalten, widerruf stattdessen unter Datenschutz deine Einwilligung. Dann kannst du deine Habits und Einträge nur noch exportieren, und Ember löscht sie später, nach einer Erinnerung.",
   "letgo.kind.label": "Was für ein Habit ist es?",
   "letgo.kind.build": "Etwas, das ich aufbauen möchte",
   "letgo.kind.letGo": "Etwas, das ich loslassen möchte",

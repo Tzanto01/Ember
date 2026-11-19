@@ -1447,7 +1447,7 @@
   "guide.privacy.export.q": "Can I take my data with me?",
   "guide.privacy.export.a": "Yes. With an account, download your data as JSON or CSV under Your data, on the web. Anything in your private journal stays encrypted in that file, and the journal has its own decrypted export. Without an account, export a backup under On this device.",
   "guide.privacy.delete.q": "What does deleting remove?",
-  "guide.privacy.delete.a": "Deleting your account removes it and everything in it, and it can't be undone. Without an account, you delete everything on this device instead. Save a copy first if you'd like to keep one. To keep your account, withdraw your consent under Privacy instead: Ember then deletes your habits and entries after 30 days.",
+  "guide.privacy.delete.a": "Deleting your account removes it and everything in it, and it can't be undone. Without an account, you delete everything on this device instead. Save a copy first if you'd like to keep one. To keep your account, withdraw your consent under Privacy instead: Ember then keeps your habits and entries for export only and deletes them later, after a reminder.",
   "letgo.kind.label": "What kind of habit is it?",
   "letgo.kind.build": "Something to build up",
   "letgo.kind.letGo": "Something to let go of",
