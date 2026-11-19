@@ -151,7 +151,7 @@ export function AppShell() {
             ) : (
               <Button
                 variant="ghost"
-                className="max-md:hidden"
+                className="max-lg:hidden"
                 aria-disabled={signingOut || undefined}
                 onClick={() => void signOut()}
               >
