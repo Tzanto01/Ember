@@ -8,7 +8,7 @@ public static class OpsApp
 {
     public static readonly TimeSpan CounterCache = TimeSpan.FromSeconds(20);
     public static readonly TimeSpan SeriesCache = TimeSpan.FromMinutes(5);
-    public const string ReminderCountersKey = "reminders:counters";
+    public static readonly TimeSpan FeaturesCache = TimeSpan.FromSeconds(60);
 
     public static WebApplicationBuilder CreateBuilder(string[] args)
     {
@@ -34,6 +34,15 @@ public static class OpsApp
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false })
             .RedactLoggedHeaders(_ => true);
         services.AddSingleton<NoticeStore>();
+        services.AddHttpClient(ApiTimings.HttpClientName, client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(5);
+                client.MaxResponseContentBufferSize = 8 << 20;
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("ember-ops");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false })
+            .RedactLoggedHeaders(_ => true);
+        services.AddSingleton<ApiTimings>();
         services.AddHostedService<ReminderSnapshotService>();
         return builder;
     }
@@ -77,30 +86,22 @@ public static class OpsApp
     }
 
     internal static Task<OverviewSeries> OverviewSeriesAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-        Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, db.Ops, time, ct));
+        Cached(cache, "overview:series", SeriesCache, async () => await OverviewQueries.SeriesAsync(db.Ember, db.Ops, await FeaturesAsync(cache, db, ct), time, ct));
 
     internal static Task<ActivityInsights> ActivityAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
         Cached(cache, "insights:activity", SeriesCache, () => InsightQueries.ActivityAsync(db.Ops, time, ct));
 
-    internal static Task<HabitInsights> HabitsAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-        Cached(cache, "insights:habits", SeriesCache, () => InsightQueries.HabitsAsync(db.Ember, time, ct));
-
-    internal static Task<UserInsights> UsersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-        Cached(cache, "insights:users", SeriesCache, () => InsightQueries.UsersAsync(db.Ember, time, ct));
-
-    internal static Task<FeedbackList> FeedbackStatsAsync(IMemoryCache cache, OpsDatabases db, CancellationToken ct) =>
-        Cached(cache, "feedback:stats", CounterCache, () => FeedbackStore.ListAsync(db, ct));
-
-    internal static Task<ReminderCounters> ReminderCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-        Cached(cache, ReminderCountersKey, CounterCache, () => ReminderQueries.CountersAsync(db.Ember, time, ct));
-
-    internal static async Task<Reminders> RemindersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-        Reminders.From(
-            await ReminderCountersAsync(cache, db, time, ct),
-            await Cached(cache, "reminders:history", SeriesCache, () => ReminderQueries.HistoryAsync(db.Ops, time, ct)));
+    internal static Task<DeviceInsights> DevicesAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, "insights:devices", SeriesCache, async () => await InsightQueries.DevicesAsync(db.Ember, await FeaturesAsync(cache, db, ct), time, ct));
 
     internal static Task<SystemReport> SystemAsync(IMemoryCache cache, SystemInfo system, CancellationToken ct) =>
         Cached(cache, "system", CounterCache, () => system.GetAsync(ct));
+
+    internal static Task<ApiHealth> ApiHealthAsync(IMemoryCache cache, ApiTimings timings, CancellationToken ct) =>
+        Cached(cache, "api:health", CounterCache, () => timings.ReadAsync(ct));
+
+    private static Task<EmberFeatures> FeaturesAsync(IMemoryCache cache, OpsDatabases db, CancellationToken ct) =>
+        Cached(cache, "ember:features", FeaturesCache, () => EmberFeatures.DetectAsync(db.Ember, ct));
 
     internal static async Task<T> Cached<T>(IMemoryCache cache, string key, TimeSpan ttl, Func<Task<T>> load) =>
         (await cache.GetOrCreateAsync(key, entry =>

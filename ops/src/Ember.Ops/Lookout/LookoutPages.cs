@@ -1,12 +1,10 @@
 using System.Globalization;
-using System.Text.Json;
 
 namespace Ember.Ops.Lookout;
 
 /// <summary>Maps the dashboard's own records to Lookout pages, widgets and the summary.</summary>
 public static class LookoutPages
 {
-    private static readonly TimeZoneInfo Berlin = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
     /// <summary>Activity figures with fewer distinct users than this (but not 0) are suppressed.</summary>
     public const int MinUsers = 3;
 
@@ -18,89 +16,32 @@ public static class LookoutPages
         string.IsNullOrWhiteSpace(buildSha) ? null : buildSha, "Europe/Berlin",
         [
             new("overview", "Overview", "layout-dashboard", 30),
-            new("activity", "Activity", "activity", 60),
-            new("habits", "Habits", "chart-column", 60),
-            new("users", "Users", "users", 60),
-            new("reminders", "Reminders", "bell", 30),
-            new("feedback", "Feedback", "kanban", 0),
-            new("feedback-trends", "Feedback trends", "inbox", 60),
+            new("engagement", "Engagement", "activity", 60),
+            new("devices", "Devices", "smartphone", 60),
+            new("releases", "Releases", "rocket", 30),
+            new("health", "Health", "heart-pulse", 60),
             new("notices", "Notices", "megaphone", 30),
             new("system", "System", "server", 30),
+            new("feedback", "Feedback", "kanban", 0),
         ]);
 
-    public static Page Overview(Overview o)
+    public static Page Overview(Overview o, ActivityInsights a)
     {
-        var (users, habits, streaks) = (o.Users, o.Habits, o.Streaks);
+        var users = o.Users;
+        var figures = Figures(a);
         return new("overview", "Overview", o.GeneratedAt,
         [
             Stats("tiles", "Overview", "tiles",
             [
                 UsersItem(users.Total, o.Series),
+                new("New users this week", o.Series.NewPerWeek[^1].Count, Hint: o.Series.SignupNote),
+                figures is null ? new("Active today", null, Hint: NoSnapshots, Max: users.Total) : WithMax(figures.Today, users.Total),
                 Active7Item(users.Active7, users.Total, o.Series) with { Hint = $"{Pct(users.Active7, users.Total)} of users" },
                 new("Active 14 days", users.Active14, Hint: $"{Pct(users.Active14, users.Total)} of users", Max: users.Total),
-                new("Habits", habits.Total, Hint: $"{N(habits.Paused)} paused"),
-                new("Routines", o.Routines.Total, Hint: $"{N(o.Routines.Users)} users"),
-                new("Streak users", streaks.ShowStreaks, Hint: $"{Pct(streaks.ShowStreaks, users.Total)} of users", Max: users.Total),
-            ]),
-            Bars("new-users", "New users per week", "week", ["Count"], users.NewPerWeek.Select(w => new Bar(Date(w.Week), [w.Count])), "by first habit, proxy"),
-            Panel("grace", "Users by grace days per week", null,
-            [
-                Bars("grace-days", "Users by grace days per week", "category", ["Users"], streaks.Grace.Select(g => new Bar($"{g.Days} d", [g.Count]))),
-                Stats("grace-habits", "Habits", "list", [new("Habits paused", habits.Paused), new("Habits with a reminder", habits.WithReminder)]),
-            ]),
-        ]);
-    }
-
-    public static Page Reminders(Reminders r)
-    {
-        var overdue = r.Overdue.Habits + r.Overdue.Routines;
-        var second = r.SecondReminders;
-        return new("reminders", "Reminders", r.GeneratedAt,
-        [
-            Stats("tiles", "Reminders", "tiles",
-            [
-                overdue == 0
-                    ? new("Overdue reminders", overdue, Hint: "Advancing", HintTone: "ok", Goal: new(Below: 1))
-                    : new("Overdue reminders", overdue, Hint: $"{N(r.Overdue.Habits)} habits, {N(r.Overdue.Routines)} routines", HintTone: "bad", Goal: new(Below: 1)),
-                new("Discord DMs on", r.Discord.RemindersOn),
-                new("Second reminders on", second.UsersOn, Hint: $"{N(second.PendingNow)} pending now"),
-                new("Push enabled", r.Push.Enabled, Hint: $"of {N(r.Push.Subscriptions)} subscriptions", Max: r.Push.Subscriptions),
-            ]),
-            Bars("open", "Still-open reminders per day", "day", ["Discord", "Push"], Channels(r.OpenPerDay),
-                "Ember deletes reminder rows when they close, so these are only the ones still open"),
-            r.History.Since is { } since
-                ? Bars("sent", "Reminders sent per day", "day", ["Discord", "Push"], Channels(r.History.PerDay),
-                    $"history since {Local(since)}; includes second reminders and resends")
-                : Bars("sent", "Reminders sent per day", "day", ["Discord", "Push"], []) with { Unavailable = "No snapshots yet" },
-            r.History.Since is not { } historySince
-                ? Stats("delivery", "Sent, last 7 days", "list", []) with { Unavailable = "No snapshots yet" }
-                : Stats("delivery", "Sent, last 7 days", "list",
-                [
-                    SentItem("Discord", r.History.PerDay.Select(d => d.Discord).ToList(), historySince <= r.GeneratedAt.AddDays(-14)),
-                    SentItem("Push", r.History.PerDay.Select(d => d.Push).ToList(), historySince <= r.GeneratedAt.AddDays(-14)),
-                ]) with { Note = "from the dashboard's snapshots; trend is the last 30 days" },
-            Stats("discord", "Discord DMs", "list",
-            [
-                new("Users with DM reminders", r.Discord.RemindersOn),
-                new("Failing", r.Discord.Failing, Tone: r.Discord.Failing > 0 ? "bad" : null),
-                new("Paused", r.Discord.Paused),
-            ]),
-            Panel("second", "Second reminders", null,
-            [
-                Stats("second-counts", "Counts", "list", [new("Users on", second.UsersOn), new("Pending now", second.PendingNow)]),
-                Bars("second-delays", "Users by delay", "category", ["Users"], second.ByMinutes.Select(m => new Bar($"{m.Minutes} min", [m.Count]))),
-            ]),
-            Stats("push", "Push and phones", "list",
-            [
-                new("Push subscriptions", r.Push.Subscriptions),
-                new("Push enabled", r.Push.Enabled),
-                new("Phones", r.Phones.Total),
-                new("Phones enabled", r.Phones.Enabled),
-            ]),
-            Stats("overdue", "Overdue", "list", [new("Habits", r.Overdue.Habits), new("Routines", r.Overdue.Routines)]) with
-            {
-                Note = "Next reminder more than 15 minutes in the past.",
-            },
+                figures?.Stickiness ?? new("Stickiness", null, "percent", Hint: NoSnapshots, Max: 1),
+            ]) with { Note = figures is null ? null : $"{figures.History}; values for 1 or 2 people show as <3" },
+            Bars("new-users", "New users per week", "week", ["Count"], users.NewPerWeek.Select(w => new Bar(Date(w.Week), [w.Count])), o.Series.SignupNote),
+            ActivePerDay(a, figures),
         ]);
     }
 
@@ -155,7 +96,13 @@ public static class LookoutPages
         [
             services,
             Section(s, "database", "Database", s.Database is { } db
-                ? [new("Size", db.SizeBytes, "bytes"), new("Latest migration", db.LatestMigration, "code")]
+                ?
+                [
+                    new("Size", db.SizeBytes, "bytes"),
+                    new("Connections", db.Connections, Tone: db.Connections >= db.MaxConnections * 0.8 ? "warn" : null,
+                        Hint: $"of {N(db.MaxConnections)} on the shared server, {N(db.EmberConnections)} to emberdb", Max: db.MaxConnections),
+                    new("Latest migration", db.LatestMigration, "code"),
+                ]
                 : null),
             Section(s, "disks", "Disks", s.Disks?.Select(d =>
                 new StatItem(d.Mount, d.FreeBytes, "bytes", DiskTone(d), $"of {Bytes(d.TotalBytes)} ({Pct(d.FreeBytes, d.TotalBytes)} free)",
@@ -163,32 +110,106 @@ public static class LookoutPages
             Section(s, "backup", "Newest pre-deploy dump", s.Backup is { } backup
                 ? [new("File", backup.Name, "code"), new("Written", Iso(backup.At), "time"), new("Age", backup.AgeHours, "hours"), new("Size", backup.SizeBytes, "bytes")]
                 : null),
-            Section(s, "deployed", "Deployed", s.Deployed is { } deployed
-                ? [new("Production", deployed.Production, "code"), new("Staging", deployed.Staging, "code"), new("Dashboard", s.DashboardSha, "code")]
-                : null),
-            Section(s, "apk", "Android APK", s.Apk is { } apk
-                ? [new("Version", apk.VersionName, "text"), new("Version code", apk.VersionCode.ToString(CultureInfo.InvariantCulture), "text")]
-                : null),
-            s.Notice is { } notice
-                ? new ListWidget { Id = "live-notice", Title = "Live notice", Empty = "No live notice", Items = NoticeItems(notice) }
-                : new ListWidget { Id = "live-notice", Title = "Live notice", Empty = "No live notice", Items = [], Unavailable = Unavailable(s, "notice") },
-            s.Ci is { } runs
-                ? new CiWidget { Id = "ci", Title = "CI", Runs = runs }
-                : new CiWidget { Id = "ci", Title = "CI", Runs = [], Unavailable = Unavailable(s, "ci") },
         ]);
     }
 
-    /// <summary>Sign-in activity from the dashboard's snapshots; every figure of 1 or 2 people is suppressed.</summary>
-    public static Page Activity(ActivityInsights a)
+    public static Page Releases(SystemReport s) => new("releases", "Releases", s.GeneratedAt,
+    [
+        Section(s, "deployed", "Deployed", s.Deployed is { } deployed
+            ? [new("Production", deployed.Production, "code"), new("Staging", deployed.Staging, "code"), new("Dashboard", s.DashboardSha, "code")]
+            : null),
+        Section(s, "apk", "Android APK", s.Apk is { } apk
+            ? [new("Version", apk.VersionName, "text"), new("Version code", apk.VersionCode.ToString(CultureInfo.InvariantCulture), "text")]
+            : null),
+        s.Ci is { } runs
+            ? new CiWidget { Id = "ci", Title = "CI", Runs = runs }
+            : new CiWidget { Id = "ci", Title = "CI", Runs = [], Unavailable = Unavailable(s, "ci") },
+    ]);
+
+    /// <summary>Sign-in activity and retention from the dashboard's snapshots; every figure of 1 or 2 people is suppressed.</summary>
+    public static Page Engagement(ActivityInsights a, OverviewSeries series)
     {
-        if (a.Since is not { } since)
-            return new("activity", "Activity", a.GeneratedAt,
+        var daysActive = Bars("days-active", "Days active per user per week", "category", ["Users"], []) with
+        {
+            Unavailable = "Ember keeps only the last sign-in of each session, so days per user can't be counted without storing user ids",
+        };
+        if (Figures(a) is not { } figures)
+            return new("engagement", "Engagement", a.GeneratedAt,
             [
-                Stats("tiles", "Activity", "tiles", []) with { Unavailable = "No snapshots yet" },
-                Bars("active-per-day", "Active users per day", "day", ["Users"], []) with { Unavailable = "No snapshots yet" },
-                Bars("active-per-week", "Active users per week", "week", ["Users"], []) with { Unavailable = "No snapshots yet" },
+                Stats("tiles", "Activity", "tiles", []) with { Unavailable = NoSnapshots },
+                ActivePerDay(a, null),
+                Bars("active-per-week", "Active users per week", "week", ["Users"], []) with { Unavailable = NoSnapshots },
+                daysActive,
+                Stats("retention", "Retention", "list", []) with { Unavailable = NoSnapshots },
             ]);
 
+        return new("engagement", "Engagement", a.GeneratedAt,
+        [
+            Stats("tiles", "Activity", "tiles", [figures.Today, figures.Average, figures.Stickiness]) with { Note = $"{figures.History}; values for 1 or 2 people show as <3" },
+            ActivePerDay(a, figures),
+            Bars("active-per-week", "Active users per week", "week", ["Users"], Guarded(a.PerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))),
+                $"{figures.History}; {SmallNote}") with { Better = "up" },
+            daysActive,
+            Retention(a, series),
+        ]);
+    }
+
+    /// <summary>
+    /// Of the users who signed up in each of the last 12 weeks, the share seen 1, 2 and 4 weeks later, pooled over the finished weeks
+    /// with a snapshot; suppressed when the new or the returning users are 1 or 2.
+    /// </summary>
+    private static StatsWidget Retention(ActivityInsights a, OverviewSeries series)
+    {
+        if (a.Retained.Count == 0) return Stats("retention", "Retention", "list", []) with { Unavailable = NoSnapshots };
+        var cohorts = series.NewPerWeek.Where(w => w.Count > 0).ToDictionary(w => w.Week, w => w.Count);
+        var thisWeek = OpsCalendar.Monday(OpsCalendar.BerlinDate(a.GeneratedAt));
+        var items = InsightQueries.RetentionWeeks.Select(weeks =>
+        {
+            var rows = a.Retained.Where(r => r.Week == r.Cohort.AddDays(7 * weeks) && r.Week < thisWeek && cohorts.ContainsKey(r.Cohort)).ToList();
+            var joined = rows.Sum(r => cohorts[r.Cohort]);
+            var kept = rows.Sum(r => Math.Min(r.Users, cohorts[r.Cohort]));
+            var label = weeks == 1 ? "After 1 week" : $"After {weeks} weeks";
+            if (Small(joined) || Small(kept)) return new StatItem(label, Suppressed);
+            return rows.Count == 0
+                ? new StatItem(label, null, "percent", Hint: "no finished week yet", Max: 1)
+                : new StatItem(label, (double)kept / joined, "percent", Hint: $"{N(kept)} of {N(joined)} new users", Max: 1);
+        }).ToList();
+        return Stats("retention", "Retention", "list", items) with
+        {
+            Note = $"share of each week's new users ({series.SignupNote}) seen that many weeks later; history starts {Date(a.Retained.Min(r => r.Week))}; "
+                + "values for 1 or 2 people show as <3",
+        };
+    }
+
+    public static Page Devices(DeviceInsights d)
+    {
+        var recent = $"users seen in the last {InsightQueries.DeviceDays} days; someone on several counts in each; {SmallNote}";
+        return new("devices", "Devices", d.GeneratedAt,
+        [
+            d.Platforms is { } platforms
+                ? Bars("platforms", "Active users by platform", "category", ["Users"], Guarded(platforms.Select(p => (new Bar(p.Label, [p.Count]), p.Users))), recent)
+                : Bars("platforms", "Active users by platform", "category", ["Users"], []) with { Unavailable = "Ember doesn't record the sign-in platform yet" },
+            d.Versions is { } versions
+                ? Bars("versions", "App versions in use", "category", ["Users"], Guarded(versions.Select(v => (new Bar(v.Label, [v.Count]), v.Users))).Take(10),
+                    $"{recent}; top 10")
+                : Bars("versions", "App versions in use", "category", ["Users"], []) with { Unavailable = "Ember doesn't record the app version on sign-in yet" },
+            Stats("adoption", "Adoption", "tiles",
+            [
+                new("Web push on", d.WebPush, Hint: $"{Pct(d.WebPush, d.Users)} of users", Max: d.Users),
+                new("Android app installs", d.AndroidInstalls, Hint: "phones registered with the app"),
+                new("Discord linked", d.DiscordLinked, Hint: $"{Pct(d.DiscordLinked, d.Users)} of users", Max: d.Users),
+            ]),
+        ]);
+    }
+
+    private const string NoSnapshots = "No snapshots yet";
+
+    private sealed record ActivityFigures(StatItem Today, StatItem Average, StatItem Stickiness, string History);
+
+    /// <summary>Active today, the last full week's average per day and stickiness, guarded; null before the first snapshot.</summary>
+    private static ActivityFigures? Figures(ActivityInsights a)
+    {
+        if (a.Since is not { } since) return null;
         var history = $"used a web or app sign-in; history starts {Date(since)}";
         var todayDate = OpsCalendar.BerlinDate(a.GeneratedAt);
         var today = a.PerDay.FirstOrDefault(d => d.Date == todayDate)?.Count;
@@ -198,136 +219,51 @@ public static class LookoutPages
         double? average = lastWeek is null ? null : lastWeekDays.Average(d => d.Count);
         var weekUsers = lastWeek?.Users ?? 0;
         var fullWeek = lastWeek is null ? "needs a full week of history" : "last full week";
-        return new("activity", "Activity", a.GeneratedAt,
-        [
-            Stats("tiles", "Activity", "tiles",
-            [
-                Guarded(new("Active today", today), today ?? 0),
-                Guarded(new("Average per day", average is { } avg ? Math.Round(avg, 1) : null, Hint: fullWeek), weekUsers),
-                Guarded(new("Stickiness", weekUsers == 0 ? null : average / weekUsers, "percent", Hint: lastWeek is null ? fullWeek : "average day of last week's active users",
-                    Max: 1), weekUsers),
-            ]) with { Note = $"{history}; values for 1 or 2 people show as <3" },
-            Bars("active-per-day", "Active users per day", "day", ["Users"], Guarded(a.PerDay.Select(d => (Bar(d), d.Count))),
-                $"{history}; {SmallNote}") with { Better = "up" },
-            Bars("active-per-week", "Active users per week", "week", ["Users"], Guarded(a.PerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))),
-                $"{history}; {SmallNote}") with { Better = "up" },
-        ]);
+        return new(
+            Guarded(new("Active today", today), today ?? 0),
+            Guarded(new("Average per day", average is { } avg ? Math.Round(avg, 1) : null, Hint: fullWeek), weekUsers),
+            Guarded(new("Stickiness", weekUsers == 0 ? null : average / weekUsers, "percent", Hint: lastWeek is null ? fullWeek : "average day of last week's active users",
+                Max: 1), weekUsers),
+            history);
     }
 
-    public static Page Habits(HabitInsights h)
-    {
-        var users = h.UsersByHabits.Sum(b => b.Count);
-        return new("habits", "Habits", h.GeneratedAt,
-        [
-            Stats("tiles", "Habits", "tiles",
-            [
-                new("Habits", h.Habits),
-                new("Users with a habit", h.UsersWithHabits, Hint: $"{Pct(h.UsersWithHabits, users)} of users", Max: users),
-                new("Habits per user", h.UsersWithHabits == 0 ? null : Math.Round((double)h.Habits / h.UsersWithHabits, 1), Hint: "of users with a habit"),
-                new("In a routine", h.InRoutine, Hint: $"{Pct(h.InRoutine, h.Habits)} of habits", Max: h.Habits),
-                new("With a reminder time", h.WithReminderTime, Hint: $"{Pct(h.WithReminderTime, h.Habits)} of habits", Max: h.Habits),
-                new("Routines", h.Routines),
-            ]),
-            Bars("schedule", "Habits by schedule", "category", ["Habits"], h.BySchedule.Select(b => new Bar(b.Label, [b.Count]))),
-            Bars("times-per-day", "Habits by times per day", "category", ["Habits"], h.ByTimesPerDay.Select(b => new Bar(b.Label, [b.Count]))),
-            Bars("reminder-hours", "Reminder times by hour", "category", ["Habits", "Routines"],
-                h.ReminderHours.Select(r => new Bar(r.Hour.ToString("00", CultureInfo.InvariantCulture), [r.Habits, r.Routines])),
-                "each user's local time; a habit can have several") with { Size = "full" },
-            Bars("habits-per-user", "Users by number of habits", "category", ["Users"], h.UsersByHabits.Select(b => new Bar(b.Label, [b.Count]))),
-            Bars("created", "Created per week", "week", ["Habits", "Routines"], h.CreatedPerWeek.Select(w => new Bar(Date(w.Week), [w.Habits, w.Routines])),
-                "still existing; deleted ones are not counted"),
-        ]);
-    }
+    private static BarsWidget ActivePerDay(ActivityInsights a, ActivityFigures? figures) => figures is null
+        ? Bars("active-per-day", "Active users per day", "day", ["Users"], []) with { Unavailable = NoSnapshots }
+        : Bars("active-per-day", "Active users per day", "day", ["Users"], Guarded(a.PerDay.Select(d => (Bar(d), d.Count))),
+            $"{figures.History}; {SmallNote}") with { Better = "up" };
 
-    public static Page Users(UserInsights u) => new("users", "Users", u.GeneratedAt,
-    [
-        Stats("tiles", "Users", "tiles",
-        [
-            new("Users", u.Users),
-            new("Discord linked", u.DiscordLinked, Hint: $"{Pct(u.DiscordLinked, u.Users)} of users", Max: u.Users),
-            new("With a reminder destination", u.Users - u.NoDestination, Hint: $"{Pct(u.Users - u.NoDestination, u.Users)} of users", Max: u.Users),
-            new("Web push on", u.WebPush, Max: u.Users),
-            new("Android phone on", u.Phone, Max: u.Users),
-        ]),
-        Bars("destinations", "Users by reminder destination", "category", ["Users"],
-        [
-            new("Discord DMs", [u.DiscordDms]), new("Web push", [u.WebPush]), new("Android phone", [u.Phone]), new("None", [u.NoDestination]),
-        ], "switched on; a user can have several"),
-        Bars("designs", "Users by design", "category", ["Users"], u.ByTheme.Select(t => new Bar(char.ToUpperInvariant(t.Label[0]) + t.Label[1..], [t.Count]))),
-    ]);
-
-    /// <summary>Feedback over time from the reports Ember keeps (12 months); Ember stores no status history.</summary>
-    public static Page FeedbackTrends(FeedbackList list, DateTime now)
-    {
-        var items = list.Items;
-        var today = OpsCalendar.BerlinDate(now);
-        var weeks = OpsCalendar.Weeks(today, InsightQueries.Weeks).ToList();
-        var resolved = items.Where(i => i.ResolvedAt is not null).Select(i => (i.ResolvedAt!.Value - i.CreatedAt).TotalHours).Order().ToList();
-        var sent7 = items.Count(i => i.CreatedAt >= now.AddDays(-7));
-        var sentBefore = items.Count(i => i.CreatedAt >= now.AddDays(-14) && i.CreatedAt < now.AddDays(-7));
-        var versions = items.Where(i => !string.IsNullOrWhiteSpace(i.Version)).GroupBy(i => i.Version!).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key).ToList();
-        var versionBars = versions.Take(7).Select(g => new Bar(g.Key, [g.Count()])).ToList();
-        if (versions.Count > 7) versionBars.Add(new("Other", [versions.Skip(7).Sum(g => g.Count())]));
-        versionBars.Add(new("Unknown", [items.Count(i => string.IsNullOrWhiteSpace(i.Version))]));
-        return new("feedback-trends", "Feedback trends", now,
-        [
-            Stats("tiles", "Feedback", "tiles",
-            [
-                new("Open", items.Count(i => i.Status == "open"), Goal: new(Below: 5)),
-                new("New, 7 days", sent7, Delta: new(sent7 - sentBefore, "the 7 days before", "down")),
-                new("Resolved, 30 days", items.Count(i => i.ResolvedAt >= now.AddDays(-30))),
-                new("Median time to resolve", resolved.Count == 0 ? null : Math.Round((resolved[(resolved.Count - 1) / 2] + resolved[resolved.Count / 2]) / 2, 1), "hours",
-                    Hint: "released or declined reports"),
-            ]),
-            Bars("per-week", "Reports per week by platform", "week", Platforms,
-                weeks.Select(w => new Bar(Date(w), Platforms.Select(p => (double)items.Count(i => OpsCalendar.Monday(OpsCalendar.BerlinDate(i.CreatedAt)) == w && Platform(i) == p)).ToList()))),
-            Bars("flow", "Sent and resolved per week", "week", ["Sent", "Resolved"], weeks.Select(w => new Bar(Date(w),
-            [
-                items.Count(i => OpsCalendar.Monday(OpsCalendar.BerlinDate(i.CreatedAt)) == w),
-                items.Count(i => i.ResolvedAt is { } at && OpsCalendar.Monday(OpsCalendar.BerlinDate(at)) == w),
-            ]))),
-            Bars("by-status", "Reports by status and platform", "category", Platforms,
-                FeedbackStore.Statuses.Select(s => new Bar(char.ToUpperInvariant(s[0]) + s[1..], Platforms.Select(p => (double)items.Count(i => i.Status == s && Platform(i) == p)).ToList())),
-                "current status"),
-            Bars("versions", "Reports by app version", "category", ["Reports"], versionBars, "top 7 versions"),
-        ]);
-    }
-
-    private static readonly string[] Platforms = ["Web", "Android", "Discord", "Other"];
-
-    private static string Platform(FeedbackItem item) => item.Platform switch { "web" => "Web", "android" => "Android", "discord" => "Discord", _ => "Other" };
+    private static StatItem WithMax(StatItem item, int max) => Equals(item.Value, Suppressed) ? item : item with { Max = max };
 
     /// <summary>A completed run that did not succeed, as the web badge counts it.</summary>
     public static bool Failed(CiRun run) => run.Status == "completed" && run.Conclusion != "success";
 
     /// <summary>
-    /// The summary card. A null source is a failed database read: its tiles are null, the state is bad and the first alert says so.
+    /// The summary card. A null overview or feedback is a failed database read: its tiles are null, the state is bad and the first alert says so.
+    /// Overdue reminders show only as the failing "Reminders advancing" health check.
     /// </summary>
-    public static Summary Summary(OverviewCounters? overview, ReminderCounters? reminders, FeedbackList? feedback, SystemReport system, DateTime now,
-        OverviewSeries? series = null)
+    public static Summary Summary(OverviewCounters? overview, FeedbackList? feedback, SystemReport system, DateTime now,
+        OverviewSeries? series = null, ApiHealth? api = null)
     {
-        var databaseFailed = overview is null || reminders is null || feedback is null;
-        int? overdue = reminders is null ? null : reminders.Overdue.Habits + reminders.Overdue.Routines;
+        var databaseFailed = overview is null || feedback is null;
         var failedCi = (system.Ci ?? []).Where(Failed).ToList();
         system.Errors.TryGetValue("status", out var statusError);
 
         var alerts = new List<Alert>();
         if (databaseFailed) alerts.Add(new("Database unavailable", "bad", "system"));
-        alerts.AddRange(system.Services.Where(x => !x.Ok && x.Name != "Reminders advancing").Select(x => new Alert($"{x.Name}: {x.Detail ?? "failing"}", "bad", "system")));
-        if (overdue > 0) alerts.Add(new($"{N(overdue.Value)} reminders overdue", "bad", "reminders"));
+        alerts.AddRange(system.Services.Where(x => !x.Ok && x.Name != RemindersAdvancing).Select(x => new Alert($"{x.Name}: {x.Detail ?? "failing"}", "bad", "system")));
+        if (system.Services.Any(x => !x.Ok && x.Name == RemindersAdvancing)) alerts.Add(new("Reminders not advancing", "bad", "system"));
         alerts.AddRange(failedCi.Select(run => new Alert($"CI failed on {run.Branch}", "bad", "system")));
         if (statusError is not null) alerts.Add(new($"Host status: {statusError}", "warn", "system"));
         var lowDisks = (system.Disks ?? []).Where(d => DiskTone(d) is not null).ToList();
         alerts.AddRange(lowDisks.Select(d => new Alert($"Disk {d.Mount}: {Pct(d.FreeBytes, d.TotalBytes)} free", DiskTone(d)!, "system")));
 
-        var bad = databaseFailed || system.Services.Any(x => !x.Ok) || overdue > 0 || failedCi.Any(run => run.Branch == "main")
-            || lowDisks.Any(d => DiskTone(d) == "bad");
-        var generatedAt = new[] { overview?.GeneratedAt, reminders?.GeneratedAt, feedback is null ? null : now, system.GeneratedAt }.Where(t => t is not null).Min()!.Value;
+        var bad = databaseFailed || system.Services.Any(x => !x.Ok) || failedCi.Any(run => run.Branch == "main") || lowDisks.Any(d => DiskTone(d) == "bad");
+        var generatedAt = new[] { overview?.GeneratedAt, feedback is null ? null : now, system.GeneratedAt }.Where(t => t is not null).Min()!.Value;
         return new(generatedAt, bad ? "bad" : statusError is not null || lowDisks.Count > 0 ? "warn" : "ok",
         [
             overview is null ? new("Users", null) : UsersItem(overview.Users, series),
             overview is null ? new("Active 7 days", null) : Active7Item(overview.Active7, overview.Users, series),
-            new("Overdue reminders", overdue, Tone: overdue > 0 ? "bad" : null, Goal: new(Below: 1)),
+            ApiP95(api),
             feedback is null
                 ? new("Open feedback", null)
                 : new("Open feedback", feedback.Items.Count(i => i.Status == "open"), Goal: new(Below: 5),
@@ -335,6 +271,58 @@ public static class LookoutPages
         ],
         alerts.Take(5).ToList());
     }
+
+    /// <summary>Ember's API timings: the last 24 hours, the last 7 days in slots of <see cref="ApiTimings.SlotHours"/> hours, and the slowest route templates.</summary>
+    public static Page Health(ApiHealth h)
+    {
+        if (h.Unavailable is { } reason)
+            return new("health", "Health", h.GeneratedAt,
+            [
+                Stats("api", "API, last 24 hours", "tiles", []) with { Unavailable = reason },
+                Bars("requests", "Requests per minute", "category", ["Requests"], []) with { Unavailable = reason },
+                Bars("latency", "Response time, ms", "category", ["p50", "p95"], []) with { Unavailable = reason },
+                Bars("errors", "5xx responses, %", "category", ["5xx"], []) with { Unavailable = reason },
+                Stats("slowest", "Slowest routes, last 24 hours", "list", []) with { Unavailable = reason },
+            ]);
+
+        var slots = $"per {ApiTimings.SlotHours} hours over {ApiTimings.Days} days, Europe/Berlin";
+        var day = h.Day!.Timing;
+        return new("health", "Health", h.GeneratedAt,
+        [
+            Stats("api", "API, last 24 hours", "tiles",
+            [
+                new("Requests per minute", Math.Round(day.Requests / h.Day.Minutes, 1)),
+                new("p50", day.Requests == 0 ? null : Math.Round(day.P50), Hint: "ms"),
+                ApiP95(h),
+                new("5xx rate", day.Requests == 0 ? null : (double)day.Errors / day.Requests, "percent", Goal: new(Below: 0.01)),
+            ]),
+            Bars("requests", "Requests per minute", "category", ["Requests"],
+                h.Slots.Select(s => new Bar(SlotLabel(s.Start), [Math.Round(s.Timing.Requests / s.Minutes, 2)])), slots) with { Better = "up" },
+            Bars("latency", "Response time, ms", "category", ["p50", "p95"],
+                h.Slots.Where(s => s.Timing.Requests > 0).Select(s => new Bar(SlotLabel(s.Start), [Math.Round(s.Timing.P50), Math.Round(s.Timing.P95)])),
+                $"{slots}; slots without requests are left out") with { Better = "down" },
+            Bars("errors", "5xx responses, %", "category", ["5xx"],
+                h.Slots.Select(s => new Bar(SlotLabel(s.Start), [s.Timing.Requests == 0 ? 0 : Math.Round(100.0 * s.Timing.Errors / s.Timing.Requests, 2)])), slots)
+                with { Better = "down" },
+            Stats("slowest", "Slowest routes, last 24 hours", "list", h.Slowest.Select(r =>
+                new StatItem(r.Route, Math.Round(r.P95), Hint: $"p95 ms; p50 {Math.Round(r.P50)} ms, {N(r.Requests)} requests")).ToList()) with
+            {
+                Note = "by p95 response time; route templates, never paths or ids",
+            },
+        ]);
+    }
+
+    /// <summary>The API's p95 response time over the last 24 hours in milliseconds; null while the API reports no timings.</summary>
+    private static StatItem ApiP95(ApiHealth? api) =>
+        api?.Day is { Timing.Requests: > 0 } day
+            ? new("API p95", Math.Round(day.Timing.P95), Hint: "ms, last 24 hours", Goal: new(Below: 300))
+            : new("API p95", null, Hint: api?.Unavailable ?? "ms, last 24 hours", Goal: new(Below: 300));
+
+    private static string SlotLabel(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin")).ToString("MM-dd HH:mm", CultureInfo.InvariantCulture);
+
+    /// <summary>The health check <see cref="SystemInfo"/> adds for overdue reminders.</summary>
+    public const string RemindersAdvancing = "Reminders advancing";
 
     private static StatItem UsersItem(int total, OverviewSeries? series)
     {
@@ -348,14 +336,6 @@ public static class LookoutPages
         ? new("Active 7 days", active7, Max: total)
         : new("Active 7 days", active7, Max: total, Trend: series.Active7PerDay.Count < 2 ? null : series.Active7PerDay.Select(d => (double)d.Count).ToList(),
             Delta: series.Active7Before is { } before ? new(active7 - before, "the 7 days before", "up") : null);
-
-    private static StatItem SentItem(string channel, IReadOnlyList<int> perDay, bool twoWeeksOfHistory)
-    {
-        var last7 = perDay.TakeLast(7).Sum();
-        var before = perDay.SkipLast(7).TakeLast(7).Sum();
-        return new(channel, last7, Trend: perDay.TakeLast(30).Select(n => (double)n).ToList(),
-            Delta: twoWeeksOfHistory ? new(last7 - before, "the 7 days before") : null);
-    }
 
     /// <summary>True for a bucket of 1 or 2 distinct users, which is effectively one person.</summary>
     public static bool Small(int users) => users is > 0 and < MinUsers;
@@ -381,23 +361,6 @@ public static class LookoutPages
             item.ImageIds.Select(id => id.ToString("D")).ToList(), item.CommentCount);
     }
 
-    private static List<ListItem> NoticeItems(JsonElement notice)
-    {
-        if (notice.ValueKind != JsonValueKind.Object || !notice.TryGetProperty("notices", out var list) || list.ValueKind != JsonValueKind.Array)
-            return [new(Lines: [notice.GetRawText()])];
-        return list.EnumerateArray().Select(entry =>
-        {
-            var meta = new List<string>();
-            if (NoticeRules.ParseTime(Text(entry, "showFrom")) is { } from) meta.Add($"from {Local(from)}");
-            if (NoticeRules.ParseTime(Text(entry, "showUntil")) is { } until) meta.Add($"until {Local(until)}");
-            return new ListItem(Text(entry, "id"), new[] { Text(entry, "en"), Text(entry, "de") }.OfType<string>().Where(t => t.Length > 0).ToList(),
-                [new(Text(entry, "kind") ?? "notice", "muted")], meta);
-        }).ToList();
-    }
-
-    private static string? Text(JsonElement entry, string name) =>
-        entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-
     private static StatsWidget Section(SystemReport s, string id, string title, IReadOnlyList<StatItem>? items) =>
         items is null ? Stats(id, title, "list", []) with { Unavailable = Unavailable(s, id) } : Stats(id, title, "list", items);
 
@@ -412,11 +375,6 @@ public static class LookoutPages
 
     private static BarsWidget Bars(string id, string title, string axis, string[] series, IEnumerable<Bar> bars, string? note = null) =>
         new() { Id = id, Title = title, Axis = axis, Series = series.Select(l => new SeriesRef(l)).ToList(), Bars = bars.ToList(), Note = note };
-
-    private static PanelWidget Panel(string id, string title, string? unavailable, IReadOnlyList<Widget> children) =>
-        new() { Id = id, Title = title, Unavailable = unavailable, Children = children };
-
-    private static IEnumerable<Bar> Channels(IEnumerable<ChannelDay> days) => days.Select(d => new Bar(Date(d.Date), [d.Discord, d.Push]));
 
     private static string Pct(double part, double whole) =>
         whole > 0 ? Math.Round(part * 100.0 / whole, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture) + "%" : "0%";
@@ -439,8 +397,4 @@ public static class LookoutPages
     private static string Date(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static string Iso(DateTime utc) => NoticeRules.FormatTime(new DateTimeOffset(DateTime.SpecifyKind(utc, DateTimeKind.Utc)));
-
-    private static string Local(DateTimeOffset at) => TimeZoneInfo.ConvertTime(at, Berlin).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
-
-    private static string Local(DateTime utc) => Local(new DateTimeOffset(DateTime.SpecifyKind(utc, DateTimeKind.Utc)));
 }

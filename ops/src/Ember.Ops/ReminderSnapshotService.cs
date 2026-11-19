@@ -1,11 +1,11 @@
 namespace Ember.Ops;
 
 /// <summary>
-/// Every five minutes stores Ember's reminder id sequence values in emberops when they changed (<see cref="ReminderQueries.SnapshotAsync"/>),
-/// the day's and week's sign-in counts (<see cref="InsightQueries.SnapshotActivityAsync"/>),
-/// and removes comments and card positions of deleted feedback (<see cref="FeedbackStore.PurgeOrphansAsync"/>).
+/// Every five minutes stores the day's and week's sign-in and retention counts in emberops (<see cref="InsightQueries.SnapshotActivityAsync"/>)
+/// and Ember's API request timings (<see cref="ApiTimings.PullAsync"/>), and removes comments and card positions of deleted feedback
+/// (<see cref="FeedbackStore.PurgeOrphansAsync"/>).
 /// </summary>
-public sealed class ReminderSnapshotService(OpsDatabases db, TimeProvider time, ILogger<ReminderSnapshotService> logger) : BackgroundService
+public sealed class ReminderSnapshotService(OpsDatabases db, ApiTimings timings, TimeProvider time, ILogger<ReminderSnapshotService> logger) : BackgroundService
 {
     public static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
 
@@ -16,20 +16,13 @@ public sealed class ReminderSnapshotService(OpsDatabases db, TimeProvider time, 
         {
             try
             {
-                await ReminderQueries.SnapshotAsync(db.Ember, db.Ops, time, stoppingToken);
-            }
-            catch (Exception e) when (!stoppingToken.IsCancellationRequested)
-            {
-                logger.LogWarning(e, "Reminder snapshot failed");
-            }
-            try
-            {
                 await InsightQueries.SnapshotActivityAsync(db.Ember, db.Ops, time, stoppingToken);
             }
             catch (Exception e) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogWarning(e, "Activity snapshot failed");
             }
+            await timings.PullAsync(stoppingToken);
             try
             {
                 await FeedbackStore.PurgeOrphansAsync(db, stoppingToken);

@@ -39,6 +39,12 @@ public sealed class OpsOptions
     /// <summary>Commit the dashboard image was built from.</summary>
     public string? BuildSha { get; set; }
 
+    /// <summary>Ember API request timings, pulled with the snapshots.</summary>
+    public string ApiMetricsUrl { get; set; } = "http://ember-api-1:9090/metrics/v1";
+
+    /// <summary>File with the bearer key for <see cref="ApiMetricsUrl"/>; without it the timings are unavailable.</summary>
+    public string? ApiMetricsKeyFile { get; set; }
+
     public LookoutOptions Lookout { get; set; } = new();
 }
 

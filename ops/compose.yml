@@ -1,6 +1,7 @@
 # Ember ops, the Lookout provider for Ember. Build and run from the repo root of a clean checkout:
 #   BUILD_SHA=$(git rev-parse --short HEAD) docker compose -f ops/compose.yml up -d --build
 # Needs ~/.config/ember-ops/{ember_dashboard,emberops,notices-token} (mode 600) and the ops-status timer writing ~/.local/state/ember-ops.
+# The API timings key ~/.config/ember-ops/api-metrics.key (32+ bytes) is shared with Ember's API container (uid 1654), so it needs mode 644; keep ~/.config/ember-ops at 700.
 # Lookout needs its key ~/.config/lookout/providers/ember.key (mode 600) and the external network lookout-net, both created by Lookout.
 services:
   ops:
@@ -37,6 +38,8 @@ services:
       Ops__ApkUrl: https://beta.ember-glow.app/download/latest.json
       Ops__Lookout__HubAddress: 172.31.250.18
       Ops__Lookout__KeyFile: /run/secrets/lookout_key
+      Ops__ApiMetricsUrl: http://ember-api-1:9090/metrics/v1
+      Ops__ApiMetricsKeyFile: /run/secrets/api_metrics
       Logging__LogLevel__Default: Information
       Logging__LogLevel__Microsoft.AspNetCore: Warning
     secrets:
@@ -44,6 +47,7 @@ services:
       - emberops
       - notices_token
       - lookout_key
+      - api_metrics
     volumes:
       - ${HOME}/.local/state/ember-ops:/status:ro
     networks:
@@ -67,6 +71,8 @@ secrets:
     file: ${HOME}/.config/ember-ops/notices-token
   lookout_key:
     file: ${HOME}/.config/lookout/providers/ember.key
+  api_metrics:
+    file: ${HOME}/.config/ember-ops/api-metrics.key
 
 networks:
   homeserver-net:

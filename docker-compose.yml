@@ -56,6 +56,9 @@ services:
       Discord__ClientId: ${DISCORD_CLIENT_ID}
       Discord__ClientSecret: ${DISCORD_CLIENT_SECRET}
       WebPush__PublicKey: ${VAPID_PUBLIC_KEY:-}
+      Ops__MetricsKeyFile: /run/secrets/ember_metrics
+    secrets:
+      - ember_metrics
     healthcheck:
       test: ["CMD", "dotnet", "/app/Ember.Api.dll", "--healthcheck"]
       interval: 30s
@@ -71,6 +74,10 @@ services:
 
 volumes:
   ember-api-keys:
+
+secrets:
+  ember_metrics:
+    file: ${HOME}/.config/ember-ops/api-metrics.key
 
 networks:
   homeserver-net:

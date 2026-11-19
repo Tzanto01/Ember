@@ -2,7 +2,7 @@
 
 The Lookout provider for Ember. It runs on the homeserver as one container (`ember-ops`, .NET 10). The [Lookout hub](https://github.com/Tzanto01/lookout) calls it over the Docker network `lookout-net` and draws its pages. The container publishes no host port and serves no UI. The provider contract is in the Lookout repo: `contract/provider-v1.md` (the hub's rules) and `contract/ember-provider-v1.md` (what Ember serves).
 
-It reads the production database `emberdb` as the role `ember_dashboard`, which can only read the columns the pages need. Its own data (comments, card order, reminder history, sign-in activity counts, the notice log) lives in the database `emberops`.
+It reads the production database `emberdb` as the role `ember_dashboard`, which can only read the columns the pages need. Its own data (comments, card order, sign-in activity and retention counts, the notice log) lives in the database `emberops`.
 
 ## Pages
 
@@ -10,36 +10,40 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 
 | Page | What it shows |
 |---|---|
-| `overview` | Users (total, active in the last 7 and 14 days by sign-ins, new per week by first habit), habits (total, paused, with reminder), routines, streak settings |
-| `activity` | Users seen today, per day and per week from the dashboard's sign-in snapshots, average per day and stickiness of the last full week |
-| `habits` | Habits, users with a habit, habits per user, habits in a routine or with a reminder time, habits by schedule and by times per day, reminder times by hour (habits and routines), users by number of habits, habits and routines created per week |
-| `users` | Users, Discord linked, users by reminder destination (Discord DMs, web push, Android phone, none), users by design |
-| `reminders` | Reminders still open per day and channel, sent reminders per day from the dashboard's own snapshots, Discord DMs on, failing and paused, second reminders, push subscriptions and phones, overdue reminders |
-| `feedback-trends` | Open, new in 7 days, resolved in 30 days, median time to resolve, reports per week by platform, sent and resolved per week, reports by status and platform, reports by app version |
+| `overview` | Users (total with a 12-week trend), new users this week and per week, active today, in the last 7 and 14 days, stickiness, active users per day |
+| `engagement` | Users seen today, per day and per week from the dashboard's sign-in snapshots, average per day and stickiness of the last full week, retention 1, 2 and 4 weeks after sign-up |
+| `devices` | Users of the last 7 days by sign-in platform and by app version, web push on, Android app installs, Discord linked |
+| `health` | Ember's API over the last 24 hours (requests per minute, p50, p95, 5xx rate), the same per 2 hours over 7 days, and the 10 slowest route templates by p95 |
+| `releases` | Deployed SHA of production and staging, the provider's build SHA, the published APK version, CI of `main`, `test` and `v2/next` |
 | `feedback` | The reports, one column per Ember status (open, planned, implemented, released, declined). Each card has its description, pictures, platform, version, send time, whether it was sent anonymously, and its comments. A move sets the status and the card position. Moves are not logged |
 | `notices` | Live, scheduled and ended notices: info or maintenance, English and German, up to 280 characters each, up to 10 notices in a 16 KiB document. Publish, end now or delete. Each change is written to `NoticeLog` in `emberops` with the author |
-| `system` | Container states, whether reminders are advancing, `emberdb` size and latest migration, free space per disk, newest pre-deploy dump, deployed SHA of production and staging, the provider's build SHA, CI of `main`, `test` and `v2/next`, the live notice, the published APK version |
+| `system` | Container states, whether reminders are advancing (a health check only), `emberdb` size, connections in use against `max_connections` and latest migration, free space per disk, newest pre-deploy dump |
 
-The overview, reminders, notices and system pages refresh every 30 seconds, the activity, habits, users and feedback trends pages every 60. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the series at most every 5 minutes, shared by all viewers.
+The overview, releases, notices and system pages refresh every 30 seconds, the engagement, devices and health pages every 60. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the series at most every 5 minutes, shared by all viewers.
+
+Lookout shows how the app is doing, never what people do in it: no habits, routines, reminders, streaks, grace days, designs or other in-app settings, not even as counts.
 
 Limits of the data:
-- Ember stores no sign-up date, so "new users" is the week of a user's first habit.
-- Ember deletes a reminder row once it closes. "Still open" counts only the rows Ember still keeps. "Sent" comes from the dashboard's snapshots of the reminder id sequences every 5 minutes, so it starts when the dashboard was first deployed and includes second reminders and resends.
+- New users are dated by `AspNetUsers.CreatedUtc` when Ember has the column. Until then they are dated by their first habit, a proxy that leaves out users without a habit; the notes say which.
+- Platforms and app versions come from `AuthSessions.Platform` and `AppVersion`. Without those columns the two widgets are unavailable with a note. Older sessions without a value count as "Not recorded".
 - "Active" means a web or app sign-in was used (`AuthSessions`, last seen or created). A session expires after 14 days unused and Ember then deletes it, so live windows stop at 14 days. Sign-outs and Discord-only use (no sign-in, and the bot keeps no usage time outside check-ins) are not counted.
-- `LastSeenUtc` is overwritten, so activity history comes from the dashboard's own snapshots every 5 minutes: per Berlin day the users seen that day and in the 7 days up to it, per week the users seen that week, the highest value kept. It starts on the day the dashboard first ran this version (the activity notes say so). Only counts are stored, never user ids.
-- Not shown, because the data does not support it honestly: users by active days (needs per-user day history, which the snapshots do not keep) and retention by sign-up week (Ember stores no sign-up date, and sessions are deleted 14 days after last use).
+- `LastSeenUtc` is overwritten, so activity history comes from the dashboard's own snapshots every 5 minutes: per Berlin day the users seen that day and in the 7 days up to it, per week the users seen that week, and of the users who signed up 1, 2 and 4 weeks before this week those seen this week, the highest value kept. It starts on the day the dashboard first ran the version that stores it (the notes say so). Only counts are stored, never user ids.
+- API timings come from Ember's API, which keeps request counts, 5xx counts and a latency histogram per minute and route template for 24 hours in memory and serves them on its internal port 9090 (`GET /metrics/v1`, bearer key `Ops:MetricsKeyFile`; never published on the host or the tunnel). Every 5 minutes the provider pulls them with the same key, one hour window at a time (`since` to `until`, at most 20,000 cells per answer, continued from the last minute when the API says `truncated`; `Ops__ApiMetricsUrl`, `Ops__ApiMetricsKeyFile`) and stores them per hour and route template in `emberops.api_hours` for 30 days. Without the key or while the API doesn't answer, the health widgets are unavailable. p50 and p95 are interpolated inside the histogram buckets (5 ms to 5 s). The hub draws at most 120 bars, so the 7-day charts use 2-hour slots. Outside uptime and response time, and container CPU and memory, come from Lookout.
+- Connections count every backend attached to a database on the shared Postgres server: without `pg_read_all_stats` the role can't see other roles' backend types, so autovacuum workers are counted too. Slow queries are left out (`pg_stat_statements` isn't installed).
+- Background jobs: the bot's Quartz scheduler keeps its state in memory, so Ember records no last run or failure per job anywhere the role could read. "Reminders advancing" is the only job health check.
+- Retention pools the finished weeks of the last 12 sign-up weeks; the current week is left out until it ends.
+- Not shown, because the data does not support it honestly: days active per user (needs per-user day history, which the snapshots do not keep; the widget says so).
 - The dashboard reads no check-ins, journal, low days, let-go habits or slips, or Fireside data: those are health data.
 - Days are Europe/Berlin days.
-- The activity page hides any figure of 1 or 2 people: a stat shows `<3` without hint, trend, delta or max, and a bar is left out (the widget note says so).
-- Ember keeps no feedback status history, so the trends page shows sent and resolved per week and the current status.
+- Activity, retention, platform and version figures of 1 or 2 people are hidden: a stat shows `<3` without hint, trend, delta or max, and a bar is left out (the widget note says so).
 
 ## Privacy
 
-Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on ids, dates, counts and flags, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table, or which habits are let-go habits (`Habits.Kind`). Re-running the script revokes grants older versions gave on those. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
+Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on the ids, dates and flags the pages count, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table, or which habits are let-go habits (`Habits.Kind`), and no habit, routine, reminder or settings columns beyond the next reminder time the health check needs. Re-running the script revokes grants older versions gave on those. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
 
 `Feedback.UserId` is readable only so the board can say whether a report was anonymous. The app uses it only as `"UserId" IS NULL` and never returns it.
 
-Every 5 minutes, with the reminder and activity snapshots, the app deletes the comments and card positions in `emberops` whose report Ember no longer has (Ember deletes feedback after 12 months or with the account).
+Every 5 minutes, with the activity snapshots, the app deletes the comments and card positions in `emberops` whose report Ember no longer has (Ember deletes feedback after 12 months or with the account).
 
 Moving a card to released or declined sets `ResolvedAt` the same way `--feedback-status` does, so Ember deletes the pictures 30 days later. Moving it back clears `ResolvedAt`.
 
@@ -60,8 +64,8 @@ Routes, all under `/lookout/v1`:
 | Method and path | What it does |
 |---|---|
 | `GET /manifest` | Name, build SHA as `version`, pages and refresh times |
-| `GET /summary` | The summary card: four tiles, a state and up to five alerts |
-| `GET /pages/{pageId}` | One page: `overview`, `reminders`, `feedback`, `notices` or `system`. Other ids get 404 |
+| `GET /summary` | The summary card: Users, Active 7 days, API p95 and Open feedback, a state and up to five alerts |
+| `GET /pages/{pageId}` | One page: `overview`, `engagement`, `devices`, `releases`, `health`, `notices`, `system` or `feedback`. Other ids get 404 |
 | `GET /widgets/feedback/cards/{id}/comments` | Comments on a report |
 | `POST /widgets/feedback/cards/{id}/comments` | Add a comment (201). Needs `Lookout-Actor`. 1 to 4000 characters, no NUL |
 | `PUT /widgets/feedback/cards/{id}/move` | Set a report's status and position (204). Needs `Lookout-Actor` |

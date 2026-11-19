@@ -34,4 +34,18 @@ public sealed class SystemTests(V2DatabaseFixture database) : IDisposable
 
         report.Disks.Should().Equal(new HostDisk("/", 10, 110), new HostDisk("/srv/data", 3400, 3600));
     }
+
+    [Fact]
+    public async Task The_database_counts_every_client_connection_of_the_server_against_max_connections_without_extra_roles()
+    {
+        await using var other = await database.OpenAsync("postgres");
+        await using var ember = await database.OpenAsync("emberdb");
+
+        var report = await SystemAsync("""{"writtenAt":"2026-11-18T12:00:00Z"}""");
+
+        report.Database!.Connections.Should().BeGreaterThanOrEqualTo(3, "the superuser's two and the dashboard's own, whatever their role");
+        report.Database.EmberConnections.Should().BeGreaterThanOrEqualTo(2).And.BeLessThan(report.Database.Connections);
+        report.Database.MaxConnections.Should().BeGreaterThan(0);
+        (await database.ScalarAsync<long>("emberdb", "SELECT count(*) FROM pg_auth_members WHERE member = 'ember_dashboard'::regrole")).Should().Be(0);
+    }
 }

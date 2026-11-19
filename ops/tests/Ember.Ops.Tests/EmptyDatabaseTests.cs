@@ -27,11 +27,11 @@ public sealed class EmptyDatabaseTests(EmptyDatabaseFixture database) : IDisposa
         var summary = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/summary");
         summary.GetProperty("tiles")[0].GetProperty("value").GetInt32().Should().Be(0);
 
-        var tiles = LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/habits"), "tiles");
-        LookoutShape.Item(tiles, "Habits per user").GetProperty("value").ValueKind.Should().Be(JsonValueKind.Null);
-
-        var activity = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/activity");
-        activity.GetProperty("widgets").EnumerateArray().Select(w => w.GetProperty("unavailable").GetString()).Should().Equal("No snapshots yet", "No snapshots yet", "No snapshots yet");
+        var engagement = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/engagement");
+        engagement.GetProperty("widgets").EnumerateArray().Where(w => w.GetProperty("id").GetString() != "days-active")
+            .Select(w => w.GetProperty("unavailable").GetString()).Should().AllBe("No snapshots yet");
+        var adoption = LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/devices"), "adoption");
+        LookoutShape.Item(adoption, "Web push on").GetProperty("hint").GetString().Should().Be("0% of users");
     }
 
     [Fact]
