@@ -20,7 +20,7 @@ public sealed record Notice(
 /// <summary>The whole published document, <c>{"notices":[...]}</c>.</summary>
 public sealed record NoticeDocument(IReadOnlyList<Notice>? Notices);
 
-/// <summary>The <c>POST /api/notices</c> body.</summary>
+/// <summary>A notice to publish.</summary>
 public sealed record NoticeInput(string? Id, string? Kind, string? En, string? De, string? ShowFrom, string? ShowUntil);
 
 /// <summary>A notice with its state at the server's clock: <c>scheduled</c>, <c>live</c> or <c>ended</c>.</summary>
@@ -30,7 +30,7 @@ public sealed record NoticeView(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ShowUntil,
     string State);
 
-/// <summary><c>GET /api/notices</c> and every write's answer.</summary>
+/// <summary>The notices list, also every write's answer.</summary>
 public sealed record NoticesView(bool Publishing, IReadOnlyList<NoticeView> Notices);
 
 /// <summary>The validation rules the publish endpoint applies; the first failing rule's message, or null when valid.</summary>

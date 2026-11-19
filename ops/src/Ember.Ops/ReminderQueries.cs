@@ -16,7 +16,7 @@ public sealed record ReminderCounters(
     DateTime GeneratedAt, IReadOnlyList<ChannelDay> OpenPerDay, DiscordCounts Discord, SecondReminderCounts SecondReminders,
     PushCounts Push, PhoneCounts Phones, OverdueCounts Overdue);
 
-/// <summary><c>GET /api/reminders</c>.</summary>
+/// <summary>The reminder stats.</summary>
 public sealed record Reminders(
     DateTime GeneratedAt, IReadOnlyList<ChannelDay> OpenPerDay, ReminderHistory History, DiscordCounts Discord,
     SecondReminderCounts SecondReminders, PushCounts Push, PhoneCounts Phones, OverdueCounts Overdue)
