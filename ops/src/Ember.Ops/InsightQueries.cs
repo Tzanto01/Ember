@@ -10,7 +10,7 @@ public sealed record UserBucket(string Label, int Count, int Users);
 /// Empty until the first snapshot.
 /// </summary>
 /// <param name="Since">The first day with a snapshot.</param>
-/// <param name="PerDay">Users seen per day, from <see cref="Since"/> or 90 days back, whichever is later.</param>
+/// <param name="PerDay">Users seen per day over the last 90 days, oldest first; days without a snapshot are left out.</param>
 /// <param name="PerWeek">Users seen per week, from the week of <see cref="Since"/> or 12 weeks back, whichever is later.</param>
 public sealed record ActivityInsights(DateTime GeneratedAt, DateOnly? Since, IReadOnlyList<DayCount> PerDay, IReadOnlyList<UserBucket> PerWeek);
 
@@ -94,8 +94,7 @@ public static class InsightQueries
         var weekRows = await Db.DaysAsync(reader, ct);
         if (since is not { } first) return new(generatedAt, null, [], []);
 
-        var from = first > today.AddDays(-(Days - 1)) ? first : today.AddDays(-(Days - 1));
-        return new(generatedAt, first, OpsCalendar.Days(from, today, dayRows),
+        return new(generatedAt, first, dayRows.OrderBy(d => d.Key).Select(d => new DayCount(d.Key, d.Value)).ToList(),
             weeks.Where(w => w >= OpsCalendar.Monday(first)).Select(w => new UserBucket(Date(w), weekRows.GetValueOrDefault(w), weekRows.GetValueOrDefault(w))).ToList());
     }
 

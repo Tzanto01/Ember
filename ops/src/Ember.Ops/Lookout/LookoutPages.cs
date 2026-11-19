@@ -191,18 +191,20 @@ public static class LookoutPages
             ]);
 
         var history = $"used a web or app sign-in; history starts {Date(since)}";
-        var today = a.PerDay[^1];
-        var lastMonday = OpsCalendar.Monday(today.Date).AddDays(-7);
-        var lastWeek = since <= lastMonday ? a.PerWeek.FirstOrDefault(w => w.Label == Date(lastMonday)) : null;
-        double? average = lastWeek is null ? null : Math.Round(a.PerDay.Where(d => d.Date >= lastMonday && d.Date < lastMonday.AddDays(7)).Average(d => d.Count), 1);
+        var todayDate = OpsCalendar.BerlinDate(a.GeneratedAt);
+        var today = a.PerDay.FirstOrDefault(d => d.Date == todayDate)?.Count;
+        var lastMonday = OpsCalendar.Monday(todayDate).AddDays(-7);
+        var lastWeekDays = a.PerDay.Where(d => d.Date >= lastMonday && d.Date < lastMonday.AddDays(7)).ToList();
+        var lastWeek = since <= lastMonday && lastWeekDays.Count == 7 ? a.PerWeek.FirstOrDefault(w => w.Label == Date(lastMonday)) : null;
+        double? average = lastWeek is null ? null : lastWeekDays.Average(d => d.Count);
         var weekUsers = lastWeek?.Users ?? 0;
         var fullWeek = lastWeek is null ? "needs a full week of history" : "last full week";
         return new("activity", "Activity", a.GeneratedAt,
         [
             Stats("tiles", "Activity", "tiles",
             [
-                Guarded(new("Active today", today.Count, Max: a.PerWeek[^1].Users), today.Count),
-                Guarded(new("Average per day", average, Hint: fullWeek), weekUsers),
+                Guarded(new("Active today", today), today ?? 0),
+                Guarded(new("Average per day", average is { } avg ? Math.Round(avg, 1) : null, Hint: fullWeek), weekUsers),
                 Guarded(new("Stickiness", weekUsers == 0 ? null : average / weekUsers, "percent", Hint: lastWeek is null ? fullWeek : "average day of last week's active users",
                     Max: 1), weekUsers),
             ]) with { Note = $"{history}; values for 1 or 2 people show as <3" },

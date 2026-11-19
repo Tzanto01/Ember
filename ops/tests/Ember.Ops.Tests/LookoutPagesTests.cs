@@ -34,8 +34,8 @@ public sealed class LookoutPagesTests
         var page = LookoutPages.Activity(FullHistory());
 
         var tiles = Stats(Widget(page, "tiles"));
-        tiles.Items.Select(i => (i.Label, i.Value)).Should().Equal(("Active today", 5), ("Average per day", 4.1), ("Stickiness", Math.Round(29d / 7, 1) / 6));
-        tiles.Items[0].Max.Should().Be(7, "this week's distinct users");
+        tiles.Items.Select(i => (i.Label, i.Value)).Should().Equal(("Active today", 5), ("Average per day", 4.1), ("Stickiness", 29d / 7 / 6));
+        tiles.Items[0].Max.Should().BeNull("this week's distinct users could be 1 or 2");
         tiles.Items[2].Format.Should().Be("percent");
         tiles.Note.Should().Contain("history starts 2026-11-02");
         ((BarsWidget)Widget(page, "active-per-day")).Note.Should().Contain("history starts 2026-11-02");
@@ -101,6 +101,16 @@ public sealed class LookoutPagesTests
         items[1].Value.Should().Be(covered ? 4d : null);
         items[2].Value.Should().Be(covered ? 0.5 : null);
         items[1].Hint.Should().Be(covered ? "last full week" : "needs a full week of history");
+    }
+
+    [Fact]
+    public void A_day_without_a_snapshot_is_left_out_and_leaves_the_week_average_and_today_unknown()
+    {
+        var days = Enumerable.Range(9, 7).Where(d => d != 12).Select(d => new DayCount(new(2026, 11, d), 4)).ToList();
+        var page = LookoutPages.Activity(new(Now, new(2026, 11, 2), days, [new("2026-11-09", 6, 6), new("2026-11-16", 2, 2)]));
+
+        Stats(Widget(page, "tiles")).Items.Should().HaveCount(3).And.OnlyContain(i => i.Value == null);
+        ((BarsWidget)Widget(page, "active-per-day")).Bars.Should().HaveCount(6);
     }
 
     [Fact]

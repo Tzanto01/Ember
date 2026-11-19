@@ -128,7 +128,7 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
     }
 
     [Fact]
-    public async Task Activity_reads_90_zero_filled_days_and_12_weeks_when_the_history_is_longer()
+    public async Task Activity_reads_the_snapshotted_days_of_the_last_90_days_and_12_weeks_when_the_history_is_longer()
     {
         await SeedAsync([(100, 4, 5), (40, 7, 9), (0, 5, 6)], [(new DateOnly(2026, 8, 10), 3), (new DateOnly(2026, 9, 7), 8), (new DateOnly(2026, 11, 16), 6)]);
         await using var db = fixture.OpenOpsDatabases();
@@ -136,17 +136,14 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
         var a = await InsightQueries.ActivityAsync(db.Ops, fixture.Time, default);
 
         a.Since.Should().Be(Today.AddDays(-100));
-        a.PerDay.Should().HaveCount(90);
-        a.PerDay[0].Date.Should().Be(Today.AddDays(-89));
-        a.PerDay[^1].Date.Should().Be(Today);
-        a.PerDay.Where(d => d.Count > 0).Should().BeEquivalentTo([new DayCount(Today.AddDays(-40), 7), new DayCount(Today, 5)]);
+        a.PerDay.Should().Equal(new DayCount(Today.AddDays(-40), 7), new DayCount(Today, 5));
         a.PerWeek.Should().HaveCount(12);
         a.PerWeek[0].Label.Should().Be("2026-08-31");
         a.PerWeek.Where(w => w.Count > 0).Should().Equal(new UserBucket("2026-09-07", 8, 8), new UserBucket("2026-11-16", 6, 6));
     }
 
     [Fact]
-    public async Task Activity_starts_the_days_at_the_first_snapshot_and_the_weeks_at_its_Monday()
+    public async Task Activity_lists_only_snapshotted_days_and_starts_the_weeks_at_the_first_snapshots_Monday()
     {
         await SeedAsync([(10, 3, 3), (0, 4, 6)], [(new DateOnly(2026, 11, 9), 5), (new DateOnly(2026, 11, 16), 6)]);
         await using var db = fixture.OpenOpsDatabases();
@@ -154,8 +151,7 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
         var a = await InsightQueries.ActivityAsync(db.Ops, fixture.Time, default);
 
         a.Since.Should().Be(new DateOnly(2026, 11, 8));
-        a.PerDay.Should().HaveCount(11);
-        a.PerDay.Select(d => d.Count).Should().Equal(3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4);
+        a.PerDay.Should().Equal(new DayCount(new(2026, 11, 8), 3), new DayCount(Today, 4));
         a.PerWeek.Select(w => (w.Label, w.Count)).Should().Equal(("2026-11-02", 0), ("2026-11-09", 5), ("2026-11-16", 6));
     }
 
@@ -220,7 +216,7 @@ public sealed class ActivityTests(V2DatabaseFixture fixture) : IAsyncLifetime, I
         var tiles = LookoutShape.Widget(page, "tiles");
         LookoutShape.Item(tiles, "Active today").GetProperty("value").GetInt32().Should().Be(5);
         LookoutShape.Item(tiles, "Average per day").GetProperty("value").GetDouble().Should().Be(4.1);
-        LookoutShape.Item(tiles, "Stickiness").GetProperty("value").GetDouble().Should().BeApproximately(4.1 / 6, 1e-9);
+        LookoutShape.Item(tiles, "Stickiness").GetProperty("value").GetDouble().Should().BeApproximately(29d / 7 / 6, 1e-9);
         tiles.GetProperty("note").GetString().Should().Contain("history starts 2026-11-02");
     }
 }
