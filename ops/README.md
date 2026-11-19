@@ -106,7 +106,7 @@ docker compose -f ops/compose.yml down
 systemctl --user disable --now ops-status.timer
 ```
 
-The container has no host port, so only the hub can call `/lookout`. The contract check under Develop covers the same routes.
+The container publishes no host port. Any peer on its networks can reach port 8080, and the peer and key checks above decide who gets into `/lookout`. The contract check under Develop covers the same routes.
 
 After the first deploy of this version, nothing uses the network `ember-ops-edge`. Once `docker network inspect ember-ops-edge` lists no containers, remove it with `docker network rm ember-ops-edge`.
 
