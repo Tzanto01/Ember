@@ -147,7 +147,7 @@ public sealed class LookoutPagesTests
         tiles[2].Should().Be(new StatItem("API p95", 412d, Hint: "ms, last 24 hours", Goal: new(Below: 300)));
         LookoutPages.Summary(Counters, feedback, EmptySystem(), Now, api: new(Now, ApiTimings.NotReporting, [], null, [])).Tiles[2]
             .Should().Be(new StatItem("API p95", null, Hint: ApiTimings.NotReporting, Goal: new(Below: 300)));
-        tiles[3].Should().BeEquivalentTo(new { Value = (object)2, Goal = new Goal(Below: 5), Delta = new Delta(1, "last week", "down") });
+        tiles[3].Should().BeEquivalentTo(new { Value = (object)2, Goal = new Goal(Below: 5), Delta = (Delta?)null });
     }
 
     [Fact]

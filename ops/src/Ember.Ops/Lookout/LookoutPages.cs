@@ -266,8 +266,7 @@ public static class LookoutPages
             ApiP95(api),
             feedback is null
                 ? new("Open feedback", null)
-                : new("Open feedback", feedback.Items.Count(i => i.Status == "open"), Goal: new(Below: 5),
-                    Delta: new(feedback.Items.Count(i => i.CreatedAt >= now.AddDays(-7)), "last week", "down")),
+                : new("Open feedback", feedback.Items.Count(i => i.Status == "open"), Goal: new(Below: 5)),
         ],
         alerts.Take(5).ToList());
     }
