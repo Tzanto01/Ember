@@ -66,8 +66,17 @@ public class HealthDataDeletionJob : IJob
             try
             {
                 if (await habits.ClaimDeletionReminderAsync(id, cancellationToken) is not { } withdrawnAt) continue;
-                if (await RemindAsync(habits, id, HabitService.DeletionDueUtc(withdrawnAt, now), cancellationToken)) reminded++;
-                else if (now < withdrawnAt + HabitService.WithdrawnDataLifetime + RetryFor) await habits.ReleaseDeletionReminderAsync(id, cancellationToken);
+                var delivered = false;
+                try
+                {
+                    delivered = await RemindAsync(habits, id, HabitService.DeletionDueUtc(withdrawnAt, now), cancellationToken);
+                }
+                finally
+                {
+                    if (!delivered && now < withdrawnAt + HabitService.WithdrawnDataLifetime + RetryFor)
+                        await habits.ReleaseDeletionReminderAsync(id, CancellationToken.None);
+                }
+                if (delivered) reminded++;
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
