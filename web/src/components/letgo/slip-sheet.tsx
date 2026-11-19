@@ -10,6 +10,7 @@ import { asApiError, problemToMessage } from '@/lib/problem';
 import { api } from '@/lib/services';
 import { cn } from '@/lib/utils';
 import { notedText } from './letgo-text';
+import { TryInstead } from './try-instead';
 
 export interface SlipSheetProps {
   habit: LetGoHabit;
@@ -133,6 +134,7 @@ export function SlipSheet({ habit, open, onOpenChange, onChange }: SlipSheetProp
                   {undone ? t('letgo.undone') : notedText(saved.stats.longestStretch)}
                 </p>
               </Dialog.Description>
+              {!undone && <TryInstead />}
               {problem && (
                 <Notice tone="notice" heading={problem.heading}>
                   <p>{problem.message}</p>

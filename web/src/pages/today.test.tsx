@@ -557,6 +557,18 @@ describe('TodayPage let-go habits', () => {
     expect(screen.getAllByText(/That's everything for today\./).length).toBeGreaterThan(0);
   });
 
+  it('opens the Try instead ideas from the let-go section only when asked', async () => {
+    renderToday();
+    await answerLoad(f, [doneHabit, letGoHabit]);
+
+    const toggle = await screen.findByRole('button', { name: 'Try instead' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list', { name: 'Try instead' })).toBeNull();
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(within(screen.getByRole('list', { name: 'Try instead' })).getByText('Meet a friend')).toBeInTheDocument();
+  });
+
   it('shows the let-go section for an account with only let-go habits, not the empty state', async () => {
     renderToday();
     await answerLoad(f, [letGoHabit]);

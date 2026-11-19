@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather, Pause, Pencil } from 'lucide-react';
+import { ChevronDown, Feather, Pause, Pencil } from 'lucide-react';
 import { type HTMLAttributes, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/local-date';
 import type { LetGoHabit } from '@/lib/models';
 import { daysFreeText } from './letgo-text';
 import { SlipSheet } from './slip-sheet';
+import { TryInstead } from './try-instead';
 
 const shortDate: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
 
@@ -100,6 +101,7 @@ export function LetGoSection({
   extras?: (habit: LetGoHabit) => LetGoRowExtras;
 }) {
   const { t } = useTranslation();
+  const [ideasOpen, setIdeasOpen] = useState(false);
   if (!habits.length) return null;
   return (
     <section aria-labelledby="letgo-heading" className="flex flex-col gap-3">
@@ -111,6 +113,21 @@ export function LetGoSection({
           <LetGoRow key={habit.id} habit={habit} extras={extras?.(habit)} />
         ))}
       </ul>
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="link"
+          className="self-start px-0"
+          aria-expanded={ideasOpen}
+          aria-controls="try-instead-list"
+          onClick={() => setIdeasOpen(!ideasOpen)}
+        >
+          {t('letgo.tryInstead.heading')}
+          <ChevronDown aria-hidden className={ideasOpen ? 'rotate-180' : undefined} />
+        </Button>
+        <div id="try-instead-list" hidden={!ideasOpen}>
+          {ideasOpen && <TryInstead heading={false} />}
+        </div>
+      </div>
     </section>
   );
 }

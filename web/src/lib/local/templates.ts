@@ -15,6 +15,23 @@ const rows = [
   ['deep_work', '09:00', 5],
 ] as const;
 
+/** The let-go templates New Habit adds after the server's list; its time is the quiet evening check-in. */
+export const letGoTemplates: readonly HabitTemplate[] = [
+  {
+    key: 'social_media_free_evenings',
+    get name() {
+      return t('templates.social_media_free_evenings.name');
+    },
+    get description() {
+      return t('templates.social_media_free_evenings.description');
+    },
+    suggestedReminderTime: '21:00',
+    frequency: 'daily',
+    weeklyTarget: null,
+    kind: 'letGo',
+  },
+];
+
 /** A template's name in the current language by its `key`; the API's English text when the key is unknown. */
 export function templateName(template: Pick<HabitTemplate, 'key' | 'name'>): string {
   const key = `templates.${template.key}.name`;

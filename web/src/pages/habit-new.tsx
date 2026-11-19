@@ -25,7 +25,7 @@ import { Card, cardVariants } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { env } from '@/lib/env';
-import { templateDescription, templateName } from '@/lib/local/templates';
+import { letGoTemplates, templateDescription, templateName } from '@/lib/local/templates';
 import type { HabitKind, HabitTemplate, NewHabit } from '@/lib/models';
 import { asApiError, type FriendlyProblem, problemToMessage } from '@/lib/problem';
 import { api, localMode } from '@/lib/services';
@@ -85,6 +85,7 @@ export default function HabitNewPage() {
         template
           ? {
               ...emptyHabitForm,
+              kind: template.kind ?? 'build',
               name: templateName(template),
               frequency: template.frequency,
               weeklyTarget: template.weeklyTarget ?? 3,
@@ -166,7 +167,7 @@ export default function HabitNewPage() {
             {t('letgo.kind.letGo')}
           </Button>
           <ul className="grid gap-3 md:grid-cols-2">
-            {templates.data.map((template) => (
+            {[...templates.data, ...letGoTemplates].map((template) => (
               <li key={template.key} className="flex">
                 <button
                   type="button"
@@ -179,12 +180,16 @@ export default function HabitNewPage() {
                   <span className="font-display text-[1.125rem]">{templateName(template)}</span>
                   <span className="text-muted-foreground">{templateDescription(template)}</span>
                   <span className="text-[0.875rem] text-muted-foreground">
-                    {reminders
-                      ? t('habitNew.cadenceReminder', {
-                          cadence: cadenceText(template.frequency, template.weeklyTarget),
-                          time: template.suggestedReminderTime,
-                        })
-                      : cadenceText(template.frequency, template.weeklyTarget)}
+                    {template.kind === 'letGo'
+                      ? reminders
+                        ? t('habitNew.letGoCheckIn', { time: template.suggestedReminderTime })
+                        : t('letgo.kind.letGo')
+                      : reminders
+                        ? t('habitNew.cadenceReminder', {
+                            cadence: cadenceText(template.frequency, template.weeklyTarget),
+                            time: template.suggestedReminderTime,
+                          })
+                        : cadenceText(template.frequency, template.weeklyTarget)}
                   </span>
                 </button>
               </li>

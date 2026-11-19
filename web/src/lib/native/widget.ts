@@ -64,6 +64,10 @@ export interface EmberWidgetPlugin {
   hasKey?(): Promise<{ value: boolean }>;
   /** Returns and removes the widget check-ins not yet saved, each with the absolute count its tap aimed for; missing on older native builds. */
   takePending?(): Promise<{ checkIns: Array<{ userId: string; habitId: number; date: LocalDateString; count: number }> }>;
+  /** True when the phone has a screen-time overview Ember can open; missing on older native builds. */
+  canOpenScreenTime?(): Promise<{ available: boolean }>;
+  /** Opens the phone's own screen-time overview; Ember reads nothing from it. Missing on older native builds. */
+  openScreenTime?(): Promise<void>;
 }
 
 /** Habits a snapshot carries before "+N more" (the most an account can have). */

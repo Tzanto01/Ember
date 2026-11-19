@@ -251,6 +251,8 @@ export interface HabitTemplate {
   suggestedReminderTime: TimeOfDay;
   frequency: Frequency;
   weeklyTarget: number | null;
+  /** Set only on the app's own let-go templates; the server's templates are habits to build up. */
+  kind?: HabitKind;
 }
 
 /** `GET /api/account/merge`. `kept` are the signed-in account's settings, which win. */
