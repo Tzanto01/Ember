@@ -330,6 +330,16 @@ describe('JournalService', () => {
     ]);
   });
 
+  it("encrypts a habit note dated just before the habit's start, as a time zone change can leave one", async () => {
+    server.habits = [{ ...habit, startDate: '2026-10-20' }];
+    server.habitNotes.set('1|2026-10-19', { habitId: 1, date: '2026-10-19', text: 'Started late at night.' });
+    const { journal } = await device();
+
+    await journal.enable(passphrase, false, loginPassword);
+
+    expect(server.habitNotes.get('1|2026-10-19')).toHaveProperty('encrypted');
+  });
+
   it('turns encrypted habit notes back into plaintext when the journal goes plain', async () => {
     const { journal } = await device();
     await journal.enable(passphrase, false, loginPassword);

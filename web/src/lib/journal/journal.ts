@@ -694,14 +694,14 @@ export class JournalService implements JournalApi {
   }
 
   /**
-   * Walks `GET /api/habit-notes` per habit, back from local today to the habit's start in 366-day windows, until
-   * `visit` returns true.
+   * Walks `GET /api/habit-notes` per habit, from two days after local today back to two days before the habit's start
+   * (a time zone change can move both), in 366-day windows, until `visit` returns true. Rejects when the habits can't be listed.
    */
   private async scanHabitNotes(visit: (notes: StoredHabitNote[], habit: AnyHabit) => Promise<boolean>): Promise<void> {
     const today = this.requireMe().localToday;
-    for (const habit of await this.api.listHabits().catch(() => [])) {
-      const floor = habit.startDate < today ? habit.startDate : today;
-      for (let to = today; to >= floor;) {
+    for (const habit of await this.api.listHabits()) {
+      const floor = addDays(habit.startDate < today ? habit.startDate : today, -2);
+      for (let to = addDays(today, 2); to >= floor;) {
         const from = addDays(to, -365);
         if (await visit(await this.api.listHabitNotes(from, to, habit.id), habit)) return;
         to = addDays(from, -1);

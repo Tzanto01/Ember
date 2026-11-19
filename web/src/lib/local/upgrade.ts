@@ -296,7 +296,8 @@ export class UpgradeService implements UpgradeApi {
     for (const note of habitNotes) {
       const done = `${note.habitId}|${note.date}`;
       const id = accountIds.get(note.habitId);
-      if (id === undefined || progress().habitNotesDone?.includes(done)) continue;
+      if (progress().habitNotesDone?.includes(done)) continue;
+      if (id === undefined) throw new Error('No account habit for a device habit note.');
       await this.journal.saveHabitNote(id, note.date, note.text);
       await save({ habitNotesDone: [...(progress().habitNotesDone ?? []), done] });
     }
