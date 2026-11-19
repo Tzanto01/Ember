@@ -45,9 +45,7 @@ Wenn du das nicht warst, kannst du diese E-Mail einfach ignorieren. Dein Passwor
     <value>Jemand wollte mit dieser E-Mail-Adresse ein Ember-Konto erstellen, aber es gibt schon eins.
 
 Anmelden: {0}
-Passwort vergessen? {1}
-
-Wenn du das nicht warst, kannst du diese E-Mail einfach ignorieren.</value>
+Passwort vergessen? {1}</value>
   </data>
   <data name="email.footer" xml:space="preserve">
     <value>Du bekommst diese E-Mail, weil jemand diese Adresse bei Ember eingegeben hat. Verantwortlich ist Nico Pauly Wöllnitz (contact@nicowoellnitz.de). Wie Ember Daten verarbeitet und welche Rechte du hast, steht in der Datenschutzerklärung: {0}. Wenn du das nicht warst, kannst du diese E-Mail ignorieren.</value>
