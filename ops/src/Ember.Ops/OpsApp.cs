@@ -80,14 +80,11 @@ public static class OpsApp
         return Overview.From(counters, await OverviewSeriesAsync(cache, db, time, ct));
     }
 
-    internal static async Task<OverviewSeries> OverviewSeriesAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
-    {
-        var features = await FeaturesAsync(cache, db, ct);
-        return await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, features, time, ct));
-    }
+    internal static Task<OverviewSeries> OverviewSeriesAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, db.Ops, time, ct));
 
     internal static Task<ActivityInsights> ActivityAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-        Cached(cache, "insights:activity", SeriesCache, () => InsightQueries.ActivityAsync(db.Ember, time, ct));
+        Cached(cache, "insights:activity", SeriesCache, () => InsightQueries.ActivityAsync(db.Ops, time, ct));
 
     internal static Task<HabitInsights> HabitsAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
         Cached(cache, "insights:habits", SeriesCache, () => InsightQueries.HabitsAsync(db.Ember, time, ct));

@@ -5,19 +5,14 @@ namespace Ember.Ops;
 /// <summary>A count with the distinct users behind it, so small buckets can be suppressed.</summary>
 public sealed record UserBucket(string Label, int Count, int Users);
 
-/// <summary>A cohort by week of first habit and how many of it completed a check-in 1 and 4 weeks later.</summary>
-public sealed record Cohort(DateOnly Week, int Users, int Week1, int Week4);
-
-/// <summary>Check-in, journal and low-day activity. Days and weeks are Europe/Berlin.</summary>
-/// <param name="ActivePerDay">Users with a completed check-in per day, 90 days.</param>
-/// <param name="ActivePerWeek">Users with a completed check-in per week, 12 weeks.</param>
-/// <param name="ActiveDays">Users by days with a completed check-in in the last 30 days.</param>
-/// <param name="JournalPerWeek">Journal days and their writers per week, 12 weeks.</param>
-/// <param name="LowDaysPerWeek">Low days and the users who marked them per week, 12 weeks.</param>
-public sealed record ActivityInsights(
-    DateTime GeneratedAt, IReadOnlyList<DayCount> ActivePerDay, IReadOnlyList<UserBucket> ActivePerWeek, IReadOnlyList<UserBucket> ActiveDays,
-    IReadOnlyList<Cohort> Cohorts, IReadOnlyList<UserBucket> JournalPerWeek, int Journal30, int Writers30, int PrivateJournals,
-    IReadOnlyList<UserBucket> LowDaysPerWeek);
+/// <summary>
+/// Sign-in activity from the dashboard's own snapshots of <c>AuthSessions</c>. Days and weeks are Europe/Berlin.
+/// Empty until the first snapshot.
+/// </summary>
+/// <param name="Since">The first day with a snapshot.</param>
+/// <param name="PerDay">Users seen per day, from <see cref="Since"/> or 90 days back, whichever is later.</param>
+/// <param name="PerWeek">Users seen per week, from the week of <see cref="Since"/> or 12 weeks back, whichever is later.</param>
+public sealed record ActivityInsights(DateTime GeneratedAt, DateOnly? Since, IReadOnlyList<DayCount> PerDay, IReadOnlyList<UserBucket> PerWeek);
 
 /// <summary>Habit and routine setup.</summary>
 public sealed record HabitInsights(
@@ -37,89 +32,71 @@ public static class InsightQueries
     public const int Days = 90;
     public const int Weeks = 12;
 
-    private static readonly (int Min, string Label)[] ActiveDayBuckets = [(1, "1 day"), (2, "2–4 days"), (5, "5–9 days"), (10, "10–19 days"), (20, "20–30 days")];
     private static readonly (int Min, string Label)[] HabitBuckets = [(0, "0"), (1, "1"), (2, "2–3"), (4, "4–6"), (7, "7+")];
     private static readonly string[] Schedules = ["Daily", "Times per week", "Set weekdays"];
 
-    public static async Task<ActivityInsights> ActivityAsync(NpgsqlDataSource ember, TimeProvider time, CancellationToken ct)
+    /// <summary>
+    /// Stores the distinct users seen today, in the 7 days up to today and this week, keeping the highest value of each day and week,
+    /// since a session's last-seen time is overwritten and a deleted session drops out. Counts only, never user ids.
+    /// </summary>
+    public static async Task SnapshotActivityAsync(NpgsqlDataSource ember, NpgsqlDataSource ops, TimeProvider time, CancellationToken ct)
+    {
+        var today = OpsCalendar.Today(time);
+        var monday = OpsCalendar.Monday(today);
+        int day, active7, week;
+        await using (var connection = await ember.OpenConnectionAsync(ct))
+        await using (var reader = await Db.RunAsync(connection,
+        [
+            Db.Command("""
+                SELECT count(DISTINCT "UserId") FILTER (WHERE seen >= ($1::date)::timestamp AT TIME ZONE 'Europe/Berlin')::int,
+                       count(DISTINCT "UserId") FILTER (WHERE seen >= ($1::date - 6)::timestamp AT TIME ZONE 'Europe/Berlin')::int,
+                       count(DISTINCT "UserId") FILTER (WHERE seen >= ($2::date)::timestamp AT TIME ZONE 'Europe/Berlin')::int
+                FROM (SELECT "UserId", coalesce("LastSeenUtc", "CreatedUtc") AS seen FROM "AuthSessions") s
+                """, today, monday),
+        ], ct))
+        {
+            await reader.RowAsync(ct);
+            (day, active7, week) = (reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
+        }
+
+        await using var opsConnection = await ops.OpenConnectionAsync(ct);
+        await using var upsert = await Db.RunAsync(opsConnection,
+        [
+            Db.Command("""
+                INSERT INTO activity_days (day, users, active7) VALUES ($1, $2, $3)
+                ON CONFLICT (day) DO UPDATE SET users = greatest(activity_days.users, excluded.users), active7 = greatest(activity_days.active7, excluded.active7)
+                """, today, day, active7),
+            Db.Command("""
+                INSERT INTO activity_weeks (week, users) VALUES ($1, $2)
+                ON CONFLICT (week) DO UPDATE SET users = greatest(activity_weeks.users, excluded.users)
+                """, monday, week),
+        ], ct);
+    }
+
+    /// <summary>Users seen per day and per week, from the snapshots in emberops.</summary>
+    public static async Task<ActivityInsights> ActivityAsync(NpgsqlDataSource ops, TimeProvider time, CancellationToken ct)
     {
         var today = OpsCalendar.Today(time);
         var generatedAt = time.GetUtcNow().UtcDateTime;
-        var from = today.AddDays(-(Days - 1));
         var weeks = OpsCalendar.Weeks(today, Weeks).ToList();
 
-        await using var connection = await ember.OpenConnectionAsync(ct);
+        await using var connection = await ops.OpenConnectionAsync(ct);
         await using var reader = await Db.RunAsync(connection,
         [
-            Db.Command("""
-                SELECT l."Date", count(DISTINCT h."UserId")::int FROM "HabitLogs" l JOIN "Habits" h ON h."Id" = l."HabitId"
-                WHERE l."Completed" AND l."Date" BETWEEN $1 AND $2 GROUP BY 1
-                """, from, today),
-            Db.Command("""
-                SELECT date_trunc('week', l."Date"::timestamp)::date, count(DISTINCT h."UserId")::int FROM "HabitLogs" l JOIN "Habits" h ON h."Id" = l."HabitId"
-                WHERE l."Completed" AND l."Date" BETWEEN $1 AND $2 GROUP BY 1
-                """, weeks[0], today),
-            Db.Command("""
-                SELECT n, count(*)::int FROM (
-                    SELECT count(DISTINCT l."Date")::int AS n FROM "HabitLogs" l JOIN "Habits" h ON h."Id" = l."HabitId"
-                    WHERE l."Completed" AND l."Date" BETWEEN $1::date - 29 AND $1::date GROUP BY h."UserId") u
-                GROUP BY 1
-                """, today),
-            Db.Command("""
-                WITH first AS (
-                    SELECT "UserId", date_trunc('week', min("CreatedAt") AT TIME ZONE 'Europe/Berlin')::date AS week FROM "Habits" GROUP BY 1),
-                active AS (
-                    SELECT DISTINCT h."UserId", date_trunc('week', l."Date"::timestamp)::date AS week FROM "HabitLogs" l JOIN "Habits" h ON h."Id" = l."HabitId"
-                    WHERE l."Completed" AND l."Date" >= $1::date + 7)
-                SELECT f.week, count(*)::int, count(a1."UserId")::int, count(a4."UserId")::int
-                FROM first f
-                LEFT JOIN active a1 ON a1."UserId" = f."UserId" AND a1.week = f.week + 7
-                LEFT JOIN active a4 ON a4."UserId" = f."UserId" AND a4.week = f.week + 28
-                WHERE f.week >= $1 GROUP BY 1
-                """, weeks[0]),
-            Db.Command("""
-                SELECT date_trunc('week', "Date"::timestamp)::date, count(*)::int, count(DISTINCT "UserId")::int FROM "DayNotes"
-                WHERE "Date" BETWEEN $1 AND $2 GROUP BY 1
-                """, weeks[0], today),
-            Db.Command("""SELECT count(*)::int, count(DISTINCT "UserId")::int FROM "DayNotes" WHERE "Date" BETWEEN $1::date - 29 AND $1::date""", today),
-            Db.Command("""SELECT count(*)::int FROM "JournalKeys" """),
-            Db.Command("""
-                SELECT date_trunc('week', "Date"::timestamp)::date, count(*)::int, count(DISTINCT "UserId")::int FROM "DayMarks"
-                WHERE "Kind" = 0 AND "Date" BETWEEN $1 AND $2 GROUP BY 1
-                """, weeks[0], today),
+            Db.Command("SELECT min(day) FROM activity_days"),
+            Db.Command("SELECT day, users FROM activity_days WHERE day BETWEEN $1 AND $2", today.AddDays(-(Days - 1)), today),
+            Db.Command("SELECT week, users FROM activity_weeks WHERE week >= $1", weeks[0]),
         ], ct);
-
-        var perDay = OpsCalendar.Days(from, today, await Db.DaysAsync(reader, ct));
-        var perWeekRows = await Db.DaysAsync(reader, ct);
-        var perWeek = weeks.Select(w => new UserBucket(Date(w), perWeekRows.GetValueOrDefault(w), perWeekRows.GetValueOrDefault(w))).ToList();
-
-        var daysRows = await Db.CountsAsync(reader, ct);
-        var activeDays = ActiveDayBuckets.Select((b, i) =>
-        {
-            var max = i + 1 < ActiveDayBuckets.Length ? ActiveDayBuckets[i + 1].Min : int.MaxValue;
-            var users = daysRows.Where(r => r.Key >= b.Min && r.Key < max).Sum(r => r.Value);
-            return new UserBucket(b.Label, users, users);
-        }).ToList();
-
-        var cohortRows = new Dictionary<DateOnly, Cohort>();
-        while (await reader.ReadAsync(ct))
-        {
-            var week = reader.GetFieldValue<DateOnly>(0);
-            cohortRows[week] = new(week, reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3));
-        }
-        await reader.NextResultAsync(ct);
-        var cohorts = weeks.Select(w => cohortRows.GetValueOrDefault(w) ?? new(w, 0, 0, 0)).ToList();
-
-        var journal = await WeekBucketsAsync(reader, weeks, ct);
         await reader.RowAsync(ct);
-        var (journal30, writers30) = (reader.GetInt32(0), reader.GetInt32(1));
+        DateOnly? since = reader.IsDBNull(0) ? null : reader.GetFieldValue<DateOnly>(0);
         await reader.NextResultAsync(ct);
-        await reader.RowAsync(ct);
-        var privateJournals = reader.GetInt32(0);
-        await reader.NextResultAsync(ct);
-        var lowDays = await WeekBucketsAsync(reader, weeks, ct);
+        var dayRows = await Db.DaysAsync(reader, ct);
+        var weekRows = await Db.DaysAsync(reader, ct);
+        if (since is not { } first) return new(generatedAt, null, [], []);
 
-        return new(generatedAt, perDay, perWeek, activeDays, cohorts, journal, journal30, writers30, privateJournals, lowDays);
+        var from = first > today.AddDays(-(Days - 1)) ? first : today.AddDays(-(Days - 1));
+        return new(generatedAt, first, OpsCalendar.Days(from, today, dayRows),
+            weeks.Where(w => w >= OpsCalendar.Monday(first)).Select(w => new UserBucket(Date(w), weekRows.GetValueOrDefault(w), weekRows.GetValueOrDefault(w))).ToList());
     }
 
     public static async Task<HabitInsights> HabitsAsync(NpgsqlDataSource ember, TimeProvider time, CancellationToken ct)
@@ -208,14 +185,6 @@ public static class InsightQueries
         var byTheme = known.Select(t => (t, themes.GetValueOrDefault(t))).ToList();
         byTheme.Add(("default", themes.Where(t => !known.Contains(t.Key)).Sum(t => t.Value)));
         return new(generatedAt, users, linked, discord, push, phone, none, byTheme);
-    }
-
-    private static async Task<List<UserBucket>> WeekBucketsAsync(NpgsqlDataReader reader, List<DateOnly> weeks, CancellationToken ct)
-    {
-        var rows = new Dictionary<DateOnly, (int Count, int Users)>();
-        while (await reader.ReadAsync(ct)) rows[reader.GetFieldValue<DateOnly>(0)] = (reader.GetInt32(1), reader.GetInt32(2));
-        await reader.NextResultAsync(ct);
-        return weeks.Select(w => new UserBucket(Date(w), rows.GetValueOrDefault(w).Count, rows.GetValueOrDefault(w).Users)).ToList();
     }
 
     private static string Date(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);

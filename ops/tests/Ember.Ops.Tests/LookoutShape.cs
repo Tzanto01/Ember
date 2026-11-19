@@ -10,8 +10,8 @@ public static class LookoutShape
 
     public static readonly Dictionary<string, string[]> WidgetIds = new()
     {
-        ["overview"] = ["tiles", "new-users", "check-ins", "journal", "low-days", "grace", "fireside", "let-go"],
-        ["activity"] = ["tiles", "active-per-day", "active-per-week", "active-days", "retention", "journal-activity", "low-days-week"],
+        ["overview"] = ["tiles", "new-users", "grace"],
+        ["activity"] = ["tiles", "active-per-day", "active-per-week"],
         ["habits"] = ["tiles", "schedule", "times-per-day", "reminder-hours", "habits-per-user", "created"],
         ["users"] = ["tiles", "destinations", "designs"],
         ["reminders"] = ["tiles", "open", "sent", "delivery", "discord", "second", "push", "overdue"],
@@ -23,12 +23,11 @@ public static class LookoutShape
 
     private static readonly Dictionary<string, string> Types = new()
     {
-        ["tiles"] = "stats", ["new-users"] = "bars", ["check-ins"] = "bars", ["journal"] = "bars", ["low-days"] = "bars", ["grace"] = "panel",
-        ["fireside"] = "panel", ["let-go"] = "panel", ["open"] = "bars", ["sent"] = "bars", ["discord"] = "stats", ["second"] = "panel", ["push"] = "stats",
+        ["tiles"] = "stats", ["new-users"] = "bars", ["grace"] = "panel",
+        ["open"] = "bars", ["sent"] = "bars", ["discord"] = "stats", ["second"] = "panel", ["push"] = "stats",
         ["overdue"] = "stats", ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
         ["backup"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["live-notice"] = "list", ["ci"] = "ci",
-        ["active-per-day"] = "bars", ["active-per-week"] = "bars", ["active-days"] = "bars", ["retention"] = "panel", ["journal-activity"] = "panel",
-        ["low-days-week"] = "bars", ["schedule"] = "bars", ["times-per-day"] = "bars", ["reminder-hours"] = "bars", ["habits-per-user"] = "bars",
+        ["active-per-day"] = "bars", ["active-per-week"] = "bars", ["schedule"] = "bars", ["times-per-day"] = "bars", ["reminder-hours"] = "bars", ["habits-per-user"] = "bars",
         ["created"] = "bars", ["destinations"] = "bars", ["designs"] = "bars", ["delivery"] = "stats", ["per-week"] = "bars", ["flow"] = "bars",
         ["by-status"] = "bars", ["versions"] = "bars",
     };

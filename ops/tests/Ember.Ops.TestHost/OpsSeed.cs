@@ -13,7 +13,7 @@ public static class OpsSeed
 
     public const int Users = 12;
 
-    /// <summary>Fills emberdb with a dozen users and their habits, logs, notes, reminders, devices and feedback.</summary>
+    /// <summary>Fills emberdb with a dozen users and their habits, sign-in sessions, reminders, devices and feedback.</summary>
     public static async Task SeedEmberAsync(string superuserEmberConnection, DateTime utcNow, CancellationToken ct = default)
     {
         var random = new Random(42);
@@ -42,7 +42,6 @@ public static class OpsSeed
                 ["Timezone"] = "Europe/Berlin",
                 ["Language"] = "en",
             };
-            if (v2) user["FiresideEnabled"] = i < 6;
             await rows.InsertAsync("AspNetUsers", user, ct);
         }
 
@@ -59,7 +58,6 @@ public static class OpsSeed
             }, ct))!, users[i]));
 
         var buildHabits = new List<(int Id, Guid User)>();
-        var letGoHabits = new List<int>();
         for (var i = 0; i < Users; i++)
         {
             var firstDay = 5 + i * 6;
@@ -80,35 +78,22 @@ public static class OpsSeed
                 };
                 if (v2) habit["Kind"] = letGo ? 1 : 0;
                 var id = (int)(await rows.InsertAsync("Habits", habit, ct))!;
-                if (letGo) letGoHabits.Add(id);
-                else buildHabits.Add((id, users[i]));
+                if (!letGo) buildHabits.Add((id, users[i]));
             }
         }
 
-        foreach (var (habit, _) in buildHabits)
-            for (var d = 0; d < 90; d++)
-                if (random.NextDouble() < 0.6)
-                    await rows.InsertAsync("HabitLogs", new()
-                    {
-                        ["HabitId"] = habit, ["Date"] = today.AddDays(-d), ["Completed"] = random.NextDouble() < 0.85, ["Count"] = 1,
-                    }, ct, returning: null);
-
-        foreach (var habit in letGoHabits)
-            for (var d = 0; d < 84; d++)
-                if (random.NextDouble() < 0.15)
-                    await rows.InsertAsync("HabitSlips", new()
-                    {
-                        ["HabitId"] = habit, ["Date"] = today.AddDays(-d), ["Count"] = 1 + random.Next(3), ["UpdatedAt"] = utcNow,
-                    }, ct, returning: null);
-
         for (var i = 0; i < Users; i++)
-            for (var d = 0; d < 90; d++)
+        {
+            var seen = utcNow.AddDays(-i * 2).AddHours(-1);
+            await rows.InsertAsync("AuthSessions", new()
             {
-                if (random.NextDouble() < 0.2)
-                    await rows.InsertAsync("DayNotes", new() { ["UserId"] = users[i], ["Date"] = today.AddDays(-d), ["Text"] = "synthetic note" }, ct, returning: null);
-                if (random.NextDouble() < 0.05)
-                    await rows.InsertAsync("DayMarks", new() { ["UserId"] = users[i], ["Date"] = today.AddDays(-d), ["Kind"] = 0 }, ct, returning: null);
-            }
+                ["Id"] = Guid.CreateVersion7(), ["UserId"] = users[i], ["CreatedUtc"] = utcNow.AddDays(-40), ["ExpiresUtc"] = utcNow.AddDays(20), ["LastSeenUtc"] = i % 4 == 3 ? null : seen,
+            }, ct, returning: null);
+            await rows.InsertAsync("AuthSessions", new()
+            {
+                ["Id"] = Guid.CreateVersion7(), ["UserId"] = users[i], ["CreatedUtc"] = seen, ["ExpiresUtc"] = utcNow.AddDays(60),
+            }, ct, returning: null);
+        }
 
         var messageId = 1_000_000m;
         for (var d = 0; d < 14; d++)
@@ -134,21 +119,6 @@ public static class OpsSeed
             {
                 ["UserId"] = users[i + 5], ["InstallId"] = $"seed-install-{i}", ["Enabled"] = i != 2, ["CreatedAt"] = utcNow.AddDays(-7),
             }, ct, returning: null);
-
-        if (await rows.HasColumnAsync("FiresideLinks", "Id", ct))
-        {
-            foreach (var (a, b) in new[] { (0, 1), (0, 2), (1, 3) })
-            foreach (var (owner, friend) in new[] { (a, b), (b, a) })
-                await rows.InsertAsync("FiresideLinks", new()
-                {
-                    ["OwnerId"] = users[owner], ["FriendId"] = users[friend], ["CreatedAt"] = utcNow.AddDays(-20), ["ShareFlame"] = true,
-                }, ct, returning: null);
-            for (var w = 0; w < 20; w++)
-                await rows.InsertAsync("Warmth", new()
-                {
-                    ["FromUserId"] = users[w % 2], ["ToUserId"] = users[w % 2 + 1], ["SentAtUtc"] = utcNow.AddHours(-w * 30),
-                }, ct, returning: null);
-        }
 
         var feedback = new (string Status, string Platform, bool Anonymous, string? Version, int Images)[]
         {

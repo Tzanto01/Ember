@@ -11,19 +11,13 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     {
         string[] reads =
         [
-            """SELECT "Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "FiresideEnabled", "Theme" FROM "AspNetUsers" """,
+            """SELECT "Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "Theme" FROM "AspNetUsers" """,
             """SELECT "UserId", "LoginProvider" FROM "AspNetUserLogins" """,
-            """SELECT "UserId" FROM "JournalKeys" """,
             """SELECT "Id", "UserId", "NextReminderUtc", "SecondReminderUtc", "ReminderTime", "CreatedAt" FROM "Routines" """,
+            """SELECT "UserId", "CreatedUtc", "LastSeenUtc" FROM "AuthSessions" """,
             """SELECT "Id", "UserId", "Enabled" FROM "PushSubscriptions" """,
             """SELECT "Id", "UserId", "Enabled" FROM "ReminderPhones" """,
             """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "Kind", "FrequencyType", "TimesPerDay", "ReminderTimes" FROM "Habits" """,
-            """SELECT "HabitId", "Date", "Completed" FROM "HabitLogs" """,
-            """SELECT "UserId", "Date" FROM "DayNotes" """,
-            """SELECT "UserId", "Date", "Kind" FROM "DayMarks" """,
-            """SELECT "HabitId", "Date", "Count" FROM "HabitSlips" """,
-            """SELECT "Id" FROM "FiresideLinks" """,
-            """SELECT "SentAtUtc" FROM "Warmth" """,
             """SELECT "Id", "Date" FROM "ReminderMessages" """,
             """SELECT "Id", "Date" FROM "PushReminders" """,
             """SELECT "Id", "Title", "Text", "Platform", "Version", "CreatedAt", "Status", "ResolvedAt", "UserId" FROM "Feedback" """,
@@ -45,11 +39,7 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     [Theory]
     [InlineData("""SELECT "Name" FROM "Habits" """)]
     [InlineData("""SELECT * FROM "Habits" """)]
-    [InlineData("""SELECT "Text" FROM "DayNotes" """)]
     [InlineData("""SELECT * FROM "Moods" """)]
-    [InlineData("""SELECT "Mood" FROM "DayNotes" """)]
-    [InlineData("""SELECT "CipherText" FROM "DayNotes" """)]
-    [InlineData("""SELECT "PassphraseWrapped" FROM "JournalKeys" """)]
     [InlineData("""SELECT "ProviderKey" FROM "AspNetUserLogins" """)]
     [InlineData("""SELECT "Label" FROM "ReminderPhones" """)]
     [InlineData("""SELECT "Language" FROM "AspNetUsers" """)]
@@ -57,9 +47,18 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     [InlineData("""SELECT "Email" FROM "AspNetUsers" """)]
     [InlineData("""SELECT "PasswordHash" FROM "AspNetUsers" """)]
     [InlineData("""SELECT "Timezone" FROM "AspNetUsers" """)]
-    [InlineData("""SELECT "OwnerId" FROM "FiresideLinks" """)]
-    [InlineData("""SELECT "FromUserId" FROM "Warmth" """)]
     [InlineData("""SELECT "Endpoint" FROM "PushSubscriptions" """)]
+    [InlineData("""SELECT "Id" FROM "AuthSessions" """)]
+    [InlineData("""SELECT "ExpiresUtc" FROM "AuthSessions" """)]
+    [InlineData("""SELECT * FROM "AuthSessions" """)]
+    [InlineData("""SELECT "HabitId" FROM "HabitLogs" """)]
+    [InlineData("""SELECT "UserId" FROM "DayNotes" """)]
+    [InlineData("""SELECT "UserId" FROM "DayMarks" """)]
+    [InlineData("""SELECT "UserId" FROM "JournalKeys" """)]
+    [InlineData("""SELECT "HabitId" FROM "HabitSlips" """)]
+    [InlineData("""SELECT "Id" FROM "FiresideLinks" """)]
+    [InlineData("""SELECT "SentAtUtc" FROM "Warmth" """)]
+    [InlineData("""SELECT "FiresideEnabled" FROM "AspNetUsers" """)]
     [InlineData("""UPDATE "Feedback" SET "Title" = 'changed' """)]
     [InlineData("""UPDATE "Habits" SET "NextReminderUtc" = NULL""")]
     [InlineData("""INSERT INTO "Feedback" ("Title") VALUES ('x')""")]
@@ -135,5 +134,38 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
         await connection.OpenAsync();
         await using var count = new NpgsqlCommand("""SELECT count(*) FROM "AspNetUsers" """, connection);
         (await count.ExecuteScalarAsync()).Should().Be(6L);
+    }
+
+    [Fact]
+    public async Task Rerunning_the_grant_script_revokes_health_columns_an_older_script_had_granted()
+    {
+        await using (var superuser = await fixture.OpenAsync("emberdb"))
+        await using (var grant = new NpgsqlCommand("""
+            GRANT SELECT ("HabitId", "Date", "Completed") ON "HabitLogs" TO ember_dashboard;
+            GRANT SELECT ("UserId", "Date") ON "DayNotes" TO ember_dashboard;
+            GRANT SELECT ("UserId", "Date", "Kind") ON "DayMarks" TO ember_dashboard;
+            GRANT SELECT ("UserId") ON "JournalKeys" TO ember_dashboard;
+            GRANT SELECT ("HabitId", "Date", "Count") ON "HabitSlips" TO ember_dashboard;
+            GRANT SELECT ("Id") ON "FiresideLinks" TO ember_dashboard;
+            GRANT SELECT ON "Warmth" TO ember_dashboard;
+            GRANT SELECT ("FiresideEnabled") ON "AspNetUsers" TO ember_dashboard;
+            """, superuser))
+            await grant.ExecuteNonQueryAsync();
+        var script = Path.Combine(DatabaseFixture.OpsRoot(), "sql", "ember_dashboard.sql");
+
+        await fixture.Database.RunScriptAsync(script, "emberdb", "DASH_PW", File.ReadAllText(fixture.Database.EmberPasswordFile).Trim());
+
+        var left = await fixture.ScalarAsync<long>("emberdb", """
+            SELECT count(*) FROM information_schema.column_privileges
+            WHERE grantee = 'ember_dashboard' AND table_schema = 'public'
+              AND (table_name IN ('HabitLogs', 'DayNotes', 'DayMarks', 'JournalKeys', 'HabitSlips', 'FiresideLinks', 'Warmth')
+                   OR (table_name = 'AspNetUsers' AND column_name = 'FiresideEnabled'))
+            """);
+        left.Should().Be(0);
+        var sessions = await fixture.ScalarAsync<string>("emberdb", """
+            SELECT string_agg(column_name, ',' ORDER BY column_name) FROM information_schema.column_privileges
+            WHERE grantee = 'ember_dashboard' AND table_name = 'AuthSessions' AND privilege_type = 'SELECT'
+            """);
+        sessions.Should().Be("CreatedUtc,LastSeenUtc,UserId");
     }
 }

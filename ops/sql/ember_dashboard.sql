@@ -29,6 +29,19 @@ ALTER ROLE ember_dashboard SET jit = off;
 
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ember_dashboard;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ember_dashboard;
+DO $$
+DECLARE t text;
+BEGIN
+    FOREACH t IN ARRAY ARRAY['HabitLogs', 'DayNotes', 'DayMarks', 'JournalKeys', 'HabitSlips', 'FiresideLinks', 'Warmth'] LOOP
+        IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
+            EXECUTE format('REVOKE ALL ON public.%I FROM ember_dashboard', t);
+        END IF;
+    END LOOP;
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'AspNetUsers' AND column_name = 'FiresideEnabled') THEN
+        REVOKE ALL ("FiresideEnabled") ON "AspNetUsers" FROM ember_dashboard;
+    END IF;
+END
+$$;
 
 GRANT CONNECT ON DATABASE emberdb TO ember_dashboard;
 GRANT USAGE ON SCHEMA public TO ember_dashboard;
@@ -38,11 +51,8 @@ GRANT SELECT ("Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", 
 GRANT SELECT ("UserId", "LoginProvider") ON "AspNetUserLogins" TO ember_dashboard;
 GRANT SELECT ("Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "FrequencyType", "TimesPerDay", "ReminderTimes")
     ON "Habits" TO ember_dashboard;
-GRANT SELECT ("HabitId", "Date", "Completed") ON "HabitLogs" TO ember_dashboard;
 GRANT SELECT ("Id", "UserId", "NextReminderUtc", "SecondReminderUtc", "ReminderTime", "CreatedAt") ON "Routines" TO ember_dashboard;
-GRANT SELECT ("UserId", "Date") ON "DayNotes" TO ember_dashboard;
-GRANT SELECT ("UserId", "Date", "Kind") ON "DayMarks" TO ember_dashboard;
-GRANT SELECT ("UserId") ON "JournalKeys" TO ember_dashboard;
+GRANT SELECT ("UserId", "CreatedUtc", "LastSeenUtc") ON "AuthSessions" TO ember_dashboard;
 GRANT SELECT ("Id", "Date") ON "ReminderMessages" TO ember_dashboard;
 GRANT SELECT ("Id", "Date") ON "PushReminders" TO ember_dashboard;
 GRANT SELECT ("Id", "UserId", "Enabled") ON "PushSubscriptions" TO ember_dashboard;
@@ -57,20 +67,8 @@ SELECT format('GRANT SELECT ON SEQUENCE %s TO ember_dashboard', pg_get_serial_se
 
 DO $$
 BEGIN
-    IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'AspNetUsers' AND column_name = 'FiresideEnabled') THEN
-        GRANT SELECT ("FiresideEnabled") ON "AspNetUsers" TO ember_dashboard;
-    END IF;
     IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Habits' AND column_name = 'Kind') THEN
         GRANT SELECT ("Kind") ON "Habits" TO ember_dashboard;
-    END IF;
-    IF to_regclass('public."HabitSlips"') IS NOT NULL THEN
-        GRANT SELECT ("HabitId", "Date", "Count") ON "HabitSlips" TO ember_dashboard;
-    END IF;
-    IF to_regclass('public."FiresideLinks"') IS NOT NULL THEN
-        GRANT SELECT ("Id") ON "FiresideLinks" TO ember_dashboard;
-    END IF;
-    IF to_regclass('public."Warmth"') IS NOT NULL THEN
-        GRANT SELECT ("SentAtUtc") ON "Warmth" TO ember_dashboard;
     END IF;
 END
 $$;
