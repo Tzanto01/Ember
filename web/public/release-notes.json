@@ -1,5 +1,29 @@
 [
   {
+    "version": "0.10.0-beta.4",
+    "date": "2026-11-20",
+    "notes": {
+      "en": [
+        "New kind of habit: Letting go, for things you want to stop or do less. It counts days without instead of a streak, and a slip is never a failure. After a slip, Ember suggests a few things to try instead. There's a template for social-media-free evenings, and in the Android app a button opens your phone's screen time.",
+        "Fireside lets you connect with a few people you trust. They see your name, when you ask for some warmth, and, if you allow it for that person, whether you checked in today. Nothing needs an answer.",
+        "Today shows only what's planned for today, and the rest waits under “Not for today”. Habits are sorted by reminder time, or hold and drag them into your own order. The arrows on the Routines page no longer change Today.",
+        "Habit notes: jot down how a habit went, from its menu on Today or in History. With your private journal on, notes are encrypted with it. Turn on “Offer a note after check-in” in Settings if you want Ember to ask.",
+        "The Android app has a home screen widget. You can check in right from it, in sizes from 2x2, in your Ember theme.",
+        "“I need a moment” has a new practice for a craving or a strong urge.",
+        "Ember now asks for your consent before it stores your habits and notes, because they can say something about your health. You can withdraw it any time in Settings under Privacy. The privacy policy has been rewritten to match."
+      ],
+      "de": [
+        "Eine neue Art Habit: Loslassen, für Dinge, mit denen du aufhören oder die du seltener tun möchtest. Statt einer Streak zählt Ember die Tage ohne, und ein Ausrutscher ist nie ein Scheitern. Nach einem Ausrutscher schlägt Ember ein paar Dinge vor, die du stattdessen ausprobieren kannst. Es gibt eine Vorlage für Social-Media-freie Abende, und in der Android-App öffnet ein Button die Bildschirmzeit deines Handys.",
+        "Am Lagerfeuer verbindest du dich mit ein paar Menschen, denen du vertraust. Sie sehen deinen Namen, wann du um etwas Wärme bittest und, wenn du es für diese Person erlaubst, ob du heute eingecheckt hast. Nichts davon braucht eine Antwort.",
+        "Heute zeigt nur noch, was für heute geplant ist, der Rest wartet unter „Nicht für heute“. Deine Habits stehen nach Erinnerungszeit, oder du hältst sie gedrückt und ziehst sie in deine eigene Reihenfolge. Die Pfeile auf der Seite „Routinen“ ändern Heute nicht mehr.",
+        "Habit-Notizen: Halte fest, wie ein Habit lief, über sein Menü unter Heute oder im Verlauf. Ist dein privates Tagebuch an, werden die Notizen damit verschlüsselt. Wenn Ember nach dem Abhaken fragen soll, schalte in den Einstellungen „Nach dem Abhaken eine Notiz anbieten“ ein.",
+        "Die Android-App hat ein Widget für den Startbildschirm. Du hakst direkt dort ab, in Größen ab 2x2 und in deinem Ember-Theme.",
+        "„Ich brauche einen Moment“ hat eine neue Übung für Verlangen oder einen starken Drang.",
+        "Ember fragt jetzt nach deiner Einwilligung, bevor es deine Habits und Notizen speichert, weil sie etwas über deine Gesundheit verraten können. Du kannst sie jederzeit in den Einstellungen unter „Datenschutz“ widerrufen. Die Datenschutzerklärung ist passend dazu neu geschrieben."
+      ]
+    }
+  },
+  {
     "version": "0.10.0-beta.3",
     "date": "2026-11-18",
     "notes": {
