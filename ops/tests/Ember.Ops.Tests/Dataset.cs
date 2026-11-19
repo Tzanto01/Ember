@@ -30,10 +30,10 @@ public sealed class Dataset
         DateTime At(int daysAgo, int hour = 12) => D(daysAgo).ToDateTime(new TimeOnly(hour, 0), DateTimeKind.Utc);
         var now = DateTime.UtcNow;
 
-        // grace days 0,1,1,2,0,0; streaks shown u1..u3; discord reminders on u1,u2, off u3, unset u4..u6;
+        // grace days 0,1,1,2,0,0; streaks shown u1..u3; discord reminders on u1..u4 (u3 paused, u4 not linked), unset u5, u6;
         // dm failures u2,u4; dm paused u3; second reminder minutes 15,15,30; designs tidepool u1,u2, marigold u3
         var grace = new[] { 0, 1, 1, 2, 0, 0 };
-        var discord = new bool?[] { true, true, false, null, null, null };
+        var discord = new bool?[] { true, true, true, true, null, null };
         var minutes = new[] { 15, 15, 30, 0, 0, 0 };
         var themes = new[] { "tidepool", "tidepool", "marigold", null, null, null };
         for (var i = 0; i < 6; i++)
@@ -64,7 +64,7 @@ public sealed class Dataset
 
         // (user index, created days ago, letGo, pause from/until, next reminder, second reminder)
         // schedules: h2 times per week, h3 set weekdays, others daily; times per day h5 3, h6 5, others 1;
-        // reminder times h1 08:00, h2 08:30 and 20:00, h5 21:15; h1 in the 07:00 routine
+        // reminder times h1 08:00, h2 08:30 and 20:00, h5 21:15, h7 09:00 (paused, no next reminder); h1 in the 07:00 routine
         var habits = new (int User, int Ago, bool LetGo, (DateOnly? From, DateOnly Until)? Pause, DateTime? Next, DateTime? Second)[]
         {
             (0, 1, false, null, now.AddHours(1), null),     // h1: u1 first habit, week of 2026-11-16
@@ -85,7 +85,7 @@ public sealed class Dataset
                 ["NextReminderUtc"] = h.Next, ["SecondReminderUtc"] = h.Second, ["TimesPerDay"] = ids.Count switch { 4 => 3, 5 => 5, _ => 1 },
                 ["FrequencyType"] = ids.Count switch { 1 => 1, 2 => 2, _ => 0 }, ["RoutineId"] = ids.Count == 0 ? routine : null,
             };
-            TimeOnly[] times = ids.Count switch { 0 => [new(8, 0)], 1 => [new(8, 30), new(20, 0)], 4 => [new(21, 15)], _ => [] };
+            TimeOnly[] times = ids.Count switch { 0 => [new(8, 0)], 1 => [new(8, 30), new(20, 0)], 4 => [new(21, 15)], 6 => [new(9, 0)], _ => [] };
             if (times.Length > 0) habit["ReminderTimes"] = times;
             if (includeV2) habit["Kind"] = h.LetGo ? 1 : 0;
             ids.Add(await rows.AddReturningIdAsync("Habits", habit));

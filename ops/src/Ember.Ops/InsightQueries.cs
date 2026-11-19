@@ -165,7 +165,8 @@ public static class InsightQueries
                        count(*) FILTER (WHERE NOT (d.discord OR d.push OR d.phone))::int,
                        (SELECT count(DISTINCT "UserId") FROM "AspNetUserLogins" WHERE "LoginProvider" = 'Discord')::int
                 FROM (
-                    SELECT u."DiscordReminders" IS TRUE AS discord,
+                    SELECT u."DiscordReminders" IS TRUE AND u."DmRemindersPausedAt" IS NULL
+                               AND EXISTS (SELECT FROM "AspNetUserLogins" l WHERE l."UserId" = u."Id" AND l."LoginProvider" = 'Discord') AS discord,
                            EXISTS (SELECT FROM "PushSubscriptions" s WHERE s."UserId" = u."Id" AND s."Enabled") AS push,
                            EXISTS (SELECT FROM "ReminderPhones" p WHERE p."UserId" = u."Id" AND p."Enabled") AS phone
                     FROM "AspNetUsers" u) d

@@ -36,7 +36,8 @@ public sealed class InsightTests(V2DatabaseFixture fixture) : IDisposable
         var active14 = LookoutShape.Item(tiles, "Active 14 days");
         active14.GetProperty("value").GetInt32().Should().Be(4);
         active14.TryGetProperty("delta", out _).Should().BeFalse();
-        LookoutShape.Item(tiles, "Streak users").GetProperty("max").GetDouble().Should().Be(6);
+        var streak = LookoutShape.Item(tiles, "Streak users");
+        (streak.GetProperty("value").GetInt32(), streak.GetProperty("hint").GetString(), streak.GetProperty("max").GetDouble()).Should().Be((3, "50% of users", 6));
     }
 
     [Fact]
@@ -45,13 +46,15 @@ public sealed class InsightTests(V2DatabaseFixture fixture) : IDisposable
         await using var db = fixture.OpenOpsDatabases();
         var h = await InsightQueries.HabitsAsync(db.Ember, fixture.Time, default);
 
-        (h.Habits, h.UsersWithHabits, h.InRoutine, h.WithReminderTime, h.Routines).Should().Be((8, 5, 1, 3, 3));
+        (h.Habits, h.UsersWithHabits, h.InRoutine, h.WithReminderTime, h.Routines).Should().Be((8, 5, 1, 4, 3));
         h.BySchedule.Should().Equal(("Daily", 6), ("Times per week", 1), ("Set weekdays", 1));
         h.ByTimesPerDay.Should().Equal(("1", 6), ("2", 0), ("3", 1), ("4+", 1));
-        h.ReminderHours.Where(r => r.Habits > 0 || r.Routines > 0).Should().Equal((7, 0, 1), (8, 2, 0), (20, 1, 0), (21, 1, 0));
+        h.ReminderHours.Where(r => r.Habits > 0 || r.Routines > 0).Should().Equal((7, 0, 1), (8, 2, 0), (9, 1, 0), (20, 1, 0), (21, 1, 0));
         h.UsersByHabits.Should().Equal(("0", 1), ("1", 2), ("2–3", 3), ("4–6", 0), ("7+", 0));
         h.CreatedPerWeek.Where(w => w.Habits > 0 || w.Routines > 0)
             .Should().Equal((new DateOnly(2026, 10, 26), 1, 0), (new DateOnly(2026, 11, 2), 3, 0), (new DateOnly(2026, 11, 9), 1, 1), (new DateOnly(2026, 11, 16), 2, 2));
+
+        LookoutShape.Widget(await PageAsync("habits"), "times-per-day").GetProperty("title").GetString().Should().Be("Habits by times per day");
     }
 
     [Fact]

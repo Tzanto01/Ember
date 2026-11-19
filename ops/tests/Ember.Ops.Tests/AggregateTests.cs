@@ -35,7 +35,7 @@ public sealed class AggregateTests(V2DatabaseFixture fixture)
     {
         var overview = await OverviewAsync();
 
-        overview.Habits.Should().Be(new HabitCounts(Total: 8, Paused: 1, WithReminder: 3));
+        overview.Habits.Should().Be(new HabitCounts(Total: 8, Paused: 1, WithReminder: 4));
         overview.Routines.Should().Be(new RoutineCounts(Total: 3, Users: 2));
     }
 

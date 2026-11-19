@@ -12,7 +12,7 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 |---|---|
 | `overview` | Users (total, active in the last 7 and 14 days by sign-ins, new per week by first habit), habits (total, paused, with reminder), routines, streak settings |
 | `activity` | Users seen today, per day and per week from the dashboard's sign-in snapshots, average per day and stickiness of the last full week |
-| `habits` | Habits, users with a habit, habits per user, habits in a routine or with a reminder time, habits by schedule and by check-ins per day, reminder times by hour (habits and routines), users by number of habits, habits and routines created per week |
+| `habits` | Habits, users with a habit, habits per user, habits in a routine or with a reminder time, habits by schedule and by times per day, reminder times by hour (habits and routines), users by number of habits, habits and routines created per week |
 | `users` | Users, Discord linked, users by reminder destination (Discord DMs, web push, Android phone, none), users by design |
 | `reminders` | Reminders still open per day and channel, sent reminders per day from the dashboard's own snapshots, Discord DMs on, failing and paused, second reminders, push subscriptions and phones, overdue reminders |
 | `feedback-trends` | Open, new in 7 days, resolved in 30 days, median time to resolve, reports per week by platform, sent and resolved per week, reports by status and platform, reports by app version |
