@@ -160,7 +160,7 @@
                 android:layout_marginTop="4dp"
                 android:ellipsize="end"
                 android:gravity="center"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:textColor="@color/ember_widget_text"
                 android:textSize="15sp"
                 android:textStyle="bold" />

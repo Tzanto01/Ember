@@ -32,36 +32,47 @@ public class WidgetPlanTest {
     }
 
     @Test
+    public void twoByTwoOnARealLauncherIsSingle() {
+        WidgetPlan plan = WidgetPlan.of(186, 212, DAY, 0);
+        assertEquals(WidgetPlan.SINGLE, plan.layout);
+        assertEquals(2, plan.start);
+        assertEquals(1, plan.shown);
+        assertTrue(WidgetPlan.dots(plan.layout, 186, DAY.size()));
+    }
+
+    @Test
     public void wideAndShortStartsAtTheFirstOpenHabit() {
         WidgetPlan low = WidgetPlan.of(250, 110, DAY, 0);
         assertEquals(WidgetPlan.SHORT, low.layout);
         assertEquals(2, low.start);
         assertEquals(1, low.shown);
 
-        WidgetPlan mid = WidgetPlan.of(250, 150, DAY, 0);
-        assertEquals(WidgetPlan.SHORT, mid.layout);
-        assertEquals(2, mid.start);
-        assertEquals(1, mid.shown);
-
-        WidgetPlan two = WidgetPlan.of(250, 170, DAY, 0);
-        assertEquals(2, two.start);
-        assertEquals(2, two.shown);
-        assertEquals(0, two.more);
-
-        for (int height : new int[] { 180, 199 }) {
-            WidgetPlan plan = WidgetPlan.of(250, height, DAY, 0);
+        for (int width : new int[] { 287, 400 }) {
+            WidgetPlan plan = WidgetPlan.of(width, 212, DAY, 0);
             assertEquals(WidgetPlan.SHORT, plan.layout);
-            assertEquals(2, plan.shown);
+            assertEquals(2, plan.start);
+            assertEquals(3, plan.shown);
+            assertEquals(0, plan.more);
         }
+
+        WidgetPlan cut = WidgetPlan.of(287, 212, Arrays.asList("done", "open", "open"), 0);
+        assertEquals(1, cut.start);
+        assertEquals(2, cut.shown);
     }
 
     @Test
     public void threeRowsHighShowsTheWholeDayFromTheTop() {
-        WidgetPlan plan = WidgetPlan.of(250, 200, DAY, 0);
-        assertEquals(WidgetPlan.TALL, plan.layout);
-        assertEquals(0, plan.start);
-        assertEquals(2, plan.shown);
-        assertEquals(4, plan.more);
+        WidgetPlan narrow = WidgetPlan.of(186, 325, DAY, 0);
+        assertEquals(WidgetPlan.TALL, narrow.layout);
+        assertEquals(0, narrow.start);
+        assertEquals(4, narrow.shown);
+        assertEquals(2, narrow.more);
+
+        WidgetPlan big = WidgetPlan.of(287, 437, DAY, 0);
+        assertEquals(WidgetPlan.TALL, big.layout);
+        assertEquals(0, big.start);
+        assertEquals(6, big.shown);
+        assertEquals(0, big.more);
     }
 
     @Test
@@ -69,15 +80,6 @@ public class WidgetPlanTest {
         WidgetPlan plan = WidgetPlan.of(250, 300, Arrays.asList("open", "done"), 5);
         assertEquals(2, plan.shown);
         assertEquals(5, plan.more);
-    }
-
-    @Test
-    public void tallAndNarrowShowsTheWholeDayWithMoreForTheRest() {
-        WidgetPlan plan = WidgetPlan.of(110, 250, DAY, 0);
-        assertEquals(WidgetPlan.TALL, plan.layout);
-        assertEquals(0, plan.start);
-        assertEquals(3, plan.shown);
-        assertEquals(3, plan.more);
     }
 
     @Test

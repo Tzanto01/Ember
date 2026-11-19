@@ -9,9 +9,9 @@ import java.util.Map;
  */
 final class WidgetPlan {
 
-    /** 2x2: the next open habit with one big circle. */
+    /** Up to two rows high and two columns wide (2x2): the next open habit with one big circle. */
     static final int SINGLE = 0;
-    /** Two rows high: rows from the first open habit. */
+    /** Up to two rows high and three columns or wider: rows from the first open habit. */
     static final int SHORT = 1;
     /** Three rows or more: the whole day, done included. */
     static final int TALL = 2;
@@ -19,8 +19,10 @@ final class WidgetPlan {
     static final int MAX_ROWS = 7;
     static final int CHROME_DP = 56;
     static final int ROW_DP = 48;
-    static final int WIDE_DP = 180;
-    static final int HIGH_DP = CHROME_DP + 3 * ROW_DP;
+    /** From here on a widget is three columns or more on real launchers (two are about 186 dp). */
+    static final int WIDE_DP = 250;
+    /** From here on a widget is three rows or more on real launchers (two stay below about 240 dp). */
+    static final int HIGH_DP = 260;
     static final int MAX_DOTS = 10;
     static final int DOT_DP = 7;
     /** The prefs key of the app's "motion" style flag; it exists only once the app sent a style. */
@@ -32,18 +34,18 @@ final class WidgetPlan {
      */
     static final float[][] SIZES = {
         { 110, 110 },
-        { 180, 110 },
-        { 180, 152 },
-        { 110, 200 },
-        { 110, 248 },
+        { WIDE_DP, 110 },
+        { WIDE_DP, 152 },
+        { WIDE_DP, 200 },
+        { WIDE_DP, 248 },
+        { 110, HIGH_DP },
         { 110, 296 },
         { 110, 344 },
         { 110, 392 },
-        { 180, 200 },
-        { 180, 248 },
-        { 180, 296 },
-        { 180, 344 },
-        { 180, 392 },
+        { WIDE_DP, HIGH_DP },
+        { WIDE_DP, 296 },
+        { WIDE_DP, 344 },
+        { WIDE_DP, 392 },
     };
 
     final int layout;
