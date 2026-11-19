@@ -12,7 +12,7 @@ namespace Ember.Api;
 /// environment. The board file (or stdin for <c>-</c>) is the ops board's <c>{"comments": [...], "positions": [...]}</c> as
 /// exported with psql. Imports every <see cref="Feedback"/> without a <see cref="LookoutOutbox"/> row, with its status, resolve
 /// time, comments and board order, under the key <c>import-feedback-{id}</c>, so a rerun sends the same bodies and Lookout answers
-/// 200. Prints one line per report without content; exit 0 when every report is imported or already imported, else 1. Refuses
+/// 200. Each request waits for <see cref="LookoutIngest.SendLockKey"/>, so it never overlaps one of the sender's. Prints one line per report without content; exit 0 when every report is imported or already imported, else 1. Refuses
 /// with exit 1 when Lookout isn't configured. Any failure prints the exception type and message to stderr and exits 1.
 /// </summary>
 internal static class LookoutImportCli
@@ -97,7 +97,7 @@ internal static class LookoutImportCli
                         .Select(c => new LookoutIngest.TicketComment(c.Author, c.Body, LookoutIngest.Utc(c.CreatedAt.UtcDateTime)))]);
                 var userRef = feedback.UserId is { } userId ? await UserRefAsync(db, userId, time, cancellationToken) : null;
                 var body = LookoutIngest.TicketBody(feedback, userRef, import);
-                var result = await SendAsync(http, endpoint, keyFile, LookoutIngest.TicketPath(string.Create(CultureInfo.InvariantCulture, $"import-feedback-{feedback.Id}")),
+                var result = await SendAsync(db, http, endpoint, keyFile, LookoutIngest.TicketPath(string.Create(CultureInfo.InvariantCulture, $"import-feedback-{feedback.Id}")),
                     body, delay, cancellationToken);
                 ok &= result is "imported" or "already imported";
                 if (userRef is not null && !await db.Users.AnyAsync(u => u.Id == feedback.UserId, cancellationToken))
@@ -111,7 +111,7 @@ internal static class LookoutImportCli
         return ok ? 0 : 1;
     }
 
-    private static async Task<string> SendAsync(HttpClient http, Uri endpoint, string keyFile, string path, byte[] body,
+    private static async Task<string> SendAsync(EmberDbContext db, HttpClient http, Uri endpoint, string keyFile, string path, byte[] body,
         Func<TimeSpan, CancellationToken, Task> delay, CancellationToken cancellationToken)
     {
         var reason = "";
@@ -120,7 +120,7 @@ internal static class LookoutImportCli
             if (attempt > 1) await delay(LookoutIngest.Backoff(attempt - 1), cancellationToken);
             try
             {
-                using var response = await LookoutIngest.SendAsync(http, endpoint, keyFile, HttpMethod.Put, path, body, cancellationToken);
+                using var response = await LookoutIngest.SendAsync(db, http, endpoint, keyFile, HttpMethod.Put, path, body, cancellationToken);
                 var status = (int)response.StatusCode;
                 if (status == 200) return "already imported";
                 if (status is >= 200 and < 300) return "imported";

@@ -129,7 +129,7 @@ docker exec homeserver-postgres psql -U finvarex -d emberops -At -c "SELECT json
   | docker compose exec -T lookout-sender dotnet Ember.Api.dll --lookout-import -
 ```
 
-It prints one line per report and is safe to run again.
+It prints one line per report and is safe to run again. The import and the sender share a database lock around each request, so Lookout never gets two at once; the import waits while the sender has one open.
 
 ## Development
 

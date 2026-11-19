@@ -41,6 +41,10 @@ internal sealed class FakeLookout : IAsyncDisposable
 
     public int DefaultPut { get; set; } = 201;
 
+    public TaskCompletionSource? Hold { get; set; }
+
+    public SemaphoreSlim Arrived { get; } = new(0);
+
     public List<Recorded> Requests => [.. _requests];
 
     public void Script(params int[] statuses)
@@ -60,6 +64,8 @@ internal sealed class FakeLookout : IAsyncDisposable
             using var body = new MemoryStream();
             await context.Request.Body.CopyToAsync(body);
             self!._requests.Enqueue(new Recorded(context.Request.Method, context.Request.Path.Value!, context.Request.Headers.Authorization.ToString(), body.ToArray()));
+            self.Arrived.Release();
+            if (self.Hold is { } hold) await hold.Task;
             var status = self._script.TryDequeue(out var scripted) ? scripted : context.Request.Method == "PUT" ? self.DefaultPut : 200;
             if (status == Abort)
             {
@@ -571,6 +577,30 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
     }
 
     private static string Key(int id) => $"/ingest/v1/tickets/import-feedback-{id}";
+
+    [DockerFact]
+    public async Task The_import_waits_until_the_senders_open_request_has_its_answer()
+    {
+        await using var rig = await SenderRig.StartAsync(Host);
+        await Report(null, "web", "Queued report");
+        var row = (await Outbox()).Single();
+        var id = await Seed("Imp-Waits", FeedbackStatus.Open, Oct);
+        var hold = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        rig.Fake.Hold = hold;
+
+        var step = rig.Step();
+        (await rig.Fake.Arrived.WaitAsync(TimeSpan.FromSeconds(10))).Should().BeTrue();
+        var import = Import(rig, new LookoutImportCli.Board([], []));
+        var early = await rig.Fake.Arrived.WaitAsync(TimeSpan.FromSeconds(2));
+        var pending = import.IsCompleted;
+        hold.SetResult();
+
+        early.Should().BeFalse();
+        pending.Should().BeFalse();
+        (await step).Should().Be(Zero);
+        (await import).Exit.Should().Be(0);
+        rig.Fake.Requests.Select(r => r.Path).Should().Equal(Path(row), Key(id));
+    }
 
     [DockerFact]
     public async Task The_import_sends_every_report_without_an_outbox_row_column_by_column_with_status_comments_and_board_order()

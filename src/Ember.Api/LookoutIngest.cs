@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Ember.Core.Data;
 using Ember.Core.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api;
 
@@ -14,6 +16,12 @@ internal static class LookoutIngest
 {
     /// <summary>Request timeout of the Lookout HTTP client.</summary>
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Key of the PostgreSQL session advisory lock <see cref="SendAsync"/> holds around each request, so the sender and the import
+    /// never have more than one request open at Lookout.
+    /// </summary>
+    internal const long SendLockKey = 0x4C6F6F6B6F7574;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -38,11 +46,34 @@ internal static class LookoutIngest
     public static HttpClient CreateClient() => new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = Timeout };
 
     /// <summary>
-    /// Sends one request with the key read fresh from <paramref name="keyFile"/>. Throws the file's I/O exception, or
-    /// <see cref="InvalidDataException"/> when the trimmed key is empty or not printable ASCII.
+    /// Sends one request with the key read fresh from <paramref name="keyFile"/>, holding the <see cref="SendLockKey"/> advisory lock
+    /// on <paramref name="db"/>'s connection from before the request until its response arrives; waits while another sender holds
+    /// it. Throws the file's I/O exception, or <see cref="InvalidDataException"/> when the trimmed key is empty or not printable ASCII.
     /// </summary>
-    public static async Task<HttpResponseMessage> SendAsync(HttpClient http, Uri endpoint, string keyFile, HttpMethod method, string path, byte[]? body,
-        CancellationToken cancellationToken)
+    public static async Task<HttpResponseMessage> SendAsync(EmberDbContext db, HttpClient http, Uri endpoint, string keyFile, HttpMethod method,
+        string path, byte[]? body, CancellationToken cancellationToken)
+    {
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        try
+        {
+            await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_lock({SendLockKey})", cancellationToken);
+            try
+            {
+                return await SendUnlockedAsync(http, endpoint, keyFile, method, path, body, cancellationToken);
+            }
+            finally
+            {
+                await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_unlock({SendLockKey})", CancellationToken.None);
+            }
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
+    private static async Task<HttpResponseMessage> SendUnlockedAsync(HttpClient http, Uri endpoint, string keyFile, HttpMethod method, string path,
+        byte[]? body, CancellationToken cancellationToken)
     {
         var key = (await File.ReadAllTextAsync(keyFile, cancellationToken)).Trim();
         if (key.Length == 0 || key.Any(c => c is < '!' or > '~')) throw new InvalidDataException("The Lookout key file holds no key.");
