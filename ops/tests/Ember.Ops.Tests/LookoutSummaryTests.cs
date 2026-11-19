@@ -51,7 +51,7 @@ public sealed class LookoutSummaryTests
         var summary = Build(System(ci: [Ci("feature/x"), Ci("dev", "failure", "in_progress")]));
 
         summary.State.Should().Be("ok");
-        summary.Alerts.Should().Equal(new Alert("CI failed on feature/x", "bad", "system"));
+        summary.Alerts.Should().Equal(new Alert("CI failed on feature/x", "bad", "releases"));
     }
 
     [Fact]

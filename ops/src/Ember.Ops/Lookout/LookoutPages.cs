@@ -252,7 +252,7 @@ public static class LookoutPages
         if (databaseFailed) alerts.Add(new("Database unavailable", "bad", "system"));
         alerts.AddRange(system.Services.Where(x => !x.Ok && x.Name != RemindersAdvancing).Select(x => new Alert($"{x.Name}: {x.Detail ?? "failing"}", "bad", "system")));
         if (system.Services.Any(x => !x.Ok && x.Name == RemindersAdvancing)) alerts.Add(new("Reminders not advancing", "bad", "system"));
-        alerts.AddRange(failedCi.Select(run => new Alert($"CI failed on {run.Branch}", "bad", "system")));
+        alerts.AddRange(failedCi.Select(run => new Alert($"CI failed on {run.Branch}", "bad", "releases")));
         if (statusError is not null) alerts.Add(new($"Host status: {statusError}", "warn", "system"));
         var lowDisks = (system.Disks ?? []).Where(d => DiskTone(d) is not null).ToList();
         alerts.AddRange(lowDisks.Select(d => new Alert($"Disk {d.Mount}: {Pct(d.FreeBytes, d.TotalBytes)} free", DiskTone(d)!, "system")));
