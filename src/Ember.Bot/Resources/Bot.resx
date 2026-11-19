@@ -1338,10 +1338,10 @@ Ember then offers to move your habits from here into that account. No codes need
     <value>Letting go</value>
   </data>
   <data name="habit.letgo.days-free.one" xml:space="preserve">
-    <value>{0} day free</value>
+    <value>{0} day without</value>
   </data>
   <data name="habit.letgo.days-free.other" xml:space="preserve">
-    <value>{0} days free</value>
+    <value>{0} days without</value>
   </data>
   <data name="habit.letgo.slip-button" xml:space="preserve">
     <value>I slipped</value>
@@ -1365,16 +1365,16 @@ Ember then offers to move your habits from here into that account. No codes need
     <value>Let-go habits are created and edited on the web or in the app.</value>
   </data>
   <data name="habit.letgo.stats" xml:space="preserve">
-    <value>Days free: **{0}**
+    <value>Days without: **{0}**
 Longest stretch: **{1}**
-Free days this month: **{2}**</value>
+Days without this month: **{2}**</value>
   </data>
   <data name="habit.letgo.share.stats" xml:space="preserve">
-    <value>Longest stretch: **{0}** · Free days this month: **{1}**</value>
+    <value>Longest stretch: **{0}** · Days without this month: **{1}**</value>
   </data>
   <data name="history.letgo.grid" xml:space="preserve">
     <value>**{0}** · {2}
-Last {1} days: 🌿 free, 🍂 a slip noted, ⏸️ paused. Past days can be changed on the web or in the app.</value>
+Last {1} days: 🌿 a day without, 🍂 a slip noted, ⏸️ paused. Past days can be changed on the web or in the app.</value>
   </data>
   <data name="fireside.off" xml:space="preserve">
     <value>Fireside isn't on for your account. Turn it on and choose your name in the Ember app or on the web.</value>

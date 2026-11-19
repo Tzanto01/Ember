@@ -85,7 +85,7 @@ public class JobIntegrationTests
 
         var message = host.Discord.Messages.Should().ContainSingle().Subject;
         message.UserId.Should().Be(56);
-        message.Embed!.Description.Should().Contain("**1 check-in**").And.Contain("🌿 Coffee: 3 days free")
+        message.Embed!.Description.Should().Contain("**1 check-in**").And.Contain("🌿 Coffee: 3 days without")
             .And.NotContain("7").And.NotContainEquivalentOf("slip");
         message.Embed.Fields.Should().ContainSingle().Which.Name.Should().Be("Meditate");
     }

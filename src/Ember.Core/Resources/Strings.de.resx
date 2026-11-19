@@ -41,10 +41,10 @@ Wann immer du so weit bist, deine Habits warten hier auf dich.</value>
     <value>{0} Check-ins</value>
   </data>
   <data name="weekly.letgo.days-free.one" xml:space="preserve">
-    <value>{1}: {0} Tag frei</value>
+    <value>{1}: {0} Tag ohne</value>
   </data>
   <data name="weekly.letgo.days-free.other" xml:space="preserve">
-    <value>{1}: {0} Tage frei</value>
+    <value>{1}: {0} Tage ohne</value>
   </data>
   <data name="letgo.reminder" xml:space="preserve">
     <value>Ein leiser Check-in für {0}. Falls heute etwas war, kannst du es in Ember notieren.</value>

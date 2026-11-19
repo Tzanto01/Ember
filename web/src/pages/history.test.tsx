@@ -211,10 +211,10 @@ describe('HistoryPage for a let-go habit', () => {
     await answerHabits(f, [coffee]);
     await answerSlips();
 
-    expect(await screen.findByText('Days free')).toBeInTheDocument();
-    expect(screen.getByText('4 days free')).toBeInTheDocument();
+    expect(await screen.findByText('Days without')).toBeInTheDocument();
+    expect(screen.getByText('4 days without')).toBeInTheDocument();
     expect(screen.getByText('Longest stretch').nextSibling).toHaveTextContent('12 days');
-    expect(screen.getByText('Free days this month').nextSibling).toHaveTextContent('1 day');
+    expect(screen.getByText('Days without this month').nextSibling).toHaveTextContent('1 day');
     expect(f.all.some((c) => c.url.includes('/days') || c.url.includes('/low-days'))).toBe(false);
   });
 
@@ -223,9 +223,9 @@ describe('HistoryPage for a let-go habit', () => {
     await answerHabits(f, [{ ...coffee, stats: { ...coffee.stats, daysFree: 0, longestStretch: 0, freeDaysThisMonth: 0 } }]);
     await answerSlips();
 
-    expect((await screen.findByText('Days free')).nextSibling).toHaveTextContent('Starting again, gently');
+    expect((await screen.findByText('Days without')).nextSibling).toHaveTextContent('Starting again, gently');
     expect(screen.getByText('Longest stretch').nextSibling).toHaveTextContent('0 days');
-    expect(screen.getByText('Free days this month').nextSibling).toHaveTextContent('0 days');
+    expect(screen.getByText('Days without this month').nextSibling).toHaveTextContent('0 days');
   });
 
   it('marks days with a slip and lets a past day get a slip added and removed', async () => {

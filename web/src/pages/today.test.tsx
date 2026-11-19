@@ -548,7 +548,7 @@ describe('TodayPage let-go habits', () => {
 
     const section = (await screen.findByRole('heading', { name: 'Letting go' })).closest('section')!;
     expect(within(section).getByText('Coffee')).toBeInTheDocument();
-    expect(within(section).getByText('4 days free')).toBeInTheDocument();
+    expect(within(section).getByText('4 days without')).toBeInTheDocument();
     expect(within(section).getByRole('button', { name: 'I slipped: Coffee' })).toBeInTheDocument();
     expect(section).not.toContainElement(screen.getByRole('button', { name: /Walk/ }));
     expect((await screen.findAllByText(/^1 checked in today/)).length).toBeGreaterThan(0);
@@ -560,7 +560,7 @@ describe('TodayPage let-go habits', () => {
     renderToday();
     await answerLoad(f, [letGoHabit]);
 
-    expect(await screen.findByText('4 days free')).toBeInTheDocument();
+    expect(await screen.findByText('4 days without')).toBeInTheDocument();
     expect(screen.queryByText('Ready when you are.')).toBeNull();
   });
 
@@ -591,7 +591,7 @@ describe('TodayPage let-go habits', () => {
     const del = await f.next('DELETE', '/api/habits/9/slips/2026-11-01');
     del.respond(200, letGoHabit);
     expect(await within(dialog).findByText('Taken back. Today has no slips noted.')).toBeInTheDocument();
-    expect(await screen.findByText('4 days free')).toBeInTheDocument();
+    expect(await screen.findByText('4 days without')).toBeInTheDocument();
   });
 
   it('saves a slip without a reason as just the date', async () => {
