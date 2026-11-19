@@ -754,7 +754,7 @@ Approved storyboard (Nico, 2026-11-18): https://claude.ai/artifact/JUckrvBQmSZSq
 - `POST /api/fireside/warmth/{id}/dismiss` → 204.
 - `PUT /api/fireside/ask` → 200 `{ askingUntil }` (end of the caller's local day, UTC). `DELETE /api/fireside/ask` → 204.
 - `checkedInToday` = the friend has at least one completed check-in today in the friend's local date (build habits only).
-- Notifications (only when the receiver's `notify` is on): new warmth and "joined your fireside" go to the receiver's existing reminder destinations: web push and Discord DM (Discord DM: embed with the message and the sender's name, buttons "Send some back" (opens a message picker) and "Okay" (removes the buttons, like closed reminders)). The Android app has no server push: it shows warmth when opened, and the Fireside page says so on Android. Never notify about removals, mutes, asks or renames.
+- Notifications (only when the receiver's `notify` is on): new warmth and "joined your fireside" go to the receiver's existing reminder destinations: web push and Discord DM (Discord DM: embed with the message and the sender's name, buttons "Send some back" (opens a message picker) and "Okay" (dismisses that warmth like `POST /api/fireside/warmth/{id}/dismiss`, so its card leaves Today, and removes the buttons, like closed reminders; only the receiver's own warmth is dismissed, any other click just removes the buttons)). The Android app has no server push: it shows warmth when opened, and the Fireside page says so on Android. Never notify about removals, mutes, asks or renames.
 
 ### Clients
 

@@ -55,16 +55,16 @@ public class FiresideNotifyJob : IJob
         foreach (var id in warmthIds)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            if (await fireside.ClaimWarmthNoticeAsync(id, cancellationToken) is { } notice) await SendAsync(habits, notice, cancellationToken);
+            if (await fireside.ClaimWarmthNoticeAsync(id, cancellationToken) is { } notice) await SendAsync(habits, notice, id, cancellationToken);
         }
         foreach (var id in linkIds)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            if (await fireside.ClaimJoinNoticeAsync(id, cancellationToken) is { } notice) await SendAsync(habits, notice, cancellationToken);
+            if (await fireside.ClaimJoinNoticeAsync(id, cancellationToken) is { } notice) await SendAsync(habits, notice, null, cancellationToken);
         }
     }
 
-    private async Task SendAsync(HabitService habits, FiresideNotice notice, CancellationToken cancellationToken)
+    private async Task SendAsync(HabitService habits, FiresideNotice notice, int? warmthId, CancellationToken cancellationToken)
     {
         try
         {
@@ -77,7 +77,7 @@ public class FiresideNotifyJob : IJob
             if (targets.Discord && user.DiscordId() is { } discordId)
             {
                 var line = t.Format(kind, Format.Sanitize(notice.Name));
-                var buttons = FiresideModule.NoticeButtons(t, notice.LinkId, warmth);
+                var buttons = FiresideModule.NoticeButtons(t, notice.LinkId, warmthId);
                 var outcome = warmth
                     ? await _discord.SendMessageAsync(discordId, embed: new EmbedBuilder()
                         .WithColor(0xE8873A)

@@ -10,7 +10,7 @@ namespace Ember.Bot.Modules;
 /// Fireside in Discord: <c>/fireside code</c>, <c>/fireside join</c>, <c>/fireside send</c> and the buttons of the Fireside DMs.
 /// Turning Fireside on and choosing the name happen in the app or on the web. Custom IDs carry the clicking user's own link id, never a
 /// user id: fireside:to (friend select, link id values), fireside:msg:{linkId} (message select), fireside:back:{linkId} ("Send some
-/// back") and fireside:ok:{linkId} ("Okay", always removes the buttons). Every other handler checks that the link belongs to the clicking
+/// back") and fireside:ok:{linkId}[:{warmthId}] ("Okay", always removes the buttons and dismisses the clicking user's own warmth {warmthId}). Every other handler checks that the link belongs to the clicking
 /// user's account and otherwise answers <c>fireside.unavailable</c>. Handlers that read the database defer first. Every name is escaped with <see cref="Format.Sanitize"/>.
 /// </summary>
 [Group("fireside", "Send and get warmth from friends at your fireside")]
@@ -25,12 +25,16 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
         _fireside = fireside;
     }
 
-    /// <summary>The buttons of a Fireside DM: "Send some back" (warmth only) and "Okay", both for the receiver's <paramref name="linkId"/>.</summary>
-    internal static MessageComponent NoticeButtons(Texts t, int linkId, bool warmth)
+    /// <summary>
+    /// The buttons of a Fireside DM for the receiver's <paramref name="linkId"/>: "Send some back" (warmth only) and "Okay", which also
+    /// dismisses the warmth <paramref name="warmthId"/>.
+    /// </summary>
+    internal static MessageComponent NoticeButtons(Texts t, int linkId, int? warmthId)
     {
         var buttons = new ComponentBuilder();
-        if (warmth) buttons.WithButton(t.Get("fireside.send-back"), $"fireside:back:{linkId}", ButtonStyle.Primary);
-        return buttons.WithButton(t.Get("fireside.okay"), $"fireside:ok:{linkId}", ButtonStyle.Secondary).Build();
+        if (warmthId is null) return buttons.WithButton(t.Get("fireside.okay"), $"fireside:ok:{linkId}", ButtonStyle.Secondary).Build();
+        return buttons.WithButton(t.Get("fireside.send-back"), $"fireside:back:{linkId}", ButtonStyle.Primary)
+            .WithButton(t.Get("fireside.okay"), $"fireside:ok:{linkId}:{warmthId}", ButtonStyle.Secondary).Build();
     }
 
     private static MessageComponent MessageMenu(Texts t, int linkId)
@@ -146,7 +150,13 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
 
     [ComponentInteraction("fireside:ok:*", ignoreGroupNames: true)]
     public async Task OkayAsync(string link)
-        => await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m => m.Components = new ComponentBuilder().Build());
+    {
+        await DeferAsync();
+        if (link.Split(':') is [_, var warmth] && int.TryParse(warmth, out var warmthId)
+            && await _habits.FindDiscordUserAsync(Context.User.Id) is var userId && userId != Guid.Empty)
+            await _fireside.DismissWarmthAsync(userId, warmthId);
+        await ModifyOriginalResponseAsync(m => m.Components = new ComponentBuilder().Build());
+    }
 
     /// <summary>The link id when <paramref name="value"/> is one of the clicking user's own links, else null.</summary>
     private async Task<int?> OwnLinkAsync(string? value)

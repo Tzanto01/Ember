@@ -113,6 +113,9 @@ public class FiresideNotifyTests
     private static IEnumerable<string?> ButtonIds(MessageComponent? components)
         => components!.Components.OfType<ActionRowComponent>().SelectMany(r => r.Components).OfType<ButtonComponent>().Select(b => b.CustomId);
 
+    private static Task<int> WarmthIdAsync(IntegrationTestHost host, long receiver)
+        => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Warmth.Where(w => w.ToUserId == TestUsers.Id(receiver)).Select(w => w.Id).SingleAsync());
+
     private static Task<int> LinkIdAsync(IntegrationTestHost host, long owner, long friend)
         => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().FiresideLinks
             .Where(l => l.OwnerId == TestUsers.Id(owner) && l.FriendId == TestUsers.Id(friend)).Select(l => l.Id).SingleAsync());
@@ -135,7 +138,7 @@ public class FiresideNotifyTests
         dm.Embed!.Title.Should().Be("Thinking of you");
         dm.Embed.Description.Should().Contain("Sam");
         var receiverLink = await LinkIdAsync(host, 10, 20);
-        ButtonIds(dm.Components).Should().Equal($"fireside:back:{receiverLink}", $"fireside:ok:{receiverLink}");
+        ButtonIds(dm.Components).Should().Equal($"fireside:back:{receiverLink}", $"fireside:ok:{receiverLink}:{await WarmthIdAsync(host, 10)}");
         push.Endpoints.Should().Equal(Endpoint(10));
     }
 

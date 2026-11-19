@@ -30,6 +30,16 @@ public class FiresideModuleTests
         }
 
         protected override Task DeferAsync(bool ephemeral = false, RequestOptions? options = null) => Task.CompletedTask;
+
+        public List<Optional<MessageComponent>> Edits { get; } = [];
+
+        protected override Task<IUserMessage> ModifyOriginalResponseAsync(Action<MessageProperties> func, RequestOptions? options = null)
+        {
+            var properties = new MessageProperties();
+            func(properties);
+            Edits.Add(properties.Components);
+            return Task.FromResult<IUserMessage>(null!);
+        }
     }
 
     private static void Set(object target, string name, object value)
@@ -141,5 +151,48 @@ public class FiresideModuleTests
         });
 
         replies.Should().ContainSingle().Which.Should().Be(BotTexts.English.Get("fireside.pick-message"));
+    }
+
+    [Fact]
+    public async Task Okay_on_a_warmth_dm_dismisses_that_warmth_only_for_its_receiver_and_always_removes_the_buttons()
+    {
+        await using var host = await IntegrationTestHost.CreateAsync(start: false);
+        await SeedAsync(host, 10, "Rae", fireside: true);
+        await SeedAsync(host, 20, "Sam", fireside: true);
+        await SeedAsync(host, 30, "Eve", fireside: true);
+        var (raesLink, warmthId) = await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            db.FiresideLinks.Add(new FiresideLink { OwnerId = TestUsers.Id(10), FriendId = TestUsers.Id(20), KnownName = "Sam", CreatedAt = DateTime.UtcNow });
+            db.FiresideLinks.Add(new FiresideLink { OwnerId = TestUsers.Id(20), FriendId = TestUsers.Id(10), KnownName = "Rae", CreatedAt = DateTime.UtcNow });
+            await db.SaveChangesAsync();
+            var samsLink = await db.FiresideLinks.Where(l => l.OwnerId == TestUsers.Id(20)).Select(l => l.Id).SingleAsync();
+            await sp.GetRequiredService<FiresideService>().SendWarmthAsync(TestUsers.Id(20), samsLink, "thinking");
+            return (await db.FiresideLinks.Where(l => l.OwnerId == TestUsers.Id(10)).Select(l => l.Id).SingleAsync(),
+                await db.Warmth.Where(w => w.ToUserId == TestUsers.Id(10)).Select(w => w.Id).SingleAsync());
+        });
+        Task<bool> DismissedAsync() => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Warmth
+            .Where(w => w.Id == warmthId).Select(w => w.DismissedAtUtc != null).SingleAsync());
+
+        var eve = await host.WithScopeAsync(async sp =>
+        {
+            var module = ModuleFor(sp, 30);
+            await module.OkayAsync($"{raesLink}:{warmthId}");
+            await module.OkayAsync($"{raesLink}:not-a-number");
+            await module.OkayAsync(raesLink.ToString());
+            return module;
+        });
+        (await DismissedAsync()).Should().BeFalse();
+
+        var rae = await host.WithScopeAsync(async sp =>
+        {
+            var module = ModuleFor(sp, 10);
+            await module.OkayAsync($"{raesLink}:{warmthId}");
+            return module;
+        });
+        (await DismissedAsync()).Should().BeTrue();
+
+        eve.Edits.Concat(rae.Edits).Should().HaveCount(4).And.OnlyContain(c => c.IsSpecified && c.Value.Components.Count == 0);
+        eve.Replies.Concat(rae.Replies).Should().BeEmpty();
     }
 }
