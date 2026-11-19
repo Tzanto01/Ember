@@ -28,7 +28,7 @@ public static class LookoutPages
             [
                 new("Users", users.Total),
                 new("Active 7 days", users.Active7, Hint: $"{Pct(users.Active7, users.Total)} of users"),
-                new("Active 30 days", users.Active30, Hint: $"{Pct(users.Active30, users.Total)} of users"),
+                new("Active 14 days", users.Active14, Hint: $"{Pct(users.Active14, users.Total)} of users"),
                 new("Habits build / let go", $"{N(habits.Build)} / {(habits.LetGo is { } letGo ? N(letGo) : "–")}",
                     Hint: habits.LetGo is null ? "Let go: not on production yet" : $"{N(habits.Paused)} paused"),
                 new("Routines", o.Routines.Total, Hint: $"{N(o.Routines.Users)} users"),

@@ -2,7 +2,7 @@ using Npgsql;
 
 namespace Ember.Ops;
 
-public sealed record OverviewUsers(int Total, int Active7, int Active30, IReadOnlyList<WeekCount> NewPerWeek);
+public sealed record OverviewUsers(int Total, int Active7, int Active14, IReadOnlyList<WeekCount> NewPerWeek);
 public sealed record WeekCount(DateOnly Week, int Count);
 public sealed record HabitCounts(int Build, int? LetGo, int Paused, int WithReminder);
 public sealed record RoutineCounts(int Total, int Users);
@@ -11,7 +11,7 @@ public sealed record StreakCounts(int Users, int ShowStreaks, IReadOnlyList<Grac
 
 /// <summary>The cheap counters of the overview, refreshed often.</summary>
 public sealed record OverviewCounters(
-    DateTime GeneratedAt, int Users, int Active7, int Active30, HabitCounts Habits, RoutineCounts Routines, StreakCounts Streaks);
+    DateTime GeneratedAt, int Users, int Active7, int Active14, HabitCounts Habits, RoutineCounts Routines, StreakCounts Streaks);
 
 /// <summary>The 12-week series of the overview, refreshed rarely.</summary>
 public sealed record OverviewSeries(DateTime GeneratedAt, IReadOnlyList<WeekCount> NewPerWeek);
@@ -21,7 +21,7 @@ public sealed record Overview(DateTime GeneratedAt, OverviewUsers Users, HabitCo
 {
     public static Overview From(OverviewCounters counters, OverviewSeries series) => new(
         counters.GeneratedAt,
-        new(counters.Users, counters.Active7, counters.Active30, series.NewPerWeek),
+        new(counters.Users, counters.Active7, counters.Active14, series.NewPerWeek),
         counters.Habits, counters.Routines, counters.Streaks);
 }
 
@@ -42,7 +42,7 @@ public static class OverviewQueries
             Db.Command("""
                 SELECT count(DISTINCT "UserId") FILTER (WHERE seen >= (($1::date - 6)::timestamp AT TIME ZONE 'Europe/Berlin'))::int, count(DISTINCT "UserId")::int
                 FROM (SELECT "UserId", coalesce("LastSeenUtc", "CreatedUtc") AS seen FROM "AuthSessions") s
-                WHERE seen >= (($1::date - 29)::timestamp AT TIME ZONE 'Europe/Berlin')
+                WHERE seen >= (($1::date - 13)::timestamp AT TIME ZONE 'Europe/Berlin')
                 """, today),
             Db.Command($"""
                 SELECT {(features.HabitKind ? "count(*) FILTER (WHERE \"Kind\" = 0)::int, count(*) FILTER (WHERE \"Kind\" = 1)::int" : "count(*)::int, NULL::int")},

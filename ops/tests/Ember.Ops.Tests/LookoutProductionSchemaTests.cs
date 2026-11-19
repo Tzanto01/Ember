@@ -43,7 +43,7 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
         var habits = LookoutShape.Item(tiles, "Habits build / let go");
         habits.GetProperty("value").GetString().Should().Be("8 / –");
         habits.GetProperty("hint").GetString().Should().Be("Let go: not on production yet");
-        LookoutShape.Item(tiles, "Active 30 days").GetProperty("value").GetInt32().Should().Be(4);
+        LookoutShape.Item(tiles, "Active 14 days").GetProperty("value").GetInt32().Should().Be(4);
     }
 
     [Fact]

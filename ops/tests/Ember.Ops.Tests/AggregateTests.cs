@@ -24,7 +24,7 @@ public sealed class AggregateTests(V2DatabaseFixture fixture)
 
         overview.Users.Total.Should().Be(6);
         overview.Users.Active7.Should().Be(2, "u2's two sessions count once and u3 was last seen 7 days ago");
-        overview.Users.Active30.Should().Be(4, "u5's untouched session counts by its creation 29 days ago, u4 was last seen 30 days ago which is outside");
+        overview.Users.Active14.Should().Be(4, "u5's untouched session counts by its creation 13 days ago, u4 was last seen 14 days ago which is outside");
         overview.Streaks.Users.Should().Be(6);
         overview.Streaks.ShowStreaks.Should().Be(3);
         overview.Streaks.Grace.Should().BeEquivalentTo([new GraceCount(0, 3), new GraceCount(1, 2), new GraceCount(2, 1)], o => o.WithStrictOrdering());

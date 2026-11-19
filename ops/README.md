@@ -10,7 +10,7 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 
 | Page | What it shows |
 |---|---|
-| `overview` | Users (total, active in the last 7 and 30 days by sign-ins, new per week by first habit), habits (build and let-go, paused, with reminder), routines, streak settings |
+| `overview` | Users (total, active in the last 7 and 14 days by sign-ins, new per week by first habit), habits (build and let-go, paused, with reminder), routines, streak settings |
 | `reminders` | Reminders still open per day and channel, sent reminders per day from the dashboard's own snapshots, Discord DMs on, failing and paused, second reminders, push subscriptions and phones, overdue reminders |
 | `feedback` | The reports, one column per Ember status (open, planned, implemented, released, declined). Each card has its description, pictures, platform, version, send time, whether it was sent anonymously, and its comments. A move sets the status and the card position. Moves are not logged |
 | `notices` | Live, scheduled and ended notices: info or maintenance, English and German, up to 280 characters each, up to 10 notices in a 16 KiB document. Publish, end now or delete. Each change is written to `NoticeLog` in `emberops` with the author |
@@ -20,7 +20,7 @@ The overview, reminders, notices and system pages refresh every 30 seconds. The 
 
 Limits of the data:
 - Ember stores no sign-up date, so "new users" is the week of a user's first habit.
-- "Active" means a web or app sign-in was used in the window (`AuthSessions`, last seen or created). Ember deletes a session when it expires or signs out, and Discord-only use has no sign-in, so both undercount.
+- "Active" means a web or app sign-in was used in the window (`AuthSessions`, last seen or created). A session expires after 14 days unused and Ember then deletes it, so windows stop at 14 days. Sign-outs and Discord-only use (no sign-in) are not counted.
 - The dashboard reads no check-ins, journal, low days, let-go slips or Fireside data: those are health data.
 - Ember deletes a reminder row once it closes. "Still open" counts only the rows Ember still keeps. "Sent" comes from the dashboard's snapshots of the reminder id sequences every 5 minutes, so it starts when the dashboard was first deployed and includes second reminders and resends.
 - Days are Europe/Berlin days.

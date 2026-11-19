@@ -78,8 +78,8 @@ public sealed class Dataset
         data.HabitIds = [.. ids];
         int H(int n) => ids[n - 1];
 
-        // sign-ins (user, last seen days ago, null = never touched since created): u1 D0; u2 D6 and D2; u3 D7; u4 D30; u5 created D29, never touched
-        foreach (var (user, seen, created) in new (int, int?, int)[] { (0, 0, 40), (1, 6, 10), (1, 2, 3), (2, 7, 50), (3, 30, 60), (4, null, 29) })
+        // sign-ins (user, last seen days ago, null = never touched since created): u1 D0; u2 D6 and D2; u3 D7; u4 D14; u5 created D13, never touched
+        foreach (var (user, seen, created) in new (int, int?, int)[] { (0, 0, 40), (1, 6, 10), (1, 2, 3), (2, 7, 50), (3, 14, 60), (4, null, 13) })
             await rows.AddAsync("AuthSessions", new()
             {
                 ["Id"] = Guid.NewGuid(), ["UserId"] = data.UserIds[user], ["CreatedUtc"] = At(created), ["ExpiresUtc"] = now.AddDays(30),
