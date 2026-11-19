@@ -63,8 +63,8 @@ internal static class LookoutIngest
     /// <summary>The path of <c>DELETE users/{userRef}</c>.</summary>
     public static string UserPath(string userRef) => "users/" + Uri.EscapeDataString(userRef);
 
-    /// <summary>Whether a non-2xx status is a permanent refusal: any 4xx except 401, 403, 408 and 429. Everything else is retried.</summary>
-    public static bool IsRefused(int status) => status is >= 400 and < 500 and not (401 or 403 or 408 or 429);
+    /// <summary>Whether a non-2xx status is one of the contract's permanent refusals: 400, 409, 413 or 415. Everything else is retried.</summary>
+    public static bool IsRefused(int status) => status is 400 or 409 or 413 or 415;
 
     /// <summary>Whether <paramref name="e"/> is a failure worth retrying: network, timeout or key file.</summary>
     public static bool IsTransient(Exception e, CancellationToken stopping)

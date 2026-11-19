@@ -839,7 +839,7 @@ public partial class HabitService
 
     /// <summary>
     /// Permanently deletes the user; the database cascades to all their habits, logs, day marks, routines, journal entries, own moods, journal key, "What helps me" list
-    /// (reminders live on the habits and routines), feedback with its unsent Lookout rows, and Lookout refs. In the same transaction, with the user row locked (PostgreSQL),
+    /// (reminders live on the habits and routines), feedback with its Lookout rows, and Lookout refs. In the same transaction, with the user row locked (PostgreSQL),
     /// first queues one <see cref="LookoutOutbox.UserDelete"/> row per <see cref="LookoutUserRef"/> of the user, so Lookout deletes after every ticket already queued.
     /// </summary>
     public async Task DeleteUserDataAsync(Guid userId)
