@@ -177,6 +177,36 @@ public class WidgetCheckInApiTests(PostgresFixture postgres) : ApiTestBase(postg
     }
 
     [DockerFact]
+    public async Task The_date_check_uses_the_users_time_zone()
+    {
+        var (bearer, _) = await BearerAsync();
+        await (await bearer.Patch("/api/me", new { timezone = "Pacific/Kiritimati" })).Expect(HttpStatusCode.OK);
+        var habitId = await HabitAsync(bearer);
+        var key = await IssueAsync(bearer);
+        var localToday = DateOnly.FromDateTime(Host.Time.GetUtcNow().UtcDateTime.AddHours(14));
+        localToday.Should().NotBe(Host.Today);
+
+        var problem = await (await CheckIn($"Widget {key}", habitId, Host.Today)).ExpectProblem(HttpStatusCode.BadRequest, "validation");
+        problem.GetProperty("errors").Has("date").Should().BeTrue();
+        ExpectDay(await (await CheckIn($"Widget {key}", habitId, localToday)).ExpectJson(), "done", 1, 1);
+
+        (await Host.Db(db => db.HabitLogs.Where(l => l.HabitId == habitId).Select(l => l.Date).ToListAsync())).Should().Equal(localToday);
+    }
+
+    [DockerFact]
+    public async Task A_signed_in_route_refuses_the_key()
+    {
+        var (bearer, _) = await BearerAsync();
+        var habitId = await HabitAsync(bearer);
+        var key = await IssueAsync(bearer);
+        var client = Host.NewClient();
+        client.Http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Widget {key}");
+
+        (await client.Http.GetAsync("/api/habits")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        await (await CheckIn($"Widget {key}", habitId)).Expect(HttpStatusCode.OK);
+    }
+
+    [DockerFact]
     public async Task Missing_malformed_unknown_or_bearer_credentials_are_401_without_detail()
     {
         var (bearer, _) = await BearerAsync();
@@ -198,10 +228,10 @@ public class WidgetCheckInApiTests(PostgresFixture postgres) : ApiTestBase(postg
 [Collection("Postgres")]
 public class WidgetCheckInRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
-    protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:AuthPerIpPerMinute"] = "3" };
+    protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:WidgetPerIpPerMinute"] = "3" };
 
     [DockerFact]
-    public async Task Check_ins_are_limited_per_client_ip()
+    public async Task Check_ins_are_limited_per_client_ip_apart_from_sign_in()
     {
         async Task<HttpResponseMessage> CheckIn(string ip)
         {
@@ -216,5 +246,10 @@ public class WidgetCheckInRateLimitTests(PostgresFixture postgres) : ApiTestBase
 
         await (await CheckIn("203.0.113.40")).ExpectProblem((HttpStatusCode)429, "rate_limited");
         await (await CheckIn("203.0.113.41")).Expect(HttpStatusCode.Unauthorized);
+
+        var user = await Host.ConfirmedUserAsync();
+        var login = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login") { Content = JsonContent.Create(new Credentials(user.Email, ApiClient.Passphrase)) };
+        login.Headers.Add("X-Forwarded-For", "203.0.113.40");
+        await (await Host.NewClient().Http.SendAsync(login)).ExpectJson();
     }
 }

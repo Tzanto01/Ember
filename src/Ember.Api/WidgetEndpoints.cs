@@ -58,7 +58,7 @@ internal static class WidgetEndpoints
                 : count > 0 ? "partial"
                 : "open";
             return Results.Ok(new CheckInDto(state, count, habit.TimesPerDay));
-        }).RequireRateLimiting(RateLimits.AuthPolicy);
+        }).RequireRateLimiting(RateLimits.WidgetPolicy);
 
         return api;
     }
