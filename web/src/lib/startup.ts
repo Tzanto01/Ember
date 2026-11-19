@@ -136,13 +136,17 @@ function followLanguage(): void {
 export function followWidgetStyle(native = env.native, widget = capacitorWidget): void {
   if (!native) return;
   let sent = '';
+  let wanted = '';
   const share = () => {
     const style = { theme: currentTheme(), motion: gentleMotion.get() && !calmMode.get(), colorScheme: colorScheme() };
     const key = JSON.stringify(style);
     if (key === sent) return;
-    sent = key;
+    wanted = key;
     void widget()
       .then(({ EmberWidget }) => EmberWidget.setStyle?.(style))
+      .then(() => {
+        if (wanted === key) sent = key;
+      })
       .catch(() => undefined);
   };
   for (const store of [themeApplied, calmMode, colorSchemeApplied, gentleMotion]) store.subscribe(share);

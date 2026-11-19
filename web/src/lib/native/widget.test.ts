@@ -11,7 +11,7 @@ import { type FetchMock, habit, letGoHabit, mockFetch } from '../test-support';
 import { reminderNames } from './reminder-names';
 import { Reminders } from './reminders';
 import { followWidgetStyle } from '../startup';
-import { applyCalm, applyGentleMotion, chooseColorScheme, chooseTheme, resetTheme } from '../theme';
+import { applyCalm, applyGentleMotion, applyTheme, chooseColorScheme, chooseTheme, resetTheme } from '../theme';
 import { type EmberWidgetPlugin, type WidgetSnapshot, widgetSnapshot } from './widget';
 
 describe('widget snapshot', () => {
@@ -162,6 +162,26 @@ describe('widget snapshot', () => {
     applyGentleMotion(true);
     localStorage.removeItem('ember.colorScheme');
     document.documentElement.classList.remove('dark');
+    resetTheme();
+  });
+
+  it('sends the same style again after a failed call, on the next change of any input', async () => {
+    const setStyle = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('not ready'))
+      .mockResolvedValue(undefined);
+    applyGentleMotion(true);
+    applyCalm(false);
+
+    followWidgetStyle(true, async () => ({ EmberWidget: { setStyle } as unknown as EmberWidgetPlugin }));
+    await vi.waitFor(() => expect(setStyle).toHaveBeenCalledTimes(1));
+    applyGentleMotion(true);
+    applyTheme('hearthlight');
+
+    await vi.waitFor(() => expect(setStyle).toHaveBeenCalledTimes(2));
+    applyTheme('hearthlight');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(setStyle).toHaveBeenCalledTimes(2);
     resetTheme();
   });
 

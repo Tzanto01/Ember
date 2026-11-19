@@ -37,6 +37,8 @@ export interface HabitRowProps {
   doneForWeek?: boolean;
   /** Shows the grip while a row of its list is being moved. */
   grip?: boolean;
+  /** Under Not for today: a paused habit still gets its check button (keeping the paused line). */
+  checkInPaused?: boolean;
   /** Its Today order key, for hold-and-drag (`useReorder`). */
   reorderKey?: string;
   /** Class for the `<li>`, for example the lifted look while it is moved. */
@@ -104,13 +106,14 @@ export function HabitRow({
   grip = false,
   reorderKey,
   className,
+  checkInPaused = false,
 }: HabitRowProps) {
   const { t } = useTranslation();
   const state = habit.today.state;
   const paused = state === 'paused' || habit.pausedToday;
   const notStarted = !paused && state === 'beforestart';
-  const checkable = !paused && !notStarted;
-  const done = checkable && state === 'done';
+  const checkable = (!paused || checkInPaused) && !notStarted;
+  const done = checkable && (state === 'done' || (paused && habit.today.count >= habit.timesPerDay));
   const roll = reward !== null;
   const target = habit.timesPerDay;
   const count = Math.min(habit.today.count, target);

@@ -78,6 +78,7 @@ export function NoteSheet({
   const length = text.trim().length;
   const counterId = `habit-note-${habit.id}-count`;
   const locked = state === 'locked';
+  const canSave = query.isSuccess && draft !== null && draft.trim() !== stored;
   const isToday = useStore(auth.me)?.localToday === date;
 
   function change(next: boolean): void {
@@ -86,7 +87,7 @@ export function NoteSheet({
 
   async function save(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (busy) return;
+    if (busy || !canSave) return;
     setBusy(true);
     setProblem(null);
     try {
@@ -167,6 +168,13 @@ export function NoteSheet({
                   </span>
                 </p>
               </div>
+              {query.isError && (
+                <Notice tone="notice" heading={t('habitNote.loadFailed')}>
+                  <Button type="button" variant="secondary" onClick={() => void query.refetch()}>
+                    {t('today.tryAgain')}
+                  </Button>
+                </Notice>
+              )}
               {problem && (
                 <Notice tone="notice" heading={t('habitNote.notSaved')}>
                   <p>{problem}</p>
@@ -179,6 +187,7 @@ export function NoteSheet({
                   className="sm:w-auto"
                   busy={busy}
                   busyLabel={t('habitNote.saving')}
+                  aria-disabled={!canSave || undefined}
                 >
                   {t('habitNote.save')}
                 </BusyButton>

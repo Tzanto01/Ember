@@ -15,6 +15,7 @@ import { DeviceNotices } from '@/components/local/device-notices';
 import { LiveRegion } from '@/components/live-region';
 import { MomentDoor } from '@/components/moment/moment-door';
 import { PageHeader } from '@/components/page-header';
+import { routinesKey } from '@/components/routines/routine-sections';
 import { routineTitle } from '@/components/routines/routine-title';
 import { TipSlot } from '@/components/tips/tip-slot';
 import { checkButtonId } from '@/components/today/check-button';
@@ -161,6 +162,9 @@ export default function TodayPage() {
   const [noteOpen, setNoteOpen] = useState(false);
   const orderSeq = useRef(0);
   const orderChain = useRef<Promise<unknown>>(Promise.resolve());
+  const ordersSaving = useRef(0);
+  const confirmedOrder = useRef<string[] | null>(null);
+  const routineChain = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => {
     if (synced !== firstSynced.current) void refetch();
@@ -176,6 +180,11 @@ export default function TodayPage() {
   useEffect(() => {
     if (!data || query.isFetching || openHabit === null) return;
     const target = data.habits.find((h) => String(h.id) === openHabit);
+    const row = target && document.getElementById(habitRowId(target.id));
+    if (row?.closest('#not-today-list[hidden]')) {
+      setLaterOpen(true);
+      return;
+    }
     setSearchParams(
       (params) => {
         params.delete('habit');
@@ -183,11 +192,10 @@ export default function TodayPage() {
       },
       { replace: true, preventScrollReset: true },
     );
-    const row = target && document.getElementById(habitRowId(target.id));
     if (!target || !row) return;
     row.scrollIntoView({ block: 'center', behavior: reduceMotion || calm ? 'auto' : 'smooth' });
     setHighlighted(target.id);
-  }, [data, query.isFetching, openHabit, setSearchParams, reduceMotion, calm]);
+  }, [data, query.isFetching, openHabit, setSearchParams, reduceMotion, calm, laterOpen]);
 
   useEffect(() => {
     if (highlighted === null) return;
@@ -235,7 +243,9 @@ export default function TodayPage() {
           : current + 1;
     const checkIn = nextCount === null ? habit.today.state !== 'done' : nextCount > current;
     const reaches = nextCount === null ? checkIn : nextCount >= target;
-    const resting: DayState = isOffday(habit, habit.today.date)
+    const resting: DayState = habit.pausedToday
+      ? 'paused'
+      : isOffday(habit, habit.today.date)
       ? 'offday'
       : data.lowDayToday
         ? 'lowday'
@@ -313,28 +323,37 @@ export default function TodayPage() {
     if (current) auth.setMe({ ...current, todayOrder: next });
   }
 
-  /** Saves the full account order (null: by time again) after showing it, one request at a time; a failure puts the last order back. */
+  /**
+   * Saves the full account order (null: by time again) after showing it, one request at a time; a failure puts back the
+   * last order the server confirmed.
+   */
   function saveOrder(next: string[] | null, announcement: string) {
     const seq = ++orderSeq.current;
-    const before = auth.me.get()?.todayOrder ?? null;
+    if (ordersSaving.current++ === 0) confirmedOrder.current = auth.me.get()?.todayOrder ?? null;
     adoptOrder(next);
     setProblem(null);
     setAnnouncement(announcement);
     orderChain.current = orderChain.current.then(async () => {
       try {
         const kept = await api.setTodayOrder(next);
+        confirmedOrder.current = kept;
         if (seq === orderSeq.current) adoptOrder(kept);
       } catch (error) {
         if (seq !== orderSeq.current) return;
-        adoptOrder(before);
+        adoptOrder(confirmedOrder.current);
         const apiError = asApiError(error);
         if (!apiError.handled) setProblem({ heading: t('today.order.failed'), message: problemToMessage(apiError).message });
+      } finally {
+        ordersSaving.current--;
       }
     });
   }
 
-  /** Saves a routine's full `habitIds` after its shown members were rearranged; a failure puts them back. */
-  async function saveRoutineOrder(routine: Routine, shown: number[], announcement: string) {
+  /**
+   * Saves a routine's full `habitIds` after its shown members were rearranged, one request at a time, and hands the
+   * saved routine to the Routines screens; a failure puts them back.
+   */
+  function saveRoutineOrder(routine: Routine, shown: number[], announcement: string) {
     const habitIds = routineOrderAfterMove(routine.habitIds, shown);
     const moved = { ...routine, habitIds };
     const put = (from: Routine, to: Routine) =>
@@ -342,13 +361,17 @@ export default function TodayPage() {
     put(routine, moved);
     setProblem(null);
     setAnnouncement(announcement);
-    try {
-      put(moved, await api.updateRoutine(routine.id, { habitIds }));
-    } catch (error) {
-      put(moved, routine);
-      const apiError = asApiError(error);
-      if (!apiError.handled) setProblem({ heading: t('today.order.failed'), message: problemToMessage(apiError).message });
-    }
+    routineChain.current = routineChain.current.then(async () => {
+      try {
+        const saved = await api.updateRoutine(routine.id, { habitIds });
+        put(moved, saved);
+        queryClient.setQueryData<Routine[]>(routinesKey, (list) => list?.map((r) => (r.id === saved.id ? saved : r)));
+      } catch (error) {
+        put(moved, routine);
+        const apiError = asApiError(error);
+        if (!apiError.handled) setProblem({ heading: t('today.order.failed'), message: problemToMessage(apiError).message });
+      }
+    });
   }
 
   async function toggleLowDay() {
@@ -428,7 +451,7 @@ export default function TodayPage() {
       else if (list === 'letGo') moveSection(1, next, dropped);
       else {
         const routine = data?.routines?.find((r) => `routine-${r.id}` === list);
-        if (routine) void saveRoutineOrder(routine, next.map(Number), dropped);
+        if (routine) saveRoutineOrder(routine, next.map(Number), dropped);
       }
     },
     onCancel: () => setAnnouncement(t('today.order.cancelled')),
@@ -452,7 +475,7 @@ export default function TodayPage() {
   const habitRow = (
     habit: Habit,
     headingLevel: 'h3' | 'h4',
-    extras: { list?: string; reorderKey?: string; menu: ReactNode; doneForWeek?: boolean },
+    extras: { list?: string; reorderKey?: string; menu: ReactNode; doneForWeek?: boolean; checkInPaused?: boolean },
   ) => (
     <HabitRow
       key={habit.id}
@@ -467,6 +490,7 @@ export default function TodayPage() {
       onRewardEnd={() => setReward(habit.id, null)}
       menu={extras.menu}
       doneForWeek={extras.doneForWeek}
+      checkInPaused={extras.checkInPaused}
       reorderKey={extras.reorderKey}
       grip={!!extras.list && moving?.list === extras.list}
       className={extras.list && extras.reorderKey ? liftClass(extras.list, extras.reorderKey) : undefined}
@@ -497,7 +521,7 @@ export default function TodayPage() {
             {reorder.orderOf(list, ids).map((id) => {
               const habit = item.habits.find((h) => String(h.id) === id)!;
               const onMove = (by: -1 | 1) =>
-                void saveRoutineOrder(routine, moveKey(ids, id, by).map(Number), movedText(habit.name, by));
+                saveRoutineOrder(routine, moveKey(ids, id, by).map(Number), movedText(habit.name, by));
               return habitRow(habit, 'h4', {
                 list,
                 reorderKey: id,
@@ -615,19 +639,22 @@ export default function TodayPage() {
             </p>
           )}
           {moving && (
-            <p className="sticky top-[calc(env(safe-area-inset-top)+0.5rem)] z-20 rounded-lg border-[length:max(1px,var(--border-width))] border-border bg-card px-4 py-3 text-card-foreground shadow-card">
+            <p className="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+0.5rem)] z-50 mx-auto max-w-[32rem] rounded-lg border-[length:max(1px,var(--border-width))] border-border bg-card px-4 py-3 text-card-foreground shadow-card">
               {t('today.order.moving', { name: nameOf(moving.list, moving.key) })}
             </p>
           )}
           {plan && hasHabits && (
             <section aria-labelledby="for-today-heading" className="flex flex-col gap-3">
               <div className="flex min-h-[44px] items-center justify-between gap-2">
-                <h2 id="for-today-heading" className="text-[1.25rem]">
+                <h2 id="for-today-heading" tabIndex={-1} className="text-[1.25rem] focus:outline-none">
                   {t('today.forToday')}
                 </h2>
                 {order && (
                   <ListMenu
-                    onSortByTime={() => saveOrder(null, t('today.order.byTime'))}
+                    onSortByTime={() => {
+                      focusAfter.current = 'for-today-heading';
+                      saveOrder(null, t('today.order.byTime'));
+                    }}
                   />
                 )}
               </div>
@@ -697,6 +724,7 @@ export default function TodayPage() {
               <ul id="not-today-list" role="list" hidden={!laterOpen} className="flex flex-col gap-3 opacity-85">
                 {plan.notToday.map((item) =>
                   habitRow(item.habit, 'h3', {
+                    checkInPaused: true,
                     doneForWeek: item.doneForWeek,
                     menu: <RowMenu name={item.habit.name} move={null} onNote={() => openNote(item.habit)} />,
                   }),

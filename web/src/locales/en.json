@@ -834,6 +834,7 @@
   "habitNote.notNow": "Not now",
   "habitNote.close": "Close",
   "habitNote.earlier": "Earlier notes on {{name}}",
+  "habitNote.loadFailed": "Your notes didn't load",
   "habitNote.notSaved": "That wasn't saved yet",
   "habitNote.saveFailed": "Your note didn't save. Your words are still here, so try again once you're online.",
   "habitNote.tooLong": "Keep it to {{max}} characters or fewer.",

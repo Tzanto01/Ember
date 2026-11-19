@@ -49,6 +49,12 @@ export interface ReorderOptions {
   onCancel?: () => void;
 }
 
+/** `order` narrowed to the list's current `keys`, with keys that came up meanwhile at the end. */
+function fit(order: readonly string[], keys: readonly string[]): string[] {
+  const kept = order.filter((key) => keys.includes(key));
+  return [...kept, ...keys.filter((key) => !kept.includes(key))];
+}
+
 const swallowClick = (event: Event) => {
   event.stopPropagation();
   event.preventDefault();
@@ -65,23 +71,27 @@ export function useReorder({ onLift, onDrop, onCancel }: ReorderOptions) {
   const [moving, setMoving] = useState<Moving | null>(null);
   const pending = useRef<Pending | null>(null);
   const lifted = useRef<Lifted | null>(null);
+  const latest = useRef(new Map<string, string[]>());
   const callbacks = useRef({ onLift, onDrop, onCancel });
   callbacks.current = { onLift, onDrop, onCancel };
 
   useEffect(() => {
+    const keep = (event: TouchEvent) => {
+      if (lifted.current && event.cancelable) event.preventDefault();
+    };
+    document.addEventListener('touchmove', keep, { passive: false });
+    return () => document.removeEventListener('touchmove', keep);
+  }, []);
+
+  useEffect(() => {
     if (!moving) return;
-    const keep = (event: TouchEvent) => event.preventDefault();
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
-      end(false);
+      end(false, false);
     };
-    document.addEventListener('touchmove', keep, { passive: false });
     window.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('touchmove', keep);
-      window.removeEventListener('keydown', escape);
-    };
+    return () => window.removeEventListener('keydown', escape);
   }, [moving !== null]);
 
   useEffect(() => () => clearPending(), []);
@@ -110,6 +120,7 @@ export function useReorder({ onLift, onDrop, onCancel }: ReorderOptions) {
     try {
       start.container.setPointerCapture(start.pointerId);
     } catch {}
+    start.container.style.touchAction = 'none';
     lifted.current = {
       pointerId: start.pointerId,
       list: start.list,
@@ -123,21 +134,28 @@ export function useReorder({ onLift, onDrop, onCancel }: ReorderOptions) {
     callbacks.current.onLift(start.list, start.key);
   }
 
-  function end(drop: boolean): void {
+  /** Ends a move; `released` is false while the pointer is still down (Escape), so the click guard waits for it. */
+  function end(drop: boolean, released: boolean): void {
     const current = lifted.current;
     lifted.current = null;
     if (!current) return;
     try {
       current.container.releasePointerCapture(current.pointerId);
     } catch {}
+    current.container.style.touchAction = '';
     setMoving(null);
     window.addEventListener('click', swallowClick, { capture: true, once: true });
-    setTimeout(() => window.removeEventListener('click', swallowClick, { capture: true }), 400);
+    const unguard = () => setTimeout(() => window.removeEventListener('click', swallowClick, { capture: true }), 400);
+    if (released) unguard();
+    else window.addEventListener('pointerup', unguard, { capture: true, once: true });
+    const keys = latest.current.get(current.list) ?? current.keys;
+    const order = fit(current.order, keys);
     if (!drop) callbacks.current.onCancel?.();
-    else if (current.order.some((key, i) => key !== current.keys[i])) callbacks.current.onDrop(current.list, current.order);
+    else if (order.some((key, i) => key !== keys[i])) callbacks.current.onDrop(current.list, order);
   }
 
   function listProps(list: string, keys: string[]) {
+    latest.current.set(list, keys);
     return {
       onPointerDown(event: ReactPointerEvent<HTMLElement>) {
         if (event.button !== 0 || lifted.current) return;
@@ -181,12 +199,16 @@ export function useReorder({ onLift, onDrop, onCancel }: ReorderOptions) {
       onPointerUp(event: ReactPointerEvent<HTMLElement>) {
         if (pending.current?.pointerId === event.pointerId) clearPending();
         if (lifted.current?.pointerId === event.pointerId && lifted.current.list === list)
-          end(true);
+          end(true, true);
       },
       onPointerCancel(event: ReactPointerEvent<HTMLElement>) {
         if (pending.current?.pointerId === event.pointerId) clearPending();
         if (lifted.current?.pointerId === event.pointerId && lifted.current.list === list)
-          end(false);
+          end(false, true);
+      },
+      onLostPointerCapture(event: ReactPointerEvent<HTMLElement>) {
+        if (lifted.current?.pointerId === event.pointerId && lifted.current.list === list)
+          end(false, true);
       },
       onContextMenu(event: ReactMouseEvent<HTMLElement>) {
         if (pending.current || lifted.current) event.preventDefault();
@@ -196,7 +218,7 @@ export function useReorder({ onLift, onDrop, onCancel }: ReorderOptions) {
 
   /** `keys` in the order to show now: the preview while a row of `list` is moving. */
   function orderOf(list: string, keys: string[]): string[] {
-    return moving?.list === list ? moving.order : keys;
+    return moving?.list === list ? fit(moving.order, keys) : keys;
   }
 
   return { moving, listProps, orderOf };

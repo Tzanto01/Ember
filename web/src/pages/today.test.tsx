@@ -33,8 +33,7 @@ const weekly: WeeklyStats = {
 
 const doneHabit: Habit = { ...habit, today: { ...habit.today, state: 'done', completed: true } };
 
-function renderToday(entry = '/today') {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderToday(entry = '/today', client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   const router = createMemoryRouter([{ path: '/today', Component: TodayPage }], { initialEntries: [entry] });
   render(
     <QueryClientProvider client={client}>
@@ -918,5 +917,187 @@ describe('TodayPage habit notes', () => {
 
     expect(await screen.findByText('Walk: checked in for today.')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('TodayPage review fixes', () => {
+  let f: FetchMock;
+  const at = (id: number, name: string, time: string | null, change: Partial<Habit> = {}): Habit => ({
+    ...habit,
+    id,
+    name,
+    reminderTime: time,
+    reminderTimes: time ? [time] : [],
+    ...change,
+  });
+  const restDay = (id: number, name: string): Habit => at(id, name, null, { frequency: 'weekdays', days: ['mon'] });
+  const forToday = () =>
+    within(screen.getByRole('heading', { level: 2, name: 'For today' }).closest('section')!)
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent);
+  const choose = async (menu: string, item: string) => {
+    await userEvent.click(screen.getByRole('button', { name: menu }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: item }));
+  };
+  const lift = async (name: string) => {
+    const row = (await screen.findByRole('heading', { name })).closest('li')!;
+    fireEvent.pointerDown(row, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    await waitFor(() => expect(screen.getAllByText(`Moving “${name}”. Let go to drop it here.`).length).toBeGreaterThan(0), {
+      timeout: 1500,
+    });
+    return row;
+  };
+
+  beforeEach(() => {
+    f = mockFetch();
+    auth.setMe(me);
+    localStorage.removeItem('ember.notTodayOpen');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    auth.clearSession();
+    localStorage.removeItem('ember.notTodayOpen');
+  });
+
+  it('checks in a paused habit under Not for today without a warning', async () => {
+    const paused = at(2, 'Read', null, {
+      pausedToday: true,
+      pausedUntil: '2026-11-08',
+      today: { ...habit.today, state: 'paused' },
+    });
+    renderToday();
+    await answerLoad(f, [habit, paused]);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Not for today · 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Check in Read for today' }));
+
+    expect((await f.next('PUT', '/api/habits/2/days/2026-11-01')).body).toEqual({ completed: true });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('opens Not for today for a reminder link to a habit in it', async () => {
+    renderToday('/today?habit=2');
+    await answerLoad(f, [habit, restDay(2, 'Gym')]);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Not for today · 1' })).toHaveAttribute('aria-expanded', 'true'),
+    );
+    expect(screen.getByRole('heading', { name: 'Gym' })).toBeVisible();
+  });
+
+  it('keeps dragging after a reload dropped a row, and saves only rows that are still there', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00'), at(3, 'Tea', null)]);
+    const row = await lift('Meds');
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 400 });
+
+    act(() => deviceSync.synced.update((n) => n + 1));
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(3, 'Tea', null)]);
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Read' })).toBeNull());
+    expect(forToday()).toEqual(['Tea', 'Meds']);
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 400 });
+
+    expect((await f.next('PUT', '/api/me/today-order')).body).toEqual({ order: ['h:3', 'h:1'] });
+  });
+
+  it('blocks touch scrolling only while a row is lifted', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00')]);
+    await screen.findByRole('heading', { name: 'Meds' });
+    const touch = () => {
+      const event = new Event('touchmove', { cancelable: true, bubbles: true });
+      document.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(touch()).toBe(false);
+
+    const row = await lift('Meds');
+    expect(touch()).toBe(true);
+    fireEvent.pointerCancel(row, { pointerId: 1 });
+    expect(touch()).toBe(false);
+  });
+
+  it('after Escape, swallows the click of the still-held press even when it ends late, and nothing moves', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00')]);
+    const row = await lift('Meds');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(await screen.findByText('Nothing moved.')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fireEvent.pointerUp(row, { pointerId: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Check in Meds for today' }));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(f.all.some((c) => c.method === 'PUT')).toBe(false);
+  });
+
+  it('puts back the order the server last confirmed, not an unconfirmed one, when saves fail', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00'), at(3, 'Tea', null)]);
+    await screen.findByRole('heading', { name: 'Meds' });
+
+    await choose('Options for Meds', 'Move down');
+    await choose('Options for Meds', 'Move down');
+    expect(forToday()).toEqual(['Read', 'Tea', 'Meds']);
+    (await f.next('PUT', '/api/me/today-order')).respond(500, { type: 'internal' });
+    (await f.next('PUT', '/api/me/today-order')).respond(500, { type: 'internal' });
+
+    expect(await screen.findByText("Your new order didn't save")).toBeInTheDocument();
+    expect(forToday()).toEqual(['Meds', 'Read', 'Tea']);
+    expect(auth.me.get()?.todayOrder).toBeNull();
+  });
+
+  it('sends routine moves one at a time and hands the saved routine to the Routines screens', async () => {
+    const routine: Routine = { id: 5, name: 'Morning', reminderTime: null, reminderChannels: [], habitIds: [1, 2, 3] };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(['routines'], [routine]);
+    renderToday('/today', client);
+    await answerLoad(f, [at(1, 'Walk', null), at(2, 'Water', null), at(3, 'Stretch', null)], { routines: [routine] });
+    await screen.findByRole('heading', { name: 'Morning' });
+
+    await choose('Options for Stretch', 'Move up');
+    await choose('Options for Stretch', 'Move up');
+    const first = await f.next('PATCH', '/api/routines/5');
+    expect(first.body).toEqual({ habitIds: [1, 3, 2] });
+    expect(f.pending.filter((c) => c.method === 'PATCH')).toHaveLength(0);
+    first.respond(200, { ...routine, habitIds: [1, 3, 2] });
+    const second = await f.next('PATCH', '/api/routines/5');
+    expect(second.body).toEqual({ habitIds: [3, 1, 2] });
+    second.respond(200, { ...routine, habitIds: [3, 1, 2] });
+
+    await waitFor(() => expect(client.getQueryData<Routine[]>(['routines'])?.[0]?.habitIds).toEqual([3, 1, 2]));
+  });
+
+  it('moves focus to For today after "Sort by time again" takes the list menu away', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00')], { account: { todayOrder: ['h:2', 'h:1'] } });
+    await screen.findByRole('heading', { name: 'Meds' });
+
+    await choose('List options', 'Sort by time again');
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'For today' })).toHaveFocus());
+  });
+
+  it("offers Save only once the day's note has loaded and the text changed, so a slow load never deletes it", async () => {
+    renderToday();
+    await answerLoad(f, [habit]);
+    await checkButton();
+    await choose('Options for Walk', 'Note');
+    const dialog = await screen.findByRole('dialog', { name: 'Walk' });
+    const save = within(dialog).getByRole('button', { name: 'Save note' });
+
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(save);
+    (await f.next('GET', '/api/habit-notes?from=2026-09-02&to=2026-11-01&habitId=1')).respond(200, [
+      { habitId: 1, date: '2026-11-01', text: 'Kept.' },
+    ]);
+    await waitFor(() => expect(within(dialog).getByRole('textbox')).toHaveValue('Kept.'));
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    expect(f.all.some((c) => c.url.startsWith('/api/habits/1/notes'))).toBe(false);
+
+    await userEvent.type(within(dialog).getByRole('textbox'), ' Still.');
+    expect(save).not.toHaveAttribute('aria-disabled');
   });
 });
