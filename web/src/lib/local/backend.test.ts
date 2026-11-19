@@ -338,10 +338,10 @@ describe('LocalBackend through ApiClient', () => {
       expect(created).toMatchObject({ kind: 'letGo', frequency: 'daily', timesPerDay: 1 });
 
       await api.addSlip(created.id, '2026-11-01', 'tired');
-      const after = await api.addSlip(created.id, '2026-11-01', 'bored');
+      const after = await api.addSlip(created.id, '2026-11-01', 'sad');
       expect(after.kind === 'letGo' && after.today).toMatchObject({ date: today, state: 'slipped', slips: 2 });
       expect(await api.getSlips(created.id, '2026-10-30', today)).toEqual([
-        { date: today, count: 2, reasons: ['tired', 'bored'] },
+        { date: today, count: 2, reasons: ['tired', 'sad'] },
       ]);
 
       const undone = await api.clearSlips(created.id, today);

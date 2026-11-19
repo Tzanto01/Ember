@@ -1473,6 +1473,7 @@
   "letgo.reason.bored": "Gelangweilt",
   "letgo.reason.tired": "Müde",
   "letgo.reason.lonely": "Einsam",
+  "letgo.reason.sad": "Traurig",
   "letgo.reason.aroundOthers": "Mit anderen zusammen",
   "letgo.reason.other": "Etwas anderes",
   "letgo.noted_one": "Notiert. Deine längste Strecke bisher ist {{count}} Tag.",

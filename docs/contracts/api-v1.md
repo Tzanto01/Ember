@@ -688,7 +688,7 @@ Additive. Older clients ignore `tipsSeen`.
 - `Habit.Kind`: `Build` (default, all existing rows) | `LetGo`. Set at creation, never changed (PATCH with a different `kind` → 400 `validation` on `kind`).
 - Let-go constraints (POST/PATCH → 400 `validation` on the field): `frequency` must be `daily`, `timesPerDay` 1, `weeklyTarget`/`days` null, at most 1 reminder time, no routine (`routineId` must be null; adding a let-go habit to a routine → 400).
 - New table `HabitSlips`: `Id`, `HabitId` (FK, cascade), `Date` (user-local `DateOnly`), `Count` (≥1, one row per habit and date, unique index), `Reasons` (list of reason ids, may be empty), `UpdatedAt`.
-- Reason ids: `stressed`, `bored`, `tired`, `lonely`, `aroundOthers`, `other`. EN labels: Stressed, Bored, Tired, Lonely, Around others, Something else. DE labels are provisional and go to Nico.
+- Reason ids: `stressed`, `bored`, `tired`, `lonely`, `sad`, `aroundOthers`, `other`. EN labels: Stressed, Bored, Tired, Lonely, Sad, Around others, Something else. DE labels are provisional and go to Nico.
 - Let-go habits have no `HabitLog` rows. Pauses apply (paused days are neither free nor slipped and do not count toward "free days this month"; days free keeps counting from the last slip but skips paused days). Low days and grace days do not apply. The streaks setting (`showStreaks`) does not hide days free.
 
 ### API

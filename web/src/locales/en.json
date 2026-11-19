@@ -1473,6 +1473,7 @@
   "letgo.reason.bored": "Bored",
   "letgo.reason.tired": "Tired",
   "letgo.reason.lonely": "Lonely",
+  "letgo.reason.sad": "Sad",
   "letgo.reason.aroundOthers": "Around others",
   "letgo.reason.other": "Something else",
   "letgo.noted_one": "Noted. Your longest stretch so far is {{count}} day.",

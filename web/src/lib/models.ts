@@ -164,7 +164,7 @@ export interface Habit {
 export type HabitKind = 'build' | 'letGo';
 
 /** v1.21 slip reason ids, in the order the slip sheet offers them. */
-export const slipReasons = ['stressed', 'bored', 'tired', 'lonely', 'aroundOthers', 'other'] as const;
+export const slipReasons = ['stressed', 'bored', 'tired', 'lonely', 'sad', 'aroundOthers', 'other'] as const;
 export type SlipReason = (typeof slipReasons)[number];
 
 /** A let-go day: `beforestart` wins over `slipped`, which wins over `paused`, else `free`. */

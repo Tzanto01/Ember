@@ -4,7 +4,7 @@ namespace Ember.Core.Models;
 public class HabitSlip
 {
     /// <summary>The reason ids a slip can name, in the order the clients offer them.</summary>
-    public static readonly IReadOnlyList<string> ReasonIds = ["stressed", "bored", "tired", "lonely", "aroundOthers", "other"];
+    public static readonly IReadOnlyList<string> ReasonIds = ["stressed", "bored", "tired", "lonely", "sad", "aroundOthers", "other"];
 
     public int Id { get; set; }
     public int HabitId { get; set; }

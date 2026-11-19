@@ -71,7 +71,7 @@ public class LetGoApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 
         await (await user.Post(url, new { date = today, reason = "stressed" })).ExpectJson();
         await (await user.Post(url, new { date = today, reason = "stressed" })).ExpectJson();
-        var habit = await (await user.Post(url, new { date = today, reason = "bored" })).ExpectJson();
+        var habit = await (await user.Post(url, new { date = today, reason = "sad" })).ExpectJson();
 
         habit.GetProperty("today").GetProperty("state").GetString().Should().Be("slipped");
         habit.GetProperty("today").GetProperty("slips").GetInt32().Should().Be(3);
@@ -81,7 +81,7 @@ public class LetGoApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var day = days.EnumerateArray().Single();
         day.GetProperty("date").GetString().Should().Be(today);
         day.GetProperty("count").GetInt32().Should().Be(3);
-        day.GetProperty("reasons").EnumerateArray().Select(r => r.GetString()).Should().Equal("stressed", "bored");
+        day.GetProperty("reasons").EnumerateArray().Select(r => r.GetString()).Should().Equal("stressed", "sad");
     }
 
     [DockerFact]
