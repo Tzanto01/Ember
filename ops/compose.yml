@@ -1,4 +1,4 @@
-# Ember ops dashboard. Build and run from the repo root of a clean checkout:
+# Ember ops, the Lookout provider for Ember. Build and run from the repo root of a clean checkout:
 #   BUILD_SHA=$(git rev-parse --short HEAD) docker compose -f ops/compose.yml up -d --build
 # Needs ~/.config/ember-ops/{ember_dashboard,emberops,notices-token} (mode 600) and the ops-status timer writing ~/.local/state/ember-ops.
 # Lookout needs its key ~/.config/lookout/providers/ember.key (mode 600) and the external network lookout-net, both created by Lookout.
@@ -28,10 +28,7 @@ services:
       Ops__EmberPasswordFile: /run/secrets/ember_dashboard
       Ops__OpsConnection: Host=postgres;Port=5432;Database=emberops;Username=emberops;GSS Encryption Mode=Disable;Command Timeout=10
       Ops__OpsPasswordFile: /run/secrets/emberops
-      AllowedHosts: nicos-homeserver.meteor-pauling.ts.net;localhost;127.0.0.1;172.31.250.19
-      Ops__Access__TrustedProxies__0: 172.31.250.1
-      Ops__Access__AppCapability: nicowoellnitz.de/cap/ember-ops
-      Ops__Access__AllowedLogins__0: ""
+      AllowedHosts: localhost;127.0.0.1;172.31.250.19
       Ops__StatusFile: /status/status.json
       Ops__GitHubRepo: Tzanto01/Ember
       Ops__NoticesUrl: https://beta.ember-glow.app/notices.json
@@ -49,12 +46,9 @@ services:
       - lookout_key
     volumes:
       - ${HOME}/.local/state/ember-ops:/status:ro
-    ports:
-      - "127.0.0.1:8096:8080"
     networks:
-      ember-ops-edge:
+      homeserver-net:
         gw_priority: 1
-      homeserver-net: {}
       lookout-net:
         ipv4_address: 172.31.250.19
     healthcheck:
@@ -75,13 +69,6 @@ secrets:
     file: ${HOME}/.config/lookout/providers/ember.key
 
 networks:
-  ember-ops-edge:
-    name: ember-ops-edge
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.31.250.0/29
-          gateway: 172.31.250.1
   homeserver-net:
     external: true
   lookout-net:

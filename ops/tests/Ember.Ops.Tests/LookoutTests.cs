@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Ember.Ops.TestHost;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ember.Ops.Tests;
 
@@ -17,17 +18,16 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
 
     public void Dispose() => _disposables.ForEach(d => d.Dispose());
 
-    private OpsApiFactory Factory(string? hub = OpsApiFactory.HubIp, string? key = OpsApiFactory.LookoutKey, HttpMessageHandler? notices = null,
-        string[]? trusted = null)
+    private OpsApiFactory Factory(string? hub = OpsApiFactory.HubIp, string? key = OpsApiFactory.LookoutKey, HttpMessageHandler? notices = null)
     {
-        var factory = new OpsApiFactory(database, trusted: trusted, notices: notices, noticesToken: NoticesToken, hubAddress: hub, lookoutKey: key);
+        var factory = new OpsApiFactory(database, notices: notices, noticesToken: NoticesToken, hubAddress: hub, lookoutKey: key);
         _disposables.Add(factory);
         return factory;
     }
 
     private HttpClient Hub(OpsApiFactory? factory = null, string ip = OpsApiFactory.HubIp, string? bearer = OpsApiFactory.LookoutKey)
     {
-        var client = (factory ?? Factory()).ClientFrom(ip, login: null);
+        var client = (factory ?? Factory()).ClientFrom(ip);
         _disposables.Add(client);
         if (bearer is not null) client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {bearer}");
         return client;
@@ -61,20 +61,6 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     }
 
     [Fact]
-    public async Task Refuses_the_tailscale_serve_proxy_with_a_valid_identity_and_key()
-    {
-        var factory = Factory(trusted: ["172.31.250.1"]);
-        using var client = factory.ClientFrom("172.31.250.1");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {OpsApiFactory.LookoutKey}");
-
-        (await client.GetAsync("/api/overview")).StatusCode.Should().Be(HttpStatusCode.OK, "the same request is fine on /api");
-        using var response = await client.GetAsync("/lookout/v1/manifest");
-
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task An_empty_hub_address_refuses_every_peer()
     {
         using var response = await Hub(Factory(hub: ""), ip: "127.0.0.1").GetAsync("/lookout/v1/manifest");
@@ -100,13 +86,18 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     }
 
     [Fact]
-    public async Task The_hub_key_does_not_open_the_api()
+    public async Task Outside_lookout_only_healthz_answers()
     {
-        using var client = Hub();
+        var factory = Factory();
+        using var hub = Hub(factory);
+        using var stranger = factory.ClientFrom(OpsApiFactory.UntrustedIp);
 
-        (await client.GetAsync("/lookout/v1/manifest")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await client.GetAsync("/api/overview")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        (await client.GetAsync("/")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        foreach (var path in new[] { "/api/overview", "/api/session", "/" })
+            (await hub.GetAsync(path)).StatusCode.Should().Be(HttpStatusCode.NotFound, path);
+        using var health = await stranger.GetAsync("/healthz");
+
+        health.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await health.Content.ReadAsStringAsync()).Should().Be("ok");
     }
 
     [Theory]
@@ -115,13 +106,12 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     [InlineData("/lookout/index.html")]
     [InlineData("/lookout/v1/nope")]
     [InlineData("/lookout/v2/manifest")]
-    public async Task An_unmatched_lookout_path_is_a_404_problem_and_never_the_spa(string path)
+    public async Task An_unmatched_lookout_path_is_a_404_problem(string path)
     {
         using var response = await Hub().GetAsync(path);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-        (await response.Content.ReadAsStringAsync()).Should().NotContain("ember-ops-spa");
     }
 
     [Fact]
@@ -233,6 +223,58 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         afterRefused.Should().Be("planned:false");
         moved.StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await state()).Should().Be("released:true");
+        using var back = await client.SendAsync(Request(HttpMethod.Put, path, "tester", JsonContent.Create(new { column = "planned", position = 1.5 })));
+        back.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await state()).Should().Be("planned:false");
+    }
+
+    [Fact]
+    public async Task A_card_moved_between_two_never_moved_cards_sorts_between_them()
+    {
+        var ids = new List<int>();
+        await using (var connection = await database.OpenAsync("emberdb"))
+        {
+            var rows = new SyntheticRows(connection);
+            foreach (var days in new[] { 30, 20, 10 })
+                ids.Add(await rows.AddReturningIdAsync("Feedback", new()
+                {
+                    ["Platform"] = "web", ["Title"] = $"Order {days}", ["Text"] = "Synthetic", ["CreatedAt"] = DateTime.UtcNow.AddDays(-days - 400), ["Status"] = "declined",
+                }));
+        }
+        var factory = Factory();
+        using var client = Hub(factory);
+        var databases = factory.Services.GetRequiredService<OpsDatabases>();
+        async Task<List<FeedbackItem>> ColumnAsync() =>
+            (await FeedbackStore.ListAsync(databases, CancellationToken.None)).Items.Where(i => ids.Contains(i.Id)).ToList();
+        var (oldest, middle, newest) = (ids[0], ids[1], ids[2]);
+        var before = await ColumnAsync();
+        before.Select(i => i.Id).Should().Equal(newest, middle, oldest);
+
+        var between = (before[1].Position + before[2].Position) / 2;
+        using var moved = await client.SendAsync(Request(HttpMethod.Put, $"/lookout/v1/widgets/feedback/cards/{newest}/move", "tester",
+            JsonContent.Create(new { column = "declined", position = between })));
+
+        moved.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await ColumnAsync()).Select(i => i.Id).Should().Equal(middle, newest, oldest);
+    }
+
+    [Fact]
+    public async Task No_payload_contains_a_user_id()
+    {
+        using var client = Hub();
+        var bodies = new List<string>();
+        foreach (var path in LookoutShape.PageIds.Select(id => $"/lookout/v1/pages/{id}").Append("/lookout/v1/summary"))
+        {
+            using var response = await client.GetAsync(path);
+            response.StatusCode.Should().Be(HttpStatusCode.OK, path);
+            bodies.Add(await response.Content.ReadAsStringAsync());
+        }
+
+        var all = string.Join('\n', bodies).ToLowerInvariant();
+
+        all.Should().Contain("synthetic report one", "the payloads carry the seeded data");
+        foreach (var id in database.Data.UserIds)
+            all.Should().NotContain(id.ToString().ToLowerInvariant());
     }
 
     [Theory]

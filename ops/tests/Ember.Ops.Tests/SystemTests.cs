@@ -1,6 +1,5 @@
-using System.Net.Http.Json;
-using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ember.Ops.Tests;
 
@@ -14,8 +13,7 @@ public sealed class SystemTests(V2DatabaseFixture database) : IDisposable
     private async Task<SystemReport> SystemAsync(string statusJson)
     {
         await File.WriteAllTextAsync(_factory.StatusFile, statusJson);
-        using var client = _factory.ClientFrom();
-        return (await client.GetFromJsonAsync<SystemReport>("/api/system", JsonSerializerOptions.Web))!;
+        return await _factory.Services.GetRequiredService<SystemInfo>().GetAsync(CancellationToken.None);
     }
 
     [Fact]

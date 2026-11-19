@@ -15,8 +15,6 @@ public sealed class OpsOptions
     /// <summary>File holding the <c>emberops</c> password; none when empty.</summary>
     public string? OpsPasswordFile { get; set; }
 
-    public AccessOptions Access { get; set; } = new();
-
     /// <summary>The status file the host timer writes (<c>ops/host/ops-status.sh</c>).</summary>
     public string StatusFile { get; set; } = "/status/status.json";
 
@@ -41,9 +39,6 @@ public sealed class OpsOptions
     /// <summary>Commit the dashboard image was built from.</summary>
     public string? BuildSha { get; set; }
 
-    /// <summary>Directory of the built web app; <c>wwwroot</c> under the content root when empty.</summary>
-    public string? WebRoot { get; set; }
-
     public LookoutOptions Lookout { get; set; } = new();
 }
 
@@ -55,17 +50,4 @@ public sealed class LookoutOptions
 
     /// <summary>File holding the hub's bearer key, read on every request; under 32 bytes, unset, missing or unreadable means every request gets 401.</summary>
     public string? KeyFile { get; set; }
-}
-
-/// <summary>The <c>Ops:Access</c> section: who may use the dashboard. Everything is refused when nothing is configured.</summary>
-public sealed class AccessOptions
-{
-    /// <summary>Remote addresses whose identity headers are believed (the proxy in front of the app).</summary>
-    public string[] TrustedProxies { get; set; } = [];
-
-    /// <summary><c>Tailscale-User-Login</c> values allowed in (case-insensitive).</summary>
-    public string[] AllowedLogins { get; set; } = [];
-
-    /// <summary>Tailscale app capability name that grants access through <c>Tailscale-App-Capabilities</c>.</summary>
-    public string? AppCapability { get; set; }
 }

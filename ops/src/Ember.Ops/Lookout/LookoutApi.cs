@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -23,13 +24,13 @@ public static class LookoutApi
 
     /// <summary>
     /// Gates every request under <c>/lookout</c>: 403 unless the peer is the hub, 401 unless the bearer equals the key file,
-    /// 404 problem unless a Lookout route matched. Runs after routing and before every other access check, static files and endpoints.
+    /// 404 problem unless a Lookout route matched. Runs after routing and before the endpoints.
     /// </summary>
     internal static Func<HttpContext, RequestDelegate, Task> Gate(IOptions<OpsOptions> options, ILogger log) => (context, next) =>
     {
         if (!context.Request.Path.StartsWithSegments("/lookout")) return next(context);
         var o = options.Value.Lookout;
-        if (context.Connection.RemoteIpAddress is not { } remote || !OpsAccess.IsTrusted(remote, [o.HubAddress]))
+        if (context.Connection.RemoteIpAddress is not { } remote || !IsHub(remote, o.HubAddress))
             return Refuse(context, log, StatusCodes.Status403Forbidden);
         if (!KeyMatches(o.KeyFile, context.Request.Headers.Authorization))
             return Refuse(context, log, StatusCodes.Status401Unauthorized);
@@ -172,6 +173,12 @@ public static class LookoutApi
         {
             return null;
         }
+    }
+
+    private static bool IsHub(IPAddress remote, string hub)
+    {
+        if (remote.IsIPv4MappedToIPv6) remote = remote.MapToIPv4();
+        return IPAddress.TryParse(hub.Trim(), out var ip) && (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).Equals(remote);
     }
 
     private static bool KeyMatches(string? keyFile, StringValues authorization)

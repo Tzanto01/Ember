@@ -14,7 +14,7 @@ public sealed record DeployedShas(string? Production, string? Staging);
 public sealed record CiRun(string Branch, string Status, string? Conclusion, string Url, DateTime At, string Sha);
 public sealed record ApkInfo(string VersionName, long VersionCode);
 
-/// <summary><c>GET /api/system</c>. A failing part is null and named in <see cref="Errors"/>; it never fails the whole call.</summary>
+/// <summary>The system report. A failing part is null and named in <see cref="Errors"/>; it never fails the whole call.</summary>
 public sealed record SystemReport(
     DateTime GeneratedAt, DateTime? StatusWrittenAt, IReadOnlyList<ServiceState> Services, DatabaseInfo? Database, IReadOnlyList<HostDisk>? Disks,
     BackupInfo? Backup, DeployedShas? Deployed, IReadOnlyList<CiRun>? Ci, JsonElement? Notice, ApkInfo? Apk, string? DashboardSha,

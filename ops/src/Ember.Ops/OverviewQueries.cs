@@ -21,7 +21,7 @@ public sealed record OverviewSeries(
     DateTime GeneratedAt, IReadOnlyList<WeekCount> NewPerWeek, IReadOnlyList<DayCount> CheckInsPerDay, IReadOnlyList<DayCount> JournalPerDay,
     IReadOnlyList<DayCount> LowDaysPerDay, IReadOnlyList<DayCount>? WarmthPerDay, IReadOnlyList<SlipWeek>? LetGoSlipsPerWeek);
 
-/// <summary><c>GET /api/overview</c>; <see cref="GeneratedAt"/> is when the counters were read.</summary>
+/// <summary>The overview stats; <see cref="GeneratedAt"/> is when the counters were read.</summary>
 public sealed record Overview(
     DateTime GeneratedAt, OverviewUsers Users, IReadOnlyList<DayCount> CheckInsPerDay, HabitCounts Habits, RoutineCounts Routines,
     IReadOnlyList<DayCount> JournalPerDay, IReadOnlyList<DayCount> LowDaysPerDay, StreakCounts Streaks, FiresideStats? Fireside,
