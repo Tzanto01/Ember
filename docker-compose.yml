@@ -94,7 +94,7 @@ services:
         max-file: "3"
     environment:
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=emberdb;Username=${DB_USER};Password=${DB_PASSWORD};GSS Encryption Mode=Disable
-      Lookout__IngestUrl: http://172.31.250.18:8081
+      Lookout__IngestUrl: ${LOOKOUT_INGEST_URL:-}
       Lookout__KeyFile: /run/secrets/lookout_app_ember
       Logging__LogLevel__Default: Information
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning

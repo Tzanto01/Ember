@@ -99,6 +99,7 @@ Back up the database before you deploy a build with a new migration.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | `api` only. Mail server for account emails. `SMTP_HOST` and `SMTP_FROM` are required. The port defaults to 587. |
 | `SMTP_REPLY_TO` | `api` only, optional. `Reply-To` address for account emails. Without it, replies go to `SMTP_FROM`. |
 | `FEEDBACK_DIGEST_TO` | `api` only, optional. Address that gets the daily feedback digest (08:00 Europe/Berlin, only when there is new feedback) through the SMTP settings above. Without it, feedback is stored but not mailed. |
+| `LOOKOUT_INGEST_URL` | `lookout-sender` only, optional. Lookout's ingest address as an IP literal, `http://172.31.250.18:8081` on the homeserver. Set it only on production; without it the sender sends nothing. |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | `api` only. Discord OAuth application for signing in with Discord and linking it, on the web and in the Android app. |
 | `VITE_PUBLIC_ORIGIN` | Optional build argument for the `api` image. Your public origin, for example `https://example.com`. It adds a canonical link and a sitemap to the web build. |
 
@@ -121,7 +122,7 @@ docker compose exec -T api dotnet Ember.Api.dll --feedback-status planned 42
 
 Pictures are never kept past 12 months after the report. There is no HTTP endpoint for any of this.
 
-**Sending feedback to Lookout (maintainer).** Every new report, and every account deletion of a user who sent feedback, goes into an outbox in `emberdb`. The `lookout-sender` container (profile `lookout`; enable it with `--profile lookout` or `COMPOSE_PROFILES`) delivers the outbox in order to Lookout's ingest at `172.31.250.18:8081` from the pinned address `172.31.250.20`, with the key from `~/.config/lookout/apps/ember.key`. Without that profile and config nothing is sent. Rows Lookout refuses are parked (`ParkedAt`, `ParkedStatus` in `LookoutOutbox`) and logged without content. The one-time import of the reports stored before the outbox, with the ops board's comments and order, runs only while Lookout's import is open:
+**Sending feedback to Lookout (maintainer).** Every new report, and every account deletion of a user who sent feedback, goes into an outbox in `emberdb`. The `lookout-sender` container (profile `lookout`; enable it with `--profile lookout` or `COMPOSE_PROFILES`) delivers the outbox to Lookout's ingest at `LOOKOUT_INGEST_URL` from the pinned address `172.31.250.20`, with the key from `~/.config/lookout/apps/ember.key`: account deletions first, then reports, each in order. Without that profile and `LOOKOUT_INGEST_URL` nothing is sent. Reports Lookout refuses are parked (`ParkedAt`, `ParkedStatus` in `LookoutOutbox`) and logged without content. The one-time import of the reports stored before the outbox, with the ops board's comments and order, runs only while Lookout's import is open:
 
 ```bash
 docker exec homeserver-postgres psql -U finvarex -d emberops -At -c "SELECT json_build_object('comments', (SELECT coalesce(json_agg(c ORDER BY c.created_at, c.id), '[]') FROM comments c), 'positions', (SELECT coalesce(json_agg(p), '[]') FROM card_positions p))" \

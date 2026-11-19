@@ -5,10 +5,12 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api;
 
 /// <summary>
-/// Delivers <see cref="LookoutOutbox"/> rows to Lookout's ingest strictly in id order, run by <c>--lookout-sender</c> in its own
-/// container. Sends nothing unless <see cref="LookoutIngest.TryGetEndpoint"/> accepts the configuration. A transient failure keeps
-/// the row at the head and waits <see cref="LookoutIngest.Backoff"/>; a permanent refusal parks it and moves on. Logs row id, kind
-/// and status or exception type only.
+/// Delivers <see cref="LookoutOutbox"/> rows to Lookout's ingest one at a time, run by <c>--lookout-sender</c> in its own container:
+/// user deletions first, then tickets, each in id order. Deleting an account cascades away that user's unsent tickets, so a deletion
+/// still follows every ticket of that user, and a ticket stuck on a quota can't hold up an erasure. Sends nothing unless
+/// <see cref="LookoutIngest.TryGetEndpoint"/> accepts the configuration. A transient failure keeps the row at the head and waits
+/// <see cref="LookoutIngest.Backoff"/>; a permanent refusal parks a ticket and moves on, while a deletion is never parked, only
+/// retried. Logs row id, kind and status or exception type only.
 /// </summary>
 internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http, IConfiguration configuration, TimeProvider time,
     ILogger<LookoutSender> logger) : BackgroundService
@@ -55,7 +57,8 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
 
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<EmberDbContext>();
-        var row = await db.LookoutOutbox.AsNoTracking().Where(o => o.SentAt == null && o.ParkedAt == null).OrderBy(o => o.Id).FirstOrDefaultAsync(cancellationToken);
+        var row = await db.LookoutOutbox.AsNoTracking().Where(o => o.SentAt == null && o.ParkedAt == null)
+            .OrderBy(o => o.Kind == LookoutOutbox.UserDelete ? 0 : 1).ThenBy(o => o.Id).FirstOrDefaultAsync(cancellationToken);
         if (row is null) return PollInterval;
         var rows = db.LookoutOutbox.Where(o => o.Id == row.Id);
 
@@ -100,7 +103,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
             _failures = 0;
             return TimeSpan.Zero;
         }
-        if (!LookoutIngest.IsRefused(status)) return Failed(row, status.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (!LookoutIngest.IsRefused(status) || row.Kind == LookoutOutbox.UserDelete) return Failed(row, status.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         await rows.ExecuteUpdateAsync(s => s.SetProperty(o => o.ParkedAt, now).SetProperty(o => o.ParkedStatus, status), cancellationToken);
         logger.LogError("Lookout refused outbox row {Id} ({Kind}) with {Status}; parked.", row.Id, row.Kind, status);
