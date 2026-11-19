@@ -19,6 +19,9 @@ services:
       WebPush__PublicKey: ${VAPID_PUBLIC_KEY:-}
       WebPush__PrivateKey: ${VAPID_PRIVATE_KEY:-}
       WebPush__Subject: ${VAPID_SUBJECT:-}
+      Ember__DeletionLedgerFile: ${EMBER_DELETION_LEDGER_FILE:-}
+    volumes:
+      - ${EMBER_DELETION_LEDGER_DIR:-./deletion-ledger}:/ledger
     networks:
       - homeserver-net
 
@@ -57,6 +60,7 @@ services:
       Discord__ClientSecret: ${DISCORD_CLIENT_SECRET}
       WebPush__PublicKey: ${VAPID_PUBLIC_KEY:-}
       Ops__MetricsKeyFile: /run/secrets/ember_metrics
+      Ember__DeletionLedgerFile: ${EMBER_DELETION_LEDGER_FILE:-}
     secrets:
       - ember_metrics
     healthcheck:
@@ -67,6 +71,7 @@ services:
       start_period: 30s
     volumes:
       - ember-api-keys:/keys
+      - ${EMBER_DELETION_LEDGER_DIR:-./deletion-ledger}:/ledger
     ports:
       - "127.0.0.1:5080:8080"
     networks:

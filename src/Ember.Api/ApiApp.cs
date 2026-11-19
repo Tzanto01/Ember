@@ -34,6 +34,8 @@ public static class ApiApp
 
         services.AddDbContext<EmberDbContext>(options => options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(sp => new DeletionLedger(config[DeletionLedger.FileSetting], sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ILogger<DeletionLedger>>()));
         services.AddScoped<HabitService>();
         services.AddScoped<FiresideService>();
 

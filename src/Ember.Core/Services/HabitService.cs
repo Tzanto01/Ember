@@ -35,11 +35,14 @@ public partial class HabitService
 
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
+    private readonly DeletionLedger? _ledger;
 
-    public HabitService(EmberDbContext db, TimeProvider time)
+    /// <param name="ledger">Where committed account and health-data deletions are recorded; none when null.</param>
+    public HabitService(EmberDbContext db, TimeProvider time, DeletionLedger? ledger = null)
     {
-        _db   = db;
-        _time = time;
+        _db     = db;
+        _time   = time;
+        _ledger = ledger;
     }
 
     /// <summary>Whether the user agreed to the current health-data consent (<see cref="CurrentConsentPolicyVersion"/>) and hasn't withdrawn it.</summary>
@@ -758,7 +761,8 @@ public partial class HabitService
     /// <summary>
     /// Deletes the user's health data (habits with their logs, slips and reminders, day marks, day notes, moods and "What helps me" list)
     /// when their consent is still withdrawn since <paramref name="cutoff"/> or earlier, checked under a row lock so agreeing again at the
-    /// same time wins. Keeps the account, settings, routines, push subscriptions, journal key and Fireside. Returns whether it deleted.
+    /// same time wins. Keeps the account, settings, routines, push subscriptions, journal key and Fireside. Records the deletion in the
+    /// <see cref="DeletionLedger"/>. Returns whether it deleted.
     /// </summary>
     public async Task<bool> DeleteHealthDataAsync(Guid userId, DateTime cutoff, CancellationToken cancellationToken = default)
     {
@@ -768,13 +772,35 @@ public partial class HabitService
         if (!await _db.Users.AnyAsync(u => u.Id == userId && u.ConsentWithdrawnAt != null && u.ConsentWithdrawnAt <= cutoff, cancellationToken))
             return false;
 
+        await DeleteHealthRowsAsync(userId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        _ledger?.Record(DeletionLedger.Health, userId);
+        return true;
+    }
+
+    /// <summary>
+    /// Deletes the same health data as <see cref="DeleteHealthDataAsync"/> whatever the consent, to repeat a recorded deletion after a
+    /// backup restore. Returns whether the user had any.
+    /// </summary>
+    public async Task<bool> RepeatHealthDataDeletionAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        if (_db.Database.IsNpgsql())
+            await _db.Database.ExecuteSqlAsync($"""SELECT 1 FROM "AspNetUsers" WHERE "Id" = {userId} FOR UPDATE""", cancellationToken);
+        if (!await _db.Users.Where(u => u.Id == userId).AnyAsync(HoldsHealthData, cancellationToken)) return false;
+
+        await DeleteHealthRowsAsync(userId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
+    private async Task DeleteHealthRowsAsync(Guid userId, CancellationToken cancellationToken)
+    {
         await _db.Habits.Where(h => h.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.DayMarks.Where(m => m.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.DayNotes.Where(n => n.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.Moods.Where(m => m.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await _db.UserHelps.Where(h => h.UserId == userId).ExecuteDeleteAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return true;
     }
 
     /// <summary>
@@ -841,6 +867,7 @@ public partial class HabitService
     /// Permanently deletes the user; the database cascades to all their habits, logs, day marks, routines, journal entries, own moods, journal key, "What helps me" list
     /// (reminders live on the habits and routines), feedback with its Lookout rows, and Lookout refs. In the same transaction, with the user row locked (PostgreSQL),
     /// first queues one <see cref="LookoutOutbox.UserDelete"/> row per <see cref="LookoutUserRef"/> of the user, so Lookout deletes after every ticket already queued.
+    /// Records a deleted account in the <see cref="DeletionLedger"/>.
     /// </summary>
     public async Task DeleteUserDataAsync(Guid userId)
     {
@@ -857,10 +884,11 @@ public partial class HabitService
             await _db.SaveChangesAsync();
         }
 
-        await _db.Users
+        var deleted = await _db.Users
             .Where(u => u.Id == userId)
             .ExecuteDeleteAsync();
         await transaction.CommitAsync();
+        if (deleted > 0) _ledger?.Record(DeletionLedger.Account, userId);
     }
 
     /// <summary>How long an email signup may stay unconfirmed before <see cref="DeleteStaleUnconfirmedAccountsAsync"/> removes it.</summary>

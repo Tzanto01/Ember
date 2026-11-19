@@ -99,6 +99,8 @@ Back up the database before you deploy a build with a new migration.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | `api` only. Mail server for account emails. `SMTP_HOST` and `SMTP_FROM` are required. The port defaults to 587. |
 | `SMTP_REPLY_TO` | `api` only, optional. `Reply-To` address for account emails. Without it, replies go to `SMTP_FROM`. |
 | `FEEDBACK_DIGEST_TO` | `api` only, optional. Address that gets the daily feedback digest (08:00 Europe/Berlin, only when there is new feedback) through the SMTP settings above. Without it, feedback is stored but not mailed. |
+| `EMBER_DELETION_LEDGER_FILE` | `ember` and `api`, optional. The deletion ledger inside the containers, `/ledger/deletions.jsonl` on production. Without it Ember keeps no ledger. See "Restoring a backup" below. |
+| `EMBER_DELETION_LEDGER_DIR` | Optional. Host directory mounted at `/ledger` in `ember` and `api`. Defaults to `./deletion-ledger`. |
 | `LOOKOUT_INGEST_URL` | `lookout-sender` only, optional. Lookout's ingest address as an IP literal, `http://172.31.250.18:8081` on the homeserver. Set it only on production; without it the sender sends nothing. |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | `api` only. Discord OAuth application for signing in with Discord and linking it, on the web and in the Android app. |
 | `VITE_PUBLIC_ORIGIN` | Optional build argument for the `api` image. Your public origin, for example `https://example.com`. It adds a canonical link and a sitemap to the web build. |
@@ -108,6 +110,25 @@ Back up the database before you deploy a build with a new migration.
 **Deploying (maintainer).** Copy `deploy.ps1.example` to `deploy.ps1` (gitignored), fill in your server details and the path to the homeserver-deploy tool (a separate, private repository), then run `.\deploy.ps1`. Its usage line is `.\deploy.ps1 [-DryRun] [-SkipTests]`. The example's config runs `dotnet test` on `tests/Ember.Tests` first, unless you pass `-SkipTests`. Set `EMBER_REMOTE_PATH` to deploy to another directory on the server, for example a staging copy.
 
 **Migrations without the bot.** The bot applies database migrations when it starts. An instance without a bot (for example staging) can apply them and exit with `docker compose run --rm ember --migrate-only` (or `dotnet Ember.Bot.dll --migrate-only`); it needs only the connection string.
+
+**Restoring a backup (maintainer).** A restore brings back what users deleted after the backup was taken. Ember keeps a deletion ledger for that: one line per account deletion and per health-data deletion, with only the account id and the time, kept for 40 days. To restore:
+
+1. Stop Ember: `docker compose --profile api --profile lookout stop`.
+2. Restore the dump into `emberdb`.
+3. If the backup is older than the deployed build, apply the migrations: `docker compose run --rm ember --migrate-only`.
+4. Repeat the deletions since the backup's time, in UTC: `docker compose --profile api run --rm api --replay-deletions 2026-11-19T03:00:00Z`. Accounts are deleted the normal way, so Lookout gets their deletion too, and health data is deleted again unless the account is gone. It prints counts only and is safe to run again. It refuses a missing or unreadable ledger and a time without `Z` or an offset.
+5. Start Ember again.
+
+When unsure of the backup's time, give an earlier one: that only repeats more deletions.
+
+On production the ledger lives on the backup disk, outside the database it repairs. Both containers run as uid 1654, the .NET images' `APP_UID`:
+
+```bash
+mkdir -p ~/backups/ember-ledger
+setfacl -m u:1654:rwx ~/backups/ember-ledger
+```
+
+Then set `EMBER_DELETION_LEDGER_DIR=/home/nico/backups/ember-ledger` and `EMBER_DELETION_LEDGER_FILE=/ledger/deletions.jsonl` in `.env` and recreate the containers (`docker compose --profile api up -d`). A deletion whose ledger line can't be written still happens; the container logs a warning.
 
 **Reading feedback (maintainer).** Feedback and its pictures stay in the database; the daily digest names picture ids only. On the homeserver, from the Ember compose directory:
 

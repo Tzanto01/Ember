@@ -1,0 +1,123 @@
+using System.Text;
+using System.Text.Json;
+using Microsoft.Extensions.Logging;
+
+namespace Ember.Core.Services;
+
+/// <summary>
+/// The list of committed deletions an operator repeats after restoring a backup: one JSON line <c>{"at","kind","userId"}</c> per
+/// account deletion or health-data deletion, ids and UTC times only, in the file <see cref="FileSetting"/> names. Off when that
+/// setting is unset or empty. The bot and the API append to the same file, so every access holds an exclusive lock on it.
+/// </summary>
+public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<DeletionLedger> logger)
+{
+    /// <summary>The configuration key of the ledger file (<c>Ember__DeletionLedgerFile</c>).</summary>
+    public const string FileSetting = "Ember:DeletionLedgerFile";
+
+    /// <summary><see cref="Entry.Kind"/> of a deleted account.</summary>
+    public const string Account = "account";
+
+    /// <summary><see cref="Entry.Kind"/> of deleted health data.</summary>
+    public const string Health = "health";
+
+    /// <summary>How long <see cref="Prune"/> keeps an entry.</summary>
+    public static readonly TimeSpan Retention = TimeSpan.FromDays(40);
+
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    /// <summary>One deletion: when it committed (UTC), <see cref="Account"/> or <see cref="Health"/>, and whose.</summary>
+    public sealed record Entry(DateTime At, string Kind, Guid UserId);
+
+    /// <summary>The ledger file, or null when the ledger is off.</summary>
+    public string? Path { get; } = string.IsNullOrWhiteSpace(path) ? null : path;
+
+    /// <summary>Appends an entry for now and flushes it to disk. A failure logs a warning without the id and is not thrown.</summary>
+    public void Record(string kind, Guid userId)
+    {
+        if (Path is null) return;
+        try
+        {
+            var line = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new Entry(time.GetUtcNow().UtcDateTime, kind, userId), Json) + "\n");
+            Locked(Path, FileMode.Append, FileAccess.Write, stream =>
+            {
+                stream.Write(line);
+                stream.Flush(flushToDisk: true);
+                return 0;
+            });
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning("Could not write a deletion ({Kind}) to the deletion ledger: {ExceptionType}.", kind, e.GetType().Name);
+        }
+    }
+
+    /// <summary>
+    /// Drops the entries older than <see cref="Retention"/> and returns how many it dropped; keeps lines it can't read. A failure logs
+    /// a warning and returns 0.
+    /// </summary>
+    public int Prune()
+    {
+        if (Path is null || !File.Exists(Path)) return 0;
+        var cutoff = time.GetUtcNow().UtcDateTime - Retention;
+        try
+        {
+            return Locked(Path, FileMode.Open, FileAccess.ReadWrite, stream =>
+            {
+                var lines = ReadLines(stream);
+                var keep = lines.Where(l => TryParse(l) is not { } entry || entry.At >= cutoff).ToList();
+                if (keep.Count == lines.Count) return 0;
+                stream.SetLength(0);
+                stream.Write(Encoding.UTF8.GetBytes(string.Concat(keep.Select(l => l + "\n"))));
+                stream.Flush(flushToDisk: true);
+                return lines.Count - keep.Count;
+            });
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning("Could not prune the deletion ledger: {ExceptionType}.", e.GetType().Name);
+            return 0;
+        }
+    }
+
+    /// <summary>Every entry of the ledger at <paramref name="ledgerPath"/>. Throws when the file is missing or any line isn't an entry.</summary>
+    public static List<Entry> Read(string ledgerPath) => Locked(ledgerPath, FileMode.Open, FileAccess.Read, stream =>
+        ReadLines(stream).Select((line, i) => TryParse(line) ?? throw new InvalidDataException($"Line {i + 1} of the deletion ledger is not an entry.")).ToList());
+
+    private static List<string> ReadLines(FileStream stream)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+        return reader.ReadToEnd().Split('\n').Where(l => l.Trim().Length > 0).ToList();
+    }
+
+    private static Entry? TryParse(string line)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<Entry>(line, Json) is { Kind: Account or Health } entry && entry.UserId != Guid.Empty
+                && entry.At.Kind == DateTimeKind.Utc ? entry : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Opens the file with an exclusive lock, waiting up to 5 seconds while another process holds it.</summary>
+    private static T Locked<T>(string file, FileMode mode, FileAccess access, Func<FileStream, T> use)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            FileStream stream;
+            try
+            {
+                stream = new FileStream(file, mode, access, FileShare.None);
+            }
+            catch (IOException e) when (e is not (FileNotFoundException or DirectoryNotFoundException) && attempt < 50)
+            {
+                Thread.Sleep(100);
+                continue;
+            }
+            using (stream) return use(stream);
+        }
+    }
+}

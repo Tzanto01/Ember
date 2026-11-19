@@ -56,6 +56,8 @@ public static class AppHost
                 });
 
                 services.AddSingleton(TimeProvider.System);
+                services.AddSingleton(sp => new DeletionLedger(context.Configuration[DeletionLedger.FileSetting], sp.GetRequiredService<TimeProvider>(),
+                    sp.GetRequiredService<ILogger<DeletionLedger>>()));
                 services.AddScoped<HabitService>();
                 services.AddScoped<FiresideService>();
 

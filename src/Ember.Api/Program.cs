@@ -16,6 +16,7 @@ if (args is ["--healthcheck"])
 
 if (FeedbackCli.Handles(args)) return await FeedbackCli.RunAsync(args);
 if (LookoutImportCli.Handles(args)) return await LookoutImportCli.RunAsync(args);
+if (DeletionReplayCli.Handles(args)) return await DeletionReplayCli.RunAsync(args);
 
 if (args is ["--lookout-sender"])
 {

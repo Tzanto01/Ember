@@ -39,6 +39,9 @@ ScaffoldingReadMe.txt
 # dotenv environment variables file
 .env
 
+# Deletion ledger bind mount (docker-compose.yml default)
+/deletion-ledger/
+
 # App secrets
 appsettings.Development.json
 src/**/appsettings.json
