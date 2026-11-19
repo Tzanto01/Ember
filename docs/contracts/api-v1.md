@@ -70,6 +70,7 @@ Shared interface between `src/Ember.Api` (producer, team `api`) and `web/` (cons
 | 429 | `rate_limited` | Too many attempts; `Retry-After` header set |
 | 500 | `internal` | No detail leaks |
 
+- Clients send `X-Ember-Client: {platform}/{version}` on their own `/api` calls (platform `web`, `android` or `discord`; version 1 to 32 of `0-9A-Za-z.+_-`, for example `android/1.4.2`). The API stores it on the sign-in session (`AuthSession.Platform`, `AppVersion`) and ignores any other value.
 - Every endpoint acts only on the signed-in user. Another user's habit ID behaves exactly like a missing one (404).
 - Consent gating follows Core exactly: an endpoint returns `consent_required` where the Core call does (`AddHabitAsync` throws `ConsentRequiredException`; any `DayEditResult.ConsentRequired`, which includes every check-in write; `SlipResult.ConsentRequired` when adding a slip), and also for `POST /api/account/merge`. Clearing a day and removing slips stay allowed. Reads, settings, export and delete never need consent. A withdrawn consent counts as no consent.
 - `POST` and `DELETE` endpoints that take a JSON body need at least `{}` even when every field is optional (for example `journal-key/turn-off`); without a body they answer 404.
@@ -346,6 +347,7 @@ snake_case like today, plus `"format_version": 2` at the top level (an export wi
 
 - `habits[]`: `days` (`["mon",…]` or null), `times_per_day`, `routine_id` (or null), `routine_position` (or null).
 - `logs[]`: `count`.
+- `account`: `created_at` (instant or null; CSV `account_created_at`).
 - `routines`: `[{ id, name, reminder_time, reminder_channels }]` (membership lives on the habits). *(Superseded in v1.14, see "Reminder destinations v1.14".)*
 - `moods`: `[{ id, label, emoji, archived }]` or, when encrypted, `[{ id, encrypted: { v, iv, ct }, archived }]`.
 - `day_notes`: `[{ date, text, mood }]` or, when encrypted, `[{ date, encrypted: { v, iv, ct } }]`.
