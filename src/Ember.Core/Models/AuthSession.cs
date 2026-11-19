@@ -16,4 +16,7 @@ public class AuthSession
     public DateTimeOffset ExpiresUtc { get; set; }
 
     public DateTimeOffset? LastSeenUtc { get; set; }
+
+    /// <summary>SHA-256 of the session's widget key, or null; one per session, and deleting the session revokes it.</summary>
+    public byte[]? WidgetKeyHash { get; set; }
 }

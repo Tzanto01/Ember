@@ -40,11 +40,18 @@ namespace Ember.Core.Data.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<byte[]>("WidgetKeyHash")
+                        .HasMaxLength(32)
+                        .HasColumnType("bytea");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExpiresUtc");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("WidgetKeyHash")
+                        .IsUnique();
 
                     b.ToTable("AuthSessions");
                 });

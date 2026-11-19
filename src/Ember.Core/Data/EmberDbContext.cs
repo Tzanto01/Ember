@@ -235,6 +235,8 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
             entity.Property(s => s.Id).ValueGeneratedNever();
             entity.HasIndex(s => s.UserId);
             entity.HasIndex(s => s.ExpiresUtc);
+            entity.Property(s => s.WidgetKeyHash).HasMaxLength(32);
+            entity.HasIndex(s => s.WidgetKeyHash).IsUnique();
             entity.HasOne<User>()
                   .WithMany()
                   .HasForeignKey(s => s.UserId)

@@ -1,11 +1,15 @@
+using System.Buffers.Text;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api;
 
@@ -26,6 +30,7 @@ internal static class MeEndpoints
         string? Language, bool? CalmMode);
     public sealed record ConsentRequest(string? PolicyVersion);
     public sealed record DeleteRequest(string? Password, string? Confirm);
+    public sealed record WidgetKeyDto(string Key);
 
     public static RouteGroupBuilder MapMe(this RouteGroupBuilder api)
     {
@@ -108,6 +113,18 @@ internal static class MeEndpoints
                 : (ExportBuilder.BuildJson(user), "application/json", "json");
             return Results.File(Encoding.UTF8.GetBytes(content), contentType,
                 $"ember-export-{time.GetUtcNow():yyyy-MM-dd}.{extension}");
+        });
+
+        api.MapPost("/me/widget-key", async (HttpContext http, EmberDbContext db) =>
+        {
+            if (!(await http.AuthenticateAsync(IdentityConstants.BearerScheme)).Succeeded || AuthSessions.IdOf(http.User) is not { } session)
+                return Problems.NotFound();
+
+            var key = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
+            var hash = WidgetEndpoints.KeyHash(key);
+            var updated = await db.AuthSessions.Where(s => s.Id == session)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.WidgetKeyHash, hash));
+            return updated == 0 ? Problems.Unauthenticated() : Results.Ok(new WidgetKeyDto(key));
         });
 
         api.MapPost("/me/delete", async (DeleteRequest request, ClaimsPrincipal principal, UserManager<User> users,
