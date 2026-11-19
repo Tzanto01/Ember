@@ -101,3 +101,7 @@
 
   --shadow-card: 3px 3px 0 0 oklch(0.08 0.01 70);
 }
+
+[data-theme="marigold"] [role="switch"] > span {
+  box-shadow: none;
+}
