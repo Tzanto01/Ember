@@ -1,6 +1,6 @@
 # Ember ops, the Lookout provider for Ember. Build and run from the repo root of a clean checkout:
 #   BUILD_SHA=$(git rev-parse --short HEAD) docker compose -f ops/compose.yml up -d --build
-# Needs ~/.config/ember-ops/{ember_dashboard,emberops,notices-token} (mode 600) and the ops-status timer writing ~/.local/state/ember-ops.
+# Needs ~/.config/ember-ops/{ember_dashboard,emberops,notices-token,github-token} (mode 600; github-token may be empty, then CI is fetched without auth) and the ops-status timer writing ~/.local/state/ember-ops.
 # The API timings key ~/.config/ember-ops/api-metrics.key (32+ bytes) is shared with Ember's API container (uid 1654), so it needs mode 644; keep ~/.config/ember-ops at 700.
 # Lookout needs its key ~/.config/lookout/providers/ember.key (mode 600) and the external network lookout-net, both created by Lookout.
 services:
@@ -32,6 +32,7 @@ services:
       AllowedHosts: localhost;127.0.0.1;172.31.250.19
       Ops__StatusFile: /status/status.json
       Ops__GitHubRepo: Tzanto01/Ember
+      Ops__GitHubTokenFile: /run/secrets/github_token
       Ops__NoticesUrl: https://beta.ember-glow.app/notices.json
       Ops__NoticesPublishUrl: https://beta.ember-glow.app/_ops/notices
       Ops__NoticesTokenFile: /run/secrets/notices_token
@@ -46,6 +47,7 @@ services:
       - ember_dashboard
       - emberops
       - notices_token
+      - github_token
       - lookout_key
       - api_metrics
     volumes:
@@ -69,6 +71,8 @@ secrets:
     file: ${HOME}/.config/ember-ops/emberops
   notices_token:
     file: ${HOME}/.config/ember-ops/notices-token
+  github_token:
+    file: ${HOME}/.config/ember-ops/github-token
   lookout_key:
     file: ${HOME}/.config/lookout/providers/ember.key
   api_metrics:

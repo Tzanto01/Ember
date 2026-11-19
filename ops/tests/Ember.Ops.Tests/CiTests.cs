@@ -58,6 +58,29 @@ public sealed class CiTests : IAsyncDisposable
         report.Errors.Should().NotContainKey("ci");
         report.Ci!.Select(r => (r.Branch, r.Sha)).Should().Equal(("main", "main-new"), ("test", "test"), ("v2/next", "next-new"));
         handler.Requests.Select(r => r.Url).Should().Equal(RunsUrl);
+        handler.Requests.Single().Authorization.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_configured_token_file_sends_a_bearer_token()
+    {
+        var tokenFile = Path.Combine(Path.GetTempPath(), $"gh-token-{Guid.NewGuid():N}");
+        await File.WriteAllTextAsync(tokenFile, "github_pat_example\n");
+        try
+        {
+            var withToken = new SystemInfo(
+                Options.Create(new OpsOptions { GitHubRepo = "example/repo", GitHubTokenFile = tokenFile, StatusFile = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.json") }),
+                databases, new Factory(handler), cache, time, NullLogger<SystemInfo>.Instance);
+            handler.Respond = _ => Runs(null, Run("main", "2026-11-18T10:00:00Z", "main-sha"));
+
+            (await withToken.GetAsync(CancellationToken.None)).Errors.Should().NotContainKey("ci");
+
+            handler.Requests.Single().Authorization.Should().Be("Bearer github_pat_example");
+        }
+        finally
+        {
+            File.Delete(tokenFile);
+        }
     }
 
     [Fact]
@@ -111,7 +134,7 @@ public sealed class CiTests : IAsyncDisposable
         await databases.DisposeAsync();
     }
 
-    private sealed record Seen(string Url, string? IfNoneMatch);
+    private sealed record Seen(string Url, string? IfNoneMatch, string? Authorization);
 
     private sealed class FakeHandler : HttpMessageHandler
     {
@@ -122,7 +145,8 @@ public sealed class CiTests : IAsyncDisposable
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests.Add(new(request.RequestUri!.ToString(),
-                request.Headers.TryGetValues("If-None-Match", out var etags) ? string.Join(",", etags) : null));
+                request.Headers.TryGetValues("If-None-Match", out var etags) ? string.Join(",", etags) : null,
+                request.Headers.Authorization?.ToString()));
             return Task.FromResult(Respond(request));
         }
     }

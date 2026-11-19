@@ -21,6 +21,9 @@ public sealed class OpsOptions
     /// <summary><c>owner/name</c> of the GitHub repository whose CI runs are shown; CI is skipped when empty.</summary>
     public string? GitHubRepo { get; set; }
 
+    /// <summary>File holding a read-only GitHub token sent as a bearer token with the CI request; CI is fetched without auth when unset, missing or empty.</summary>
+    public string? GitHubTokenFile { get; set; }
+
     /// <summary>Branches whose latest CI run is shown; <c>main, test, v2/next</c> when empty.</summary>
     public string[] GitHubBranches { get; set; } = [];
 

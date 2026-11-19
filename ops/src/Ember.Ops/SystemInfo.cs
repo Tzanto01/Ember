@@ -153,6 +153,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{o.GitHubRepo.Trim()}/actions/runs?per_page=50");
             request.Headers.Accept.ParseAdd("application/vnd.github+json");
+            if (GitHubToken(o.GitHubTokenFile) is { } token) request.Headers.Authorization = new("Bearer", token);
             var last = ciSnapshot;
             if (last is not null) request.Headers.TryAddWithoutValidation("If-None-Match", last.ETag);
             using var response = await client.SendAsync(request, ct);
@@ -179,6 +180,13 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
             return runs;
         });
         return CiRateLimited() ?? fetched;
+    }
+
+    private static string? GitHubToken(string? file)
+    {
+        if (string.IsNullOrWhiteSpace(file) || !File.Exists(file)) return null;
+        var token = File.ReadAllText(file).Trim();
+        return token.Length > 0 && token.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') ? token : null;
     }
 
     private Fetched<IReadOnlyList<CiRun>>? CiRateLimited()
