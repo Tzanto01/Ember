@@ -24,6 +24,10 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
     [InlineData("feedback")]
     [InlineData("notices")]
     [InlineData("system")]
+    [InlineData("activity")]
+    [InlineData("habits")]
+    [InlineData("users")]
+    [InlineData("feedback-trends")]
     public async Task Every_page_has_the_contract_shape_on_the_production_schema(string pageId)
     {
         using var client = Hub();

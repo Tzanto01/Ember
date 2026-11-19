@@ -69,7 +69,7 @@ public sealed class AggregateTests(V2DatabaseFixture fixture)
         var overview = await OverviewAsync();
 
         overview.JournalPerDay.Should().HaveCount(90);
-        overview.JournalPerDay.Where(d => d.Count > 0).Should().BeEquivalentTo([new DayCount(Today, 2), new DayCount(Today.AddDays(-1), 1)]);
+        overview.JournalPerDay.Where(d => d.Count > 0).Should().BeEquivalentTo([new DayCount(Today, 3), new DayCount(Today.AddDays(-1), 1)]);
         overview.LowDaysPerDay.Where(d => d.Count > 0).Should().BeEquivalentTo([new DayCount(Today, 2), new DayCount(Today.AddDays(-2), 1)]);
     }
 

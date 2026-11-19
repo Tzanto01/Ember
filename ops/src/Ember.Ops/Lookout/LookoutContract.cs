@@ -53,13 +53,26 @@ public sealed record StatItem(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Format = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Tone = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Hint = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? HintTone = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? HintTone = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<double>? Trend = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Delta? Delta = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Max = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Goal? Goal = null);
+
+/// <summary>v1.1: change against a named earlier period, in the unit of the value.</summary>
+public sealed record Delta(double Value, string Vs, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Better = null);
+
+/// <summary>v1.1: target for a value, met below <see cref="Below"/> and/or above <see cref="Above"/>.</summary>
+public sealed record Goal(
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Below = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Above = null);
 
 public sealed record BarsWidget : Widget
 {
     public required string Axis { get; init; }
     public required IReadOnlyList<SeriesRef> Series { get; init; }
     public required IReadOnlyList<Bar> Bars { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Better { get; init; }
 }
 
 public sealed record SeriesRef(string Label);
