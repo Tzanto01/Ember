@@ -78,7 +78,7 @@ public sealed class LookoutPagesTests
     public void The_summary_carries_the_v1_1_fields()
     {
         var series = new OverviewSeries(Now, OpsCalendar.Weeks(Today, 12).Select((w, i) => new WeekCount(w, i == 11 ? 2 : 0)).ToList(), [], [], [], null, null,
-            UsersBefore: 4, OpsCalendar.Days(Today.AddDays(-13), Today, new Dictionary<DateOnly, int> { [Today] = 3 }), Active7Before: 1, Active30Before: 0);
+            UsersBefore: 4, OpsCalendar.Days(Today.AddDays(-13), Today, new Dictionary<DateOnly, int> { [Today] = 3 }), Active7Before: 1, Active30Before: 0, CheckInUsersPerDay: []);
         var feedback = new FeedbackList([
             new(1, "t", "x", "web", null, Now.AddDays(-2), "open", null, false, [], 0, 1),
             new(2, "t", "x", "web", null, Now.AddDays(-20), "open", null, false, [], 0, 2),
@@ -137,6 +137,7 @@ public sealed class LookoutPagesTests
             .Equal(("Open", 1), ("Planned", 1), ("Implemented", 0), ("Released", 2), ("Declined", 1));
         ((BarsWidget)Widget(page, "versions")).Bars.Select(b => (b.Label, b.Values[0])).Should().Equal(("1.2.0", 2), ("1.1.0", 2), ("Unknown", 1));
         ((BarsWidget)Widget(page, "flow")).Bars[^2].Values.Should().Equal(2, 2);
+        Stats(Widget(LookoutPages.FeedbackTrends(new([list.Items[2], list.Items[3]]), Now), "tiles")).Items[3].Value.Should().Be(20d, "the median of two is their mean");
     }
 
     private static SystemReport EmptySystem() =>

@@ -47,7 +47,8 @@ public static class LookoutPages
                 new("Streak users", streaks.Users, Hint: $"{Pct(streaks.ShowStreaks, streaks.Users)} show streaks", Max: users.Total),
             ]),
             Bars("new-users", "New users per week", "week", ["Count"], users.NewPerWeek.Select(w => new Bar(Date(w.Week), [w.Count])), "by first habit, proxy"),
-            Bars("check-ins", "Check-ins per day", "day", ["Count"], Days(o.CheckInsPerDay), "last 90 days, completed") with { Better = "up" },
+            Bars("check-ins", "Check-ins per day", "day", ["Count"], Guarded(o.CheckInsPerDay.Zip(o.Series.CheckInUsersPerDay, (d, u) => (Bar(d), u.Count))),
+                $"last 90 days, completed; {SmallNote}") with { Better = "up" },
             Bars("journal", "Journal days per day", "day", ["Count"], Guarded(o.JournalPerDay.Select(d => (Bar(d), d.Count))),
                 $"journal days (note or mood); {SmallNote}") with { Better = "up" },
             Bars("low-days", "Low days per day", "day", ["Low days"], Guarded(o.LowDaysPerDay.Select(d => (Bar(d), d.Count))), SmallNote) with { Better = "down" },
@@ -94,12 +95,12 @@ public static class LookoutPages
                 ? Bars("sent", "Reminders sent per day", "day", ["Discord", "Push"], Channels(r.History.PerDay),
                     $"history since {Local(since)}; includes second reminders and resends")
                 : Bars("sent", "Reminders sent per day", "day", ["Discord", "Push"], []) with { Unavailable = "No snapshots yet" },
-            r.History.Since is null
+            r.History.Since is not { } historySince
                 ? Stats("delivery", "Sent, last 7 days", "list", []) with { Unavailable = "No snapshots yet" }
                 : Stats("delivery", "Sent, last 7 days", "list",
                 [
-                    SentItem("Discord", r.History.PerDay.Select(d => d.Discord).ToList()),
-                    SentItem("Push", r.History.PerDay.Select(d => d.Push).ToList()),
+                    SentItem("Discord", r.History.PerDay.Select(d => d.Discord).ToList(), historySince <= r.GeneratedAt.AddDays(-14)),
+                    SentItem("Push", r.History.PerDay.Select(d => d.Push).ToList(), historySince <= r.GeneratedAt.AddDays(-14)),
                 ]) with { Note = "from the dashboard's snapshots; trend is the last 30 days" },
             Stats("discord", "Discord DMs", "list",
             [
@@ -218,7 +219,7 @@ public static class LookoutPages
             Bars("active-per-day", "Active users per day", "day", ["Users"], Guarded(a.ActivePerDay.Select(d => (Bar(d), d.Count))),
                 $"completed a check-in; {SmallNote}") with { Better = "up" },
             Bars("active-per-week", "Active users per week", "week", ["Users"], Guarded(a.ActivePerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))),
-                $"completed a check-in that week; {SmallNote}") with { Better = "up" },
+                $"completed a check-in that week; {SmallNote}"),
             Bars("active-days", "Users by active days, last 30 days", "category", ["Users"],
                 Guarded(a.ActiveDays.Select(b => (new Bar(b.Label, [b.Count]), b.Users))), SmallNote),
             Panel("retention", "Retention by week of first habit", null,
@@ -242,10 +243,10 @@ public static class LookoutPages
                     Guarded(new("Private journal on", a.PrivateJournals), a.PrivateJournals),
                 ]) with { Note = "counts only; values for 1 or 2 people show as <3" },
                 Bars("journal-weeks", "Journal days per week", "week", ["Journal days"],
-                    Guarded(a.JournalPerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))), SmallNote) with { Better = "up" },
+                    Guarded(a.JournalPerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))), SmallNote),
             ]),
             Bars("low-days-week", "Low days per week", "week", ["Low days"], Guarded(a.LowDaysPerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))),
-                SmallNote) with { Better = "down" },
+                SmallNote),
         ]);
     }
 
@@ -300,10 +301,10 @@ public static class LookoutPages
         var resolved = items.Where(i => i.ResolvedAt is not null).Select(i => (i.ResolvedAt!.Value - i.CreatedAt).TotalHours).Order().ToList();
         var sent7 = items.Count(i => i.CreatedAt >= now.AddDays(-7));
         var sentBefore = items.Count(i => i.CreatedAt >= now.AddDays(-14) && i.CreatedAt < now.AddDays(-7));
-        var versions = items.Where(i => i.Version is not null).GroupBy(i => i.Version!).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key).ToList();
+        var versions = items.Where(i => !string.IsNullOrWhiteSpace(i.Version)).GroupBy(i => i.Version!).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key).ToList();
         var versionBars = versions.Take(7).Select(g => new Bar(g.Key, [g.Count()])).ToList();
         if (versions.Count > 7) versionBars.Add(new("Other", [versions.Skip(7).Sum(g => g.Count())]));
-        versionBars.Add(new("Unknown", [items.Count(i => i.Version is null)]));
+        versionBars.Add(new("Unknown", [items.Count(i => string.IsNullOrWhiteSpace(i.Version))]));
         return new("feedback-trends", "Feedback trends", now,
         [
             Stats("tiles", "Feedback", "tiles",
@@ -311,7 +312,7 @@ public static class LookoutPages
                 new("Open", items.Count(i => i.Status == "open"), Goal: new(Below: 5)),
                 new("New, 7 days", sent7, Delta: new(sent7 - sentBefore, "the 7 days before", "down")),
                 new("Resolved, 30 days", items.Count(i => i.ResolvedAt >= now.AddDays(-30))),
-                new("Median time to resolve", resolved.Count == 0 ? null : Math.Round(resolved[resolved.Count / 2], 1), "hours",
+                new("Median time to resolve", resolved.Count == 0 ? null : Math.Round((resolved[(resolved.Count - 1) / 2] + resolved[resolved.Count / 2]) / 2, 1), "hours",
                     Hint: "released or declined reports"),
             ]),
             Bars("per-week", "Reports per week by platform", "week", Platforms,
@@ -391,11 +392,12 @@ public static class LookoutPages
         : new("Active 7 days", active7, Max: total, Trend: series.Active7PerDay.Select(d => (double)d.Count).ToList(),
             Delta: new(active7 - series.Active7Before, "the 7 days before", "up"));
 
-    private static StatItem SentItem(string channel, IReadOnlyList<int> perDay)
+    private static StatItem SentItem(string channel, IReadOnlyList<int> perDay, bool twoWeeksOfHistory)
     {
         var last7 = perDay.TakeLast(7).Sum();
         var before = perDay.SkipLast(7).TakeLast(7).Sum();
-        return new(channel, last7, Trend: perDay.TakeLast(30).Select(n => (double)n).ToList(), Delta: new(last7 - before, "the 7 days before"));
+        return new(channel, last7, Trend: perDay.TakeLast(30).Select(n => (double)n).ToList(),
+            Delta: twoWeeksOfHistory ? new(last7 - before, "the 7 days before") : null);
     }
 
     /// <summary>True for a bucket of 1 or 2 distinct users, which is effectively one person.</summary>

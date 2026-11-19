@@ -21,10 +21,11 @@ public sealed record OverviewCounters(
 /// <param name="Active7PerDay">For each of the last 14 days, the users with a completed check-in in the 7 days ending that day.</param>
 /// <param name="Active7Before">Users with a completed check-in 13 to 7 days ago.</param>
 /// <param name="Active30Before">Users with a completed check-in 59 to 30 days ago.</param>
+/// <param name="CheckInUsersPerDay">The distinct users behind <see cref="CheckInsPerDay"/>.</param>
 public sealed record OverviewSeries(
     DateTime GeneratedAt, IReadOnlyList<WeekCount> NewPerWeek, IReadOnlyList<DayCount> CheckInsPerDay, IReadOnlyList<DayCount> JournalPerDay,
     IReadOnlyList<DayCount> LowDaysPerDay, IReadOnlyList<DayCount>? WarmthPerDay, IReadOnlyList<SlipWeek>? LetGoSlipsPerWeek,
-    int UsersBefore, IReadOnlyList<DayCount> Active7PerDay, int Active7Before, int Active30Before);
+    int UsersBefore, IReadOnlyList<DayCount> Active7PerDay, int Active7Before, int Active30Before, IReadOnlyList<DayCount> CheckInUsersPerDay);
 
 /// <summary>The overview stats; <see cref="GeneratedAt"/> is when the counters were read.</summary>
 public sealed record Overview(
@@ -119,7 +120,10 @@ public static class OverviewQueries
                     SELECT (min("CreatedAt") AT TIME ZONE 'Europe/Berlin')::date AS first FROM "Habits" GROUP BY "UserId") f
                 WHERE first BETWEEN $1 AND $2 GROUP BY 1
                 """, weeks[0], today),
-            Db.Command("""SELECT "Date", count(*)::int FROM "HabitLogs" WHERE "Completed" AND "Date" BETWEEN $1 AND $2 GROUP BY 1""", from, today),
+            Db.Command("""
+                SELECT l."Date", count(*)::int, count(DISTINCT h."UserId")::int FROM "HabitLogs" l JOIN "Habits" h ON h."Id" = l."HabitId"
+                WHERE l."Completed" AND l."Date" BETWEEN $1 AND $2 GROUP BY 1
+                """, from, today),
             Db.Command("""SELECT "Date", count(*)::int FROM "DayNotes" WHERE "Date" BETWEEN $1 AND $2 GROUP BY 1""", from, today),
             Db.Command("""SELECT "Date", count(*)::int FROM "DayMarks" WHERE "Kind" = 0 AND "Date" BETWEEN $1 AND $2 GROUP BY 1""", from, today),
             Db.Command("""
@@ -154,7 +158,14 @@ public static class OverviewQueries
 
         var firstHabit = await Db.DaysAsync(reader, ct);
         var newPerWeek = weeks.Select(w => new WeekCount(w, firstHabit.Where(d => OpsCalendar.Monday(d.Key) == w).Sum(d => d.Value))).ToList();
-        var checkIns = OpsCalendar.Days(from, today, await Db.DaysAsync(reader, ct));
+        var (checkInRows, checkInUsers) = (new Dictionary<DateOnly, int>(), new Dictionary<DateOnly, int>());
+        while (await reader.ReadAsync(ct))
+        {
+            var day = reader.GetFieldValue<DateOnly>(0);
+            (checkInRows[day], checkInUsers[day]) = (reader.GetInt32(1), reader.GetInt32(2));
+        }
+        await reader.NextResultAsync(ct);
+        var checkIns = OpsCalendar.Days(from, today, checkInRows);
         var journal = OpsCalendar.Days(from, today, await Db.DaysAsync(reader, ct));
         var lowDays = OpsCalendar.Days(from, today, await Db.DaysAsync(reader, ct));
         await reader.RowAsync(ct);
@@ -178,7 +189,8 @@ public static class OverviewQueries
             }).ToList();
         }
 
-        return new(generatedAt, newPerWeek, checkIns, journal, lowDays, warmth, slips, usersBefore, active7PerDay, active7Before, active30Before);
+        return new(generatedAt, newPerWeek, checkIns, journal, lowDays, warmth, slips, usersBefore, active7PerDay, active7Before, active30Before,
+            OpsCalendar.Days(from, today, checkInUsers));
     }
 
     private static int? Nullable(NpgsqlDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal);

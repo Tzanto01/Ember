@@ -54,9 +54,13 @@ public sealed class InsightTests(V2DatabaseFixture fixture) : IDisposable
     }
 
     [Fact]
-    public async Task Overview_journal_and_low_day_bars_leave_out_days_with_one_or_two_people()
+    public async Task Overview_check_in_journal_and_low_day_bars_leave_out_days_with_one_or_two_people()
     {
         var overview = await PageAsync("overview");
+
+        var checkIns = LookoutShape.Widget(overview, "check-ins");
+        checkIns.GetProperty("bars").GetArrayLength().Should().Be(84, "six days had check-ins from one or two people");
+        checkIns.GetProperty("bars").EnumerateArray().Should().OnlyContain(b => b.GetProperty("values")[0].GetDouble() == 0);
 
         var journal = LookoutShape.Widget(overview, "journal");
         journal.GetProperty("bars").GetArrayLength().Should().Be(89, "yesterday had one writer");
