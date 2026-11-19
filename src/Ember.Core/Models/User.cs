@@ -11,6 +11,12 @@ public class User : IdentityUser<Guid>
     public string Timezone { get; set; } = "UTC";
 
     /// <summary>
+    /// When (UTC) the account was created; set by the server at sign-up and at Discord account creation. The migration that added it
+    /// filled in the earliest of the first habit's and the first sign-in session's creation, null when neither exists.
+    /// </summary>
+    public DateTime? CreatedUtc { get; set; }
+
+    /// <summary>
     /// Number of missed days per week that are forgiven before breaking a streak.
     /// Default 1. Users can adjust with /streak grace.
     /// </summary>
@@ -85,6 +91,16 @@ public class User : IdentityUser<Guid>
     /// </summary>
     public DateOnly? ConsentPromptedOn { get; set; }
 
+    /// <summary>
+    /// When (UTC) the health-data consent was withdrawn or declined, or, for an account that held health data without ever agreeing,
+    /// when that rule shipped; null otherwise. While set, nothing new is saved and reminders stop; after
+    /// <see cref="Services.HabitService.WithdrawnDataLifetime"/> the health data is deleted. Agreeing again clears it.
+    /// </summary>
+    public DateTime? ConsentWithdrawnAt { get; set; }
+
+    /// <summary>When (UTC) the "your data is deleted soon" reminder was claimed for the current withdrawal; null until then.</summary>
+    public DateTime? DeletionReminderSentAt { get; set; }
+
     /// <summary>SHA-256 (hex) of the newest emailed sign-up code; null when none is pending.</summary>
     public string? EmailCodeHash { get; set; }
 
@@ -99,6 +115,12 @@ public class User : IdentityUser<Guid>
 
     /// <summary>Whether the account uses Fireside. Off by default.</summary>
     public bool FiresideEnabled { get; set; }
+
+    /// <summary>When (UTC) the user explicitly agreed to sharing through Fireside (GDPR Art. 9(2)(a)); null while not agreed.</summary>
+    public DateTime? FiresideConsentAt { get; set; }
+
+    /// <summary>The Fireside consent version (<see cref="Services.FiresideService.CurrentConsentVersion"/>) agreed to in <see cref="FiresideConsentAt"/>.</summary>
+    public string? FiresideConsentVersion { get; set; }
 
     /// <summary>The name friends see, stored trimmed (1 to 32 characters); kept when Fireside is turned off so turning it on again can prefill it.</summary>
     public string? FiresideName { get; set; }

@@ -39,6 +39,10 @@ public class FeedbackCliTests(PostgresFixture postgres) : ApiTestBase(postgres)
                 pictures.Select(p => new FeedbackImage { ContentType = "image/png", Data = p }).ToList());
         });
 
+    [Fact]
+    public void Quoting_splits_on_every_line_ending_so_user_text_cannot_fake_a_listing_header()
+        => FeedbackDigest.Quote("a\u2028#999 · fake header\r\nb").Should().Equal("> a", "> #999 · fake header", "> b");
+
     [DockerFact]
     public async Task List_shows_the_reports_not_yet_closed_with_status_and_picture_ids_and_all_adds_the_closed_ones()
     {

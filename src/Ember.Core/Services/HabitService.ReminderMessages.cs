@@ -49,17 +49,17 @@ public partial class HabitService
     public Task DeleteReminderMessageByDiscordIdAsync(ulong messageId, CancellationToken cancellationToken = default)
         => _db.ReminderMessages.Where(m => m.MessageId == messageId).ExecuteDeleteAsync(cancellationToken);
 
-    /// <summary>Ids of habits whose pending second reminder is due at or before <paramref name="nowUtc"/>.</summary>
+    /// <summary>Ids of habits whose pending second reminder is due at or before <paramref name="nowUtc"/>, skipping users who withdrew consent.</summary>
     public Task<List<int>> GetDueSecondReminderHabitIdsAsync(DateTime nowUtc, CancellationToken cancellationToken = default)
         => _db.Habits
-            .Where(h => h.SecondReminderUtc != null && h.SecondReminderUtc <= nowUtc)
+            .Where(h => h.SecondReminderUtc != null && h.SecondReminderUtc <= nowUtc && h.User.ConsentWithdrawnAt == null)
             .Select(h => h.Id)
             .ToListAsync(cancellationToken);
 
-    /// <summary>Ids of routines whose pending second reminder is due at or before <paramref name="nowUtc"/>.</summary>
+    /// <summary>Ids of routines whose pending second reminder is due at or before <paramref name="nowUtc"/>, skipping users who withdrew consent.</summary>
     public Task<List<int>> GetDueSecondReminderRoutineIdsAsync(DateTime nowUtc, CancellationToken cancellationToken = default)
         => _db.Routines
-            .Where(r => r.SecondReminderUtc != null && r.SecondReminderUtc <= nowUtc)
+            .Where(r => r.SecondReminderUtc != null && r.SecondReminderUtc <= nowUtc && r.User.ConsentWithdrawnAt == null)
             .Select(r => r.Id)
             .ToListAsync(cancellationToken);
 

@@ -28,7 +28,7 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
         var user = await Host.SignedInAsync();
         var name = NewName(prefix);
         if (timezone is not null) await (await user.Patch("/api/me", new { timezone })).Expect(HttpStatusCode.OK);
-        if (enabled) await (await user.Put(Fireside, new { enabled = true, name })).ExpectJson();
+        if (enabled) await (await user.Put(Fireside, new { enabled = true, name, consentVersion = FiresideService.CurrentConsentVersion })).ExpectJson();
         return new Person(user, name, await user.IdAsync());
     }
 
@@ -474,10 +474,40 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
         }
         (await StateAsync(user)).GetProperty("enabled").GetBoolean().Should().BeFalse();
 
-        var saved = await (await user.Client.Put(Fireside, new { enabled = true, name = "  Lena Ö  " })).ExpectJson();
+        var saved = await (await user.Client.Put(Fireside, new { enabled = true, name = "  Lena Ö  ", consentVersion = FiresideService.CurrentConsentVersion })).ExpectJson();
 
         (saved.GetProperty("enabled").GetBoolean(), saved.GetProperty("name").GetString()).Should().Be((true, "Lena Ö"));
         (await StateAsync(user)).GetProperty("name").GetString().Should().Be("Lena Ö");
+    }
+
+    [DockerFact]
+    public async Task Turning_fireside_on_needs_the_current_fireside_consent_which_is_stored_until_it_is_turned_off()
+    {
+        var user = await PersonAsync("Ann", enabled: false);
+        Task<(DateTime? At, string? Version)> StoredConsent() => Host.Db(db => db.Users.Where(u => u.Id == user.Id)
+            .Select(u => new ValueTuple<DateTime?, string?>(u.FiresideConsentAt, u.FiresideConsentVersion)).SingleAsync());
+
+        var state = await StateAsync(user);
+        (state.GetProperty("consentVersion").GetString(), state.GetProperty("consentGiven").GetBoolean())
+            .Should().Be((FiresideService.CurrentConsentVersion, false));
+        await (await user.Client.Put(Fireside, new { enabled = true, name = user.Name }))
+            .ExpectProblem(HttpStatusCode.Forbidden, "fireside_consent_required");
+        await (await user.Client.Put(Fireside, new { enabled = true, name = user.Name, consentVersion = "2020-01" }))
+            .ExpectProblem(HttpStatusCode.Forbidden, "fireside_consent_required");
+        (await StateAsync(user)).GetProperty("enabled").GetBoolean().Should().BeFalse();
+
+        var on = await (await user.Client.Put(Fireside, new { enabled = true, name = user.Name, consentVersion = FiresideService.CurrentConsentVersion })).ExpectJson();
+
+        on.GetProperty("consentGiven").GetBoolean().Should().BeTrue();
+        (await StoredConsent()).Should().Be(((DateTime?)Host.Time.GetUtcNow().UtcDateTime, FiresideService.CurrentConsentVersion));
+        await (await user.Client.Put(Fireside, new { enabled = true, notify = true })).ExpectJson();
+
+        var off = await (await user.Client.Put(Fireside, new { enabled = false })).ExpectJson();
+
+        off.GetProperty("consentGiven").GetBoolean().Should().BeFalse();
+        (await StoredConsent()).Should().Be(((DateTime?)null, (string?)null));
+        await (await user.Client.Put(Fireside, new { enabled = true }))
+            .ExpectProblem(HttpStatusCode.Forbidden, "fireside_consent_required");
     }
 
     [DockerFact]

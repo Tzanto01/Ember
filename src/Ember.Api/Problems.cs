@@ -9,7 +9,7 @@ internal static class Problems
     [
         "validation", "unauthenticated", "forbidden", "consent_required", "antiforgery", "not_found",
         "habit_limit", "conflict", "before_habit_start", "in_future", "rate_limited", "internal",
-        "invalid_code", "password_required",
+        "invalid_code", "password_required", "fireside_consent_required",
     ];
 
     /// <summary>
@@ -57,6 +57,9 @@ internal static class Problems
         "Enter your password to finish on this device.");
 
     public static IResult ConsentRequired() => Problem(StatusCodes.Status403Forbidden, "consent_required");
+
+    /// <summary>Turning Fireside on needs the current Fireside consent (<see cref="FiresideService.CurrentConsentVersion"/>).</summary>
+    public static IResult FiresideConsentRequired() => Problem(StatusCodes.Status403Forbidden, "fireside_consent_required");
 
     public static IResult Antiforgery() => Problem(StatusCodes.Status403Forbidden, "antiforgery");
 

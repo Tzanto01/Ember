@@ -27,6 +27,17 @@ public class AuthTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Register_stamps_the_account_creation_time()
+    {
+        var email = ApiHost.NewEmail();
+
+        await (await Host.NewClient().Post("/api/auth/register", new Credentials(email, ApiClient.Passphrase))).Expect(HttpStatusCode.OK);
+
+        var created = await Host.Db(db => db.Users.Where(u => u.Email == email).Select(u => u.CreatedUtc).SingleAsync());
+        created.Should().Be(Host.Time.GetUtcNow().UtcDateTime);
+    }
+
+    [DockerFact]
     public async Task Register_with_a_taken_email_answers_like_a_new_one_mails_the_owner_and_creates_no_second_account()
     {
         var client = await Host.ConfirmedUserAsync();

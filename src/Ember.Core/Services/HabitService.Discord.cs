@@ -48,6 +48,7 @@ public partial class HabitService
             SecurityStamp = Guid.NewGuid().ToString("N").ToUpperInvariant(),
             ConcurrencyStamp = Guid.NewGuid().ToString(),
             Language = language is not null && Languages.All.Contains(language) ? language : Languages.English,
+            CreatedUtc = _time.GetUtcNow().UtcDateTime,
         };
         user.Logins.Add(new IdentityUserLogin<Guid>
         {
@@ -96,6 +97,9 @@ public partial class HabitService
 
     public async Task ReleaseConsentPromptAsync(ulong discordUserId)
         => await ReleaseConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
+
+    public async Task<bool> WithdrawHealthDataConsentAsync(ulong discordUserId)
+        => await WithdrawHealthDataConsentAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task DeclineConsentPromptAsync(ulong discordUserId)
         => await DeclineConsentPromptAsync(await FindDiscordUserAsync(discordUserId));

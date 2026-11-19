@@ -41,6 +41,7 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
         {
             entity.Property(u => u.Timezone).HasMaxLength(64).IsRequired();
             entity.Property(u => u.ConsentPolicyVersion).HasMaxLength(16);
+            entity.Property(u => u.FiresideConsentVersion).HasMaxLength(16);
             entity.Property(u => u.EmailCodeHash).HasMaxLength(64);
             entity.Property(u => u.EmailCodeKeyHash).HasMaxLength(64);
             entity.Property(u => u.Theme).HasMaxLength(32);
@@ -236,6 +237,8 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
             entity.HasIndex(s => s.UserId);
             entity.HasIndex(s => s.ExpiresUtc);
             entity.Property(s => s.WidgetKeyHash).HasMaxLength(32);
+            entity.Property(s => s.Platform).HasMaxLength(16);
+            entity.Property(s => s.AppVersion).HasMaxLength(32);
             entity.HasIndex(s => s.WidgetKeyHash).IsUnique();
             entity.HasOne<User>()
                   .WithMany()

@@ -96,6 +96,12 @@ public static class AppHost
                         .ForJob(FiresideNotifyJob.Key)
                         .WithIdentity("fireside-notify-trigger", "fireside")
                         .WithCronSchedule("15 * * * * ?", x => x.InTimeZone(TimeZoneInfo.Utc)));
+
+                    q.AddJob<HealthDataDeletionJob>(opts => opts.WithIdentity(HealthDataDeletionJob.Key).StoreDurably());
+                    q.AddTrigger(opts => opts
+                        .ForJob(HealthDataDeletionJob.Key)
+                        .WithIdentity("health-data-deletion-trigger", "accounts")
+                        .WithCronSchedule("0 0 9 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc)));
                 });
                 services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
                 services.AddSingleton<IReminderChannel, DiscordDmReminderChannel>();

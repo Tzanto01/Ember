@@ -124,7 +124,13 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
         var guildId = Context.Guild?.Id;
         var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-        if (await _habits.AddCheckInAsync(Context.User.Id, habitId, today, guildId) != DayEditResult.Saved)
+        var result = await _habits.AddCheckInAsync(Context.User.Id, habitId, today, guildId);
+        if (result == DayEditResult.ConsentRequired)
+        {
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            return;
+        }
+        if (result != DayEditResult.Saved)
         {
             await NotFoundAsync(t);
             return;
@@ -149,7 +155,13 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
         var guildId = Context.Guild?.Id;
         var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-        if (await _habits.CheckInAsync(Context.User.Id, habitId, today, completed: false, guildId) != DayEditResult.Saved)
+        var result = await _habits.CheckInAsync(Context.User.Id, habitId, today, completed: false, guildId);
+        if (result == DayEditResult.ConsentRequired)
+        {
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            return;
+        }
+        if (result != DayEditResult.Saved)
         {
             await NotFoundAsync(t);
             return;
@@ -178,8 +190,13 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
 
         var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-        if (await _habits.AddSlipAsync(Context.User.Id, habitId, today) != SlipResult.Saved
-            || await _habits.GetHabitAsync(Context.User.Id, habitId) is not { } habit)
+        var result = await _habits.AddSlipAsync(Context.User.Id, habitId, today);
+        if (result == SlipResult.ConsentRequired)
+        {
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            return;
+        }
+        if (result != SlipResult.Saved || await _habits.GetHabitAsync(Context.User.Id, habitId) is not { } habit)
         {
             await NotFoundAsync(t);
             return;

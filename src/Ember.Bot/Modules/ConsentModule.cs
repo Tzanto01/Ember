@@ -50,8 +50,9 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     /// <summary>
-    /// Applies the owner's answer only when the person clicking is that owner: agreeing records consent, declining only
-    /// holds back the next automatic prompt (<see cref="HabitService.ConsentDeclineBackoffDays"/>). Returns whether the clicker is the owner.
+    /// Applies the owner's answer only when the person clicking is that owner: agreeing records consent, declining holds back the next
+    /// automatic prompt (<see cref="HabitService.ConsentDeclineBackoffDays"/>) and withdraws, so the health data is deleted after
+    /// <see cref="HabitService.WithdrawnDataLifetime"/>. Returns whether the clicker is the owner.
     /// An account created by agreeing gets <paramref name="language"/>.
     /// </summary>
     internal static async Task<bool> TryAnswerAsync(HabitService habits, string ownerIdStr, ulong clickerId, bool agreed, string? language = null)

@@ -58,7 +58,13 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
 
         if (open.Count == 1)
         {
-            if (await _habits.AddCheckInAsync(Context.User.Id, open[0].Id, date) != DayEditResult.Saved)
+            var result = await _habits.AddCheckInAsync(Context.User.Id, open[0].Id, date);
+            if (result == DayEditResult.ConsentRequired)
+            {
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                return;
+            }
+            if (result != DayEditResult.Saved)
             {
                 await RespondAsync(t.Get("common.not-found"), ephemeral: true);
                 return;
@@ -97,9 +103,16 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
 
         var logged = 0;
         foreach (var value in values)
-            if (int.TryParse(value, out var habitId)
-                && await _habits.AddCheckInAsync(Context.User.Id, habitId, date) == DayEditResult.Saved)
-                logged++;
+        {
+            if (!int.TryParse(value, out var habitId)) continue;
+            var result = await _habits.AddCheckInAsync(Context.User.Id, habitId, date);
+            if (result == DayEditResult.ConsentRequired)
+            {
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                return;
+            }
+            if (result == DayEditResult.Saved) logged++;
+        }
 
         await CloseAsync(t.Plural("reflect.logged", logged, Label(t, date)));
     }

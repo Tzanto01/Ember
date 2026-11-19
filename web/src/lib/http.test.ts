@@ -10,6 +10,8 @@ import { OfflineQueue } from './offline-queue';
 import { ApiError } from './problem';
 import { type FetchMock, me, memorySecureStore, mockFetch } from './test-support';
 
+vi.mock('@capacitor/app', () => ({ App: { getInfo: async () => ({ version: '1.4.2', build: '7' }) } }));
+
 const web = { native: false, apiBase: '' };
 
 function session(http: Http): AuthService {
@@ -78,6 +80,33 @@ describe('Http URLs', () => {
       '/api/me/push-subscriptions?endpoint=https%3A%2F%2Fpush.example.test%2Fa%20b%26c%3D1',
     );
     call.respond(204);
+  });
+});
+
+describe('Http client header', () => {
+  it('names the web build and its version on own /api calls only', async () => {
+    const http = new Http(web);
+
+    void http.request('GET', '/api/me');
+    void http.request('GET', '/legal/x.md');
+
+    const api = await mock.next('GET', '/api/me');
+    const file = await mock.next('GET', '/legal/x.md');
+    expect(api.headers.get('X-Ember-Client')).toBe(`web/${__EMBER_VERSION__}`);
+    expect(__EMBER_VERSION__).toMatch(/^[0-9A-Za-z.+_-]{1,32}$/);
+    expect(file.headers.has('X-Ember-Client')).toBe(false);
+    api.respond(200, {});
+    file.respond(200);
+  });
+
+  it('names the app and its installed version in the native build', async () => {
+    const http = new Http({ native: true, apiBase: 'https://ember.example' });
+
+    void http.request('GET', '/api/me');
+
+    const call = await mock.next('GET', 'https://ember.example/api/me');
+    expect(call.headers.get('X-Ember-Client')).toBe('android/1.4.2');
+    call.respond(200, {});
   });
 });
 

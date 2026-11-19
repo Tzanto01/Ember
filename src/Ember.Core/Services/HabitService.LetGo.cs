@@ -41,6 +41,9 @@ public enum SlipResult
 
     /// <summary>The day lies after the user's local today. Nothing was written.</summary>
     InFuture,
+
+    /// <summary>The user hasn't agreed to the current health-data consent (or withdrew it). Nothing was written.</summary>
+    ConsentRequired,
 }
 
 /// <summary>Let-go habits: slips instead of check-ins, days free instead of streaks.</summary>
@@ -112,6 +115,7 @@ public partial class HabitService
         if (habit.Kind != HabitKind.LetGo) return SlipResult.NotLetGo;
         if (date > TimezoneHelper.LocalToday(habit.User.Timezone, _time)) return SlipResult.InFuture;
         if (date < StartDate(habit, TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc)) return SlipResult.BeforeHabitStart;
+        if (!await HasHealthDataConsentAsync(userId)) return SlipResult.ConsentRequired;
 
         var now = _time.GetUtcNow().UtcDateTime;
         var existing = await _db.HabitSlips.FirstOrDefaultAsync(s => s.HabitId == habitId && s.Date == date);

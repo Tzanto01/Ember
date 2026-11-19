@@ -44,6 +44,9 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
 
         switch (await CycleDayAsync(_habits, Context.User.Id, habitId, date, Context.Guild?.Id))
         {
+            case DayEditResult.ConsentRequired:
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                return;
             case DayEditResult.HabitNotFound:
                 await RespondAsync(t.Get("common.not-found"), ephemeral: true);
                 return;

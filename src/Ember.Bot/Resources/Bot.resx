@@ -26,15 +26,15 @@ You can change this any time in Ember's Settings.</value>
     <value>One quick question 💙</value>
   </data>
   <data name="consent.body" xml:space="preserve">
-    <value>Your habit names, check-ins, low days, day notes and moods can say something about your health (think "take my meds" or "sleep 8 hours"). Ember stores them only to run Ember for you. They're never sold or used for ads, and reach only the services that run Ember, like Discord. The privacy policy lists them.
+    <value>Ember saves your habit names, check-ins, low days, day notes, habit notes, moods, slips with the reasons you give, and your "What helps me" list. They can say something about your health (think "take my meds" or "sleep 8 hours"). Ember uses them only to run Ember for you and never sells them or uses them for ads. They reach only the services Ember runs on: Discord gets your reminders, and Cloudflare passes on the connection to the web app. The operator has technical access to the server.
 
-Is that OK with you? You can withdraw any time with `/privacy delete`, which removes everything.</value>
+Is that okay with you? You can withdraw any time with `/privacy withdraw`: Ember then saves nothing new, reminders stop, and after 30 days Ember deletes your data.</value>
   </data>
   <data name="consent.policy-link" xml:space="preserve">
     <value>[Privacy policy]({0})</value>
   </data>
   <data name="consent.agree" xml:space="preserve">
-    <value>I agree</value>
+    <value>I agree, I'm at least 16</value>
   </data>
   <data name="consent.decline" xml:space="preserve">
     <value>No thanks</value>
@@ -523,7 +523,7 @@ Reminders are off while it's paused. Rest well. 💙</value>
     <value>Thank you, you're all set. 💙 If you were adding a habit, just run the command again.</value>
   </data>
   <data name="consent.declined" xml:space="preserve">
-    <value>No problem. 💙 Ember can only store habits with your OK, so I won't create any new ones. Anything you already have here stays as it is until you decide. You can say yes any time by adding a habit, or remove everything Ember stores about you below.</value>
+    <value>No problem. 💙 Without your OK, Ember saves nothing new and stops your reminders. You can still download what you have with `/export`. If you don't agree within 30 days, Ember deletes it, and I'll remind you a few days before. You can say yes any time by adding a habit, or delete everything Ember stores about you below.</value>
   </data>
   <data name="consent.delete-button" xml:space="preserve">
     <value>Delete my data</value>
@@ -645,6 +645,7 @@ Habits are one part of it: no guilt, no pressure.</value>
   </data>
   <data name="help.privacy.body" xml:space="preserve">
     <value>`/export`: get your habits, check-ins and settings by DM
+`/privacy withdraw`: withdraw your consent, so nothing new is saved and reminders stop
 `/privacy delete`: permanently delete all your Ember data</value>
   </data>
   <data name="help.fireside.title" xml:space="preserve">
@@ -1432,5 +1433,35 @@ Works once, for 30 minutes.</value>
   </data>
   <data name="fireside.message.blanket" xml:space="preserve">
     <value>Sending a warm blanket</value>
+  </data>
+  <data name="privacy.withdraw.confirm" xml:space="preserve">
+    <value>Withdraw your consent? Ember then saves nothing new and your reminders stop right away. You can still download your data with `/export`. After 30 days Ember deletes it, and I'll remind you a few days before. Your account and settings stay.</value>
+  </data>
+  <data name="privacy.withdraw.button" xml:space="preserve">
+    <value>Withdraw consent</value>
+  </data>
+  <data name="privacy.withdraw.done" xml:space="preserve">
+    <value>Done, your consent is withdrawn. 💙 Ember deletes your data on {0}. Changed your mind? Add a habit and agree again, and everything stays. To delete everything right now, use the button below.</value>
+  </data>
+  <data name="privacy.withdraw.none" xml:space="preserve">
+    <value>There's no consent to withdraw right now.</value>
+  </data>
+  <data name="privacy.withdraw.cancelled" xml:space="preserve">
+    <value>Okay, nothing changed.</value>
+  </data>
+  <data name="consent.deletion-reminder" xml:space="preserve">
+    <value>Hi 💙 In 3 days, on {0}, Ember deletes your habits, check-ins, low days, day notes, moods, slips and your "What helps me" list, because you haven't agreed to Ember storing them. You can download them first with `/export`. To keep them, agree below.</value>
+  </data>
+  <data name="consent.deletion-push.title" xml:space="preserve">
+    <value>Ember will delete your data soon</value>
+  </data>
+  <data name="consent.deletion-push.body" xml:space="preserve">
+    <value>On {0}. Open Ember to export it or agree again.</value>
+  </data>
+  <data name="feedback.modal.health" xml:space="preserve">
+    <value>If your feedback or a picture includes anything about your health, sending it means you explicitly agree that the operator processes it to handle your feedback (GDPR Art. 9(2)(a)). You can withdraw that any time by emailing contact@nicowoellnitz.de.</value>
+  </data>
+  <data name="date.full" xml:space="preserve">
+    <value>MMMM d, yyyy</value>
   </data>
 </root>

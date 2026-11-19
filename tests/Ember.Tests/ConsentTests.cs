@@ -145,12 +145,142 @@ public class ConsentTests
         (await ClaimAsync(host, 1)).Should().BeTrue();
     }
 
+    private static Task<User> UserAsync(IntegrationTestHost host, long discordId)
+        => host.WithScopeAsync(async sp =>
+        {
+            var id = await sp.GetRequiredService<HabitService>().FindDiscordUserAsync((ulong)discordId);
+            return await sp.GetRequiredService<EmberDbContext>().Users.AsNoTracking().SingleAsync(u => u.Id == id);
+        });
+
+    private static async Task SeedConsentedUserWithDueRemindersAsync(IntegrationTestHost host, long userId)
+    {
+        await SeedExistingUserAsync(host, userId, HabitService.CurrentConsentPolicyVersion);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var due = Now.UtcDateTime.AddMinutes(-1);
+            await db.Habits.Where(h => h.UserId == TestUsers.Id(userId))
+                .ExecuteUpdateAsync(x => x.SetProperty(h => h.NextReminderUtc, due).SetProperty(h => h.SecondReminderUtc, due));
+            db.Routines.Add(new Routine { UserId = TestUsers.Id(userId), Name = "Morning", NextReminderUtc = due, SecondReminderUtc = due });
+            await db.SaveChangesAsync();
+        });
+    }
+
+    [Fact]
+    public async Task Withdrawing_BlocksEveryGatedWrite_AndStopsAllDueAndSecondReminders()
+    {
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
+        await SeedConsentedUserWithDueRemindersAsync(host, 1);
+        await SeedConsentedUserWithDueRemindersAsync(host, 2);
+
+        var withdrawn = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+        var again = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+
+        withdrawn.Should().BeTrue();
+        again.Should().BeFalse("it was already withdrawn");
+        (await UserAsync(host, 1)).ConsentWithdrawnAt.Should().Be(Now.UtcDateTime);
+        var add = () => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().AddHabitAsync(1, "Take meds", null));
+        await add.Should().ThrowAsync<ConsentRequiredException>();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetLowDayAsync(1, new DateOnly(2027, 1, 15))))
+            .Should().Be(DayEditResult.ConsentRequired);
+
+        var (habits, routines, secondHabits, secondRoutines, owners) = await host.WithScopeAsync(async sp =>
+        {
+            var service = sp.GetRequiredService<HabitService>();
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var now = Now.UtcDateTime;
+            var h = (await service.GetDueReminderHabitsAsync(now)).Select(x => x.Id).ToList();
+            var r = (await service.GetDueReminderRoutinesAsync(now)).Select(x => x.Id).ToList();
+            var sh = await service.GetDueSecondReminderHabitIdsAsync(now);
+            var sr = await service.GetDueSecondReminderRoutineIdsAsync(now);
+            var all = h.Concat(sh).ToList();
+            var habitOwners = await db.Habits.Where(x => all.Contains(x.Id)).Select(x => x.UserId).Distinct().ToListAsync();
+            var routineIds = r.Concat(sr).ToList();
+            var routineOwners = await db.Routines.Where(x => routineIds.Contains(x.Id)).Select(x => x.UserId).Distinct().ToListAsync();
+            return (h, r, sh, sr, habitOwners.Concat(routineOwners).Distinct().ToList());
+        });
+        (habits.Count, routines.Count, secondHabits.Count, secondRoutines.Count).Should().Be((1, 1, 1, 1), "only user 2 still gets reminders");
+        owners.Should().Equal(TestUsers.Id(2));
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetUserTimezonesWithHabitsAsync()))
+            .Select(u => u.UserId).Should().Equal(TestUsers.Id(2));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CheckInsAndSlips_AreRefusedWithoutCurrentConsent_WhileClearingStaysAllowed(bool withdrawn)
+    {
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
+        await SeedExistingUserAsync(host, 1, withdrawn ? HabitService.CurrentConsentPolicyVersion : "2020-01");
+        var day = new DateOnly(2027, 1, 14);
+        var (buildId, letGoId) = await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var build = await db.Habits.SingleAsync();
+            build.Logs.Add(new HabitLog { Date = day.AddDays(-1), Completed = true, Count = 1 });
+            var letGo = new Habit { UserId = build.UserId, Name = "Smoking", Kind = HabitKind.LetGo, CreatedAt = build.CreatedAt };
+            db.Habits.Add(letGo);
+            await db.SaveChangesAsync();
+            return (build.Id, letGo.Id);
+        });
+        if (withdrawn) await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+
+        var results = await host.WithScopeAsync(async sp =>
+        {
+            var service = sp.GetRequiredService<HabitService>();
+            return (await service.AddCheckInAsync(1, buildId, day), await service.CheckInAsync(1, buildId, day, true),
+                await service.AddSlipAsync(1, letGoId, day), await service.ClearDayAsync(1, buildId, day.AddDays(-1)));
+        });
+
+        results.Should().Be((DayEditResult.ConsentRequired, DayEditResult.ConsentRequired, SlipResult.ConsentRequired, DayEditResult.Saved));
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.CountAsync())).Should().Be(0);
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitSlips.CountAsync())).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task NoThanks_ByAUserWithHabits_WithdrawsAndHoldsBackThePrompt_ButNotForSomeoneWithNothingStored()
+    {
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
+        await SeedExistingUserAsync(host, 1);
+        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetGraceDaysAsync(2, 2));
+
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "2", clickerId: 2, agreed: false));
+
+        var withData = await UserAsync(host, 1);
+        withData.ConsentWithdrawnAt.Should().Be(Now.UtcDateTime);
+        withData.ConsentPromptedOn.Should().Be(new DateOnly(2027, 1, 15).AddDays(HabitService.ConsentDeclineBackoffDays - 1));
+        var empty = await UserAsync(host, 2);
+        empty.ConsentWithdrawnAt.Should().BeNull();
+        empty.ConsentPromptedOn.Should().NotBeNull("the back-off still applies");
+    }
+
+    [Fact]
+    public async Task AgreeingAgain_ClearsTheWithdrawalAndTheDeletionReminderClaim_AndUnlocksWrites()
+    {
+        var time = new FakeTimeProvider(Now);
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
+        await SeedConsentedUserWithDueRemindersAsync(host, 1);
+        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+        time.Advance(TimeSpan.FromDays(27));
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ClaimDeletionReminderAsync(TestUsers.Id(1)))).Should().NotBeNull();
+
+        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(1UL));
+
+        var user = await UserAsync(host, 1);
+        (user.ConsentWithdrawnAt, user.DeletionReminderSentAt).Should().Be(((DateTime?)null, (DateTime?)null));
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().HasHealthDataConsentAsync(1UL))).Should().BeTrue();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetDueReminderHabitsAsync(time.GetUtcNow().UtcDateTime)))
+            .Should().ContainSingle();
+    }
+
     [Fact]
     public void Prompt_NamesEveryKindOfHealthDataEmberStores()
     {
         var embed = ConsentModule.PromptEmbed(Ember.Bot.BotTexts.English, new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
 
-        embed.Description.Should().ContainEquivalentOf("your habit names, check-ins, low days, day notes and moods");
+        embed.Description.Should().ContainEquivalentOf(
+            "your habit names, check-ins, low days, day notes, habit notes, moods, slips with the reasons you give, and your \"What helps me\" list");
     }
 
     [Fact]

@@ -58,7 +58,8 @@ Shared interface between `src/Ember.Api` (producer, team `api`) and `web/` (cons
 | 400 | `validation` | Bad input; `errors` maps field name to messages |
 | 401 | `unauthenticated` | Not signed in (never a redirect) |
 | 403 | `forbidden` | Signed in but not allowed |
-| 403 | `consent_required` | Health-data consent for the current policy version is missing; the client shows the consent step |
+| 403 | `consent_required` | Health-data consent for the current policy version is missing or withdrawn; the client shows the consent step |
+| 403 | `fireside_consent_required` | Turning Fireside on needs the current Fireside consent (`consentVersion`); the client shows the Fireside consent step |
 | 403 | `antiforgery` | Missing or wrong `X-XSRF-TOKEN` |
 | 404 | `not_found` | Missing, or belongs to another user (never reveal which) |
 | 409 | `habit_limit` | 25 habits already |
@@ -70,7 +71,7 @@ Shared interface between `src/Ember.Api` (producer, team `api`) and `web/` (cons
 | 500 | `internal` | No detail leaks |
 
 - Every endpoint acts only on the signed-in user. Another user's habit ID behaves exactly like a missing one (404).
-- Consent gating follows Core exactly: an endpoint returns `consent_required` where the Core call does (`AddHabitAsync` throws `ConsentRequiredException`; any `DayEditResult.ConsentRequired`), and also for `POST /api/account/merge`. Reads, settings, export and delete never need consent.
+- Consent gating follows Core exactly: an endpoint returns `consent_required` where the Core call does (`AddHabitAsync` throws `ConsentRequiredException`; any `DayEditResult.ConsentRequired`, which includes every check-in write; `SlipResult.ConsentRequired` when adding a slip), and also for `POST /api/account/merge`. Clearing a day and removing slips stay allowed. Reads, settings, export and delete never need consent. A withdrawn consent counts as no consent.
 - `POST` and `DELETE` endpoints that take a JSON body need at least `{}` even when every field is optional (for example `journal-key/turn-off`); without a body they answer 404.
 - Every `/api` response has `Cache-Control: no-store`. The app sends `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Content-Security-Policy` with `default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; frame-ancestors 'none'`, and HSTS outside Development.
 
@@ -160,7 +161,7 @@ Rate limits: per client IP (after forwarded headers) on the credential endpoints
     "discord": { "linked": true, "id": "123" },
     "timezone": "Europe/Berlin", "timezoneSet": true, "localToday": "2026-11-01",
     "graceDaysPerWeek": 1, "theme": null,
-    "consent": { "given": true, "policyVersion": "2026-11", "currentPolicyVersion": "2026-11" },
+    "consent": { "given": true, "policyVersion": "2026-11-v2", "currentPolicyVersion": "2026-11-v2", "withdrawnAt": null, "deletesAt": null },
     "dmReminders": { "paused": false }
   }
   ```
@@ -168,7 +169,10 @@ Rate limits: per client IP (after forwarded headers) on the credential endpoints
 - `PATCH /api/me` `{ timezone?, graceDaysPerWeek? (0–3), theme? }` → 200 `Me`. Unknown IANA zone → 400. (`leaderboardOptIn` was removed in v1.6; a PATCH that still sends it is not an error, the field is ignored.)
 - `theme` is the account's theme id: `hearthlight`, `fieldnotes`, `tidepool`, `marigold`, or null (never chosen; the app shows the default, Hearthlight). A PATCH sets it to one of those ids; any other value → 400 `validation`. A PATCH without `theme` leaves it unchanged. The bot ignores it; export includes it.
 - Clients (web and native): after sign-in, when `timezoneSet` is false, the app sends `PATCH /api/me { timezone }` once with the device's IANA zone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) if the server knows it; a failure is ignored and retried on the next app start. A zone the user picked (`timezoneSet: true`) is never changed automatically.
-- `POST /api/me/consent` `{ policyVersion }` → 204. 400 when it isn't the current version.
+- `consent.given` is false while the consent is withdrawn. `withdrawnAt` (instant or null) is when it was withdrawn or declined (or, for an account that held health data without ever agreeing, when that rule shipped). `deletesAt` is `withdrawnAt` + 30 days while withdrawn with health data left, else null. Then Ember deletes the habits (with check-ins, slips and reminders), low days, day notes, moods and "What helps me" list, and keeps the account, settings and routines. A reminder goes out 3 days before; the deletion waits at least 3 days after it.
+- `POST /api/me/consent` `{ policyVersion, ageConfirmed }` → 204. 400 `validation` on `ageConfirmed` unless it is `true`, and on `policyVersion` when it isn't the current version. Agreeing again clears `withdrawnAt` and cancels the deletion.
+- `POST /api/me/consent/withdraw` → 204, also when there was nothing to withdraw. While withdrawn nothing new is saved (`consent_required`), reminders, the weekly summary and the missed-day reflection stop, and export stays available.
+- `POST /api/me/consent/decline` → 204 ("No thanks"). Withdraws like `withdraw` when the account has current consent or health data; otherwise it only holds back the bot's consent prompt.
 - `POST /api/me/dm-reminders/resume` → 204.
 - `GET /api/me/export?format=json|csv` → file download. Same content as the bot's `/export`, plus the account's email and Discord ID (and, after the push slice, reminder channels and push subscription endpoints). *(Superseded in v1.14, see "Reminder destinations v1.14".)*
 - `POST /api/me/delete` `{ password?, confirm: "DELETE" }` → 204, deletes everything, signs out. Needs the current password when the account has one; otherwise the typed `confirm` value. 400 `validation` on a mismatch.
@@ -737,8 +741,8 @@ Approved storyboard (Nico, 2026-11-18): https://claude.ai/artifact/JUckrvBQmSZSq
 
 ### API (all require a signed-in account; any foreign or unknown id → 404)
 
-- `GET /api/fireside` → `{ enabled, name, notify, askingUntil, code: { code, expiresAt } | null, friends: Friend[], warmth: Warmth[] }`. `Friend` = `{ id (the caller's link id, never a user id), name, asking, checkedInToday (bool, or null when that friend's ShareFlame for the caller is off), muted, shareFlame, renamedFrom (string or null), joinedViaMyCode, canSendWarmth }`. `warmth` = undismissed warmth from non-muted friends, newest first: `{ id, friendId, name, message, sentAt }`.
-- `PUT /api/fireside` `{ enabled, name?, notify? }` → 200 same body as GET. Enabling requires a valid `name` (400 `validation`). Disabling removes every link of the user in both directions, the code and their warmth (the client confirms first: "You'll leave everyone's fireside.").
+- `GET /api/fireside` → `{ enabled, name, notify, askingUntil, code: { code, expiresAt } | null, friends: Friend[], warmth: Warmth[], consentVersion, consentGiven }`. `consentVersion` is the current Fireside consent version; `consentGiven` is whether the stored Fireside consent is for it. `Friend` = `{ id (the caller's link id, never a user id), name, asking, checkedInToday (bool, or null when that friend's ShareFlame for the caller is off), muted, shareFlame, renamedFrom (string or null), joinedViaMyCode, canSendWarmth }`. `warmth` = undismissed warmth from non-muted friends, newest first: `{ id, friendId, name, message, sentAt }`.
+- `PUT /api/fireside` `{ enabled, name?, notify?, consentVersion? }` → 200 same body as GET. Enabling requires a valid `name` (400 `validation`). Enabling while the stored Fireside consent isn't current also requires `consentVersion` equal to the current one, else 403 `fireside_consent_required`; the consent is then stored with the time. Saving while already on with current consent needs no `consentVersion`. Disabling removes every link of the user in both directions, the code and their warmth, and clears the Fireside consent (the client confirms first: "You'll leave everyone's fireside."). The migration that added the consent turned Fireside off this way for everyone who had it on.
 - `POST /api/fireside/code` → 200 `{ code, expiresAt }` (replaces any active code). `DELETE /api/fireside/code` → 204.
 - `POST /api/fireside/join` `{ code }` → 200 `Friend`. Invalid, expired, used or own code → 400 `validation` on `code` with ONE generic message (no oracle). Already friends → 200 the existing `Friend`, code still consumed. Either side at 20 friends → 409 `conflict` with one neutral message that never says which side. Fireside off for the caller → 409. More than 10 failed attempts per account per hour → 429. The count lives in the database (on the user row, inside the join transaction) so the API and the bot share it; a code over 64 characters or outside the alphabet counts as a failure. A successful join consumes the code and sets `JoinedViaMyCode` on the owner's link row.
 - `POST /api/fireside/friends/{id}/warmth` `{ message }` → 204. Allowed once per sender, friend and sender-local day, plus one more that day if the friend's ask is active when sending. Over the limit → 409 `conflict`. Sending to someone who muted you returns 204 and stores nothing visible (no oracle).

@@ -65,7 +65,8 @@ public class DoubleTapTests
         var habitId = await host.WithScopeAsync(async sp =>
         {
             var db = sp.GetRequiredService<EmberDbContext>();
-            var habit = new Habit { User = new User { Id = TestUsers.Id(701), Logins = TestUsers.Discord(701) }, Name = "Stretch", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
+            var habit = new Habit { User = new User { Id = TestUsers.Id(701), Logins = TestUsers.Discord(701),
+                HealthDataConsentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ConsentPolicyVersion = Ember.Core.Services.HabitService.CurrentConsentPolicyVersion }, Name = "Stretch", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
             db.Habits.Add(habit);
             await db.SaveChangesAsync();
             return habit.Id;

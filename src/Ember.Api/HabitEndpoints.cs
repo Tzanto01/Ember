@@ -249,6 +249,7 @@ internal static class HabitEndpoints
         SlipResult.NotLetGo => Problems.Validation("kind", "Only for let-go habits."),
         SlipResult.InFuture => Problems.Validation("date", "Can't be after today."),
         SlipResult.BeforeHabitStart => Problems.Validation("date", "Can't be before the habit's start."),
+        SlipResult.ConsentRequired => Problems.ConsentRequired(),
         _ => throw new ArgumentOutOfRangeException(nameof(result), result, null),
     };
 

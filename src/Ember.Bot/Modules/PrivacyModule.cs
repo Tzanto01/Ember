@@ -79,6 +79,67 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
+    [SlashCommand("withdraw", "Withdraw your health-data consent: nothing new is saved, reminders stop")]
+    public async Task WithdrawAsync()
+    {
+        var userId = Context.User.Id;
+        var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        var buttons = new ComponentBuilder()
+            .WithButton(t.Get("privacy.withdraw.button"), $"privacy:withdraw:confirm:{userId}", ButtonStyle.Danger)
+            .WithButton(t.Get("common.cancel"), $"privacy:withdraw:cancel:{userId}", ButtonStyle.Secondary)
+            .Build();
+
+        await RespondAsync(t.Get("privacy.withdraw.confirm"), components: buttons, ephemeral: true);
+    }
+
+    [ComponentInteraction("privacy:withdraw:confirm:*", ignoreGroupNames: true)]
+    public async Task OnConfirmWithdrawAsync(string ownerIdStr)
+    {
+        var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        if (!IsOwner(ownerIdStr, Context.User.Id))
+        {
+            await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
+            return;
+        }
+
+        var userId = Context.User.Id;
+        if (!await _habits.WithdrawHealthDataConsentAsync(userId))
+        {
+            await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+            {
+                m.Content    = t.Get("privacy.withdraw.none");
+                m.Components = new ComponentBuilder().Build();
+            });
+            return;
+        }
+
+        var deletesOn = (await _habits.GetLocalTodayAsync(userId)).AddDays(HabitService.WithdrawnDataLifetime.Days);
+        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+        {
+            m.Content    = t.Format("privacy.withdraw.done", deletesOn.ToString(t.Get("date.full"), t.Culture));
+            m.Components = new ComponentBuilder()
+                .WithButton(t.Get("consent.delete-button"), $"privacy:delete:start:{userId}", ButtonStyle.Secondary)
+                .Build();
+        });
+    }
+
+    [ComponentInteraction("privacy:withdraw:cancel:*", ignoreGroupNames: true)]
+    public async Task OnCancelWithdrawAsync(string ownerIdStr)
+    {
+        var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        if (!IsOwner(ownerIdStr, Context.User.Id))
+        {
+            await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
+            return;
+        }
+
+        await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
+        {
+            m.Content    = t.Get("privacy.withdraw.cancelled");
+            m.Components = new ComponentBuilder().Build();
+        });
+    }
+
     /// <summary>Deletes the owner's data only when the person clicking is that owner. Returns whether it deleted.</summary>
     internal static async Task<bool> TryDeleteAsync(HabitService habits, string ownerIdStr, ulong clickerId)
     {

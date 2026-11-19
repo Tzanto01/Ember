@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text.Json;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -69,7 +71,10 @@ public class DataTests(PostgresFixture postgres) : ApiTestBase(postgres)
     {
         var user = await Host.SignedInAsync(consent: false);
 
-        await (await user.Post("/api/me/consent", new { policyVersion = "1999-01" })).ExpectProblem(HttpStatusCode.BadRequest, "validation");
+        var withoutAge = await (await user.Post("/api/me/consent", new { policyVersion = HabitService.CurrentConsentPolicyVersion }))
+            .ExpectProblem(HttpStatusCode.BadRequest, "validation");
+        withoutAge.GetProperty("errors").TryGetProperty("ageConfirmed", out _).Should().BeTrue();
+        await (await user.Post("/api/me/consent", new { policyVersion = "2026-11", ageConfirmed = true })).ExpectProblem(HttpStatusCode.BadRequest, "validation");
         await (await user.Post("/api/habits", new { name = "Water", frequency = "daily" })).ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
 
         await user.GiveConsentAsync();
@@ -77,6 +82,51 @@ public class DataTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var me = await (await user.Get("/api/me")).ExpectJson();
         me.GetProperty("consent").GetProperty("given").GetBoolean().Should().BeTrue();
         await user.CreateHabitAsync();
+    }
+
+    [DockerFact]
+    public async Task Withdrawing_consent_blocks_writes_shows_the_deletion_date_and_agreeing_again_cancels_it()
+    {
+        var user = await Host.SignedInAsync();
+        var habitId = (await user.CreateHabitAsync()).GetProperty("id").GetInt32();
+        var letGoId = (await (await user.Post("/api/habits", new { name = "Coffee", kind = "letGo", frequency = "daily" }))
+            .ExpectJson(HttpStatusCode.Created)).GetProperty("id").GetInt32();
+
+        await (await user.Post("/api/me/consent/withdraw")).Expect(HttpStatusCode.NoContent);
+        await (await user.Post("/api/me/consent/withdraw")).Expect(HttpStatusCode.NoContent);
+
+        var consent = (await (await user.Get("/api/me")).ExpectJson()).GetProperty("consent");
+        consent.GetProperty("given").GetBoolean().Should().BeFalse();
+        var withdrawnAt = consent.GetProperty("withdrawnAt").GetDateTimeOffset();
+        consent.GetProperty("deletesAt").GetDateTimeOffset().Should().Be(withdrawnAt + HabitService.WithdrawnDataLifetime);
+        await (await user.Post("/api/habits", new { name = "Water", frequency = "daily" })).ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
+        await (await user.Put($"/api/habits/{habitId}/days/{Host.Today.Iso()}", new { completed = true }))
+            .ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
+        await (await user.Post($"/api/habits/{letGoId}/slips", new { date = Host.Today.Iso() }))
+            .ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
+
+        await user.GiveConsentAsync();
+
+        consent = (await (await user.Get("/api/me")).ExpectJson()).GetProperty("consent");
+        consent.GetProperty("given").GetBoolean().Should().BeTrue();
+        consent.GetProperty("withdrawnAt").ValueKind.Should().Be(JsonValueKind.Null);
+        consent.GetProperty("deletesAt").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [DockerFact]
+    public async Task Declining_on_the_web_withdraws_a_user_with_habits_but_not_one_with_nothing_stored()
+    {
+        var withHabit = await Host.SignedInAsync();
+        await withHabit.CreateHabitAsync();
+        var empty = await Host.SignedInAsync(consent: false);
+
+        await (await withHabit.Post("/api/me/consent/decline")).Expect(HttpStatusCode.NoContent);
+        await (await empty.Post("/api/me/consent/decline")).Expect(HttpStatusCode.NoContent);
+
+        (await (await withHabit.Get("/api/me")).ExpectJson()).GetProperty("consent").GetProperty("deletesAt").ValueKind
+            .Should().Be(JsonValueKind.String);
+        (await (await empty.Get("/api/me")).ExpectJson()).GetProperty("consent").GetProperty("withdrawnAt").ValueKind
+            .Should().Be(JsonValueKind.Null);
     }
 
     [DockerFact]

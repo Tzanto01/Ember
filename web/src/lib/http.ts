@@ -108,6 +108,8 @@ async function readJson(response: Response): Promise<unknown> {
  * session and routes to `/login?returnUrl=…&reason=session`; 403 `consent_required` routes to `/consent`. Those two
  * errors are marked `handled`. A successful non-GET write to `/api/habits`, `/api/routines` or `/api/low-days` that isn't a replay calls `onHabitWrite`.
  * A request that gets no answer within its timeout ({@link requestTimeoutMs} by default) fails with status 0.
+ * Own `/api` calls carry `X-Ember-Client: {platform}/{version}`: `android` with the app version (asked once), else `web` with the
+ * build's {@link __EMBER_VERSION__}.
  */
 export class Http {
   /** Set by the composition root once the session exists. */
@@ -128,6 +130,8 @@ export class Http {
   /** True while a screen shows an answer from {@link offlineCache}; false again once that URL loads from the server. */
   readonly offlineData = new Store(false);
   private readonly staleUrls = new Set<string>();
+  private client: string | null | undefined;
+  private clientLoad: Promise<void> | null = null;
 
   constructor(private readonly config: HttpConfig) {}
 
@@ -243,6 +247,20 @@ export class Http {
     return response;
   }
 
+  /** Asks the app for its version once (native build). */
+  private loadClient(): Promise<void> {
+    this.clientLoad ??= import('@capacitor/app')
+      .then(({ App }) => App.getInfo())
+      .then(
+        (info) => (info.version ? `android/${info.version}` : null),
+        () => null,
+      )
+      .then((name) => {
+        this.client = name;
+      });
+    return this.clientLoad;
+  }
+
   private exchange(
     method: Method,
     url: string,
@@ -254,7 +272,11 @@ export class Http {
       const path = url.startsWith('/api/') ? url : url.slice(this.config.apiBase.length);
       return this.local(method, withQuery(path, options.params), options.body ?? null);
     }
+    const ownApi = this.isOwnApi(url);
+    if (!this.config.native) this.client ??= __EMBER_VERSION__ ? `web/${__EMBER_VERSION__}` : null;
+    else if (ownApi && this.client === undefined) return this.loadClient().then(() => this.exchange(method, url, options, token));
     const headers = new Headers();
+    if (ownApi && this.client) headers.set('X-Ember-Client', this.client);
     const hasBody = options.body !== undefined && options.body !== null;
     if (hasBody) headers.set('Content-Type', 'application/json');
     if (token && !anonymous) headers.set('Authorization', `Bearer ${token}`);
