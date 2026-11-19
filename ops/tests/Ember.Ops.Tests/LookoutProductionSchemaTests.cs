@@ -36,23 +36,17 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
     }
 
     [Fact]
-    public async Task The_v2_only_overview_panels_are_unavailable_and_the_let_go_count_is_a_dash()
+    public async Task The_overview_counts_sign_in_activity_and_all_habits_on_the_production_schema()
     {
         using var client = Hub();
 
         var overview = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/overview");
 
-        foreach (var id in new[] { "fireside", "let-go" })
-        {
-            var panel = LookoutShape.Widget(overview, id);
-            panel.GetProperty("unavailable").GetString().Should().Be("Not on production yet");
-            panel.GetProperty("children").GetArrayLength().Should().Be(0);
-        }
         var tiles = LookoutShape.Widget(overview, "tiles");
         LookoutShape.Item(tiles, "Users").GetProperty("value").GetInt32().Should().Be(6);
-        var habits = LookoutShape.Item(tiles, "Habits build / let go");
-        habits.GetProperty("value").GetString().Should().Be("8 / –");
-        habits.GetProperty("hint").GetString().Should().Be("Let go: not on production yet");
+        LookoutShape.Item(tiles, "Active 7 days").GetProperty("value").GetInt32().Should().Be(2);
+        LookoutShape.Item(tiles, "Active 14 days").GetProperty("value").GetInt32().Should().Be(4);
+        LookoutShape.Item(tiles, "Habits").GetProperty("value").GetInt32().Should().Be(8);
     }
 
     [Fact]

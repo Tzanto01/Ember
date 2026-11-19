@@ -7,9 +7,7 @@ namespace Ember.Ops.Lookout;
 public static class LookoutPages
 {
     private static readonly TimeZoneInfo Berlin = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
-    private const string NotOnProduction = "Not on production yet";
-
-    /// <summary>Buckets of journal, low-day and check-in activity with fewer distinct users than this (but not 0) are suppressed.</summary>
+    /// <summary>Activity figures with fewer distinct users than this (but not 0) are suppressed.</summary>
     public const int MinUsers = 3;
 
     public const string Suppressed = "<3";
@@ -39,38 +37,17 @@ public static class LookoutPages
             [
                 UsersItem(users.Total, o.Series),
                 Active7Item(users.Active7, users.Total, o.Series) with { Hint = $"{Pct(users.Active7, users.Total)} of users" },
-                new("Active 30 days", users.Active30, Hint: $"{Pct(users.Active30, users.Total)} of users", Max: users.Total,
-                    Delta: new(users.Active30 - o.Series.Active30Before, "the 30 days before", "up")),
-                new("Habits build / let go", $"{N(habits.Build)} / {(habits.LetGo is { } letGo ? N(letGo) : "–")}",
-                    Hint: habits.LetGo is null ? "Let go: not on production yet" : $"{N(habits.Paused)} paused"),
+                new("Active 14 days", users.Active14, Hint: $"{Pct(users.Active14, users.Total)} of users", Max: users.Total),
+                new("Habits", habits.Total, Hint: $"{N(habits.Paused)} paused"),
                 new("Routines", o.Routines.Total, Hint: $"{N(o.Routines.Users)} users"),
                 new("Streak users", streaks.Users, Hint: $"{Pct(streaks.ShowStreaks, streaks.Users)} show streaks", Max: users.Total),
             ]),
             Bars("new-users", "New users per week", "week", ["Count"], users.NewPerWeek.Select(w => new Bar(Date(w.Week), [w.Count])), "by first habit, proxy"),
-            Bars("check-ins", "Check-ins per day", "day", ["Count"], Guarded(o.CheckInsPerDay.Zip(o.Series.CheckInUsersPerDay, (d, u) => (Bar(d), u.Count))),
-                $"last 90 days, completed; {SmallNote}") with { Better = "up" },
-            Bars("journal", "Journal days per day", "day", ["Count"], Guarded(o.JournalPerDay.Select(d => (Bar(d), d.Count))),
-                $"journal days (note or mood); {SmallNote}") with { Better = "up" },
-            Bars("low-days", "Low days per day", "day", ["Low days"], Guarded(o.LowDaysPerDay.Select(d => (Bar(d), d.Count))), SmallNote) with { Better = "down" },
             Panel("grace", "Users by grace days per week", null,
             [
                 Bars("grace-days", "Users by grace days per week", "category", ["Users"], streaks.Grace.Select(g => new Bar($"{g.Days} d", [g.Count]))),
                 Stats("grace-habits", "Habits", "list", [new("Habits paused", habits.Paused), new("Habits with a reminder", habits.WithReminder)]),
             ]),
-            o.Fireside is { } fireside
-                ? Panel("fireside", "Fireside", null,
-                [
-                    Stats("fireside-counts", "Counts", "list", [new("Users with Fireside on", fireside.UsersOn), new("Friendships", fireside.Friendships)]),
-                    Bars("warmth", "Warmth per day", "day", ["Count"], Days(fireside.WarmthPerDay), "kept rows (30-day retention)"),
-                ])
-                : Panel("fireside", "Fireside", NotOnProduction, []),
-            o.LetGoSlipsPerWeek is { } slips
-                ? Panel("let-go", "Let go", null,
-                [
-                    Bars("slips", "Slips per week", "week", ["Slips"], slips.Select(w => new Bar(Date(w.Week), [w.Slips])), "sum of slip counts"),
-                    Stats("slip-totals", "Totals", "list", [new("Slips, 12 weeks", slips.Sum(w => w.Slips)), new("Days with a slip, 12 weeks", slips.Sum(w => w.Days))]),
-                ])
-                : Panel("let-go", "Let go", NotOnProduction, []),
         ]);
     }
 
@@ -201,52 +178,39 @@ public static class LookoutPages
         ]);
     }
 
-    /// <summary>Check-in, journal and low-day activity; every bucket of 1 or 2 people is suppressed.</summary>
+    /// <summary>Sign-in activity from the dashboard's snapshots; every figure of 1 or 2 people is suppressed.</summary>
     public static Page Activity(ActivityInsights a)
     {
-        var last30 = a.ActivePerDay.TakeLast(30).ToList();
-        var active30 = a.ActiveDays.Sum(b => b.Users);
-        double? average = active30 == 0 ? null : Math.Round(last30.Average(d => d.Count), 1);
-        var thisMonday = OpsCalendar.Monday(a.ActivePerDay[^1].Date);
+        if (a.Since is not { } since)
+            return new("activity", "Activity", a.GeneratedAt,
+            [
+                Stats("tiles", "Activity", "tiles", []) with { Unavailable = "No snapshots yet" },
+                Bars("active-per-day", "Active users per day", "day", ["Users"], []) with { Unavailable = "No snapshots yet" },
+                Bars("active-per-week", "Active users per week", "week", ["Users"], []) with { Unavailable = "No snapshots yet" },
+            ]);
+
+        var history = $"used a web or app sign-in; history starts {Date(since)}";
+        var todayDate = OpsCalendar.BerlinDate(a.GeneratedAt);
+        var today = a.PerDay.FirstOrDefault(d => d.Date == todayDate)?.Count;
+        var lastMonday = OpsCalendar.Monday(todayDate).AddDays(-7);
+        var lastWeekDays = a.PerDay.Where(d => d.Date >= lastMonday && d.Date < lastMonday.AddDays(7)).ToList();
+        var lastWeek = since <= lastMonday && lastWeekDays.Count == 7 ? a.PerWeek.FirstOrDefault(w => w.Label == Date(lastMonday)) : null;
+        double? average = lastWeek is null ? null : lastWeekDays.Average(d => d.Count);
+        var weekUsers = lastWeek?.Users ?? 0;
+        var fullWeek = lastWeek is null ? "needs a full week of history" : "last full week";
         return new("activity", "Activity", a.GeneratedAt,
         [
             Stats("tiles", "Activity", "tiles",
             [
-                Guarded(new("Active today", a.ActivePerDay[^1].Count, Hint: "completed a check-in", Max: active30), a.ActivePerDay[^1].Count),
-                Guarded(new("Average per day", average, Hint: "last 30 days"), active30),
-                Guarded(new("Stickiness", average / active30, "percent", Hint: "average day of the 30-day active users", Max: 1), active30),
-            ]),
-            Bars("active-per-day", "Active users per day", "day", ["Users"], Guarded(a.ActivePerDay.Select(d => (Bar(d), d.Count))),
-                $"completed a check-in; {SmallNote}") with { Better = "up" },
-            Bars("active-per-week", "Active users per week", "week", ["Users"], Guarded(a.ActivePerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))),
-                $"completed a check-in that week; {SmallNote}"),
-            Bars("active-days", "Users by active days, last 30 days", "category", ["Users"],
-                Guarded(a.ActiveDays.Select(b => (new Bar(b.Label, [b.Count]), b.Users))), SmallNote),
-            Panel("retention", "Retention by week of first habit", null,
-            [
-                Stats("retention-rates", "Back after", "list",
-                [
-                    Guarded(new("Started, 12 weeks", a.Cohorts.Sum(c => c.Users)), a.Cohorts.Sum(c => c.Users)),
-                    Retention("1 week later", a.Cohorts.Where(c => c.Week.AddDays(7) < thisMonday).ToList(), c => c.Week1),
-                    Retention("4 weeks later", a.Cohorts.Where(c => c.Week.AddDays(28) < thisMonday).ToList(), c => c.Week4),
-                ]) with { Note = "completed a check-in in that week; only weeks that have ended" },
-                Bars("cohorts", "Cohorts", "week", ["New", "Back 1 week later", "Back 4 weeks later"],
-                    Guarded(a.Cohorts.Select(c => (new Bar(Date(c.Week), [c.Users, c.Week1, c.Week4]), new[] { c.Users, c.Week1, c.Week4 }.Any(Small) ? 1 : 0))),
-                    $"first habit as a proxy for sign-up; recent weeks have no later week yet; {SmallNote}"),
-            ]),
-            Panel("journal-activity", "Journal", null,
-            [
-                Stats("journal-counts", "Last 30 days", "list",
-                [
-                    Guarded(new("People who wrote", a.Writers30), a.Writers30),
-                    Guarded(new("Journal days", a.Journal30), a.Writers30),
-                    Guarded(new("Private journal on", a.PrivateJournals), a.PrivateJournals),
-                ]) with { Note = "counts only; values for 1 or 2 people show as <3" },
-                Bars("journal-weeks", "Journal days per week", "week", ["Journal days"],
-                    Guarded(a.JournalPerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))), SmallNote),
-            ]),
-            Bars("low-days-week", "Low days per week", "week", ["Low days"], Guarded(a.LowDaysPerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))),
-                SmallNote),
+                Guarded(new("Active today", today), today ?? 0),
+                Guarded(new("Average per day", average is { } avg ? Math.Round(avg, 1) : null, Hint: fullWeek), weekUsers),
+                Guarded(new("Stickiness", weekUsers == 0 ? null : average / weekUsers, "percent", Hint: lastWeek is null ? fullWeek : "average day of last week's active users",
+                    Max: 1), weekUsers),
+            ]) with { Note = $"{history}; values for 1 or 2 people show as <3" },
+            Bars("active-per-day", "Active users per day", "day", ["Users"], Guarded(a.PerDay.Select(d => (Bar(d), d.Count))),
+                $"{history}; {SmallNote}") with { Better = "up" },
+            Bars("active-per-week", "Active users per week", "week", ["Users"], Guarded(a.PerWeek.Select(w => (new Bar(w.Label, [w.Count]), w.Users))),
+                $"{history}; {SmallNote}") with { Better = "up" },
         ]);
     }
 
@@ -333,13 +297,6 @@ public static class LookoutPages
 
     private static string Platform(FeedbackItem item) => item.Platform switch { "web" => "Web", "android" => "Android", "discord" => "Discord", _ => "Other" };
 
-    private static StatItem Retention(string label, IReadOnlyList<Cohort> cohorts, Func<Cohort, int> back)
-    {
-        var (users, returned) = (cohorts.Sum(c => c.Users), cohorts.Sum(back));
-        var item = new StatItem(label, users == 0 ? null : (double)returned / users, "percent", Hint: "of the users who started", Max: 1);
-        return Small(users) || Small(returned) ? new(label, Suppressed) : item;
-    }
-
     /// <summary>A completed run that did not succeed, as the web badge counts it.</summary>
     public static bool Failed(CiRun run) => run.Status == "completed" && run.Conclusion != "success";
 
@@ -389,8 +346,8 @@ public static class LookoutPages
 
     private static StatItem Active7Item(int active7, int total, OverviewSeries? series) => series is null
         ? new("Active 7 days", active7, Max: total)
-        : new("Active 7 days", active7, Max: total, Trend: series.Active7PerDay.Select(d => (double)d.Count).ToList(),
-            Delta: new(active7 - series.Active7Before, "the 7 days before", "up"));
+        : new("Active 7 days", active7, Max: total, Trend: series.Active7PerDay.Count < 2 ? null : series.Active7PerDay.Select(d => (double)d.Count).ToList(),
+            Delta: series.Active7Before is { } before ? new(active7 - before, "the 7 days before", "up") : null);
 
     private static StatItem SentItem(string channel, IReadOnlyList<int> perDay, bool twoWeeksOfHistory)
     {
@@ -458,8 +415,6 @@ public static class LookoutPages
 
     private static PanelWidget Panel(string id, string title, string? unavailable, IReadOnlyList<Widget> children) =>
         new() { Id = id, Title = title, Unavailable = unavailable, Children = children };
-
-    private static IEnumerable<Bar> Days(IEnumerable<DayCount> days) => days.Select(d => new Bar(Date(d.Date), [d.Count]));
 
     private static IEnumerable<Bar> Channels(IEnumerable<ChannelDay> days) => days.Select(d => new Bar(Date(d.Date), [d.Discord, d.Push]));
 

@@ -157,8 +157,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         var feedback = LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/feedback"), "feedback");
 
         LookoutShape.Item(tiles, "Users").GetProperty("value").GetInt32().Should().Be(6);
-        LookoutShape.Item(tiles, "Habits build / let go").GetProperty("value").GetString().Should().Be("6 / 2");
-        LookoutShape.Widget(overview, "fireside").TryGetProperty("unavailable", out _).Should().BeFalse();
+        LookoutShape.Item(tiles, "Habits").GetProperty("value").GetInt32().Should().Be(8);
         var card = feedback.GetProperty("cards").EnumerateArray().Single(c => c.GetProperty("id").GetString() == database.Data.FeedbackOpen.ToString());
         card.GetProperty("column").GetString().Should().Be("open");
         card.GetProperty("imageIds").GetArrayLength().Should().Be(1);

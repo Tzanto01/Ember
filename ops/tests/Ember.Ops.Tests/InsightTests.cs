@@ -1,4 +1,3 @@
-using Ember.Ops.Lookout;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
@@ -21,23 +20,8 @@ public sealed class InsightTests(V2DatabaseFixture fixture) : IDisposable
         return await client.GetFromJsonAsync<JsonElement>($"/lookout/v1/pages/{id}");
     }
 
-    private static double[] Values(JsonElement bars, string label) =>
-        bars.GetProperty("bars").EnumerateArray().Single(b => b.GetProperty("label").GetString() == label).GetProperty("values").EnumerateArray().Select(v => v.GetDouble()).ToArray();
-
     [Fact]
-    public async Task Overview_series_carry_the_user_trend_the_rolling_active_7_and_the_earlier_periods()
-    {
-        await using var db = fixture.OpenOpsDatabases();
-        var series = await OverviewQueries.SeriesAsync(db.Ember, await EmberFeatures.DetectAsync(db.Ember, default), fixture.Time, default);
-
-        series.UsersBefore.Should().Be(1, "u4's first habit is 100 days old");
-        series.Active7PerDay.Select(d => d.Count).Should().Equal(0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 3, 3, 3, 2);
-        series.Active7PerDay[^1].Date.Should().Be(Today);
-        (series.Active7Before, series.Active30Before).Should().Be((1, 1), "u3 completed 7 days ago and u4 30 days ago");
-    }
-
-    [Fact]
-    public async Task The_overview_tiles_carry_the_v1_1_fields()
+    public async Task The_overview_tiles_carry_the_user_trend_and_the_sign_in_windows()
     {
         var tiles = LookoutShape.Widget(await PageAsync("overview"), "tiles");
 
@@ -46,67 +30,13 @@ public sealed class InsightTests(V2DatabaseFixture fixture) : IDisposable
         users.GetProperty("delta").GetProperty("value").GetDouble().Should().Be(1);
         users.GetProperty("delta").GetProperty("better").GetString().Should().Be("up");
         var active7 = LookoutShape.Item(tiles, "Active 7 days");
-        active7.GetProperty("max").GetDouble().Should().Be(6);
-        active7.GetProperty("trend").GetArrayLength().Should().Be(14);
-        active7.GetProperty("delta").GetProperty("value").GetDouble().Should().Be(1);
-        LookoutShape.Item(tiles, "Active 30 days").GetProperty("delta").GetProperty("value").GetDouble().Should().Be(2);
+        (active7.GetProperty("value").GetInt32(), active7.GetProperty("max").GetDouble()).Should().Be((2, 6));
+        active7.TryGetProperty("trend", out _).Should().BeFalse("there is no snapshot yet");
+        active7.TryGetProperty("delta", out _).Should().BeFalse();
+        var active14 = LookoutShape.Item(tiles, "Active 14 days");
+        active14.GetProperty("value").GetInt32().Should().Be(4);
+        active14.TryGetProperty("delta", out _).Should().BeFalse();
         LookoutShape.Item(tiles, "Streak users").GetProperty("max").GetDouble().Should().Be(6);
-    }
-
-    [Fact]
-    public async Task Overview_check_in_journal_and_low_day_bars_leave_out_days_with_one_or_two_people()
-    {
-        var overview = await PageAsync("overview");
-
-        var checkIns = LookoutShape.Widget(overview, "check-ins");
-        checkIns.GetProperty("bars").GetArrayLength().Should().Be(84, "six days had check-ins from one or two people");
-        checkIns.GetProperty("bars").EnumerateArray().Should().OnlyContain(b => b.GetProperty("values")[0].GetDouble() == 0);
-
-        var journal = LookoutShape.Widget(overview, "journal");
-        journal.GetProperty("bars").GetArrayLength().Should().Be(89, "yesterday had one writer");
-        Values(journal, Today.ToString("yyyy-MM-dd")).Should().Equal(3);
-        journal.GetProperty("better").GetString().Should().Be("up");
-        var lowDays = LookoutShape.Widget(overview, "low-days");
-        lowDays.GetProperty("bars").EnumerateArray().Should().OnlyContain(b => b.GetProperty("values")[0].GetDouble() == 0);
-        lowDays.GetProperty("better").GetString().Should().Be("down");
-        lowDays.GetProperty("note").GetString().Should().Contain("1 or 2 people");
-    }
-
-    [Fact]
-    public async Task Activity_counts_users_per_day_week_and_active_days_and_suppresses_small_buckets()
-    {
-        await using var db = fixture.OpenOpsDatabases();
-        var a = await InsightQueries.ActivityAsync(db.Ember, fixture.Time, default);
-
-        a.ActivePerDay.Where(d => d.Count > 0).Select(d => (Today.DayNumber - d.Date.DayNumber, d.Count))
-            .Should().BeEquivalentTo([(0, 2), (3, 1), (6, 1), (7, 1), (29, 1), (30, 1)]);
-        a.ActivePerWeek.Where(w => w.Users > 0).Select(w => (w.Label, w.Users)).Should().Equal(("2026-10-19", 2), ("2026-11-09", 3), ("2026-11-16", 2));
-        a.ActiveDays.Select(b => b.Users).Should().Equal(0, 3, 0, 0, 0);
-        a.Cohorts.Where(c => c.Users > 0).Should().Equal(new Cohort(new(2026, 10, 26), 1, 0, 0), new Cohort(new(2026, 11, 2), 2, 2, 0), new Cohort(new(2026, 11, 16), 1, 0, 0));
-        (a.Journal30, a.Writers30, a.PrivateJournals).Should().Be((4, 4, 1));
-        a.JournalPerWeek.Single(w => w.Count > 0).Should().Be(new UserBucket("2026-11-16", 4, 4));
-        a.LowDaysPerWeek.Single(w => w.Count > 0).Should().Be(new UserBucket("2026-11-16", 3, 2));
-
-        var page = await PageAsync("activity");
-        var tiles = LookoutShape.Widget(page, "tiles");
-        LookoutShape.Item(tiles, "Active today").GetProperty("value").GetString().Should().Be(LookoutPages.Suppressed);
-        LookoutShape.Item(tiles, "Average per day").GetProperty("value").GetDouble().Should().Be(0.2);
-        LookoutShape.Item(tiles, "Stickiness").GetProperty("value").GetDouble().Should().BeApproximately(0.2 / 3, 1e-9);
-        var perWeek = LookoutShape.Widget(page, "active-per-week");
-        perWeek.GetProperty("bars").GetArrayLength().Should().Be(10);
-        Values(perWeek, "2026-11-09").Should().Equal(3);
-        Values(LookoutShape.Widget(page, "active-days"), "2–4 days").Should().Equal(3);
-        var retention = LookoutShape.Widget(page, "retention").GetProperty("children");
-        var rates = retention[0];
-        LookoutShape.Item(rates, "Started, 12 weeks").GetProperty("value").GetDouble().Should().Be(4);
-        LookoutShape.Item(rates, "1 week later").GetProperty("value").GetString().Should().Be(LookoutPages.Suppressed, "two of three came back");
-        LookoutShape.Item(rates, "4 weeks later").GetProperty("value").ValueKind.Should().Be(JsonValueKind.Null, "no cohort is 4 weeks past");
-        retention[1].GetProperty("bars").EnumerateArray().Should().OnlyContain(b => b.GetProperty("values").EnumerateArray().All(v => v.GetDouble() == 0));
-        var journal = LookoutShape.Widget(page, "journal-activity").GetProperty("children");
-        LookoutShape.Item(journal[0], "People who wrote").GetProperty("value").GetDouble().Should().Be(4);
-        LookoutShape.Item(journal[0], "Private journal on").GetProperty("value").GetString().Should().Be(LookoutPages.Suppressed);
-        Values(journal[1], "2026-11-16").Should().Equal(4);
-        LookoutShape.Widget(page, "low-days-week").GetProperty("bars").GetArrayLength().Should().Be(11, "this week's low days come from two people");
     }
 
     [Fact]

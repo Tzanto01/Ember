@@ -29,6 +29,9 @@ public sealed class EmptyDatabaseTests(EmptyDatabaseFixture database) : IDisposa
 
         var tiles = LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/habits"), "tiles");
         LookoutShape.Item(tiles, "Habits per user").GetProperty("value").ValueKind.Should().Be(JsonValueKind.Null);
+
+        var activity = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/activity");
+        activity.GetProperty("widgets").EnumerateArray().Select(w => w.GetProperty("unavailable").GetString()).Should().Equal("No snapshots yet", "No snapshots yet", "No snapshots yet");
     }
 
     [Fact]

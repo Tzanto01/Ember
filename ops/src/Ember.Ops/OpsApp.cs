@@ -8,7 +8,6 @@ public static class OpsApp
 {
     public static readonly TimeSpan CounterCache = TimeSpan.FromSeconds(20);
     public static readonly TimeSpan SeriesCache = TimeSpan.FromMinutes(5);
-    public static readonly TimeSpan FeaturesCache = TimeSpan.FromSeconds(60);
     public const string ReminderCountersKey = "reminders:counters";
 
     public static WebApplicationBuilder CreateBuilder(string[] args)
@@ -68,11 +67,8 @@ public static class OpsApp
     public static Task InitializeAsync(WebApplication app, CancellationToken ct = default) =>
         OpsMigrator.ApplyAsync(app.Services.GetRequiredService<OpsDatabases>().Ops, ct);
 
-    internal static async Task<OverviewCounters> OverviewCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
-    {
-        var features = await FeaturesAsync(cache, db, ct);
-        return await Cached(cache, "overview:counters", CounterCache, () => OverviewQueries.CountersAsync(db.Ember, features, time, ct));
-    }
+    internal static Task<OverviewCounters> OverviewCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, "overview:counters", CounterCache, () => OverviewQueries.CountersAsync(db.Ember, time, ct));
 
     internal static async Task<Overview> OverviewAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
     {
@@ -80,14 +76,11 @@ public static class OpsApp
         return Overview.From(counters, await OverviewSeriesAsync(cache, db, time, ct));
     }
 
-    internal static async Task<OverviewSeries> OverviewSeriesAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
-    {
-        var features = await FeaturesAsync(cache, db, ct);
-        return await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, features, time, ct));
-    }
+    internal static Task<OverviewSeries> OverviewSeriesAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, db.Ops, time, ct));
 
     internal static Task<ActivityInsights> ActivityAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
-        Cached(cache, "insights:activity", SeriesCache, () => InsightQueries.ActivityAsync(db.Ember, time, ct));
+        Cached(cache, "insights:activity", SeriesCache, () => InsightQueries.ActivityAsync(db.Ops, time, ct));
 
     internal static Task<HabitInsights> HabitsAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
         Cached(cache, "insights:habits", SeriesCache, () => InsightQueries.HabitsAsync(db.Ember, time, ct));
@@ -108,9 +101,6 @@ public static class OpsApp
 
     internal static Task<SystemReport> SystemAsync(IMemoryCache cache, SystemInfo system, CancellationToken ct) =>
         Cached(cache, "system", CounterCache, () => system.GetAsync(ct));
-
-    private static Task<EmberFeatures> FeaturesAsync(IMemoryCache cache, OpsDatabases db, CancellationToken ct) =>
-        Cached(cache, "ember:features", FeaturesCache, () => EmberFeatures.DetectAsync(db.Ember, ct));
 
     internal static async Task<T> Cached<T>(IMemoryCache cache, string key, TimeSpan ttl, Func<Task<T>> load) =>
         (await cache.GetOrCreateAsync(key, entry =>
