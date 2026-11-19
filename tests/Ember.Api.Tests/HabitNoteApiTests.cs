@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-/// <summary>Notes on habits (contract "Today widget v1.x": <c>/api/habit-notes</c>, <c>/api/habits/{id}/notes/{date}</c>).</summary>
+/// <summary>Notes on habits (contract "Today order and habit notes v1.23": <c>/api/habit-notes</c>, <c>/api/habits/{id}/notes/{date}</c>).</summary>
 [Collection("Postgres")]
 public class HabitNoteApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {

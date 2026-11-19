@@ -107,7 +107,11 @@ public partial class HabitService
         {
             _db.Entry(note).State = EntityState.Detached;
             note = await _db.HabitNotes.FirstOrDefaultAsync(n => n.HabitId == habitId && n.Date == date);
-            if (note is null) throw;
+            if (note is null)
+            {
+                if (!await _db.Habits.AnyAsync(h => h.Id == habitId && h.UserId == userId)) return null;
+                throw;
+            }
             ApplyHabitNote(note, text, cipher);
             await _db.SaveChangesAsync();
         }

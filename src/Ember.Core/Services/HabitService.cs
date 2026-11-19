@@ -846,7 +846,7 @@ public partial class HabitService
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.Language, language));
     }
 
-    /// <summary>Sets <see cref="User.CalmMode"/>.</summary>
+    /// <summary>Sets <see cref="User.OfferHabitNote"/>.</summary>
     public async Task SetOfferHabitNoteAsync(Guid userId, bool offer)
     {
         await _db.Users
@@ -877,6 +877,7 @@ public partial class HabitService
         return kept;
     }
 
+    /// <summary>Sets <see cref="User.CalmMode"/>.</summary>
     public async Task SetCalmModeAsync(Guid userId, bool calmMode)
     {
         await _db.Users
