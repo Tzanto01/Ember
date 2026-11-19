@@ -32,6 +32,8 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
     public DbSet<FiresideCode> FiresideCodes => Set<FiresideCode>();
     public DbSet<FiresideLink> FiresideLinks => Set<FiresideLink>();
     public DbSet<Warmth> Warmth => Set<Warmth>();
+    public DbSet<LookoutUserRef> LookoutUserRefs => Set<LookoutUserRef>();
+    public DbSet<LookoutOutbox> LookoutOutbox => Set<LookoutOutbox>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -337,6 +339,30 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
             entity.HasOne<User>()
                   .WithMany()
                   .HasForeignKey(w => w.ToUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LookoutUserRef>(entity =>
+        {
+            entity.HasKey(r => r.Ref);
+            entity.Property(r => r.Ref).HasMaxLength(64);
+            entity.HasIndex(r => r.UserId);
+            entity.HasOne<User>()
+                  .WithMany()
+                  .HasForeignKey(r => r.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LookoutOutbox>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+            entity.Property(o => o.Kind).HasMaxLength(16).IsRequired();
+            entity.Property(o => o.Key).HasMaxLength(64);
+            entity.Property(o => o.UserRef).HasMaxLength(64);
+            entity.HasIndex(o => o.FeedbackId);
+            entity.HasOne(o => o.Feedback)
+                  .WithMany()
+                  .HasForeignKey(o => o.FeedbackId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
     }
