@@ -712,7 +712,7 @@ export default function TodayPage() {
                     rememberNotTodayOpen(!laterOpen);
                     setLaterOpen(!laterOpen);
                   }}
-                  className="-mx-2 flex min-h-[48px] w-[calc(100%+1rem)] items-center justify-between gap-2 rounded-md px-2 text-left text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  className="flex min-h-[48px] w-full items-center justify-between gap-2 rounded-md text-left text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:shadow-[-0.5rem_0_var(--color-accent),0.5rem_0_var(--color-accent)]"
                 >
                   {t('today.notToday', { count: plan.notToday.length })}
                   <ChevronDown
