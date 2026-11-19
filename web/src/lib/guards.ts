@@ -93,6 +93,7 @@ export async function signedIn(
     const cached = !env.native && unreachable ? (session.me.get() ?? rememberedMe()) : null;
     if (!cached) return `/login?${queryString({ returnUrl: url, reason: 'offline' })}`;
     session.me.set(cached);
+    if (cached.consent?.withdrawnAt && writePath(url)) return '/consent';
     return mode.get() === 'upgrading' && !url.startsWith('/keep-data') ? '/keep-data' : null;
   }
 }

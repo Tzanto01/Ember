@@ -89,6 +89,15 @@ describe('signedIn guard offline', () => {
     expect(await signedIn('/today', session)).toBeNull();
   });
 
+  it('keeps a withdrawn user out of the data pages on the offline path too', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-01T12:00:00Z'), toFake: ['Date'] });
+    rememberMe({ ...me, consent: { ...me.consent, given: false, withdrawnAt: '2026-11-01T10:00:00Z', deletesAt: '2026-12-01T10:00:00Z' } });
+    const session = fakeSession(offline, true);
+
+    expect(await signedIn('/today', session)).toBe('/consent');
+    expect(await signedIn('/settings', session)).toBeNull();
+  });
+
   it('takes the offline path without asking the API again for a while after it was unreachable', async () => {
     vi.useFakeTimers({ now: new Date('2026-11-01T12:00:00Z'), toFake: ['Date'] });
     const session = fakeSession(offline);
