@@ -33,7 +33,10 @@ public sealed class ApiTimings(IOptions<OpsOptions> options, OpsDatabases db, IH
     /// <summary>Upper bounds in milliseconds of the API's latency buckets, plus one bucket above them; the pull refuses any other layout.</summary>
     public static readonly int[] BucketsMs = [5, 10, 25, 50, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000];
 
-    private sealed record Pulled(int[] BucketsMs, List<PulledMinute> Minutes);
+    /// <summary>The most requests one pull makes: one per hour window, more when the API cuts an answer short.</summary>
+    public const int MaxRequests = 200;
+
+    private sealed record Pulled(int[] BucketsMs, List<PulledMinute> Minutes, bool Truncated);
 
     private sealed record PulledMinute(DateTime Minute, string Route, int Count, int Errors, int[] Latency);
 
@@ -42,7 +45,10 @@ public sealed class ApiTimings(IOptions<OpsOptions> options, OpsDatabases db, IH
     /// <summary>Why the last pull brought nothing, or null after a good one.</summary>
     public string? Error => _error;
 
-    /// <summary>Pulls since the newest stored hour and upserts every hour it covers; an hour is replaced only by one with at least as many requests.</summary>
+    /// <summary>
+    /// Pulls from the newest stored hour (or 24 hours back) one hour window at a time, following an answer the API cut short from its last
+    /// minute, and stores each window before asking for the next.
+    /// </summary>
     public async Task PullAsync(CancellationToken ct)
     {
         var o = options.Value;
@@ -68,9 +74,30 @@ public sealed class ApiTimings(IOptions<OpsOptions> options, OpsDatabases db, IH
         var now = time.GetUtcNow().UtcDateTime;
         DateTime since;
         await using (var command = db.Ops.CreateCommand("SELECT max(hour) FROM api_hours"))
-            since = await command.ExecuteScalarAsync(ct) is DateTime newest && newest > now.AddDays(-1) ? newest : now.AddDays(-1);
+            since = await command.ExecuteScalarAsync(ct) is DateTime newest && newest > now.AddDays(-1) ? newest : Hour(now.AddDays(-1));
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{url}?since={Uri.EscapeDataString(since.ToString("O"))}");
+        var requests = 0;
+        for (var start = since; start <= now; start = start.AddHours(1))
+        {
+            var minutes = new Dictionary<(DateTime Minute, string Route), PulledMinute>();
+            for (var from = start; ;)
+            {
+                if (++requests > MaxRequests) throw new InvalidDataException("too many pages");
+                var pulled = await FetchAsync(url, key, from, start.AddHours(1), ct);
+                foreach (var m in pulled.Minutes) minutes[(m.Minute.ToUniversalTime(), m.Route)] = m;
+                if (!pulled.Truncated) break;
+                var last = pulled.Minutes.Count == 0 ? from : pulled.Minutes.Max(m => m.Minute.ToUniversalTime());
+                if (last <= from) throw new InvalidDataException("one minute has more routes than the API returns at once");
+                from = last;
+            }
+            await StoreAsync(minutes.Values, now, ct);
+        }
+    }
+
+    private async Task<Pulled> FetchAsync(string url, string key, DateTime since, DateTime until, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"{url}?since={Uri.EscapeDataString(since.ToString("O"))}&until={Uri.EscapeDataString(until.ToString("O"))}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
         using var response = await http.CreateClient(HttpClientName).SendAsync(request, ct);
         if (!response.IsSuccessStatusCode) throw new HttpRequestException($"answered {(int)response.StatusCode}");
@@ -78,8 +105,13 @@ public sealed class ApiTimings(IOptions<OpsOptions> options, OpsDatabases db, IH
             ?? throw new InvalidDataException("empty answer");
         if (!pulled.BucketsMs.SequenceEqual(BucketsMs) || pulled.Minutes.Any(m => m.Latency.Length != BucketsMs.Length + 1))
             throw new InvalidDataException("unknown latency buckets");
+        return pulled;
+    }
 
-        var hours = pulled.Minutes.GroupBy(m => (Hour: Hour(m.Minute.ToUniversalTime()), m.Route)).Select(g =>
+    /// <summary>Upserts the hours of <paramref name="minutes"/> (an hour is replaced only by one with at least as many requests) and drops rows past 30 days.</summary>
+    private async Task StoreAsync(IEnumerable<PulledMinute> minutes, DateTime now, CancellationToken ct)
+    {
+        var hours = minutes.GroupBy(m => (Hour: Hour(m.Minute.ToUniversalTime()), m.Route)).Select(g =>
         {
             var latency = Merge(g.Select(m => m.Latency));
             return Db.Command("""

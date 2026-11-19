@@ -10,7 +10,7 @@ namespace Ember.Api;
 /// <summary>
 /// Request timings for Ember ops: per minute and route template (never a raw path, id or query value) the request count, the 5xx count and
 /// a latency histogram, kept 24 hours in memory and served at <c>GET /metrics/v1</c> on a port of its own (<c>Ops:MetricsPort</c>, default 9090)
-/// to a bearer equal to the key in <c>Ops:MetricsKeyFile</c>. Without a key file configured nothing is recorded and the port stays closed.
+/// (<c>?since=&amp;until=</c>, at most <see cref="RequestMetrics.MaxCells"/> cells, oldest first) to a bearer equal to the key in <c>Ops:MetricsKeyFile</c>. Without a key file configured nothing is recorded and the port stays closed.
 /// </summary>
 public static class ApiMetrics
 {
@@ -28,21 +28,13 @@ public static class ApiMetrics
     /// <summary>Whether <c>Ops:MetricsKeyFile</c> is set.</summary>
     public static bool Enabled(IConfiguration configuration) => !string.IsNullOrWhiteSpace(configuration["Ops:MetricsKeyFile"]);
 
-    /// <summary>True when the bearer of <paramref name="authorization"/> equals the key in <paramref name="keyFile"/> (at least 32 bytes), in constant time.</summary>
-    public static bool KeyMatches(string? keyFile, string? authorization)
-    {
-        const string scheme = "Bearer ";
-        if (ReadKey(keyFile) is not { } key || authorization is null || !authorization.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) return false;
-        return CryptographicOperations.FixedTimeEquals(SHA256.HashData(Encoding.UTF8.GetBytes(authorization[scheme.Length..])), SHA256.HashData(key));
-    }
-
-    private static byte[]? ReadKey(string? path)
+    internal static byte[]? ReadKey(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
         try
         {
             var key = Encoding.UTF8.GetBytes(File.ReadAllText(path).Trim());
-            return key.Length >= MinKeyBytes ? key : null;
+            return key.Length >= MinKeyBytes ? SHA256.HashData(key) : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
@@ -51,10 +43,28 @@ public static class ApiMetrics
     }
 }
 
+/// <summary>The key in a file (at least 32 bytes), kept in memory and read again only when a bearer does not match it.</summary>
+public sealed class MetricsKey(string? keyFile)
+{
+    private volatile byte[]? _hash;
+
+    /// <summary>True when the bearer of <paramref name="authorization"/> equals the key, compared in constant time.</summary>
+    public bool Matches(string? authorization)
+    {
+        const string scheme = "Bearer ";
+        if (authorization is null || !authorization.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) return false;
+        var sent = SHA256.HashData(Encoding.UTF8.GetBytes(authorization[scheme.Length..]));
+        if (_hash is { } cached && CryptographicOperations.FixedTimeEquals(sent, cached)) return true;
+        _hash = ApiMetrics.ReadKey(keyFile);
+        return _hash is { } fresh && CryptographicOperations.FixedTimeEquals(sent, fresh);
+    }
+}
+
 /// <summary>One minute of one route template: requests, 5xx responses and requests per <see cref="RequestMetrics.BucketsMs"/> bucket (the last is above all bounds).</summary>
 public sealed record MinuteTimings(DateTime Minute, string Route, int Count, int Errors, int[] Latency);
 
-public sealed record MetricsSnapshot(int[] BucketsMs, IReadOnlyList<MinuteTimings> Minutes);
+/// <param name="Truncated">True when more minutes matched than <see cref="RequestMetrics.MaxCells"/>; <paramref name="Minutes"/> are then the oldest.</param>
+public sealed record MetricsSnapshot(int[] BucketsMs, IReadOnlyList<MinuteTimings> Minutes, bool Truncated);
 
 /// <summary>The last 24 hours of request timings, per minute and route template. At most 1,440 minutes times the app's route templates.</summary>
 public sealed class RequestMetrics(TimeProvider time)
@@ -97,14 +107,23 @@ public sealed class RequestMetrics(TimeProvider time)
         }
     }
 
-    /// <summary>The minutes of the last 24 hours from <paramref name="since"/> on, oldest first.</summary>
-    public MetricsSnapshot Snapshot(DateTime? since)
+    /// <summary>The most cells one snapshot returns.</summary>
+    public const int MaxCells = 20_000;
+
+    /// <summary>
+    /// The minutes of the last 24 hours from <paramref name="since"/> on and before <paramref name="until"/>, oldest first, at most
+    /// <paramref name="max"/> cells. Only the copy happens under the lock that <see cref="Record"/> takes.
+    /// </summary>
+    public MetricsSnapshot Snapshot(DateTime? since, DateTime? until = null, int max = MaxCells)
     {
         var cutoff = time.GetUtcNow().UtcDateTime - Keep;
+        var copied = new List<MinuteTimings>();
         lock (_lock)
-            return new(BucketsMs, _cells.Where(c => c.Key.Minute > cutoff && (since is null || c.Key.Minute >= since))
-                .OrderBy(c => c.Key.Minute).ThenBy(c => c.Key.Route, StringComparer.Ordinal)
-                .Select(c => new MinuteTimings(c.Key.Minute, c.Key.Route, c.Value.Count, c.Value.Errors, [.. c.Value.Latency])).ToList());
+            foreach (var (key, cell) in _cells)
+                if (key.Minute > cutoff && (since is null || key.Minute >= since) && (until is null || key.Minute < until))
+                    copied.Add(new(key.Minute, key.Route, cell.Count, cell.Errors, [.. cell.Latency]));
+        var sorted = copied.OrderBy(m => m.Minute).ThenBy(m => m.Route, StringComparer.Ordinal);
+        return new(BucketsMs, sorted.Take(max).ToList(), copied.Count > max);
     }
 }
 
@@ -148,15 +167,15 @@ public sealed class MetricsServer(RequestMetrics metrics, IConfiguration configu
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (!ApiMetrics.Enabled(configuration)) return;
-        var keyFile = configuration["Ops:MetricsKeyFile"];
+        var key = new MetricsKey(configuration["Ops:MetricsKeyFile"]);
         var port = configuration.GetValue("Ops:MetricsPort", 9090);
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Any, port));
         builder.Logging.ClearProviders();
         var app = builder.Build();
-        app.MapGet(ApiMetrics.Path, (HttpRequest request, DateTime? since) =>
-            ApiMetrics.KeyMatches(keyFile, request.Headers.Authorization.Count == 1 ? request.Headers.Authorization[0] : null)
-                ? Results.Ok(metrics.Snapshot(since?.ToUniversalTime()))
+        app.MapGet(ApiMetrics.Path, (HttpRequest request, DateTime? since, DateTime? until) =>
+            key.Matches(request.Headers.Authorization.Count == 1 ? request.Headers.Authorization[0] : null)
+                ? Results.Ok(metrics.Snapshot(since?.ToUniversalTime(), until?.ToUniversalTime()))
                 : Results.StatusCode(StatusCodes.Status401Unauthorized));
         await app.StartAsync(cancellationToken);
         _app = app;

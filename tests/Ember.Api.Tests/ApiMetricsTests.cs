@@ -66,16 +66,49 @@ public sealed class ApiMetricsTests : IDisposable
     [InlineData(Key, false)]
     [InlineData(null, false)]
     public void The_key_must_match_the_file(string? authorization, bool matches) =>
-        ApiMetrics.KeyMatches(_keyFile, authorization).Should().Be(matches);
+        new MetricsKey(_keyFile).Matches(authorization).Should().Be(matches);
 
     [Fact]
     public void A_short_missing_or_unset_key_matches_nothing()
     {
         File.WriteAllText(_keyFile, "short");
 
-        ApiMetrics.KeyMatches(_keyFile, "Bearer short").Should().BeFalse();
-        ApiMetrics.KeyMatches(_keyFile + ".missing", "Bearer " + Key).Should().BeFalse();
-        ApiMetrics.KeyMatches(null, "Bearer " + Key).Should().BeFalse();
+        new MetricsKey(_keyFile).Matches("Bearer short").Should().BeFalse();
+        new MetricsKey(_keyFile + ".missing").Matches("Bearer " + Key).Should().BeFalse();
+        new MetricsKey(null).Matches("Bearer " + Key).Should().BeFalse();
+    }
+
+    [Fact]
+    public void The_key_is_kept_after_a_match_and_read_again_only_after_a_mismatch()
+    {
+        var key = new MetricsKey(_keyFile);
+        key.Matches("Bearer " + Key).Should().BeTrue();
+        var next = "synthetic-metrics-key-next-0123456789abcdef";
+        File.WriteAllText(_keyFile, next);
+
+        key.Matches("Bearer " + Key).Should().BeTrue("a match does not read the file");
+        key.Matches("Bearer " + next).Should().BeTrue("a mismatch reads the new key");
+        key.Matches("Bearer " + Key).Should().BeFalse("the old key is gone once the new one was read");
+    }
+
+    [Fact]
+    public void A_snapshot_takes_minutes_before_until_and_at_most_max_cells_oldest_first_and_says_it_was_cut()
+    {
+        var metrics = new RequestMetrics(_time);
+        foreach (var route in new[] { "/b", "/a", "/c" }) metrics.Record(route, 200, TimeSpan.FromMilliseconds(1));
+        _time.Advance(TimeSpan.FromMinutes(1));
+        metrics.Record("/a", 200, TimeSpan.FromMilliseconds(1));
+
+        var cut = metrics.Snapshot(null, max: 2);
+        var before = metrics.Snapshot(null, until: new DateTime(2026, 11, 18, 10, 1, 0, DateTimeKind.Utc));
+        var all = metrics.Snapshot(null);
+
+        cut.Minutes.Select(m => (m.Minute.Minute, m.Route)).Should().Equal((0, "/a"), (0, "/b"));
+        cut.Truncated.Should().BeTrue();
+        before.Minutes.Select(m => m.Route).Should().Equal("/a", "/b", "/c");
+        before.Truncated.Should().BeFalse();
+        all.Minutes.Should().HaveCount(4);
+        all.Minutes[0].Latency.Should().NotBeSameAs(metrics.Snapshot(null).Minutes[0].Latency, "each snapshot copies the histogram");
     }
 
     [Fact]
