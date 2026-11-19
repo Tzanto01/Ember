@@ -125,7 +125,7 @@ public sealed class LookoutPagesTests
         new(Now, OpsCalendar.Weeks(Today, 12).Select((w, i) => new WeekCount(w, i == 11 ? 2 : 0)).ToList(), UsersBefore: 4,
             days.OrderByDescending(d => d.Ago).Select(d => new DayCount(Today.AddDays(-d.Ago), d.Count)).ToList(), before);
 
-    private static readonly OverviewCounters Counters = new(Now, 6, 3, 4, new(6, 2, 1, 3), new(2, 1), new(6, 2, []));
+    private static readonly OverviewCounters Counters = new(Now, 6, 3, 4, new(8, 1, 3), new(2, 1), new(6, 2, []));
 
     [Fact]
     public void The_summary_carries_the_v1_1_fields()
@@ -162,7 +162,7 @@ public sealed class LookoutPagesTests
 
         page.Widgets.Select(w => w.Id).Should().Equal("tiles", "new-users", "grace");
         var tiles = Stats(Widget(page, "tiles")).Items;
-        tiles.Select(i => i.Label).Should().Equal("Users", "Active 7 days", "Active 14 days", "Habits build / let go", "Routines", "Streak users");
+        tiles.Select(i => i.Label).Should().Equal("Users", "Active 7 days", "Active 14 days", "Habits", "Routines", "Streak users");
         tiles[2].Should().Be(new StatItem("Active 14 days", 4, Hint: "67% of users", Max: 6));
     }
 

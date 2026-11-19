@@ -10,7 +10,7 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 
 | Page | What it shows |
 |---|---|
-| `overview` | Users (total, active in the last 7 and 14 days by sign-ins, new per week by first habit), habits (build and let-go, paused, with reminder), routines, streak settings |
+| `overview` | Users (total, active in the last 7 and 14 days by sign-ins, new per week by first habit), habits (total, paused, with reminder), routines, streak settings |
 | `activity` | Users seen today, per day and per week from the dashboard's sign-in snapshots, average per day and stickiness of the last full week |
 | `habits` | Habits, users with a habit, habits per user, habits in a routine or with a reminder time, habits by schedule and by check-ins per day, reminder times by hour (habits and routines), users by number of habits, habits and routines created per week |
 | `users` | Users, Discord linked, users by reminder destination (Discord DMs, web push, Android phone, none), users by design |
@@ -28,14 +28,14 @@ Limits of the data:
 - "Active" means a web or app sign-in was used (`AuthSessions`, last seen or created). A session expires after 14 days unused and Ember then deletes it, so live windows stop at 14 days. Sign-outs and Discord-only use (no sign-in, and the bot keeps no usage time outside check-ins) are not counted.
 - `LastSeenUtc` is overwritten, so activity history comes from the dashboard's own snapshots every 5 minutes: per Berlin day the users seen that day and in the 7 days up to it, per week the users seen that week, the highest value kept. It starts on the day the dashboard first ran this version (the activity notes say so). Only counts are stored, never user ids.
 - Not shown, because the data does not support it honestly: users by active days (needs per-user day history, which the snapshots do not keep) and retention by sign-up week (Ember stores no sign-up date, and sessions are deleted 14 days after last use).
-- The dashboard reads no check-ins, journal, low days, let-go slips or Fireside data: those are health data.
+- The dashboard reads no check-ins, journal, low days, let-go habits or slips, or Fireside data: those are health data.
 - Days are Europe/Berlin days.
 - The activity page hides any figure of 1 or 2 people: a stat shows `<3` without hint, trend, delta or max, and a bar is left out (the widget note says so).
 - Ember keeps no feedback status history, so the trends page shows sent and resolved per week and the current status.
 
 ## Privacy
 
-Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on ids, dates, counts, flags and kinds, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table. Re-running the script revokes grants older versions gave on those tables. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
+Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on ids, dates, counts and flags, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table, or which habits are let-go habits (`Habits.Kind`). Re-running the script revokes grants older versions gave on those. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
 
 `Feedback.UserId` is readable only so the board can say whether a report was anonymous. The app uses it only as `"UserId" IS NULL` and never returns it.
 

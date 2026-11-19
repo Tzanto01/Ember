@@ -40,6 +40,9 @@ BEGIN
     IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'AspNetUsers' AND column_name = 'FiresideEnabled') THEN
         REVOKE ALL ("FiresideEnabled") ON "AspNetUsers" FROM ember_dashboard;
     END IF;
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Habits' AND column_name = 'Kind') THEN
+        REVOKE ALL ("Kind") ON "Habits" FROM ember_dashboard;
+    END IF;
 END
 $$;
 
@@ -67,9 +70,6 @@ SELECT format('GRANT SELECT ON SEQUENCE %s TO ember_dashboard', pg_get_serial_se
 
 DO $$
 BEGIN
-    IF EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Habits' AND column_name = 'Kind') THEN
-        GRANT SELECT ("Kind") ON "Habits" TO ember_dashboard;
-    END IF;
 END
 $$;
 

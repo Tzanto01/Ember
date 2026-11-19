@@ -8,7 +8,6 @@ public static class OpsApp
 {
     public static readonly TimeSpan CounterCache = TimeSpan.FromSeconds(20);
     public static readonly TimeSpan SeriesCache = TimeSpan.FromMinutes(5);
-    public static readonly TimeSpan FeaturesCache = TimeSpan.FromSeconds(60);
     public const string ReminderCountersKey = "reminders:counters";
 
     public static WebApplicationBuilder CreateBuilder(string[] args)
@@ -68,11 +67,8 @@ public static class OpsApp
     public static Task InitializeAsync(WebApplication app, CancellationToken ct = default) =>
         OpsMigrator.ApplyAsync(app.Services.GetRequiredService<OpsDatabases>().Ops, ct);
 
-    internal static async Task<OverviewCounters> OverviewCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
-    {
-        var features = await FeaturesAsync(cache, db, ct);
-        return await Cached(cache, "overview:counters", CounterCache, () => OverviewQueries.CountersAsync(db.Ember, features, time, ct));
-    }
+    internal static Task<OverviewCounters> OverviewCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, "overview:counters", CounterCache, () => OverviewQueries.CountersAsync(db.Ember, time, ct));
 
     internal static async Task<Overview> OverviewAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
     {
@@ -105,9 +101,6 @@ public static class OpsApp
 
     internal static Task<SystemReport> SystemAsync(IMemoryCache cache, SystemInfo system, CancellationToken ct) =>
         Cached(cache, "system", CounterCache, () => system.GetAsync(ct));
-
-    private static Task<EmberFeatures> FeaturesAsync(IMemoryCache cache, OpsDatabases db, CancellationToken ct) =>
-        Cached(cache, "ember:features", FeaturesCache, () => EmberFeatures.DetectAsync(db.Ember, ct));
 
     internal static async Task<T> Cached<T>(IMemoryCache cache, string key, TimeSpan ttl, Func<Task<T>> load) =>
         (await cache.GetOrCreateAsync(key, entry =>

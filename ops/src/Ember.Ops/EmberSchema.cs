@@ -1,23 +1,4 @@
-using Npgsql;
-
 namespace Ember.Ops;
-
-/// <summary>Which v2 parts of Ember's schema this database has and the dashboard role may read.</summary>
-public sealed record EmberFeatures(bool HabitKind)
-{
-    /// <summary>Reads the columns visible to the current role, so an ungranted column counts as missing.</summary>
-    public static async Task<EmberFeatures> DetectAsync(NpgsqlDataSource ember, CancellationToken ct)
-    {
-        await using var command = ember.CreateCommand("""
-            SELECT table_name || '.' || column_name FROM information_schema.columns
-            WHERE table_schema = 'public' AND (table_name, column_name) IN (('Habits', 'Kind'))
-            """);
-        var found = new HashSet<string>();
-        await using var reader = await command.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct)) found.Add(reader.GetString(0));
-        return new(found.Contains("Habits.Kind"));
-    }
-}
 
 /// <summary>Calendar helpers shared by the sections.</summary>
 public static class OpsCalendar

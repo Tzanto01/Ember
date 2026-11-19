@@ -4,7 +4,7 @@ namespace Ember.Ops;
 
 public sealed record OverviewUsers(int Total, int Active7, int Active14, IReadOnlyList<WeekCount> NewPerWeek);
 public sealed record WeekCount(DateOnly Week, int Count);
-public sealed record HabitCounts(int Build, int? LetGo, int Paused, int WithReminder);
+public sealed record HabitCounts(int Total, int Paused, int WithReminder);
 public sealed record RoutineCounts(int Total, int Users);
 public sealed record GraceCount(int Days, int Count);
 public sealed record StreakCounts(int Users, int ShowStreaks, IReadOnlyList<GraceCount> Grace);
@@ -36,7 +36,7 @@ public static class OverviewQueries
     public const int SeriesWeeks = 12;
     public const int TrendDays = 14;
 
-    public static async Task<OverviewCounters> CountersAsync(NpgsqlDataSource ember, EmberFeatures features, TimeProvider time, CancellationToken ct)
+    public static async Task<OverviewCounters> CountersAsync(NpgsqlDataSource ember, TimeProvider time, CancellationToken ct)
     {
         var today = OpsCalendar.Today(time);
         var generatedAt = time.GetUtcNow().UtcDateTime;
@@ -50,9 +50,8 @@ public static class OverviewQueries
                 FROM (SELECT "UserId", coalesce("LastSeenUtc", "CreatedUtc") AS seen FROM "AuthSessions") s
                 WHERE seen >= (($1::date - 13)::timestamp AT TIME ZONE 'Europe/Berlin')
                 """, today),
-            Db.Command($"""
-                SELECT {(features.HabitKind ? "count(*) FILTER (WHERE \"Kind\" = 0)::int, count(*) FILTER (WHERE \"Kind\" = 1)::int" : "count(*)::int, NULL::int")},
-                       count(*) FILTER (WHERE "PausedUntil" >= $1 AND ("PausedFrom" IS NULL OR "PausedFrom" <= $1))::int, count(*) FILTER (WHERE "NextReminderUtc" IS NOT NULL)::int
+            Db.Command("""
+                SELECT count(*)::int, count(*) FILTER (WHERE "PausedUntil" >= $1 AND ("PausedFrom" IS NULL OR "PausedFrom" <= $1))::int, count(*) FILTER (WHERE "NextReminderUtc" IS NOT NULL)::int
                 FROM "Habits"
                 """, today),
             Db.Command("""SELECT count(*)::int, count(DISTINCT "UserId")::int FROM "Routines" """),
@@ -69,7 +68,7 @@ public static class OverviewQueries
         await reader.NextResultAsync(ct);
 
         await reader.RowAsync(ct);
-        var habits = new HabitCounts(reader.GetInt32(0), Nullable(reader, 1), reader.GetInt32(2), reader.GetInt32(3));
+        var habits = new HabitCounts(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
         await reader.NextResultAsync(ct);
 
         await reader.RowAsync(ct);
@@ -119,6 +118,4 @@ public static class OverviewQueries
         return new(generatedAt, newPerWeek, usersBefore, active7.OrderBy(d => d.Key).Select(d => new DayCount(d.Key, d.Value)).ToList(),
             active7.TryGetValue(today.AddDays(-7), out var before) ? before : null);
     }
-
-    private static int? Nullable(NpgsqlDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal);
 }

@@ -36,7 +36,7 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
     }
 
     [Fact]
-    public async Task The_overview_counts_sign_in_activity_and_shows_a_dash_for_let_go_on_the_production_schema()
+    public async Task The_overview_counts_sign_in_activity_and_all_habits_on_the_production_schema()
     {
         using var client = Hub();
 
@@ -46,9 +46,7 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
         LookoutShape.Item(tiles, "Users").GetProperty("value").GetInt32().Should().Be(6);
         LookoutShape.Item(tiles, "Active 7 days").GetProperty("value").GetInt32().Should().Be(2);
         LookoutShape.Item(tiles, "Active 14 days").GetProperty("value").GetInt32().Should().Be(4);
-        var habits = LookoutShape.Item(tiles, "Habits build / let go");
-        habits.GetProperty("value").GetString().Should().Be("8 / –");
-        habits.GetProperty("hint").GetString().Should().Be("Let go: not on production yet");
+        LookoutShape.Item(tiles, "Habits").GetProperty("value").GetInt32().Should().Be(8);
     }
 
     [Fact]

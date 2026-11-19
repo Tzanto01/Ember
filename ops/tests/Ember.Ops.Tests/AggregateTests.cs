@@ -12,9 +12,8 @@ public sealed class AggregateTests(V2DatabaseFixture fixture)
     {
         await using var db = fixture.OpenOpsDatabases();
         await OpsMigrator.ApplyAsync(db.Ops);
-        var features = await EmberFeatures.DetectAsync(db.Ember, default);
         return Overview.From(
-            await OverviewQueries.CountersAsync(db.Ember, features, fixture.Time, default),
+            await OverviewQueries.CountersAsync(db.Ember, fixture.Time, default),
             await OverviewQueries.SeriesAsync(db.Ember, db.Ops, fixture.Time, default));
     }
 
@@ -36,7 +35,7 @@ public sealed class AggregateTests(V2DatabaseFixture fixture)
     {
         var overview = await OverviewAsync();
 
-        overview.Habits.Should().Be(new HabitCounts(Build: 6, LetGo: 2, Paused: 1, WithReminder: 3));
+        overview.Habits.Should().Be(new HabitCounts(Total: 8, Paused: 1, WithReminder: 3));
         overview.Routines.Should().Be(new RoutineCounts(Total: 3, Users: 2));
     }
 

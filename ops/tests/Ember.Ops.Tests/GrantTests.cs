@@ -17,7 +17,7 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
             """SELECT "UserId", "CreatedUtc", "LastSeenUtc" FROM "AuthSessions" """,
             """SELECT "Id", "UserId", "Enabled" FROM "PushSubscriptions" """,
             """SELECT "Id", "UserId", "Enabled" FROM "ReminderPhones" """,
-            """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "Kind", "FrequencyType", "TimesPerDay", "ReminderTimes" FROM "Habits" """,
+            """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "FrequencyType", "TimesPerDay", "ReminderTimes" FROM "Habits" """,
             """SELECT "Id", "Date" FROM "ReminderMessages" """,
             """SELECT "Id", "Date" FROM "PushReminders" """,
             """SELECT "Id", "Title", "Text", "Platform", "Version", "CreatedAt", "Status", "ResolvedAt", "UserId" FROM "Feedback" """,
@@ -59,6 +59,7 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     [InlineData("""SELECT "Id" FROM "FiresideLinks" """)]
     [InlineData("""SELECT "SentAtUtc" FROM "Warmth" """)]
     [InlineData("""SELECT "FiresideEnabled" FROM "AspNetUsers" """)]
+    [InlineData("""SELECT "Kind" FROM "Habits" """)]
     [InlineData("""UPDATE "Feedback" SET "Title" = 'changed' """)]
     [InlineData("""UPDATE "Habits" SET "NextReminderUtc" = NULL""")]
     [InlineData("""INSERT INTO "Feedback" ("Title") VALUES ('x')""")]
@@ -149,6 +150,7 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
             GRANT SELECT ("Id") ON "FiresideLinks" TO ember_dashboard;
             GRANT SELECT ON "Warmth" TO ember_dashboard;
             GRANT SELECT ("FiresideEnabled") ON "AspNetUsers" TO ember_dashboard;
+            GRANT SELECT ("Kind") ON "Habits" TO ember_dashboard;
             """, superuser))
             await grant.ExecuteNonQueryAsync();
         var script = Path.Combine(DatabaseFixture.OpsRoot(), "sql", "ember_dashboard.sql");
@@ -159,7 +161,7 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
             SELECT count(*) FROM information_schema.column_privileges
             WHERE grantee = 'ember_dashboard' AND table_schema = 'public'
               AND (table_name IN ('HabitLogs', 'DayNotes', 'DayMarks', 'JournalKeys', 'HabitSlips', 'FiresideLinks', 'Warmth')
-                   OR (table_name = 'AspNetUsers' AND column_name = 'FiresideEnabled'))
+                   OR (table_name = 'AspNetUsers' AND column_name = 'FiresideEnabled') OR (table_name = 'Habits' AND column_name = 'Kind'))
             """);
         left.Should().Be(0);
         var sessions = await fixture.ScalarAsync<string>("emberdb", """
