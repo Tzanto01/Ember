@@ -112,6 +112,36 @@ public static class FeedbackStore
         return (bool)(await command.ExecuteScalarAsync(ct))!;
     }
 
+    /// <summary>
+    /// Deletes the comments and card positions of reports Ember no longer has (deleted after 12 months or with the account).
+    /// Only ids confirmed missing in Ember are deleted, and nothing while Ember has no feedback at all (a reset or wrong database);
+    /// returns the number of rows removed.
+    /// </summary>
+    public static async Task<int> PurgeOrphansAsync(OpsDatabases db, CancellationToken ct)
+    {
+        var ids = new List<int>();
+        await using (var command = db.Ops.CreateCommand("SELECT feedback_id FROM comments UNION SELECT feedback_id FROM card_positions"))
+        await using (var reader = await command.ExecuteReaderAsync(ct))
+            while (await reader.ReadAsync(ct)) ids.Add(reader.GetInt32(0));
+        if (ids.Count == 0) return 0;
+
+        int[] missing;
+        await using (var command = db.Ember.CreateCommand("""
+            SELECT array_agg(id) FROM unnest($1::int[]) id
+            WHERE EXISTS (SELECT FROM "Feedback") AND NOT EXISTS (SELECT FROM "Feedback" WHERE "Id" = id)
+            """))
+        {
+            command.Parameters.Add(new NpgsqlParameter { Value = ids.ToArray() });
+            missing = await command.ExecuteScalarAsync(ct) as int[] ?? [];
+        }
+        if (missing.Length == 0) return 0;
+
+        await using var delete = db.Ops.CreateBatch();
+        delete.BatchCommands.Add(Db.Command("DELETE FROM comments WHERE feedback_id = ANY($1)", missing));
+        delete.BatchCommands.Add(Db.Command("DELETE FROM card_positions WHERE feedback_id = ANY($1)", missing));
+        return await delete.ExecuteNonQueryAsync(ct);
+    }
+
     /// <summary>The comments on a report, oldest first.</summary>
     public static async Task<IReadOnlyList<Comment>> CommentsAsync(NpgsqlDataSource ops, int id, CancellationToken ct)
     {

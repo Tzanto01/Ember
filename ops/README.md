@@ -11,24 +11,32 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 | Page | What it shows |
 |---|---|
 | `overview` | Users (total, active in the last 7 and 30 days by completed check-ins, new per week by first habit), check-ins per day (90 days), habits (build and let-go, paused, with reminder), routines, journal days, low days, streak settings, Fireside (users on, friendships, warmth per day), let-go slips per week |
+| `activity` | Users with a completed check-in per day and week, users by active days in the last 30 days, average per day and stickiness, retention by week of first habit (back 1 and 4 weeks later), journal days per week, people who wrote and private journals, low days per week |
+| `habits` | Habits, users with a habit, habits per user, habits in a routine or with a reminder time, habits by schedule and by check-ins per day, reminder times by hour (habits and routines), users by number of habits, habits and routines created per week |
+| `users` | Users, Discord linked, users by reminder destination (Discord DMs, web push, Android phone, none), users by design |
 | `reminders` | Reminders still open per day and channel, sent reminders per day from the dashboard's own snapshots, Discord DMs on, failing and paused, second reminders, push subscriptions and phones, overdue reminders |
+| `feedback-trends` | Open, new in 7 days, resolved in 30 days, median time to resolve, reports per week by platform, sent and resolved per week, reports by status and platform, reports by app version |
 | `feedback` | The reports, one column per Ember status (open, planned, implemented, released, declined). Each card has its description, pictures, platform, version, send time, whether it was sent anonymously, and its comments. A move sets the status and the card position. Moves are not logged |
 | `notices` | Live, scheduled and ended notices: info or maintenance, English and German, up to 280 characters each, up to 10 notices in a 16 KiB document. Publish, end now or delete. Each change is written to `NoticeLog` in `emberops` with the author |
 | `system` | Container states, whether reminders are advancing, `emberdb` size and latest migration, free space per disk, newest pre-deploy dump, deployed SHA of production and staging, the provider's build SHA, CI of `main`, `test` and `v2/next`, the live notice, the published APK version |
 
-The overview, reminders, notices and system pages refresh every 30 seconds. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the 90-day and 12-week series at most every 5 minutes, shared by all viewers.
+The overview, reminders, notices and system pages refresh every 30 seconds, the activity, habits, users and feedback trends pages every 60. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the 90-day and 12-week series at most every 5 minutes, shared by all viewers.
 
 Limits of the data:
 - Ember stores no sign-up date, so "new users" is the week of a user's first habit.
 - Ember deletes a reminder row once it closes. "Still open" counts only the rows Ember still keeps. "Sent" comes from the dashboard's snapshots of the reminder id sequences every 5 minutes, so it starts when the dashboard was first deployed and includes second reminders and resends.
 - Fireside and let-go sections show "Not on production yet" until those tables reach production and the grant script is re-run.
 - Days are Europe/Berlin days.
+- Journal, low-day and check-in activity hides any bucket of 1 or 2 people: a stat shows `<3` without hint, trend, delta or max, and a bar is left out (the widget note says so). This applies to the overview's journal and low-day bars and to the activity page.
+- Ember keeps no feedback status history, so the trends page shows sent and resolved per week and the current status.
 
 ## Privacy
 
-Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on ids, dates, counts, flags and kinds, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, journal text, moods, Fireside names or messages, or push endpoints. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
+Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on ids, dates, counts, flags and kinds, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, journal text, moods, Fireside names or messages, or push endpoints. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
 
 `Feedback.UserId` is readable only so the board can say whether a report was anonymous. The app uses it only as `"UserId" IS NULL` and never returns it.
+
+Every 5 minutes, with the reminder snapshot, the app deletes the comments and card positions in `emberops` whose report Ember no longer has (Ember deletes feedback after 12 months or with the account).
 
 Moving a card to released or declined sets `ResolvedAt` the same way `--feedback-status` does, so Ember deletes the pictures 30 days later. Moving it back clears `ResolvedAt`.
 

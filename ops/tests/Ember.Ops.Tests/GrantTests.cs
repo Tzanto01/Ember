@@ -11,11 +11,16 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     {
         string[] reads =
         [
-            """SELECT "Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "FiresideEnabled" FROM "AspNetUsers" """,
-            """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "Kind" FROM "Habits" """,
+            """SELECT "Id", "ShowStreaks", "GraceDaysPerWeek", "SecondReminderMinutes", "DmFailureCount", "DmRemindersPausedAt", "DiscordReminders", "FiresideEnabled", "Theme" FROM "AspNetUsers" """,
+            """SELECT "UserId", "LoginProvider" FROM "AspNetUserLogins" """,
+            """SELECT "UserId" FROM "JournalKeys" """,
+            """SELECT "Id", "UserId", "NextReminderUtc", "SecondReminderUtc", "ReminderTime", "CreatedAt" FROM "Routines" """,
+            """SELECT "Id", "UserId", "Enabled" FROM "PushSubscriptions" """,
+            """SELECT "Id", "UserId", "Enabled" FROM "ReminderPhones" """,
+            """SELECT "Id", "UserId", "CreatedAt", "RoutineId", "PausedFrom", "PausedUntil", "NextReminderUtc", "SecondReminderUtc", "Kind", "FrequencyType", "TimesPerDay", "ReminderTimes" FROM "Habits" """,
             """SELECT "HabitId", "Date", "Completed" FROM "HabitLogs" """,
-            """SELECT "Date" FROM "DayNotes" """,
-            """SELECT "Date", "Kind" FROM "DayMarks" """,
+            """SELECT "UserId", "Date" FROM "DayNotes" """,
+            """SELECT "UserId", "Date", "Kind" FROM "DayMarks" """,
             """SELECT "HabitId", "Date", "Count" FROM "HabitSlips" """,
             """SELECT "Id" FROM "FiresideLinks" """,
             """SELECT "SentAtUtc" FROM "Warmth" """,
@@ -42,6 +47,13 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     [InlineData("""SELECT * FROM "Habits" """)]
     [InlineData("""SELECT "Text" FROM "DayNotes" """)]
     [InlineData("""SELECT * FROM "Moods" """)]
+    [InlineData("""SELECT "Mood" FROM "DayNotes" """)]
+    [InlineData("""SELECT "CipherText" FROM "DayNotes" """)]
+    [InlineData("""SELECT "PassphraseWrapped" FROM "JournalKeys" """)]
+    [InlineData("""SELECT "ProviderKey" FROM "AspNetUserLogins" """)]
+    [InlineData("""SELECT "Label" FROM "ReminderPhones" """)]
+    [InlineData("""SELECT "Language" FROM "AspNetUsers" """)]
+    [InlineData("""SELECT "Name" FROM "Routines" """)]
     [InlineData("""SELECT "Email" FROM "AspNetUsers" """)]
     [InlineData("""SELECT "PasswordHash" FROM "AspNetUsers" """)]
     [InlineData("""SELECT "Timezone" FROM "AspNetUsers" """)]
@@ -61,6 +73,16 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
         var run = async () => await command.ExecuteNonQueryAsync();
 
         (await run.Should().ThrowAsync<PostgresException>()).Which.SqlState.Should().Be("42501");
+    }
+
+    [Fact]
+    public async Task Dashboard_role_runs_without_jit()
+    {
+        await using var connection = fixture.DashboardConnection();
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("SHOW jit", connection);
+
+        (await command.ExecuteScalarAsync()).Should().Be("off", "JIT compiling costs more than the small dashboard queries on the shared host");
     }
 
     [Fact]

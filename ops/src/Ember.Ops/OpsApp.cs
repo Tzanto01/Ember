@@ -77,9 +77,26 @@ public static class OpsApp
     internal static async Task<Overview> OverviewAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
     {
         var counters = await OverviewCountersAsync(cache, db, time, ct);
-        var features = await FeaturesAsync(cache, db, ct);
-        return Overview.From(counters, await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, features, time, ct)));
+        return Overview.From(counters, await OverviewSeriesAsync(cache, db, time, ct));
     }
+
+    internal static async Task<OverviewSeries> OverviewSeriesAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct)
+    {
+        var features = await FeaturesAsync(cache, db, ct);
+        return await Cached(cache, "overview:series", SeriesCache, () => OverviewQueries.SeriesAsync(db.Ember, features, time, ct));
+    }
+
+    internal static Task<ActivityInsights> ActivityAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, "insights:activity", SeriesCache, () => InsightQueries.ActivityAsync(db.Ember, time, ct));
+
+    internal static Task<HabitInsights> HabitsAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, "insights:habits", SeriesCache, () => InsightQueries.HabitsAsync(db.Ember, time, ct));
+
+    internal static Task<UserInsights> UsersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
+        Cached(cache, "insights:users", SeriesCache, () => InsightQueries.UsersAsync(db.Ember, time, ct));
+
+    internal static Task<FeedbackList> FeedbackStatsAsync(IMemoryCache cache, OpsDatabases db, CancellationToken ct) =>
+        Cached(cache, "feedback:stats", CounterCache, () => FeedbackStore.ListAsync(db, ct));
 
     internal static Task<ReminderCounters> ReminderCountersAsync(IMemoryCache cache, OpsDatabases db, TimeProvider time, CancellationToken ct) =>
         Cached(cache, ReminderCountersKey, CounterCache, () => ReminderQueries.CountersAsync(db.Ember, time, ct));

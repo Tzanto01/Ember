@@ -30,10 +30,11 @@ public sealed class Dataset
         var now = DateTime.UtcNow;
 
         // grace days 0,1,1,2,0,0; streaks shown u1..u3; discord reminders on u1,u2, off u3, unset u4..u6;
-        // dm failures u2,u4; dm paused u3; second reminder minutes 15,15,30; fireside on u1..u3
+        // dm failures u2,u4; dm paused u3; second reminder minutes 15,15,30; fireside on u1..u3; designs tidepool u1,u2, marigold u3
         var grace = new[] { 0, 1, 1, 2, 0, 0 };
         var discord = new bool?[] { true, true, false, null, null, null };
         var minutes = new[] { 15, 15, 30, 0, 0, 0 };
+        var themes = new[] { "tidepool", "tidepool", "marigold", null, null, null };
         for (var i = 0; i < 6; i++)
         {
             var id = Guid.NewGuid();
@@ -43,17 +44,28 @@ public sealed class Dataset
                 ["Id"] = id, ["UserName"] = $"synthetic-user-{i + 1}", ["Email"] = $"synthetic-user-{i + 1}@example.test",
                 ["ShowStreaks"] = i < 3, ["GraceDaysPerWeek"] = grace[i], ["SecondReminderMinutes"] = minutes[i],
                 ["DmFailureCount"] = i is 1 or 3 ? i : 0, ["DmRemindersPausedAt"] = i == 2 ? now : null, ["DiscordReminders"] = discord[i],
-                ["Timezone"] = "Europe/Berlin", ["Language"] = "en",
+                ["Timezone"] = "Europe/Berlin", ["Language"] = "en", ["Theme"] = themes[i],
             };
             if (includeV2) user["FiresideEnabled"] = i < 3;
             await rows.AddAsync("AspNetUsers", user);
         }
 
-        await rows.AddAsync("Routines", new() { ["UserId"] = data.UserIds[0], ["CreatedAt"] = now, ["NextReminderUtc"] = now.AddHours(1), ["Position"] = 0 });
-        await rows.AddAsync("Routines", new() { ["UserId"] = data.UserIds[0], ["CreatedAt"] = now, ["NextReminderUtc"] = now.AddHours(-2), ["Position"] = 1 });
-        await rows.AddAsync("Routines", new() { ["UserId"] = data.UserIds[1], ["CreatedAt"] = now, ["SecondReminderUtc"] = now.AddMinutes(5), ["Position"] = 0 });
+        // discord logins u1,u2; private journal u1
+        foreach (var i in new[] { 0, 1 })
+            await rows.AddAsync("AspNetUserLogins", new() { ["LoginProvider"] = "Discord", ["ProviderKey"] = $"{1000 + i}", ["UserId"] = data.UserIds[i] });
+        await rows.AddAsync("JournalKeys", new() { ["UserId"] = data.UserIds[0], ["Version"] = 1 });
+
+        // created D1, D1, D8; reminder time 07:00 on the first
+        var routine = await rows.AddReturningIdAsync("Routines", new()
+        {
+            ["UserId"] = data.UserIds[0], ["CreatedAt"] = At(1), ["NextReminderUtc"] = now.AddHours(1), ["Position"] = 0, ["ReminderTime"] = new TimeOnly(7, 0),
+        });
+        await rows.AddAsync("Routines", new() { ["UserId"] = data.UserIds[0], ["CreatedAt"] = At(1), ["NextReminderUtc"] = now.AddHours(-2), ["Position"] = 1 });
+        await rows.AddAsync("Routines", new() { ["UserId"] = data.UserIds[1], ["CreatedAt"] = At(8), ["SecondReminderUtc"] = now.AddMinutes(5), ["Position"] = 0 });
 
         // (user index, created days ago, letGo, pause from/until, next reminder, second reminder)
+        // schedules: h2 times per week, h3 set weekdays, others daily; check-ins per day h5 3, h6 5, others 1;
+        // reminder times h1 08:00, h2 08:30 and 20:00, h5 21:15; h1 in the 07:00 routine
         var habits = new (int User, int Ago, bool LetGo, (DateOnly? From, DateOnly Until)? Pause, DateTime? Next, DateTime? Second)[]
         {
             (0, 1, false, null, now.AddHours(1), null),     // h1: u1 first habit, week of 2026-11-16
@@ -71,8 +83,11 @@ public sealed class Dataset
             var habit = new Dictionary<string, object?>
             {
                 ["UserId"] = data.UserIds[h.User], ["Name"] = "Synthetic habit", ["CreatedAt"] = At(h.Ago), ["PausedFrom"] = h.Pause?.From, ["PausedUntil"] = h.Pause?.Until,
-                ["NextReminderUtc"] = h.Next, ["SecondReminderUtc"] = h.Second, ["TimesPerDay"] = 1,
+                ["NextReminderUtc"] = h.Next, ["SecondReminderUtc"] = h.Second, ["TimesPerDay"] = ids.Count switch { 4 => 3, 5 => 5, _ => 1 },
+                ["FrequencyType"] = ids.Count switch { 1 => 1, 2 => 2, _ => 0 }, ["RoutineId"] = ids.Count == 0 ? routine : null,
             };
+            TimeOnly[] times = ids.Count switch { 0 => [new(8, 0)], 1 => [new(8, 30), new(20, 0)], 4 => [new(21, 15)], _ => [] };
+            if (times.Length > 0) habit["ReminderTimes"] = times;
             if (includeV2) habit["Kind"] = h.LetGo ? 1 : 0;
             ids.Add(await rows.AddReturningIdAsync("Habits", habit));
         }
@@ -83,7 +98,7 @@ public sealed class Dataset
         foreach (var (habit, ago, completed) in new[] { (1, 0, true), (1, 3, true), (2, 6, true), (3, 0, true), (5, 7, true), (5, 29, true), (6, 30, true), (6, 5, false) })
             await rows.AddAsync("HabitLogs", new() { ["HabitId"] = H(habit), ["Date"] = D(ago), ["Completed"] = completed, ["Count"] = 1 });
 
-        foreach (var (user, ago) in new[] { (0, 0), (1, 0), (2, 1), (2, 100) })
+        foreach (var (user, ago) in new[] { (0, 0), (1, 0), (3, 0), (2, 1), (2, 100) })
             await rows.AddAsync("DayNotes", new() { ["UserId"] = data.UserIds[user], ["Date"] = D(ago), ["Text"] = "synthetic journal text" });
         foreach (var (user, ago) in new[] { (0, 0), (1, 0), (0, 2) })
             await rows.AddAsync("DayMarks", new() { ["UserId"] = data.UserIds[user], ["Date"] = D(ago), ["Kind"] = 0 });

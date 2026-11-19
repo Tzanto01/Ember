@@ -115,7 +115,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     }
 
     [Fact]
-    public async Task The_manifest_lists_the_five_pages_in_order()
+    public async Task The_manifest_lists_the_pages_in_order()
     {
         using var client = Hub();
 
@@ -125,7 +125,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         (manifest.GetProperty("id").GetString(), manifest.GetProperty("name").GetString(), manifest.GetProperty("icon").GetString(), manifest.GetProperty("timeZone").GetString())
             .Should().Be(("ember", "Ember", "flame", "Europe/Berlin"));
         manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("id").GetString()).Should().Equal(LookoutShape.PageIds);
-        manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("refreshSeconds").GetInt32()).Should().Equal(30, 30, 0, 30, 30);
+        manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("refreshSeconds").GetInt32()).Should().Equal(30, 60, 60, 60, 30, 0, 60, 30, 30);
     }
 
     [Theory]
@@ -134,6 +134,10 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     [InlineData("feedback")]
     [InlineData("notices")]
     [InlineData("system")]
+    [InlineData("activity")]
+    [InlineData("habits")]
+    [InlineData("users")]
+    [InlineData("feedback-trends")]
     public async Task Every_page_has_the_contract_shape(string pageId)
     {
         using var client = Hub();

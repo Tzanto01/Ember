@@ -26,6 +26,14 @@ internal static class Db
         return days;
     }
 
+    public static async Task<Dictionary<int, int>> CountsAsync(NpgsqlDataReader reader, CancellationToken ct)
+    {
+        var counts = new Dictionary<int, int>();
+        while (await reader.ReadAsync(ct)) counts[reader.GetInt32(0)] = reader.GetInt32(1);
+        await reader.NextResultAsync(ct);
+        return counts;
+    }
+
     public static async Task<NpgsqlDataReader> RowAsync(this NpgsqlDataReader reader, CancellationToken ct)
     {
         if (!await reader.ReadAsync(ct)) throw new InvalidOperationException("Expected a row.");

@@ -5,7 +5,7 @@ using Npgsql;
 namespace Ember.Ops.Tests;
 
 /// <summary>A throwaway Postgres set up like production, built once and shared by the tests that use it.</summary>
-public abstract class DatabaseFixture(bool productionSchema) : IAsyncLifetime
+public abstract class DatabaseFixture(bool productionSchema, bool seed = true) : IAsyncLifetime
 {
     /// <summary>The day every aggregate expectation is written against (Wednesday).</summary>
     public static readonly DateOnly Today = new(2026, 11, 18);
@@ -19,7 +19,7 @@ public abstract class DatabaseFixture(bool productionSchema) : IAsyncLifetime
     public async Task InitializeAsync()
     {
         Database = await OpsTestDatabase.StartAsync(productionSchema, OpsRoot());
-        Data = await Dataset.InsertAsync(Database.SuperuserConnection("emberdb"), Today, includeV2: !productionSchema);
+        if (seed) Data = await Dataset.InsertAsync(Database.SuperuserConnection("emberdb"), Today, includeV2: !productionSchema);
     }
 
     public async Task DisposeAsync() => await Database.DisposeAsync();
@@ -67,6 +67,15 @@ public sealed class V2DatabaseFixture() : DatabaseFixture(productionSchema: fals
 
 /// <summary>Ember migrated only as far as production (<c>main</c>) is.</summary>
 public sealed class ProductionDatabaseFixture() : DatabaseFixture(productionSchema: true);
+
+/// <summary>Ember with every migration and no rows at all.</summary>
+public sealed class EmptyDatabaseFixture() : DatabaseFixture(productionSchema: false, seed: false);
+
+[CollectionDefinition(Name)]
+public sealed class EmptyCollection : ICollectionFixture<EmptyDatabaseFixture>
+{
+    public const string Name = "empty database";
+}
 
 [CollectionDefinition(Name)]
 public sealed class V2Collection : ICollectionFixture<V2DatabaseFixture>
