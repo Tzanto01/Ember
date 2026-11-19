@@ -4,9 +4,8 @@ using System.Text.Json;
 namespace Ember.Ops.TestHost;
 
 /// <summary>
-/// Runs the dashboard against a seeded throwaway Postgres (<see cref="OpsTestDatabase"/>, <see cref="OpsSeed"/>) on
-/// http://localhost:5185, trusting loopback and the login <c>e2e@example.test</c>, serving <c>ops/web/dist</c>, with a
-/// synthetic host status file kept fresh. <c>--prod-schema</c> migrates emberdb only as far as production has.
+/// Runs the ops app against a seeded throwaway Postgres (<see cref="OpsTestDatabase"/>, <see cref="OpsSeed"/>) on
+/// http://localhost:5185 with a synthetic host status file kept fresh. <c>--prod-schema</c> migrates emberdb only as far as production has.
 /// The Lookout routes under <c>/lookout/v1</c> accept the hub from <c>127.0.0.1</c> only (call <c>http://127.0.0.1:5185</c>, not
 /// <c>localhost</c>), with the key from the file named by <c>LOOKOUT_KEY_FILE</c>, else <see cref="LookoutKey"/>.
 /// Sends nothing outside localhost.
@@ -14,7 +13,6 @@ namespace Ember.Ops.TestHost;
 public static class TestHostProgram
 {
     public const string Url = "http://localhost:5185";
-    public const string Login = "e2e@example.test";
 
     /// <summary>The synthetic Lookout key used when <c>LOOKOUT_KEY_FILE</c> is unset; not a secret.</summary>
     public const string LookoutKey = "synthetic-lookout-test-key-not-a-secret-0001";
@@ -45,10 +43,6 @@ public static class TestHostProgram
         var builder = OpsApp.CreateBuilder(["--urls", Url, .. args]);
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(database.AppSettings())
         {
-            ["Ops:Access:TrustedProxies:0"] = "127.0.0.1",
-            ["Ops:Access:TrustedProxies:1"] = "::1",
-            ["Ops:Access:AllowedLogins:0"] = Login,
-            ["Ops:WebRoot"] = Path.Combine(opsRoot, "web", "dist"),
             ["Ops:StatusFile"] = statusFile,
             ["Ops:BuildSha"] = "testhost",
             ["Ops:NoticesUrl"] = FakeNoticesUpstream.ReadUrl,

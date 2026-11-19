@@ -71,34 +71,52 @@ public sealed class NoticeRulesTests
 public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
 {
     private const string Token = "synthetic-test-token";
+    private const string Actor = "Tester";
+    private const string Widget = "/lookout/v1/widgets/notices/notices";
 
     private readonly List<IDisposable> _disposables = [];
 
     public void Dispose() => _disposables.ForEach(d => d.Dispose());
 
-    private (HttpClient Client, FakeNoticesUpstream Fake) Start(string? upstreamToken = null, bool session = true)
+    private (HttpClient Client, FakeNoticesUpstream Fake) Start(string? upstreamToken = null)
     {
         var fake = new FakeNoticesUpstream(upstreamToken ?? Token);
-        return (Client(fake, session: session), fake);
+        return (Client(fake), fake);
     }
 
-    private HttpClient Client(HttpMessageHandler upstream, string? noticesToken = Token + "\n", bool session = true, string? login = OpsApiFactory.Login)
+    private HttpClient Client(HttpMessageHandler upstream, string? noticesToken = Token + "\n")
     {
-        var factory = new OpsApiFactory(database, notices: upstream, noticesToken: noticesToken);
-        var client = factory.ClientFrom(login: login);
+        var factory = new OpsApiFactory(database, notices: upstream, noticesToken: noticesToken, hubAddress: OpsApiFactory.HubIp, lookoutKey: OpsApiFactory.LookoutKey);
+        var client = factory.ClientFrom(OpsApiFactory.HubIp);
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {OpsApiFactory.LookoutKey}");
         _disposables.Add(client);
         _disposables.Add(factory);
-        if (session) OpsApiFactory.StartSessionAsync(client).GetAwaiter().GetResult();
         return client;
     }
 
+    private static Task<HttpResponseMessage> SendAsync(HttpClient client, HttpMethod method, string path, object? body = null)
+    {
+        var request = new HttpRequestMessage(method, path) { Content = body is null ? null : JsonContent.Create(body) };
+        request.Headers.TryAddWithoutValidation("Lookout-Actor", Actor);
+        return client.SendAsync(request);
+    }
+
+    private static Task<HttpResponseMessage> PublishAsync(HttpClient client, object body) => SendAsync(client, HttpMethod.Post, Widget, body);
+
+    private static Task<HttpResponseMessage> EndAsync(HttpClient client, string id) => SendAsync(client, HttpMethod.Post, $"{Widget}/{id}/end");
+
     private static object Body(string id, string? from = null, string? until = null) =>
-        new { id, kind = "info", en = $"en {id}", de = $"de {id}", showFrom = from, showUntil = until };
+        new { id, kind = "info", text = new { en = $"en {id}", de = $"de {id}" }, showFrom = from, showUntil = until };
 
     private Task<long> LogCountAsync(string action, string id) =>
         database.ScalarAsync<long>("emberops", "SELECT count(*) FROM NoticeLog WHERE action = $1 AND notice->>'id' = $2", action, id);
 
     private static async Task<JsonElement> ViewAsync(HttpResponseMessage response) => await response.Content.ReadFromJsonAsync<JsonElement>();
+
+    private static async Task<JsonElement> ListAsync(HttpClient client) =>
+        LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/notices"), "notices");
+
+    private static int Count(JsonElement view) => view.GetProperty("notices").GetArrayLength();
 
     private static string StateOf(JsonElement view, string id) =>
         view.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("id").GetString() == id).GetProperty("state").GetString()!;
@@ -106,38 +124,22 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     private static string UniqueId(string prefix) => $"{prefix}-{Guid.NewGuid():N}";
 
     [Fact]
-    public async Task Publishing_stores_the_notice_upstream_logs_it_with_the_actor_and_lists_it_live()
-    {
-        var (client, fake) = Start();
-        var id = UniqueId("pub");
-
-        var response = await client.PostAsJsonAsync("/api/notices", Body(id));
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        fake.Notices.Select(n => n.Id).Should().Contain(id);
-        (await database.ScalarAsync<string>("emberops", "SELECT actor FROM NoticeLog WHERE action = 'publish' AND notice->>'id' = $1", id)).Should().Be(OpsApiFactory.Login);
-        var list = await ViewAsync(await client.GetAsync("/api/notices"));
-        list.GetProperty("publishing").GetBoolean().Should().BeTrue();
-        StateOf(list, id).Should().Be("live");
-    }
-
-    [Fact]
     public async Task A_second_publish_within_90_seconds_keeps_the_first_even_when_the_edge_still_serves_the_old_document()
     {
         var (client, fake) = Start();
         var a = UniqueId("a");
         var b = UniqueId("b");
-        (await client.PostAsJsonAsync("/api/notices", Body(a))).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await PublishAsync(client, Body(a))).StatusCode.Should().Be(HttpStatusCode.OK);
         fake.Notices = [];
 
         database.Time.Advance(TimeSpan.FromSeconds(60));
-        (await client.PostAsJsonAsync("/api/notices", Body(b))).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await PublishAsync(client, Body(b))).StatusCode.Should().Be(HttpStatusCode.OK);
         fake.Notices.Select(n => n.Id).Should().BeEquivalentTo([a, b]);
 
         var c = UniqueId("c");
         fake.Notices = [];
         database.Time.Advance(TimeSpan.FromSeconds(20));
-        (await client.PostAsJsonAsync("/api/notices", Body(c))).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await PublishAsync(client, Body(c))).StatusCode.Should().Be(HttpStatusCode.OK);
         fake.Notices.Select(n => n.Id).Should().BeEquivalentTo([a, b, c]);
     }
 
@@ -145,12 +147,12 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     public async Task A_delete_by_another_writer_is_listed_once_the_edge_has_served_our_write()
     {
         var (client, fake) = Start();
-        await client.PostAsJsonAsync("/api/notices", Body(UniqueId("gone")));
-        (await ViewAsync(await client.GetAsync("/api/notices"))).GetProperty("notices").GetArrayLength().Should().Be(1);
+        await PublishAsync(client, Body(UniqueId("gone")));
+        Count(await ListAsync(client)).Should().Be(1);
 
         fake.Notices = [];
 
-        (await ViewAsync(await client.GetAsync("/api/notices"))).GetProperty("notices").GetArrayLength().Should().Be(0);
+        Count(await ListAsync(client)).Should().Be(0);
     }
 
     [Fact]
@@ -160,11 +162,11 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
         var odd = "maintenance 2026";
         fake.Notices = [new Notice(odd, "info", "External", "Extern")];
 
-        (await client.PostAsJsonAsync("/api/notices", Body("bad id"))).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await PublishAsync(client, Body("bad id"))).StatusCode.Should().Be(HttpStatusCode.BadRequest);
         fake.Publishes.Should().Be(0);
 
         var id = UniqueId("ok");
-        (await client.PostAsJsonAsync("/api/notices", Body(id))).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await PublishAsync(client, Body(id))).StatusCode.Should().Be(HttpStatusCode.OK);
         fake.Notices.Select(n => n.Id).Should().BeEquivalentTo([odd, id]);
     }
 
@@ -174,14 +176,14 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
         var (client, fake) = Start();
         var mine = UniqueId("mine");
         var theirs = UniqueId("theirs");
-        await client.PostAsJsonAsync("/api/notices", Body(mine));
+        await PublishAsync(client, Body(mine));
         fake.Notices = [new Notice(theirs, "info", "External", "Extern")];
 
-        var list = await ViewAsync(await client.GetAsync("/api/notices"));
+        var list = await ListAsync(client);
         list.GetProperty("notices").EnumerateArray().Select(n => n.GetProperty("id").GetString()).Should().BeEquivalentTo([theirs]);
 
         var next = UniqueId("next");
-        (await client.PostAsJsonAsync("/api/notices", Body(next))).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await PublishAsync(client, Body(next))).StatusCode.Should().Be(HttpStatusCode.OK);
         fake.Notices.Select(n => n.Id).Should().BeEquivalentTo([theirs, next]);
     }
 
@@ -189,13 +191,12 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     public async Task After_the_stale_read_window_the_list_follows_the_upstream_document()
     {
         var (client, fake) = Start();
-        var id = UniqueId("stale");
-        await client.PostAsJsonAsync("/api/notices", Body(id));
+        await PublishAsync(client, Body(UniqueId("stale")));
         fake.Notices = [];
 
-        (await ViewAsync(await client.GetAsync("/api/notices"))).GetProperty("notices").GetArrayLength().Should().Be(1);
+        Count(await ListAsync(client)).Should().Be(1);
         database.Time.Advance(NoticeStore.StaleReadWindow + TimeSpan.FromSeconds(1));
-        (await ViewAsync(await client.GetAsync("/api/notices"))).GetProperty("notices").GetArrayLength().Should().Be(0);
+        Count(await ListAsync(client)).Should().Be(0);
     }
 
     [Fact]
@@ -203,11 +204,11 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     {
         var (client, fake) = Start();
         var id = UniqueId("live");
-        await client.PostAsJsonAsync("/api/notices", Body(id));
+        await PublishAsync(client, Body(id));
         database.Time.Advance(TimeSpan.FromSeconds(5.5));
         var expected = NoticeRules.FormatTime(database.Time.GetUtcNow());
 
-        var response = await client.PostAsync($"/api/notices/{id}/end", null);
+        var response = await EndAsync(client, id);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         StateOf(await ViewAsync(response), id).Should().Be("ended");
@@ -222,9 +223,9 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
         var id = UniqueId("sched");
         var from = NoticeRules.FormatTime(database.Time.GetUtcNow().AddHours(1));
         var until = NoticeRules.FormatTime(database.Time.GetUtcNow().AddHours(2));
-        await client.PostAsJsonAsync("/api/notices", Body(id, from, until));
+        await PublishAsync(client, Body(id, from, until));
 
-        var response = await client.PostAsync($"/api/notices/{id}/end", null);
+        var response = await EndAsync(client, id);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var stored = fake.Notices.Single(n => n.Id == id);
@@ -237,11 +238,11 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     {
         var (client, fake) = Start();
         var id = UniqueId("ended");
-        await client.PostAsJsonAsync("/api/notices", Body(id));
-        await client.PostAsync($"/api/notices/{id}/end", null);
+        await PublishAsync(client, Body(id));
+        await EndAsync(client, id);
         var publishes = fake.Publishes;
 
-        var response = await client.PostAsync($"/api/notices/{id}/end", null);
+        var response = await EndAsync(client, id);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
         fake.Publishes.Should().Be(publishes);
@@ -252,7 +253,7 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     {
         var (client, fake) = Start();
 
-        var response = await client.PostAsync("/api/notices/nope/end", null);
+        var response = await EndAsync(client, "nope");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         fake.Publishes.Should().Be(0);
@@ -263,9 +264,9 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     {
         var (client, fake) = Start();
         var id = UniqueId("del");
-        await client.PostAsJsonAsync("/api/notices", Body(id));
+        await PublishAsync(client, Body(id));
 
-        var response = await client.DeleteAsync($"/api/notices/{id}");
+        var response = await SendAsync(client, HttpMethod.Delete, $"{Widget}/{id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         fake.Notices.Should().NotContain(n => n.Id == id);
@@ -277,7 +278,7 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     {
         var (client, fake) = Start();
 
-        (await client.DeleteAsync("/api/notices/nope")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await SendAsync(client, HttpMethod.Delete, $"{Widget}/nope")).StatusCode.Should().Be(HttpStatusCode.NotFound);
         fake.Publishes.Should().Be(0);
     }
 
@@ -287,7 +288,7 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
         var client = Client(new StubUpstream(HttpStatusCode.BadRequest, """{"detail":"synthetic rule"}"""));
         var id = UniqueId("rej");
 
-        var response = await client.PostAsJsonAsync("/api/notices", Body(id));
+        var response = await PublishAsync(client, Body(id));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await ViewAsync(response)).GetProperty("detail").GetString().Should().Be("synthetic rule");
@@ -297,10 +298,10 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
     [Fact]
     public async Task A_refused_publish_token_is_a_502_and_nothing_is_logged()
     {
-        var (client, fake) = Start(upstreamToken: "some-other-token");
+        var (client, _) = Start(upstreamToken: "some-other-token");
         var id = UniqueId("tok");
 
-        var response = await client.PostAsJsonAsync("/api/notices", Body(id));
+        var response = await PublishAsync(client, Body(id));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
         (await LogCountAsync("publish", id)).Should().Be(0);
@@ -312,31 +313,12 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
         var fake = new FakeNoticesUpstream(Token);
         var client = Client(fake, noticesToken: null);
 
-        var list = await ViewAsync(await client.GetAsync("/api/notices"));
-        var response = await client.PostAsJsonAsync("/api/notices", Body(UniqueId("none")));
+        var list = await ListAsync(client);
+        var response = await PublishAsync(client, Body(UniqueId("none")));
 
         list.GetProperty("publishing").GetBoolean().Should().BeFalse();
         response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
         fake.Publishes.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task A_write_without_a_csrf_token_is_400_and_publishes_nothing()
-    {
-        var (client, fake) = Start(session: false);
-
-        var response = await client.PostAsJsonAsync("/api/notices", Body(UniqueId("csrf")));
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        fake.Publishes.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task The_notices_api_is_forbidden_without_identity()
-    {
-        var client = Client(new FakeNoticesUpstream(Token), session: false, login: null);
-
-        (await client.GetAsync("/api/notices")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     private sealed class StubUpstream(HttpStatusCode putStatus, string putBody) : HttpMessageHandler

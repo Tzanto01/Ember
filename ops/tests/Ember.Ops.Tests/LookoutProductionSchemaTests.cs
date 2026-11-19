@@ -13,7 +13,7 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
 
     private HttpClient Hub()
     {
-        var client = _factory.ClientFrom(OpsApiFactory.HubIp, login: null);
+        var client = _factory.ClientFrom(OpsApiFactory.HubIp);
         client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Bearer {OpsApiFactory.LookoutKey}");
         return client;
     }
