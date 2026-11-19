@@ -100,7 +100,7 @@ Back up the database before you deploy a build with a new migration.
 | `SMTP_REPLY_TO` | `api` only, optional. `Reply-To` address for account emails. Without it, replies go to `SMTP_FROM`. |
 | `FEEDBACK_DIGEST_TO` | `api` only, optional. Address that gets the daily feedback digest (08:00 Europe/Berlin, only when there is new feedback) through the SMTP settings above. Without it, feedback is stored but not mailed. |
 | `EMBER_DELETION_LEDGER_FILE` | `ember` and `api`, optional. The deletion ledger inside the containers, `/ledger/deletions.jsonl` on production. Without it Ember keeps no ledger. See "Restoring a backup" below. |
-| `EMBER_DELETION_LEDGER_DIR` | Optional. Host directory mounted at `/ledger` in `ember` and `api`. Defaults to `./deletion-ledger`. |
+| `EMBER_DELETION_LEDGER_DIR` | Optional. Host directory mounted at `/ledger` in `ember` and `api`. Defaults to `./deletion-ledger`. Set it together with `EMBER_DELETION_LEDGER_FILE`: otherwise Docker creates the default directory owned by root and every ledger write fails. |
 | `LOOKOUT_INGEST_URL` | `lookout-sender` only, optional. Lookout's ingest address as an IP literal, `http://172.31.250.18:8081` on the homeserver. Set it only on production; without it the sender sends nothing. |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | `api` only. Discord OAuth application for signing in with Discord and linking it, on the web and in the Android app. |
 | `VITE_PUBLIC_ORIGIN` | Optional build argument for the `api` image. Your public origin, for example `https://example.com`. It adds a canonical link and a sitemap to the web build. |
@@ -116,7 +116,7 @@ Back up the database before you deploy a build with a new migration.
 1. Stop Ember: `docker compose --profile api --profile lookout stop`.
 2. Restore the dump into `emberdb`.
 3. If the backup is older than the deployed build, apply the migrations: `docker compose run --rm ember --migrate-only`.
-4. Repeat the deletions since the backup's time, in UTC: `docker compose --profile api run --rm api --replay-deletions 2026-11-19T03:00:00Z`. Accounts are deleted the normal way, so Lookout gets their deletion too, health data is deleted again unless the account is gone, and a consent the backup still has as given is withdrawn again from the original time, so the deletion after 30 days runs on schedule. A consent given again after the withdrawal isn't recorded, so those users are simply asked again. It prints counts only and is safe to run again. It refuses a missing or unreadable ledger and a time without `Z` or an offset.
+4. Repeat the deletions since the backup's time, in UTC: `docker compose --profile api run --rm api --replay-deletions 2026-11-19T03:00:00Z`. Accounts are deleted the normal way, so Lookout gets their deletion too, health data is deleted again unless the account is gone, and a consent the backup still has as given is withdrawn again from the original time, so the deletion after 30 days runs on schedule. A consent given again after the withdrawal isn't recorded, so those users are simply asked again. It prints counts only and is safe to run again. It refuses a missing or unreadable ledger, a time without `Z` or an offset, and a backup time more than 40 days ago or before the ledger started (its first line), because then some deletions are missing.
 5. Start Ember again.
 
 When unsure of the backup's time, give an earlier one: that only repeats more deletions.

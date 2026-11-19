@@ -36,7 +36,10 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
 
     private Task<DateTime?> WithdrawnAt(Guid id) => Host.Db(db => db.Users.Where(u => u.Id == id).Select(u => u.ConsentWithdrawnAt).SingleAsync());
 
-    private List<JsonElement> Lines() => File.ReadAllLines(Ledger).Select(l => JsonDocument.Parse(l).RootElement.Clone()).ToList();
+    private List<JsonElement> Lines() => File.ReadAllLines(Ledger).Select(l => JsonDocument.Parse(l).RootElement.Clone())
+        .Where(l => l.GetProperty("kind").GetString() != "start").ToList();
+
+    private const string StartLine = """{"at":"2026-10-01T00:00:00Z","kind":"start"}""";
 
     private async Task<(int Exit, string Output)> Replay(DateTime since)
     {
@@ -158,14 +161,48 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
     {
         var now = new DateTime(2026, 12, 20, 3, 30, 0, DateTimeKind.Utc);
         var (old, edge, recent) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        File.WriteAllLines(Ledger, [Line(now.AddDays(-41), "account", old), Line(now.AddDays(-40), "health", edge), Line(now.AddHours(-1), "account", recent)]);
+        File.WriteAllLines(Ledger, [StartLine, Line(now.AddDays(-41), "account", old), Line(now.AddDays(-40), "health", edge), Line(now.AddHours(-1), "account", recent)]);
         var ledger = new DeletionLedger(Ledger, new FakeTimeProvider(now), new CapturingLogger<DeletionLedger>());
 
         var pruned = ledger.Prune();
 
         pruned.Should().Be(1);
-        DeletionLedger.Read(Ledger).Select(e => e.UserId).Should().Equal(edge, recent);
+        File.ReadAllLines(Ledger)[0].Should().Be(StartLine, "the start line survives pruning");
+        DeletionLedger.Read(Ledger).Select(e => e.UserId).Should().Equal(Guid.Empty, edge, recent);
         ledger.Prune().Should().Be(0);
+    }
+
+    [Fact]
+    public void A_new_ledger_starts_with_a_start_line_and_an_entry_after_a_torn_write_gets_its_own_line()
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero));
+        var ledger = new DeletionLedger(Ledger, time, new CapturingLogger<DeletionLedger>());
+        var (first, second) = (Guid.NewGuid(), Guid.NewGuid());
+
+        ledger.Record(DeletionLedger.Account, first);
+        File.AppendAllText(Ledger, """{"at":"2026-11-01T12:00:00Z","ki""");
+        ledger.Record(DeletionLedger.Health, second);
+
+        var lines = File.ReadAllLines(Ledger);
+        lines[0].Should().Be("""{"at":"2026-11-01T12:00:00Z","kind":"start"}""");
+        lines.Should().HaveCount(4);
+        lines[3].Should().Be(Line(new DateTime(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc), "health", second));
+    }
+
+    [Fact]
+    public void Replay_refuses_a_backup_time_the_ledger_does_not_fully_cover()
+    {
+        var now = new DateTime(2026, 11, 19, 12, 0, 0, DateTimeKind.Utc);
+        var started = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc);
+        List<DeletionLedger.Entry> entries = [new(started, DeletionLedger.Start, Guid.Empty), new(started.AddDays(2), DeletionLedger.Account, Guid.NewGuid())];
+
+        DeletionReplayCli.Refusal(entries, started.AddHours(3), now).Should().BeNull();
+        DeletionReplayCli.Refusal(entries, started, now).Should().BeNull();
+        DeletionReplayCli.Refusal(entries, started.AddMinutes(-1), now).Should().Be("The ledger started after the backup time, so it doesn't hold every deletion since then.");
+        DeletionReplayCli.Refusal(entries[1..], started.AddHours(3), now).Should().Be("The ledger started after the backup time, so it doesn't hold every deletion since then.");
+        DeletionReplayCli.Refusal([new(now.AddDays(-50), DeletionLedger.Start, Guid.Empty)], now.AddDays(-41), now)
+            .Should().Be("The backup is more than 40 days old; the ledger no longer holds every deletion since then.");
+        DeletionReplayCli.Refusal(entries, now.AddMinutes(1), now).Should().Be("The backup time lies in the future.");
     }
 
     [DockerFact]
@@ -238,7 +275,6 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
     [InlineData("2026-11-19", true, "Usage: --replay-deletions")]
     [InlineData("2026-11-19T03:00:00", true, "Usage: --replay-deletions")]
     [InlineData("yesterday", true, "Usage: --replay-deletions")]
-    [InlineData("2999-01-01T00:00:00Z", true, "The backup time lies in the future.")]
     [InlineData("2026-11-01T03:00:00Z", false, "The deletion ledger is not configured.")]
     [InlineData("2026-11-01T03:00:00+01:00", true, "FileNotFoundException")]
     public async Task The_replay_command_fails_closed_before_it_touches_the_database(string since, bool withLedger, string error)

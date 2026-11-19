@@ -10,8 +10,8 @@ namespace Ember.Api;
 /// <c>--replay-deletions &lt;since&gt;</c>: after restoring a backup taken at <c>since</c> (UTC ISO 8601 with <c>Z</c> or an offset),
 /// repeats every <see cref="DeletionLedger"/> entry at or after it that still applies, against
 /// <c>ConnectionStrings:DefaultConnection</c> and the ledger file in <see cref="DeletionLedger.FileSetting"/> from the environment.
-/// Prints counts only; exit 0. Refuses with exit 1, before touching the database, when <c>since</c> is not such a time or lies in
-/// the future, the ledger setting is empty, or the file is missing or has a line that isn't an entry. Any failure prints the exception
+/// Prints counts only; exit 0. Refuses with exit 1, before touching the database, when <c>since</c> is not such a time, the ledger
+/// setting is empty, the file is missing or has a line that isn't an entry, or <see cref="Refusal"/> refuses <c>since</c>. Any failure prints the exception
 /// type and message to stderr and exits 1.
 /// </summary>
 internal static partial class DeletionReplayCli
@@ -30,12 +30,6 @@ internal static partial class DeletionReplayCli
                 await Console.Error.WriteLineAsync("Usage: --replay-deletions <backup time, UTC ISO 8601, e.g. 2026-11-19T03:00:00Z>");
                 return 1;
             }
-            if (since > TimeProvider.System.GetUtcNow())
-            {
-                await Console.Error.WriteLineAsync("The backup time lies in the future.");
-                return 1;
-            }
-
             var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
             if (configuration[DeletionLedger.FileSetting] is not { Length: > 0 } ledger)
             {
@@ -43,6 +37,11 @@ internal static partial class DeletionReplayCli
                 return 1;
             }
             var entries = DeletionLedger.Read(ledger);
+            if (Refusal(entries, since.UtcDateTime, TimeProvider.System.GetUtcNow().UtcDateTime) is { } refusal)
+            {
+                await Console.Error.WriteLineAsync(refusal);
+                return 1;
+            }
 
             var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(configuration.GetConnectionString("DefaultConnection")).Options;
             await using var db = new EmberDbContext(options);
@@ -53,6 +52,19 @@ internal static partial class DeletionReplayCli
             await Console.Error.WriteLineAsync($"{e.GetType().Name}: {e.Message}");
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Why <paramref name="since"/> can't be replayed in full, or null: it lies in the future, before the ledger's
+    /// <see cref="DeletionLedger.Start"/> line, or more than <see cref="DeletionLedger.Retention"/> ago, where pruning has removed entries.
+    /// </summary>
+    internal static string? Refusal(IReadOnlyList<DeletionLedger.Entry> entries, DateTime since, DateTime now)
+    {
+        if (since > now) return "The backup time lies in the future.";
+        if (since < now - DeletionLedger.Retention)
+            return string.Create(CultureInfo.InvariantCulture, $"The backup is more than {DeletionLedger.Retention.TotalDays} days old; the ledger no longer holds every deletion since then.");
+        var start = entries.Where(e => e.Kind == DeletionLedger.Start).Select(e => (DateTime?)e.At).Min();
+        return start is null || since < start ? "The ledger started after the backup time, so it doesn't hold every deletion since then." : null;
     }
 
     /// <summary>
@@ -67,7 +79,7 @@ internal static partial class DeletionReplayCli
     {
         var habits = new HabitService(db, time);
         int accounts = 0, health = 0, withdrawals = 0, done = 0;
-        foreach (var entry in entries.Where(e => e.At >= since).OrderBy(e => e.At))
+        foreach (var entry in entries.Where(e => e.At >= since && e.Kind != DeletionLedger.Start).OrderBy(e => e.At))
         {
             if (!await db.Users.AnyAsync(u => u.Id == entry.UserId, cancellationToken))
             {

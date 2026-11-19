@@ -7,7 +7,8 @@ namespace Ember.Core.Services;
 /// <summary>
 /// The list of committed deletions and consent withdrawals an operator repeats after restoring a backup: one JSON line
 /// <c>{"at","kind","userId"}</c> per account deletion, health-data deletion or consent withdrawal, ids and UTC times only, in the file <see cref="FileSetting"/> names. Off when that
-/// setting is unset or empty. The bot and the API append to the same file, so every access holds an exclusive lock on it.
+/// setting is unset or empty. A new file starts with a <see cref="Start"/> line <c>{"at","kind"}</c> that pruning keeps, so a replay
+/// knows how far back the ledger reaches. The bot and the API append to the same file, so every access holds an exclusive lock on it.
 /// </summary>
 public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<DeletionLedger> logger)
 {
@@ -23,27 +24,42 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
     /// <summary><see cref="Entry.Kind"/> of a withdrawn health-data consent (also a "No thanks" that withdraws).</summary>
     public const string Withdraw = "withdraw";
 
+    /// <summary><see cref="Entry.Kind"/> of the first line, when the ledger began; its <see cref="Entry.UserId"/> is empty.</summary>
+    public const string Start = "start";
+
     /// <summary>How long <see cref="Prune"/> keeps an entry.</summary>
     public static readonly TimeSpan Retention = TimeSpan.FromDays(40);
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    /// <summary>One entry: when it committed (UTC), <see cref="Account"/>, <see cref="Health"/> or <see cref="Withdraw"/>, and whose.</summary>
+    /// <summary>One entry: when it committed (UTC), <see cref="Account"/>, <see cref="Health"/>, <see cref="Withdraw"/> or <see cref="Start"/>, and whose.</summary>
     public sealed record Entry(DateTime At, string Kind, Guid UserId);
 
     /// <summary>The ledger file, or null when the ledger is off.</summary>
     public string? Path { get; } = string.IsNullOrWhiteSpace(path) ? null : path;
 
-    /// <summary>Appends an entry for now and flushes it to disk. A failure logs a warning without the id and is not thrown.</summary>
+    /// <summary>
+    /// Appends an entry for now, after the <see cref="Start"/> line when the file is new and after a line break when the last write
+    /// was torn, and flushes it to disk. A failure logs a warning without the id and is not thrown.
+    /// </summary>
     public void Record(string kind, Guid userId)
     {
         if (Path is null) return;
         try
         {
-            var line = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new Entry(time.GetUtcNow().UtcDateTime, kind, userId), Json) + "\n");
-            Locked(Path, FileMode.Append, FileAccess.Write, stream =>
+            var now = time.GetUtcNow().UtcDateTime;
+            var line = JsonSerializer.Serialize(new Entry(now, kind, userId), Json) + "\n";
+            Locked(Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, stream =>
             {
-                stream.Write(line);
+                var prefix = "";
+                if (stream.Length == 0) prefix = JsonSerializer.Serialize(new { at = now, kind = Start }) + "\n";
+                else
+                {
+                    stream.Seek(-1, SeekOrigin.End);
+                    if (stream.ReadByte() != '\n') prefix = "\n";
+                }
+                stream.Seek(0, SeekOrigin.End);
+                stream.Write(Encoding.UTF8.GetBytes(prefix + line));
                 stream.Flush(flushToDisk: true);
                 return 0;
             });
@@ -55,8 +71,9 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
     }
 
     /// <summary>
-    /// Drops the entries older than <see cref="Retention"/> and returns how many it dropped; keeps lines it can't read. A failure logs
-    /// a warning and returns 0.
+    /// Drops the entries older than <see cref="Retention"/> and returns how many it dropped; keeps the <see cref="Start"/> line and lines
+    /// it can't read. Writes the kept lines over the start of the file before cutting it short, so a crash midway leaves every kept line
+    /// whole in either the new or the old part. A failure logs a warning and returns 0.
     /// </summary>
     public int Prune()
     {
@@ -67,10 +84,13 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
             return Locked(Path, FileMode.Open, FileAccess.ReadWrite, stream =>
             {
                 var lines = ReadLines(stream);
-                var keep = lines.Where(l => TryParse(l) is not { } entry || entry.At >= cutoff).ToList();
+                var keep = lines.Where(l => TryParse(l) is not { } entry || entry.Kind == Start || entry.At >= cutoff).ToList();
                 if (keep.Count == lines.Count) return 0;
-                stream.SetLength(0);
-                stream.Write(Encoding.UTF8.GetBytes(string.Concat(keep.Select(l => l + "\n"))));
+                var kept = Encoding.UTF8.GetBytes(string.Concat(keep.Select(l => l + "\n")));
+                stream.Seek(0, SeekOrigin.Begin);
+                stream.Write(kept);
+                stream.Flush(flushToDisk: true);
+                stream.SetLength(kept.Length);
                 stream.Flush(flushToDisk: true);
                 return lines.Count - keep.Count;
             });
@@ -96,8 +116,8 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
     {
         try
         {
-            return JsonSerializer.Deserialize<Entry>(line, Json) is { Kind: Account or Health or Withdraw } entry && entry.UserId != Guid.Empty
-                && entry.At.Kind == DateTimeKind.Utc ? entry : null;
+            return JsonSerializer.Deserialize<Entry>(line, Json) is { Kind: Account or Health or Withdraw or Start } entry
+                && (entry.Kind == Start) == (entry.UserId == Guid.Empty) && entry.At.Kind == DateTimeKind.Utc ? entry : null;
         }
         catch (JsonException)
         {

@@ -23,6 +23,9 @@ internal static class LookoutIngest
     /// </summary>
     internal const long SendLockKey = 0x4C6F6F6B6F7574;
 
+    /// <summary>How often <see cref="SendAsync"/> tries the lock again while another sender holds it.</summary>
+    internal static readonly TimeSpan LockPoll = TimeSpan.FromMilliseconds(200);
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     /// <summary>
@@ -47,23 +50,33 @@ internal static class LookoutIngest
 
     /// <summary>
     /// Sends one request with the key read fresh from <paramref name="keyFile"/>, holding the <see cref="SendLockKey"/> advisory lock
-    /// on <paramref name="db"/>'s connection from before the request until its response arrives; waits while another sender holds
-    /// it. Throws the file's I/O exception, or <see cref="InvalidDataException"/> when the trimmed key is empty or not printable ASCII.
+    /// on <paramref name="db"/>'s connection from before the request until its response arrives; while another sender holds it, tries
+    /// again every <see cref="LockPoll"/>, so no command timeout ends the wait. A failed unlock is logged to <paramref name="logger"/>
+    /// and left to the closing connection. Throws the file's I/O exception, or <see cref="InvalidDataException"/> when the trimmed key
+    /// is empty or not printable ASCII.
     /// </summary>
     public static async Task<HttpResponseMessage> SendAsync(EmberDbContext db, HttpClient http, Uri endpoint, string keyFile, HttpMethod method,
-        string path, byte[]? body, CancellationToken cancellationToken)
+        string path, byte[]? body, CancellationToken cancellationToken, ILogger? logger = null)
     {
         await db.Database.OpenConnectionAsync(cancellationToken);
         try
         {
-            await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_lock({SendLockKey})", cancellationToken);
+            while (!await db.Database.SqlQuery<bool>($"""SELECT pg_try_advisory_lock({SendLockKey}) AS "Value" """).SingleAsync(cancellationToken))
+                await Task.Delay(LockPoll, cancellationToken);
             try
             {
                 return await SendUnlockedAsync(http, endpoint, keyFile, method, path, body, cancellationToken);
             }
             finally
             {
-                await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_unlock({SendLockKey})", CancellationToken.None);
+                try
+                {
+                    await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_unlock({SendLockKey})", CancellationToken.None);
+                }
+                catch (Exception e)
+                {
+                    logger?.LogWarning("Releasing the Lookout send lock failed with {ExceptionType}; the connection releases it on close.", e.GetType().Name);
+                }
             }
         }
         finally
@@ -97,9 +110,9 @@ internal static class LookoutIngest
     /// <summary>Whether a non-2xx status is one of the contract's permanent refusals: 400, 409, 413 or 415. Everything else is retried.</summary>
     public static bool IsRefused(int status) => status is 400 or 409 or 413 or 415;
 
-    /// <summary>Whether <paramref name="e"/> is a failure worth retrying: network, timeout or key file.</summary>
+    /// <summary>Whether <paramref name="e"/> is a failure worth retrying: network, timeout, key file or the database around the send lock.</summary>
     public static bool IsTransient(Exception e, CancellationToken stopping)
-        => e is HttpRequestException or IOException or UnauthorizedAccessException or InvalidDataException
+        => e is HttpRequestException or IOException or UnauthorizedAccessException or InvalidDataException or System.Data.Common.DbException
             || (e is TaskCanceledException && !stopping.IsCancellationRequested);
 
     /// <summary>The wait after the <paramref name="failures"/>-th consecutive transient failure: 5 s doubling, at most 10 minutes.</summary>

@@ -87,7 +87,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         int status;
         try
         {
-            using var response = await LookoutIngest.SendAsync(db, http, endpoint, keyFile, method, path, body, cancellationToken);
+            using var response = await LookoutIngest.SendAsync(db, http, endpoint, keyFile, method, path, body, cancellationToken, logger);
             status = (int)response.StatusCode;
         }
         catch (Exception e) when (LookoutIngest.IsTransient(e, cancellationToken))

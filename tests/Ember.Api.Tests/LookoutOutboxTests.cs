@@ -579,6 +579,36 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
     private static string Key(int id) => $"/ingest/v1/tickets/import-feedback-{id}";
 
     [DockerFact]
+    public async Task A_lock_held_longer_than_the_waiters_command_timeout_only_delays_the_import()
+    {
+        await using var rig = await SenderRig.StartAsync(Host);
+        var id = await Seed("Imp-Long-Wait", FeedbackStatus.Open, Oct);
+        await using var holder = new Npgsql.NpgsqlConnection(ConnectionString);
+        await holder.OpenAsync();
+        await using (var take = new Npgsql.NpgsqlCommand($"SELECT pg_advisory_lock({LookoutIngest.SendLockKey})", holder))
+            await take.ExecuteNonQueryAsync();
+        var timeout = new Npgsql.NpgsqlConnectionStringBuilder(ConnectionString) { CommandTimeout = 1 }.ConnectionString;
+        await using var db = new EmberDbContext(new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(timeout).Options);
+
+        var retries = 0;
+        var import = LookoutImportCli.ImportAsync(db, rig.Http, rig.Endpoint, rig.KeyFile, new LookoutImportCli.Board([], []),
+            (_, _) =>
+            {
+                retries++;
+                return Task.CompletedTask;
+            }, new StringWriter(), Host.Time);
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        var early = rig.Fake.Requests.Count;
+        await using (var release = new Npgsql.NpgsqlCommand($"SELECT pg_advisory_unlock({LookoutIngest.SendLockKey})", holder))
+            await release.ExecuteNonQueryAsync();
+
+        early.Should().Be(0);
+        (await import).Should().Be(0);
+        retries.Should().Be(0, "the wait for the lock never times out");
+        rig.Fake.Requests.Select(r => r.Path).Should().Equal(Key(id));
+    }
+
+    [DockerFact]
     public async Task The_import_waits_until_the_senders_open_request_has_its_answer()
     {
         await using var rig = await SenderRig.StartAsync(Host);
