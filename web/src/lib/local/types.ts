@@ -77,6 +77,13 @@ export interface LocalNote {
   mood: MoodKey | null;
 }
 
+/** A short note on one habit's day (plaintext; no-account mode has no private journal). */
+export interface LocalHabitNote {
+  habitId: number;
+  date: LocalDateString;
+  text: string;
+}
+
 /** The device profile: settings and bookkeeping of no-account mode. */
 export interface LocalProfile {
   /** A random UUID made on this device; the local `Me.id` (reminders, widget and caches are keyed by it). */
@@ -90,6 +97,10 @@ export interface LocalProfile {
   showStreaks?: boolean;
   /** Calm mode; missing reads as false. */
   calmMode?: boolean;
+  /** Today's own order (`h:<id>`, `r:<id>`); missing or null sorts by reminder time. */
+  todayOrder?: string[] | null;
+  /** Offer a note after a check-in; missing reads as false. */
+  offerHabitNote?: boolean;
   /** Tips answered or dismissed on this device; missing reads as `["streaks"]` with habits, else empty. */
   tipsSeen?: TipId[];
   /** ISO instant the local profile was made. */
@@ -113,6 +124,8 @@ export interface LocalData {
   routines: LocalRoutine[];
   moods: LocalMood[];
   notes: LocalNote[];
+  /** Missing on data saved before habit notes. */
+  habitNotes?: LocalHabitNote[];
   /** Progress of a move into an account, so an interrupted upgrade resumes without importing twice. */
   upgrade?: UpgradeProgress;
 }
@@ -138,6 +151,8 @@ export interface UpgradeProgress {
   archivedMoods: number[];
   /** Private journal: dates of entries already saved in the account. */
   notesDone: string[];
+  /** Private journal: `<device habit id>|<date>` of habit notes already saved in the account; missing reads as none. */
+  habitNotesDone?: string[];
 }
 
 /** Which data source the app runs on: the server (`account`), the device (`local`), or the server while device data waits for import (`upgrading`). */

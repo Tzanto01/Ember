@@ -1,0 +1,255 @@
+import { describe, expect, it } from 'vitest';
+import type { Habit, Routine } from './models';
+import { habit, letGoHabit } from './test-support';
+import {
+  moveKey,
+  orderAfterMove,
+  planToday,
+  routineOrderAfterMove,
+  widgetDay,
+} from './today-plan';
+
+const date = '2026-11-01';
+
+function make(id: number, name: string, change: Partial<Habit> = {}): Habit {
+  return { ...habit, id, name, ...change };
+}
+
+const weekly = (id: number, done: number, target: number, count: number) =>
+  make(id, `Swim ${id}`, {
+    frequency: 'weekly',
+    weeklyTarget: target,
+    today: {
+      date,
+      state: count > 0 ? 'done' : 'pending',
+      completed: count > 0 ? true : null,
+      count,
+    },
+    stats: { ...habit.stats, week: { done, target } },
+  });
+
+const routine = (id: number, habitIds: number[], reminderTime: string | null = null): Routine => ({
+  id,
+  name: `Routine ${id}`,
+  reminderTime,
+  reminderChannels: [],
+  habitIds,
+});
+
+const topKeys = (habits: Habit[], routines: Routine[] = [], order: string[] | null = null) =>
+  planToday(habits, routines, order, date).today.map((item) => item.key);
+const laterKeys = (habits: Habit[], routines: Routine[] = []) =>
+  planToday(habits, routines, null, date).notToday.map((item) => item.key);
+
+describe('planToday sections', () => {
+  it('keeps a daily habit for today whether it is open, done or on a low day', () => {
+    const states = (['pending', 'done', 'lowday', 'partial'] as const).map((state, i) =>
+      make(i + 1, `H${i}`, {
+        today: { date, state, completed: null, count: state === 'pending' ? 0 : 1 },
+      }),
+    );
+    expect(topKeys(states)).toEqual(['h:1', 'h:2', 'h:3', 'h:4']);
+    expect(laterKeys(states)).toEqual([]);
+  });
+
+  it('keeps a weekly habit for today through its target-reaching check-in and moves it down once the target was met before today', () => {
+    const open = weekly(1, 1, 2, 0);
+    const reachedToday = weekly(2, 2, 2, 1);
+    const metBefore = weekly(3, 2, 2, 0);
+    const metBeforeAndCheckedInAgain = weekly(4, 3, 2, 1);
+
+    const plan = planToday(
+      [open, reachedToday, metBefore, metBeforeAndCheckedInAgain],
+      [],
+      null,
+      date,
+    );
+
+    expect(plan.today.map((i) => i.key)).toEqual(['h:1', 'h:2']);
+    expect(plan.notToday).toEqual([
+      { key: 'h:3', habit: metBefore, doneForWeek: true },
+      { key: 'h:4', habit: metBeforeAndCheckedInAgain, doneForWeek: true },
+    ]);
+  });
+
+  it('counts a weekly check-in from its count, so a low day with a check-in does not move it', () => {
+    const lowDayCheckedIn = make(1, 'Swim', {
+      frequency: 'weekly',
+      weeklyTarget: 2,
+      today: { date, state: 'lowday', completed: null, count: 1 },
+      stats: { ...habit.stats, week: { done: 2, target: 2 } },
+    });
+    expect(topKeys([lowDayCheckedIn])).toEqual(['h:1']);
+  });
+
+  it("puts paused habits and a weekdays habit's rest day under Not for today without the weekly line", () => {
+    const paused = make(1, 'Read', { pausedToday: true, pausedUntil: '2026-11-03' });
+    const rest = make(2, 'Gym', { frequency: 'weekdays', days: ['mon', 'wed'] });
+    const planned = make(3, 'Stretch', { frequency: 'weekdays', days: ['sun'] });
+
+    const plan = planToday([paused, rest, planned], [], null, date);
+
+    expect(plan.today.map((i) => i.key)).toEqual(['h:3']);
+    expect(plan.notToday.map(({ key, doneForWeek }) => [key, doneForWeek])).toEqual([
+      ['h:2', false],
+      ['h:1', false],
+    ]);
+  });
+
+  it("keeps a habit that starts later with today's habits, as before", () => {
+    const later = make(1, 'Walk', {
+      startDate: '2026-11-05',
+      today: { date, state: 'beforestart', completed: null, count: 0 },
+    });
+    expect(topKeys([later])).toEqual(['h:1']);
+  });
+
+  it('shows a routine for today with only its members that are for today, in routine order, and lists the others one by one below', () => {
+    const rest = make(1, 'Gym', { frequency: 'weekdays', days: ['mon'] });
+    const water = make(2, 'Water');
+    const stretch = make(3, 'Stretch');
+
+    const plan = planToday([rest, water, stretch], [routine(5, [3, 1, 2])], null, date);
+
+    expect(plan.today).toHaveLength(1);
+    expect(plan.today[0]).toMatchObject({ kind: 'routine', key: 'r:5' });
+    expect(plan.today[0].kind === 'routine' && plan.today[0].habits.map((h) => h.id)).toEqual([
+      3, 2,
+    ]);
+    expect(plan.notToday.map((i) => i.key)).toEqual(['h:1']);
+  });
+
+  it('leaves a routine out of For today when none of its members is for today', () => {
+    const rest = make(1, 'Gym', { frequency: 'weekdays', days: ['mon'] });
+    const plan = planToday([rest], [routine(5, [1])], null, date);
+    expect(plan.today).toEqual([]);
+    expect(plan.notToday.map((i) => i.key)).toEqual(['h:1']);
+  });
+
+  it('keeps let-go habits in their own section and out of the widget', () => {
+    const plan = planToday([habit, letGoHabit], [], null, date);
+    expect(plan.letGo).toEqual([letGoHabit]);
+    expect(plan.today.map((i) => i.key)).toEqual(['h:1']);
+    expect(widgetDay([habit, letGoHabit], [], null, date).map((h) => h.id)).toEqual([1]);
+  });
+});
+
+describe('Today order', () => {
+  const at = (id: number, name: string, time: string | null) =>
+    make(id, name, { reminderTime: time, reminderTimes: time ? [time] : [] });
+
+  it('sorts automatically by reminder time, a routine by its own, then the ones without a time by name and id', () => {
+    const habits = [
+      at(1, 'read', null),
+      at(2, 'Walk', '17:00'),
+      at(3, 'Meds', '08:00'),
+      at(4, 'Read', null),
+      at(5, 'Apple', null),
+      at(6, 'Tea', '06:00'),
+    ];
+    expect(topKeys(habits, [routine(7, [6], '07:30')])).toEqual([
+      'r:7',
+      'h:3',
+      'h:2',
+      'h:5',
+      'h:1',
+      'h:4',
+    ]);
+  });
+
+  it('uses the saved order and places a new item before the first placed item with a later time, or last without a time', () => {
+    const habits = [
+      at(1, 'Meds', '08:00'),
+      at(2, 'Walk', '17:00'),
+      at(3, 'Read', '21:00'),
+      at(4, 'Yoga', '07:00'),
+      at(5, 'Tea', null),
+      at(6, 'Lunch walk', '12:00'),
+    ];
+    expect(topKeys(habits, [], ['h:1', 'h:3', 'h:2'])).toEqual(['h:4', 'h:1', 'h:6', 'h:3', 'h:2', 'h:5']);
+  });
+
+  it('goes back to automatic once the order is reset', () => {
+    const habits = [at(1, 'Meds', '08:00'), at(2, 'Walk', '17:00')];
+    expect(topKeys(habits, [], ['h:2', 'h:1'])).toEqual(['h:2', 'h:1']);
+    expect(topKeys(habits, [], null)).toEqual(['h:1', 'h:2']);
+  });
+
+  it('keeps done items in place after a check-in', () => {
+    const habits = [at(1, 'Meds', '08:00'), at(2, 'Walk', '17:00')];
+    const checkedIn = habits.map((h) =>
+      h.id === 2
+        ? { ...h, today: { ...h.today, state: 'done' as const, completed: true, count: 1 } }
+        : h,
+    );
+    expect(topKeys(checkedIn, [], ['h:2', 'h:1'])).toEqual(topKeys(habits, [], ['h:2', 'h:1']));
+  });
+
+  it('orders the widget day like For today, with routines flattened in member order and done items kept', () => {
+    const meds = at(1, 'Meds', '08:00');
+    const walk = {
+      ...at(2, 'Walk', '17:00'),
+      today: { date, state: 'done' as const, completed: true, count: 1 },
+    };
+    const water = at(3, 'Water', null);
+    const stretch = at(4, 'Stretch', null);
+    const gym = make(5, 'Gym', { frequency: 'weekdays', days: ['mon'] });
+    const ids = widgetDay(
+      [meds, walk, water, stretch, gym],
+      [routine(9, [4, 3], '08:30')],
+      ['h:2', 'r:9', 'h:1'],
+      date,
+    ).map((h) => h.id);
+    expect(ids).toEqual([2, 4, 3, 1]);
+  });
+
+  it('leaves a habit out of the widget before its start', () => {
+    const later = make(1, 'Walk', {
+      startDate: '2026-11-02',
+      today: { date, state: 'beforestart', completed: null, count: 0 },
+    });
+    expect(widgetDay([later], [], null, date)).toEqual([]);
+  });
+
+  it("plans tomorrow's weekly habits from this week's count, and from nothing in a new week", () => {
+    const saturday = '2026-10-31';
+    const onSaturday = (h: Habit) => ({ ...h, today: { ...h.today, date: saturday } });
+    const met = weekly(2, 2, 2, 1);
+    const open = weekly(3, 1, 2, 1);
+    expect(widgetDay([onSaturday(met), onSaturday(open)], [], null, date).map((h) => h.id)).toEqual([3]);
+    expect(widgetDay([met, open], [], null, '2026-11-02').map((h) => h.id)).toEqual([2, 3]);
+  });
+});
+
+describe('saving a new order', () => {
+  it('moves a key within its list and stops at the ends', () => {
+    expect(moveKey(['a', 'b', 'c'], 'c', -1)).toEqual(['a', 'c', 'b']);
+    expect(moveKey(['a', 'b', 'c'], 'a', -1)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('writes the full order: the moved section in its slots, other sections and unknown keys in place', () => {
+    const saved = ['h:9', 'h:1', 'r:2', 'h:7', 'h:3'];
+    const displayed = [['h:1', 'r:2', 'h:4', 'h:3'], ['h:7']];
+    expect(orderAfterMove(saved, displayed, 0, ['h:3', 'h:1', 'r:2', 'h:4'])).toEqual([
+      'h:9',
+      'h:3',
+      'h:1',
+      'r:2',
+      'h:7',
+      'h:4',
+    ]);
+  });
+
+  it('writes the whole shown list on the first move, with no saved order', () => {
+    expect(orderAfterMove(null, [['h:1', 'h:2'], ['h:5'], ['h:3']], 0, ['h:2', 'h:1'])).toEqual([
+      'h:2',
+      'h:1',
+      'h:5',
+      'h:3',
+    ]);
+  });
+
+  it("rearranges a routine's shown members and keeps a hidden member in its slot", () => {
+    expect(routineOrderAfterMove([4, 1, 3, 2], [2, 4, 3])).toEqual([2, 1, 4, 3]);
+  });
+});

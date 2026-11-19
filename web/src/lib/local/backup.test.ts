@@ -58,6 +58,7 @@ function sample(): LocalData {
     { date: '2026-10-03', text: null, mood: 'custom:2' },
     { date: '2026-10-04', text: 'Quiet day', mood: 'good' },
   ];
+  data.habitNotes = [{ habitId: 2, date: '2026-10-02', text: 'Felt heavy, went anyway.' }];
   data.profile.nextIds = { habit: 4, routine: 2, mood: 3 };
   return data;
 }
@@ -100,7 +101,7 @@ describe('BackupService', () => {
       checkIns: 3,
       lowDays: 1,
       routines: 1,
-      notes: 3,
+      notes: 4,
       moods: 2,
       skippedEncrypted: 0,
     });
@@ -112,6 +113,7 @@ describe('BackupService', () => {
       timezone: originalProfile.timezone,
       graceDaysPerWeek: 2,
       theme: 'tidepool',
+      todayOrder: null,
       nextIds: originalProfile.nextIds,
     });
   });

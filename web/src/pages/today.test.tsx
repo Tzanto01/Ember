@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AnyHabit, Habit, ReminderDestination, Routine, WeeklyStats } from '@/lib/models';
+import type { AnyHabit, Habit, Me, ReminderDestination, Routine, WeeklyStats } from '@/lib/models';
 import { auth, backup, deviceSync, localMode } from '@/lib/services';
 import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/lib/test-support';
 import TodayPage from './today';
@@ -51,9 +51,10 @@ async function answerLoad(
     localToday = '2026-11-01',
     stats = weekly,
     routines = [],
-  }: { localToday?: string; stats?: WeeklyStats; routines?: Routine[] } = {},
+    account = {},
+  }: { localToday?: string; stats?: WeeklyStats; routines?: Routine[]; account?: Partial<Me> } = {},
 ) {
-  (await f.next('GET', '/api/me')).respond(200, { ...me, localToday });
+  (await f.next('GET', '/api/me')).respond(200, { ...me, localToday, ...account });
   (await f.next('GET', '/api/habits')).respond(200, habits);
   (await f.next('GET', `/api/low-days?from=${localToday}&to=${localToday}`)).respond(200, []);
   (await f.next('GET', '/api/stats/weekly')).respond(200, stats);
@@ -303,6 +304,7 @@ describe('TodayPage', () => {
     renderToday();
     await answerLoad(f, [restDone]);
 
+    await userEvent.click(await screen.findByRole('button', { name: 'Not for today · 1' }));
     await userEvent.click(await checkButton());
     await f.next('DELETE', '/api/habits/1/days/2026-11-01');
 
@@ -310,7 +312,7 @@ describe('TodayPage', () => {
     expect(await checkButton()).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it("groups habits under their routines in the routine's order, then the rest", async () => {
+  it('shows For today with each routine as a block of its habits in routine order, among the other habits', async () => {
     const water = { ...habit, id: 3, name: 'Water' };
     const read = { ...habit, id: 2, name: 'Read' };
     renderToday();
@@ -320,7 +322,7 @@ describe('TodayPage', () => {
 
     await screen.findByRole('heading', { name: 'Morning' });
     const headings = screen.getAllByRole('heading').map((h) => `${h.tagName} ${h.textContent}`);
-    expect(headings.slice(1)).toEqual(['H2 Morning', 'H3 Water', 'H3 Walk', 'H2 Other habits', 'H3 Read', 'H2 How was today?']);
+    expect(headings.slice(1)).toEqual(['H2 For today', 'H3 Morning', 'H4 Water', 'H4 Walk', 'H3 Read', 'H2 How was today?']);
     expect(screen.getByRole('link', { name: 'Edit Morning routine' })).toHaveAttribute('href', '/routines/5/edit');
   });
 
@@ -332,7 +334,7 @@ describe('TodayPage', () => {
     (await f.next('GET', '/api/stats/weekly')).respond(200, weekly);
     (await f.next('GET', '/api/routines')).respond(500);
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Walk' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 3, name: 'Walk' })).toBeInTheDocument();
   });
 
   it('without an account, shows the backup reminder when one is due and "Not now" snoozes it', async () => {
@@ -506,7 +508,7 @@ describe('TodayPage', () => {
       { ...habit, id: 2, name: 'Read', frequency: 'weekdays', days: ['mon', 'tue', 'wed', 'thu', 'fri'] },
     ]);
 
-    await screen.findByRole('button', { name: 'Check in Read for today' });
+    await screen.findByRole('button', { name: 'Check in Walk for today' });
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(f.all.some((c) => c.url.startsWith('/api/stats/days'))).toBe(false);
   });
@@ -550,7 +552,7 @@ describe('TodayPage let-go habits', () => {
     expect(within(section).getByText('Coffee')).toBeInTheDocument();
     expect(within(section).getByText('4 days free')).toBeInTheDocument();
     expect(within(section).getByRole('button', { name: 'I slipped: Coffee' })).toBeInTheDocument();
-    expect(section).not.toContainElement(screen.getByRole('button', { name: /Walk/ }));
+    expect(section).not.toContainElement(screen.getByRole('button', { name: 'Check in Walk for today' }));
     expect((await screen.findAllByText(/^1 checked in today/)).length).toBeGreaterThan(0);
     expect(screen.queryByText('2 checked in today')).toBeNull();
     expect(screen.getAllByText(/That's everything for today\./).length).toBeGreaterThan(0);
@@ -647,5 +649,274 @@ describe('TodayPage let-go habits', () => {
 
     expect(await screen.findByText('Coffee')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'I slipped: Coffee' })).toBeNull();
+  });
+});
+
+describe('TodayPage sections and order', () => {
+  let f: FetchMock;
+  const at = (id: number, name: string, time: string | null, change: Partial<Habit> = {}): Habit => ({
+    ...habit,
+    id,
+    name,
+    reminderTime: time,
+    reminderTimes: time ? [time] : [],
+    ...change,
+  });
+  const restDay = (id: number, name: string): Habit => at(id, name, null, { frequency: 'weekdays', days: ['mon'] });
+  const section = (name: string | RegExp) => screen.getByRole('heading', { level: 2, name }).closest('section')!;
+  const rowNames = (name: string | RegExp) =>
+    within(section(name))
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent);
+  const choose = async (menu: string, item: string) => {
+    await userEvent.click(screen.getByRole('button', { name: menu }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: item }));
+  };
+
+  beforeEach(() => {
+    f = mockFetch();
+    auth.setMe(me);
+    localStorage.removeItem('ember.notTodayOpen');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    auth.clearSession();
+    localStorage.removeItem('ember.notTodayOpen');
+  });
+
+  it('lists only what is for today, and keeps the rest in a collapsed "Not for today" that this device remembers open', async () => {
+    const swim = at(3, 'Swim', null, {
+      frequency: 'weekly',
+      weeklyTarget: 2,
+      stats: { ...habit.stats, week: { done: 2, target: 2 } },
+    });
+    renderToday();
+    await answerLoad(f, [habit, restDay(2, 'Gym'), swim]);
+
+    const toggle = await screen.findByRole('button', { name: 'Not for today · 2' });
+    expect(rowNames('For today')).toEqual(['Walk']);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('heading', { name: 'Gym' })).toBeNull();
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(rowNames(/Not for today/)).toEqual(['Gym', 'Swim']);
+    expect(within(section(/Not for today/)).getByText('Done for this week')).toBeInTheDocument();
+    expect(localStorage.getItem('ember.notTodayOpen')).toBe('1');
+
+    cleanup();
+    renderToday();
+    await answerLoad(f, [habit, restDay(2, 'Gym'), swim]);
+    expect(await screen.findByRole('button', { name: 'Not for today · 2' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('keeps a weekly habit under For today through the check-in that meets its target', async () => {
+    const swim = at(3, 'Swim', null, {
+      frequency: 'weekly',
+      weeklyTarget: 2,
+      stats: { ...habit.stats, week: { done: 1, target: 2 } },
+    });
+    renderToday();
+    await answerLoad(f, [swim]);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Check in Swim for today' }));
+    expect(rowNames('For today')).toEqual(['Swim']);
+    (await f.next('PUT', '/api/habits/3/days/2026-11-01')).respond(200, {
+      ...swim,
+      today: { ...swim.today, state: 'done', completed: true, count: 1 },
+      stats: { ...swim.stats, week: { done: 2, target: 2 } },
+    });
+
+    expect(await screen.findByText('Swim: checked in for today.')).toBeInTheDocument();
+    expect(rowNames('For today')).toEqual(['Swim']);
+    expect(screen.queryByRole('button', { name: /Not for today/ })).toBeNull();
+  });
+
+  it('saves the full order with "Move down", let-go keys included, and then offers "Sort by time again"', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00'), letGoHabit]);
+    await screen.findByRole('heading', { name: 'Meds' });
+    expect(screen.queryByRole('button', { name: 'List options' })).toBeNull();
+
+    await choose('Options for Meds', 'Move down');
+
+    const put = await f.next('PUT', '/api/me/today-order');
+    expect(put.body).toEqual({ order: ['h:2', 'h:1', 'h:9'] });
+    expect(rowNames('For today')).toEqual(['Read', 'Meds']);
+    put.respond(200, { order: ['h:2', 'h:1', 'h:9'] });
+    expect(await screen.findByText('Meds moved down.')).toBeInTheDocument();
+    expect(auth.me.get()?.todayOrder).toEqual(['h:2', 'h:1', 'h:9']);
+    expect(screen.getByRole('button', { name: 'List options' })).toBeInTheDocument();
+  });
+
+  it('goes back to the time order with "Sort by time again"', async () => {
+    auth.setMe({ ...me, todayOrder: ['h:2', 'h:1'] });
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00')], { account: { todayOrder: ['h:2', 'h:1'] } });
+    await screen.findByRole('heading', { name: 'Meds' });
+    expect(rowNames('For today')).toEqual(['Read', 'Meds']);
+
+    await choose('List options', 'Sort by time again');
+
+    const put = await f.next('PUT', '/api/me/today-order');
+    expect(put.body).toEqual({ order: null });
+    put.respond(200, { order: null });
+    expect(rowNames('For today')).toEqual(['Meds', 'Read']);
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'List options' })).toBeNull());
+  });
+
+  it('puts the old order back and says so when the new one did not save', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00')]);
+    await screen.findByRole('heading', { name: 'Meds' });
+
+    await choose('Options for Read', 'Move up');
+    expect(rowNames('For today')).toEqual(['Read', 'Meds']);
+    (await f.next('PUT', '/api/me/today-order')).respond(500, { type: 'internal' });
+
+    expect(await screen.findByText("Your new order didn't save")).toBeInTheDocument();
+    expect(rowNames('For today')).toEqual(['Meds', 'Read']);
+    expect(auth.me.get()?.todayOrder).toBeNull();
+  });
+
+  it("moves a routine member within its routine and sends the routine's full habit list, the hidden member in its slot", async () => {
+    const routine: Routine = { id: 5, name: 'Morning', reminderTime: null, reminderChannels: [], habitIds: [3, 1, 2] };
+    renderToday();
+    await answerLoad(f, [at(1, 'Walk', null), at(2, 'Water', null), restDay(3, 'Gym')], { routines: [routine] });
+    await screen.findByRole('heading', { name: 'Morning' });
+
+    await choose('Options for Water', 'Move up');
+
+    const patch = await f.next('PATCH', '/api/routines/5');
+    expect(patch.body).toEqual({ habitIds: [3, 2, 1] });
+    const block = screen.getByRole('heading', { level: 3, name: 'Morning' }).closest('section')!;
+    expect(within(block).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual(['Water', 'Walk']);
+    patch.respond(200, { ...routine, habitIds: [3, 2, 1] });
+    expect(await screen.findByText('Water moved up.')).toBeInTheDocument();
+  });
+
+  it('moves a routine as one block with "Move down"', async () => {
+    const routine: Routine = { id: 5, name: 'Morning', reminderTime: '07:00', reminderChannels: [], habitIds: [1, 2] };
+    renderToday();
+    await answerLoad(f, [at(1, 'Walk', null), at(2, 'Water', null), at(3, 'Read', '21:00')], { routines: [routine] });
+    await screen.findByRole('heading', { name: 'Morning' });
+
+    await choose('Options for Morning routine', 'Move down');
+
+    expect((await f.next('PUT', '/api/me/today-order')).body).toEqual({ order: ['h:3', 'r:5'] });
+    expect(rowNames('For today')).toEqual(['Read', 'Morning']);
+  });
+
+  it('lifts a row after a long press, drags it to the end and saves that order', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00')]);
+    const row = (await screen.findByRole('heading', { name: 'Meds' })).closest('li')!;
+
+    fireEvent.pointerDown(row, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    await waitFor(() => expect(screen.getAllByText('Moving “Meds”. Let go to drop it here.').length).toBeGreaterThan(0), {
+      timeout: 1500,
+    });
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 400 });
+    expect(rowNames('For today')).toEqual(['Read', 'Meds']);
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 400 });
+
+    expect((await f.next('PUT', '/api/me/today-order')).body).toEqual({ order: ['h:2', 'h:1'] });
+    expect(screen.queryByText('Moving “Meds”. Let go to drop it here.')).toBeNull();
+  });
+
+  it('does not lift a row the pointer moved away from before the hold ended', async () => {
+    renderToday();
+    await answerLoad(f, [at(1, 'Meds', '08:00'), at(2, 'Read', '21:00')]);
+    const row = (await screen.findByRole('heading', { name: 'Meds' })).closest('li')!;
+
+    fireEvent.pointerDown(row, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 60 });
+    await new Promise((resolve) => setTimeout(resolve, 650));
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 60 });
+
+    expect(screen.queryByText(/Let go to drop it here/)).toBeNull();
+    expect(f.all.some((c) => c.url === '/api/me/today-order')).toBe(false);
+  });
+});
+
+describe('TodayPage habit notes', () => {
+  let f: FetchMock;
+  const notesUrl = '/api/habit-notes?from=2026-09-02&to=2026-11-01&habitId=1';
+
+  beforeEach(() => {
+    f = mockFetch();
+    auth.setMe(me);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    auth.clearSession();
+  });
+
+  it('writes a note from the row menu, shows earlier ones, and saves it as plain text', async () => {
+    renderToday();
+    await answerLoad(f, [habit]);
+    await checkButton();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Options for Walk' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Note' }));
+    (await f.next('GET', notesUrl)).respond(200, [{ habitId: 1, date: '2026-10-30', text: 'Felt easy.' }]);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Walk' });
+    expect(await within(dialog).findByText(/Felt easy\./)).toBeInTheDocument();
+    const box = within(dialog).getByRole('textbox', { name: 'A note for today, just for you' });
+    await userEvent.type(box, 'Heavy, went anyway.');
+    expect(within(dialog).getByText('19 / 280')).toBeInTheDocument();
+    expect(box).toHaveAttribute('maxlength', '280');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save note' }));
+
+    const put = await f.next('PUT', '/api/habits/1/notes/2026-11-01');
+    expect(put.body).toEqual({ text: 'Heavy, went anyway.' });
+    put.respond(200, { habitId: 1, date: '2026-11-01', text: 'Heavy, went anyway.' });
+    expect(await screen.findByText('Note on Walk saved.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('keeps the text and says so gently when the note did not save', async () => {
+    renderToday();
+    await answerLoad(f, [habit]);
+    await checkButton();
+    await userEvent.click(screen.getByRole('button', { name: 'Options for Walk' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Note' }));
+    (await f.next('GET', notesUrl)).respond(200, []);
+    const dialog = await screen.findByRole('dialog', { name: 'Walk' });
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Still counts.');
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save note' }));
+    (await f.next('PUT', '/api/habits/1/notes/2026-11-01')).fail();
+
+    expect(await within(dialog).findByText(/Your words are still here/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox')).toHaveValue('Still counts.');
+  });
+
+  it('offers a note right after a check-in only when the account asked for it', async () => {
+    auth.setMe({ ...me, offerHabitNote: true });
+    renderToday();
+    await answerLoad(f, [habit], { account: { offerHabitNote: true } });
+
+    await userEvent.click(await checkButton());
+    (await f.next('PUT', '/api/habits/1/days/2026-11-01')).respond(200, doneHabit);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Walk' });
+    expect(within(dialog).getByText('Nice. Want to note how it went? You can skip this.')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('never offers a note after a check-in while the setting is off', async () => {
+    renderToday();
+    await answerLoad(f, [habit]);
+
+    await userEvent.click(await checkButton());
+    (await f.next('PUT', '/api/habits/1/days/2026-11-01')).respond(200, doneHabit);
+
+    expect(await screen.findByText('Walk: checked in for today.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

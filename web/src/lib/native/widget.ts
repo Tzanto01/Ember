@@ -1,7 +1,8 @@
 import { type PluginListenerHandle, registerPlugin } from '@capacitor/core';
 import type { Language } from '../i18n';
-import { type AnyHabit, buildHabits, type LocalDateString } from '../models';
-import { scheduledOn } from './reminder-plan';
+import type { AnyHabit, LocalDateString, Routine } from '../models';
+import type { ColorScheme, ThemeId } from '../theme';
+import { widgetDay } from '../today-plan';
 
 /** A habit's state on the widget: `rest` is a low day, never "missed". */
 export type WidgetHabitState = 'done' | 'partial' | 'open' | 'rest';
@@ -14,16 +15,30 @@ export interface WidgetHabit {
   timesPerDay: number;
 }
 
-/** What the "Today in Ember" widget shows: today's scheduled habits (at most {@link widgetRows}) and how many more. */
-export interface WidgetSnapshot {
-  userId: string;
+/** One day on the widget: its habits (at most {@link widgetRows}), how many more, and `done` of `total` over all of them. */
+export interface WidgetDay {
   date: LocalDateString;
-  /** The account's zone, so the widget can tell when the snapshot is from an earlier day. */
-  timeZone: string;
   habits: WidgetHabit[];
   more: number;
-  /** Tomorrow from the schedule alone, shown after local midnight until the app pushes a fresh snapshot. */
-  next?: Pick<WidgetSnapshot, 'date' | 'habits' | 'more'>;
+  done: number;
+  total: number;
+}
+
+/** What the "Today in Ember" widget shows: today's habits by the Today rules (`today-plan.ts`). */
+export interface WidgetSnapshot extends WidgetDay {
+  userId: string;
+  /** The account's zone, so the widget can tell when the snapshot is from an earlier day. */
+  timeZone: string;
+  /** Tomorrow from the schedule alone, all open, shown after local midnight until the app pushes a fresh snapshot. */
+  next?: WidgetDay;
+}
+
+/** The widget's look: the Ember theme, the colour scheme, and whether the flame may flicker. */
+export interface WidgetStyle {
+  theme: ThemeId;
+  /** "Gentle motion" on this device and calm mode off. */
+  motion: boolean;
+  colorScheme: ColorScheme;
 }
 
 /** The custom native plugin (`EmberWidget`, Android only). */
@@ -41,6 +56,8 @@ export interface EmberWidgetPlugin {
   takeLaunchAction?(): Promise<{ action: 'moment' | null }>;
   /** Tells the native side the app's language (i18n-v1); missing on older native builds. */
   setLanguage?(options: { language: Language }): Promise<void>;
+  /** Tells the native side the widget's theme, colour scheme and motion; missing on older native builds. */
+  setStyle?(options: WidgetStyle): Promise<void>;
   /** Stores this session's widget key and the API origin (absolute `https://`) for check-ins from the widget; missing on older native builds. */
   setKey?(options: { key: string; apiBase: string }): Promise<void>;
   /** True when a widget key is stored; missing on older native builds. */
@@ -49,31 +66,30 @@ export interface EmberWidgetPlugin {
   takePending?(): Promise<{ checkIns: Array<{ userId: string; habitId: number; date: LocalDateString; count: number }> }>;
 }
 
-/** Rows the widget shows before "+N more". */
-export const widgetRows = 4;
+/** Habits a snapshot carries before "+N more" (the most an account can have). */
+export const widgetRows = 25;
 
 const EmberWidget = registerPlugin<EmberWidgetPlugin>('EmberWidget');
 
 /** Loads the plugin wrapped in an object (a Capacitor proxy must never be awaited itself). */
 export const capacitorWidget = async (): Promise<{ EmberWidget: EmberWidgetPlugin }> => ({ EmberWidget });
 
-const hidden = new Set(['offday', 'beforestart', 'paused']);
-
 /**
- * The snapshot for `date`: habits scheduled that day in list order (from `habit.today` when it is for `date`,
- * else from the schedule, as open); let-go habits are left out. Names only go to the app-private widget, never to a notification.
+ * The snapshot day for `date`: the Today rules' widget day (For today in the account's order, routines flattened, done
+ * kept, let-go and Not for today left out), each from `habit.today` when it is for `date`, else open. Names only go
+ * to the app-private widget, never to a notification.
  */
 export function widgetSnapshot(
   userId: string,
   timeZone: string,
   date: LocalDateString,
   habits: AnyHabit[],
+  routines: Routine[] = [],
+  order: string[] | null = null,
 ): WidgetSnapshot {
-  const shown: WidgetHabit[] = [];
-  for (const habit of buildHabits(habits)) {
+  const shown = widgetDay(habits, routines, order, date).map((habit): WidgetHabit => {
     const timesPerDay = habit.timesPerDay ?? 1;
     const fresh = habit.today.date === date;
-    if (fresh ? hidden.has(habit.today.state) : !scheduledOn(habit, date)) continue;
     const count = fresh ? habit.today.count : 0;
     const state: WidgetHabitState = !fresh
       ? 'open'
@@ -84,13 +100,15 @@ export function widgetSnapshot(
           : count > 0
             ? 'partial'
             : 'open';
-    shown.push({ id: habit.id, name: habit.name, state, count, timesPerDay });
-  }
+    return { id: habit.id, name: habit.name, state, count, timesPerDay };
+  });
   return {
     userId,
     date,
     timeZone,
     habits: shown.slice(0, widgetRows),
     more: Math.max(0, shown.length - widgetRows),
+    done: shown.filter((habit) => habit.state === 'done').length,
+    total: shown.length,
   };
 }

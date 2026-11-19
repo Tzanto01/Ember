@@ -28,6 +28,7 @@ class FakeServer {
   key: JournalKey | null = null;
   moods = new Map<number, unknown>();
   notes = new Map<string, unknown>();
+  habitNotes = new Map<string, unknown>();
   failMoodPosts = 0;
   loseImportAnswer = false;
   loseMoodAnswers = 0;
@@ -126,6 +127,12 @@ class FakeServer {
       return call.respond(200, note);
     }
     if (route === 'GET /api/day-notes') return call.respond(200, [...this.notes.values()]);
+    const habitNotePut = /^PUT \/api\/habits\/(\d+)\/notes\/(.+)$/.exec(route);
+    if (habitNotePut) {
+      const note = { ...body, habitId: Number(habitNotePut[1]), date: decodeURIComponent(habitNotePut[2]!) };
+      this.habitNotes.set(`${note.habitId}|${note.date}`, note);
+      return call.respond(200, note);
+    }
     call.respond(404, { type: 'not_found' });
   }
 }
@@ -307,13 +314,42 @@ describe('UpgradeService', () => {
     expect(await store.load()).toMatchObject({ habits: [], logs: [], moods: [], notes: [] });
   });
 
+  it('takes habit notes along: in the import with a plain journal, encrypted per account habit with a private one', async () => {
+    const habitNote = 'Synthetic heavy day, went anyway';
+    const withNote = async () => {
+      const data = deviceData();
+      data.habits = [{ ...data.habits[0]!, id: 7 }];
+      data.logs = [];
+      data.habitNotes = [{ habitId: 7, date: '2026-10-02', text: habitNote }];
+      await store.replace(data);
+    };
+    await withNote();
+
+    expect((await upgrade.run()).ok).toBe(true);
+    expect(server.imports[0]).toMatchObject({ habit_notes: [{ habit_id: 7, date: '2026-10-02', text: habitNote }] });
+
+    server.imports = [];
+    server.habitNames = [];
+    server.moods.clear();
+    mode.set('upgrading');
+    await withNote();
+    const secret = { passphrase: 'synthetic harbour lantern', remember: false, password: 'synthetic-pw' };
+    const sentBefore = mock.all.length;
+
+    expect((await upgrade.run({ privateJournal: secret })).ok).toBe(true);
+
+    expect(server.imports[0]).toMatchObject({ habit_notes: [] });
+    expect(server.habitNotes.get('1|2026-10-02')).toMatchObject({ encrypted: { v: 1 } });
+    for (const call of mock.all.slice(sentBefore)) expect(JSON.stringify(call.body ?? null)).not.toContain(habitNote);
+  });
+
   const callIndex = (route: string) => mock.all.findIndex((c) => `${c.method} ${new URL(c.url, 'http://ember.test').pathname}` === route);
   const secret = { passphrase: 'synthetic harbour lantern', remember: false, password: 'synthetic-pw' };
 
   it('sends the device settings to the account before the import, leaving the theme out when unset', async () => {
     await upgrade.run();
 
-    expect(server.patches).toEqual([{ timezone: 'Europe/Berlin', graceDaysPerWeek: 1, showStreaks: false, calmMode: false, language: 'en' }]);
+    expect(server.patches).toEqual([{ timezone: 'Europe/Berlin', graceDaysPerWeek: 1, showStreaks: false, calmMode: false, offerHabitNote: false, language: 'en' }]);
     expect(callIndex('PATCH /api/me')).toBeLessThan(callIndex('POST /api/me/import'));
   });
 
@@ -326,7 +362,7 @@ describe('UpgradeService', () => {
     await upgrade.run();
 
     expect(server.patches).toEqual([
-      { timezone: 'Europe/Berlin', graceDaysPerWeek: 2, showStreaks: true, calmMode: true, language: 'en', theme: 'tidepool' },
+      { timezone: 'Europe/Berlin', graceDaysPerWeek: 2, showStreaks: true, calmMode: true, offerHabitNote: false, language: 'en', theme: 'tidepool' },
     ]);
   });
 

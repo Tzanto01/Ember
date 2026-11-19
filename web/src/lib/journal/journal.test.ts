@@ -5,7 +5,7 @@ import { ApiClient } from '../api-client';
 import { AuthService } from '../auth';
 import { DeviceStore, isDayEdit } from '../device-store';
 import { Http } from '../http';
-import type { EncryptedBlob, JournalKey, Me, StoredDayNote, StoredMood } from '../models';
+import type { EncryptedBlob, JournalKey, Me, StoredDayNote, StoredHabitNote, StoredMood } from '../models';
 import type { SecureStore } from '../native/token-store';
 import { OfflineQueue } from '../offline-queue';
 import {
@@ -17,6 +17,7 @@ import {
   mockFetch,
 } from '../test-support';
 import {
+  decryptHabitNote,
   decryptNote,
   fromBase64,
   importJournalKey,
@@ -35,6 +36,9 @@ const loginPassword = 'login-pw-synthetic';
 class FakeServer {
   me: Me = { ...baseMe };
   notes = new Map<string, StoredDayNote>();
+  /** Habit notes by `<habitId>|<date>`. */
+  habitNotes = new Map<string, StoredHabitNote>();
+  habits = [habit];
   moods = new Map<number, StoredMood>();
   key: JournalKey | null = null;
   turningOff = false;
@@ -60,7 +64,7 @@ class FakeServer {
 
   private left(encrypted: boolean): number {
     if (!this.key) return 0;
-    const all = [...this.notes.values(), ...this.moods.values()];
+    const all = [...this.notes.values(), ...this.moods.values(), ...this.habitNotes.values()];
     return all.filter((v) => 'encrypted' in v === encrypted).length;
   }
 
@@ -81,7 +85,7 @@ class FakeServer {
     };
     const route = `${call.method} ${path}`;
     const plainWrite =
-      /^(PUT \/api\/day-notes\/|POST \/api\/moods|PATCH \/api\/moods\/)/.test(route) &&
+      /^(PUT \/api\/day-notes\/|PUT \/api\/habits\/\d+\/notes\/|POST \/api\/moods|PATCH \/api\/moods\/)/.test(route) &&
       ('text' in body || 'mood' in body || 'label' in body);
     if (plainWrite && this.key && !this.turningOff)
       return call.respond(400, { type: 'validation' });
@@ -96,7 +100,7 @@ class FakeServer {
         },
       });
     }
-    if (route === 'GET /api/habits') return call.respond(200, [habit]);
+    if (route === 'GET /api/habits') return call.respond(200, this.habits);
     if (/^PUT \/api\/habits\/1\/days\//.test(route)) {
       this.dayEdits++;
       return call.respond(200, habit);
@@ -109,6 +113,25 @@ class FakeServer {
         .filter((n) => n.date >= from && n.date <= to)
         .sort((a, b) => a.date.localeCompare(b.date));
       return call.respond(200, notes);
+    }
+    if (route === 'GET /api/habit-notes') {
+      const from = url.searchParams.get('from')!;
+      const to = url.searchParams.get('to')!;
+      const habitId = url.searchParams.get('habitId');
+      const notes = [...this.habitNotes.values()]
+        .filter((n) => n.date >= from && n.date <= to && (habitId === null || n.habitId === Number(habitId)))
+        .sort((a, b) => a.date.localeCompare(b.date));
+      return call.respond(200, notes);
+    }
+    const habitNote = /^\/api\/habits\/(\d+)\/notes\/(.+)$/.exec(path);
+    if (habitNote && call.method === 'PUT') {
+      const stored = { habitId: Number(habitNote[1]), date: habitNote[2], ...body } as StoredHabitNote;
+      this.habitNotes.set(`${habitNote[1]}|${habitNote[2]}`, stored);
+      return call.respond(200, stored);
+    }
+    if (habitNote && call.method === 'DELETE') {
+      this.habitNotes.delete(`${habitNote[1]}|${habitNote[2]}`);
+      return call.respond(204);
     }
     const note = /^\/api\/day-notes\/(.+)$/.exec(path);
     if (note && call.method === 'PUT') {
@@ -172,8 +195,9 @@ class FakeServer {
       const encrypted = (v: object) => 'encrypted' in v;
       if (body.discardEncrypted) {
         for (const [date, n] of this.notes) if (encrypted(n)) this.notes.delete(date);
+        for (const [key, n] of this.habitNotes) if (encrypted(n)) this.habitNotes.delete(key);
         for (const [id, m] of this.moods) if (encrypted(m)) this.moods.delete(id);
-      } else if ([...this.notes.values(), ...this.moods.values()].some(encrypted)) {
+      } else if ([...this.notes.values(), ...this.moods.values(), ...this.habitNotes.values()].some(encrypted)) {
         return call.respond(409, { type: 'conflict' });
       }
       this.key = null;
@@ -281,6 +305,78 @@ describe('JournalService', () => {
     expect((await journal.notes('2024-06-01', '2024-06-30')).notes).toEqual([
       { date: '2024-06-15', text: 'Older still.', mood: 'okay' },
     ]);
+  });
+
+  it("encrypts plaintext habit notes per habit across 366-day windows when the journal goes private, and the decrypted export lists them", async () => {
+    server.habits = [{ ...habit, startDate: '2024-05-01' }];
+    server.habitNotes.set('1|2026-10-31', { habitId: 1, date: '2026-10-31', text: 'Felt heavy, went anyway.' });
+    server.habitNotes.set('1|2025-02-03', { habitId: 1, date: '2025-02-03', text: 'First snow walk.' });
+    const { journal } = await device();
+
+    await journal.enable(passphrase, false, loginPassword);
+
+    expect([...server.habitNotes.values()].every((n) => 'encrypted' in n)).toBe(true);
+    const key = await importJournalKey(fromBase64(await rawKey()));
+    const stored = server.habitNotes.get('1|2025-02-03') as { encrypted: EncryptedBlob };
+    expect(await decryptHabitNote(key, '2025-02-03', stored.encrypted)).toEqual({ text: 'First snow walk.' });
+    const reads = mock.all.filter((c) => c.url.startsWith('/api/habit-notes?')).map((c) => c.url);
+    expect(reads.every((url) => url.includes('habitId=1'))).toBe(true);
+    expect(reads.length).toBeGreaterThan(1);
+
+    const file = JSON.parse(await (await journal.exportDecrypted()).blob.text()) as { habitNotes: unknown };
+    expect(file.habitNotes).toEqual([
+      { habitId: 1, habitName: 'Walk', date: '2025-02-03', text: 'First snow walk.' },
+      { habitId: 1, habitName: 'Walk', date: '2026-10-31', text: 'Felt heavy, went anyway.' },
+    ]);
+  });
+
+  it('turns encrypted habit notes back into plaintext when the journal goes plain', async () => {
+    const { journal } = await device();
+    await journal.enable(passphrase, false, loginPassword);
+    await journal.saveHabitNote(1, '2026-10-30', 'Short one, still counts.');
+    expect(server.habitNotes.get('1|2026-10-30')).toHaveProperty('encrypted');
+
+    await journal.disable(loginPassword);
+
+    expect(server.habitNotes.get('1|2026-10-30')).toEqual({
+      habitId: 1,
+      date: '2026-10-30',
+      text: 'Short one, still counts.',
+    });
+    expect(server.key).toBeNull();
+  });
+
+  it('saves a habit note as ciphertext bound to its day, hides it while locked, and deletes an emptied one', async () => {
+    const first = await device();
+    await first.journal.enable(passphrase, false, loginPassword);
+    await first.journal.saveHabitNote(1, '2026-10-30', '  Felt easy.  ');
+    const put = mock.all.filter((c) => c.method === 'PUT' && c.url === '/api/habits/1/notes/2026-10-30');
+    expect(Object.keys(put[0].body as object)).toEqual(['encrypted']);
+    const key = await importJournalKey(fromBase64(await rawKey()));
+    const sealed = (server.habitNotes.get('1|2026-10-30') as { encrypted: EncryptedBlob }).encrypted;
+    await expect(decryptHabitNote(key, '2026-10-29', sealed)).rejects.toThrow();
+    await expect(decryptNote(key, '2026-10-30', sealed)).rejects.toThrow();
+
+    const { journal } = await device();
+    expect(await journal.habitNotes('2026-10-01', '2026-11-01', 1)).toEqual({ notes: [], hidden: 1 });
+    await expect(journal.saveHabitNote(1, '2026-10-30', 'Locked')).rejects.toBeInstanceOf(JournalLockedError);
+    await journal.unlock({ passphrase }, false);
+    expect((await journal.habitNotes('2026-10-01', '2026-11-01', 1)).notes).toEqual([
+      { habitId: 1, date: '2026-10-30', text: 'Felt easy.' },
+    ]);
+
+    await journal.saveHabitNote(1, '2026-10-30', '   ');
+    expect(mock.all.some((c) => c.method === 'DELETE' && c.url === '/api/habits/1/notes/2026-10-30')).toBe(true);
+    expect(server.habitNotes.size).toBe(0);
+  });
+
+  it('refuses a habit note over 280 characters without a request', async () => {
+    const { journal } = await device();
+    const before = mock.all.length;
+    await expect(journal.saveHabitNote(1, '2026-10-30', 'a'.repeat(281))).rejects.toBeInstanceOf(RangeError);
+    expect(mock.all.length).toBe(before);
+    await journal.saveHabitNote(1, '2026-10-30', 'a'.repeat(280));
+    expect(server.habitNotes.get('1|2026-10-30')).toMatchObject({ text: 'a'.repeat(280) });
   });
 
   it('refuses to save while locked, without a request', async () => {

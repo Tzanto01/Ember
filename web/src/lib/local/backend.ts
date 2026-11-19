@@ -4,6 +4,7 @@ import {
   builtinMoods,
   type DayNote,
   type Frequency,
+  type HabitNote,
   type Me,
   type MoodKey,
   type OwnMood,
@@ -165,6 +166,12 @@ export function exportDocument(data: LocalData, journal = true): Record<string, 
       ? [...data.notes]
           .sort((a, b) => a.date.localeCompare(b.date))
           .map((n) => ({ date: n.date, text: n.text, mood: n.mood }))
+      : [],
+    habit_notes: journal
+      ? (data.habitNotes ?? [])
+          .filter((n) => order.has(n.habitId))
+          .sort((a, b) => order.get(a.habitId)! - order.get(b.habitId)! || a.date.localeCompare(b.date))
+          .map((n) => ({ habit_id: n.habitId, date: n.date, text: n.text }))
       : [],
     journal_key: null,
   };
@@ -402,6 +409,7 @@ export class LocalBackend {
       ['GET', /^\/api\/me$/, async () => json(200, this.me(await this.data()))],
       ['PATCH', /^\/api\/me$/, (_m, _q, b) => this.patchMe(bodyOf(b))],
       ['PUT', /^\/api\/me\/tips\/([^/]+)$/, (m) => this.markTip(m[1])],
+      ['PUT', /^\/api\/me\/today-order$/, (_m, _q, b) => this.setTodayOrder(bodyOf(b))],
       ['POST', /^\/api\/me\/consent$/, (_m, _q, b) => this.consent(bodyOf(b))],
       ['POST', /^\/api\/me\/dm-reminders\/resume$/, async () => empty()],
       ['GET', /^\/api\/me\/export$/, (_m, q) => this.exportFile(q)],
@@ -434,6 +442,9 @@ export class LocalBackend {
       ['GET', /^\/api\/day-notes$/, (_m, q) => this.listNotes(q)],
       ['PUT', /^\/api\/day-notes\/([^/]+)$/, (m, _q, b) => this.putNote(date(m, 1), bodyOf(b))],
       ['DELETE', /^\/api\/day-notes\/([^/]+)$/, (m) => this.deleteNote(date(m, 1))],
+      ['GET', /^\/api\/habit-notes$/, (_m, q) => this.listHabitNotes(q)],
+      ['PUT', /^\/api\/habits\/(\d+)\/notes\/([^/]+)$/, (m, _q, b) => this.putHabitNote(id(m), date(m, 2), bodyOf(b))],
+      ['DELETE', /^\/api\/habits\/(\d+)\/notes\/([^/]+)$/, (m) => this.deleteHabitNote(id(m), date(m, 2))],
       ['GET', /^\/api\/moods$/, async () => json(200, (await this.data()).moods.map(moodDto))],
       ['POST', /^\/api\/moods$/, (_m, _q, b) => this.createMood(bodyOf(b))],
       ['PATCH', /^\/api\/moods\/(\d+)$/, (m, _q, b) => this.patchMood(id(m), bodyOf(b))],
@@ -488,6 +499,8 @@ export class LocalBackend {
       journal: { encrypted: false, turningOff: false, plaintextLeft: 0, encryptedLeft: 0 },
       showStreaks: profile.showStreaks ?? true,
       calmMode: profile.calmMode ?? false,
+      todayOrder: profile.todayOrder ?? null,
+      offerHabitNote: profile.offerHabitNote ?? false,
       language: deviceLanguage(),
       tipsSeen: deviceTipsSeen(data),
     };
@@ -517,6 +530,9 @@ export class LocalBackend {
     if (showStreaks !== undefined && typeof showStreaks !== 'boolean') errors['showStreaks'] = ['Must be true or false.'];
     const calmMode = b['calmMode'];
     if (calmMode !== undefined && typeof calmMode !== 'boolean') errors['calmMode'] = ['Must be true or false.'];
+    const offerHabitNote = b['offerHabitNote'];
+    if (offerHabitNote !== undefined && typeof offerHabitNote !== 'boolean')
+      errors['offerHabitNote'] = ['Must be true or false.'];
     const language = b['language'];
     if (language !== undefined && !isLanguage(language)) errors['language'] = ['Must be en or de.'];
     if (Object.keys(errors).length) throw invalid(errors);
@@ -528,9 +544,36 @@ export class LocalBackend {
       if (typeof second === 'number') d.profile.secondReminderMinutes = second as SecondReminderMinutes;
       if (typeof showStreaks === 'boolean') d.profile.showStreaks = showStreaks;
       if (typeof calmMode === 'boolean') d.profile.calmMode = calmMode;
+      if (typeof offerHabitNote === 'boolean') d.profile.offerHabitNote = offerHabitNote;
       return typeof showStreaks === 'boolean' ? withTipSeen(d, 'streaks') : d;
     });
     return json(200, this.me(data));
+  }
+
+  /** Keeps own, well-formed keys once each (no routine members), like the API; more than the limit is refused. */
+  private async setTodayOrder(b: Body): Promise<Response> {
+    const order = b['order'];
+    if (order !== null && (!Array.isArray(order) || !order.every((key) => typeof key === 'string')))
+      throw invalidField('order', 'Must be a list of keys or null.');
+    if (order && order.length > limits.todayOrder)
+      throw invalidField('order', `At most ${limits.todayOrder} keys.`);
+    const data = await this.update((d) => {
+      if (!order) {
+        d.profile.todayOrder = null;
+        return d;
+      }
+      const valid = (key: string) => {
+        const match = /^([hr]):([1-9]\d{0,9})$/.exec(key);
+        if (!match) return false;
+        const id = Number(match[2]);
+        return match[1] === 'r'
+          ? d.routines.some((r) => r.id === id)
+          : d.habits.some((h) => h.id === id && h.routineId === null);
+      };
+      d.profile.todayOrder = [...new Set((order as string[]).filter(valid))];
+      return d;
+    });
+    return json(200, { order: data.profile.todayOrder ?? null });
   }
 
   private async consent(b: Body): Promise<Response> {
@@ -675,6 +718,7 @@ export class LocalBackend {
       d.habits = d.habits.filter((h) => h.id !== id);
       d.logs = d.logs.filter((log) => log.habitId !== id);
       d.slips = (d.slips ?? []).filter((slip) => slip.habitId !== id);
+      d.habitNotes = (d.habitNotes ?? []).filter((note) => note.habitId !== id);
       return d;
     });
     return empty();
@@ -972,6 +1016,56 @@ export class LocalBackend {
     return json(200, note);
   }
 
+  private async listHabitNotes(query: URLSearchParams): Promise<Response> {
+    const data = await this.data();
+    const { from, to } = rangeOf(query, this.today(data), limits.rangeDays - 1, { notAfterToday: false });
+    const raw = query.get('habitId');
+    if (raw !== null && !/^\d+$/.test(raw)) throw invalidField('habitId', 'Must be a habit id.');
+    return json(
+      200,
+      (data.habitNotes ?? [])
+        .filter((n) => n.date >= from && n.date <= to && (raw === null || n.habitId === Number(raw)))
+        .sort((a, b) => a.date.localeCompare(b.date) || a.habitId - b.habitId)
+        .map((n): HabitNote => ({ habitId: n.habitId, date: n.date, text: n.text })),
+    );
+  }
+
+  private async putHabitNote(habitId: number, date: string, b: Body): Promise<Response> {
+    if (!isDate(date)) throw invalidField('date', dateMessage);
+    let note: HabitNote | null = null;
+    await this.update((d) => {
+      const habit = d.habits.find((h) => h.id === habitId);
+      if (!habit) throw notFound();
+      const notes = d.habitNotes ?? [];
+      const today = this.today(d);
+      if (date > today) throw new Problem(422, 'in_future');
+      const exists = notes.some((n) => n.habitId === habitId && n.date === date);
+      if (date < habitStartDate(habit, d.profile.timezone) && date !== today && !exists)
+        throw new Problem(422, 'before_habit_start');
+      if (b['encrypted'] !== null && b['encrypted'] !== undefined)
+        throw invalidField('encrypted', 'The private journal is off. Send this as plaintext.');
+      const raw = b['text'];
+      const text = typeof raw === 'string' ? raw.trim() : '';
+      if (typeof raw !== 'string' || !text) throw invalidField('text', 'Write a note, or delete it instead.');
+      if (text.length > limits.habitNoteText)
+        throw invalidField('text', `Must be at most ${limits.habitNoteText} characters.`);
+      note = { habitId, date, text };
+      d.habitNotes = [...notes.filter((n) => !(n.habitId === habitId && n.date === date)), note];
+      return d;
+    });
+    return json(200, note);
+  }
+
+  private async deleteHabitNote(habitId: number, date: string): Promise<Response> {
+    if (!isDate(date)) throw invalidField('date', dateMessage);
+    await this.update((d) => {
+      if (!d.habits.some((h) => h.id === habitId)) throw notFound();
+      d.habitNotes = (d.habitNotes ?? []).filter((n) => !(n.habitId === habitId && n.date === date));
+      return d;
+    });
+    return empty();
+  }
+
   private async deleteNote(date: string): Promise<Response> {
     if (!isDate(date)) throw invalidField('date', dateMessage);
     await this.update((d) => {
@@ -1087,6 +1181,7 @@ export function newLocalData(profile: Pick<LocalData['profile'], 'timezone' | 't
     routines: [],
     moods: [],
     notes: [],
+    habitNotes: [],
   };
 }
 

@@ -210,6 +210,12 @@ export const guides: Record<GuideScreen, Guide> = {
           'src/Ember.Core/Data/EmberDbContext.cs',
         ],
       },
+      {
+        id: 'routines-order',
+        questionKey: 'guide.routines.order.q',
+        answerKey: 'guide.routines.order.a',
+        covers: ['web/src/lib/today-plan.ts', 'web/src/pages/today.tsx', 'web/src/components/today/use-reorder.ts'],
+      },
     ],
   },
   settings: {

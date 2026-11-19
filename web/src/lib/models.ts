@@ -47,6 +47,10 @@ export interface Me {
   calmMode?: boolean;
   /** v1.18: the tips this account has answered or dismissed; missing from servers before v1.18. */
   tipsSeen?: TipId[];
+  /** The account's own Today order (`h:<habitId>`, `r:<routineId>` keys); null sorts by reminder time. */
+  todayOrder: string[] | null;
+  /** Whether Today offers a short note after a check-in; Ember never asks otherwise. */
+  offerHabitNote: boolean;
 }
 
 /** v1.18 one-time tips, in priority order. */
@@ -66,6 +70,7 @@ export interface MePatch {
   language?: Language;
   /** v1.17. */
   calmMode?: boolean;
+  offerHabitNote?: boolean;
 }
 
 /** The `secondReminderMinutes` choices; 0 is off. */
@@ -357,6 +362,19 @@ export type StoredDayNote = DayNote | { date: LocalDateString; encrypted: Encryp
 
 /** `PUT /api/day-notes/{date}` body: plaintext, or `{ encrypted }` while a journal key exists. */
 export type DayNoteBody = { text?: string | null; mood?: MoodKey | null } | { encrypted: EncryptedBlob };
+
+/** A short note on one habit's day, as plaintext. `text` 1 to 280 characters after trimming. */
+export interface HabitNote {
+  habitId: number;
+  date: LocalDateString;
+  text: string;
+}
+
+/** A habit note as the API returns it: plaintext, or (private journal) only the ciphertext. */
+export type StoredHabitNote = HabitNote | { habitId: number; date: LocalDateString; encrypted: EncryptedBlob };
+
+/** `PUT /api/habits/{id}/notes/{date}` body: plaintext, or `{ encrypted }` while a journal key exists. */
+export type HabitNoteBody = { text: string } | { encrypted: EncryptedBlob };
 
 /** One of the user's own moods, as plaintext. Archived moods leave the picker but past days keep them. */
 export interface OwnMood {

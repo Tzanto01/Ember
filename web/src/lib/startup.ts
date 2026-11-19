@@ -11,7 +11,15 @@ import { navigate } from './navigation';
 import { refreshNoticesUnreachable, startNotices } from './notices';
 import { auth, deviceStore, deviceSync, http, localMode, push } from './services';
 import { Store } from './store';
-import { applyCalm, calmMode } from './theme';
+import {
+  applyCalm,
+  calmMode,
+  colorScheme,
+  colorSchemeApplied,
+  currentTheme,
+  gentleMotion,
+  themeApplied,
+} from './theme';
 
 const preloadReloadKey = 'ember.preloadReload';
 
@@ -122,6 +130,26 @@ function followLanguage(): void {
 }
 
 /**
+ * Android app only: tells the widget the theme, colour scheme and motion (gentle motion on and calm mode off) now and
+ * after every change of one of them.
+ */
+export function followWidgetStyle(native = env.native, widget = capacitorWidget): void {
+  if (!native) return;
+  let sent = '';
+  const share = () => {
+    const style = { theme: currentTheme(), motion: gentleMotion.get() && !calmMode.get(), colorScheme: colorScheme() };
+    const key = JSON.stringify(style);
+    if (key === sent) return;
+    sent = key;
+    void widget()
+      .then(({ EmberWidget }) => EmberWidget.setStyle?.(style))
+      .catch(() => undefined);
+  };
+  for (const store of [themeApplied, calmMode, colorSchemeApplied, gentleMotion]) store.subscribe(share);
+  share();
+}
+
+/**
  * Shows calm mode as the signed-in account (or the device profile in no-account mode) has it, and turns it off once the
  * user is signed out; before the first `me` the device keeps what `/theme-init.js` showed. While it is on, Motion's
  * animations jump to their end.
@@ -164,6 +192,7 @@ export async function startApp(): Promise<void> {
   await localMode.init();
   followLanguage();
   followCalm();
+  followWidgetStyle();
   if (localMode.mode.get() !== 'local') void auth.refreshAntiforgery();
   deviceSync.start();
   http.onUnreachable = refreshNoticesUnreachable;

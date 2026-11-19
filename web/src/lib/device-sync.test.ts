@@ -67,16 +67,38 @@ describe('DeviceSync', () => {
 
     auth.setMe({ ...me, timezone: 'Asia/Tokyo' });
     expect(rebuild).toHaveBeenCalledTimes(1);
-    expect(rebuild).toHaveBeenCalledWith('u1', 'Asia/Tokyo', 0);
+    expect(rebuild).toHaveBeenCalledWith('u1', 'Asia/Tokyo', 0, null);
 
     rebuild.mockClear();
     auth.setMe({ ...me, timezone: 'Asia/Tokyo', secondReminderMinutes: 60 });
     expect(rebuild).toHaveBeenCalledTimes(1);
-    expect(rebuild).toHaveBeenCalledWith('u1', 'Asia/Tokyo', 60);
+    expect(rebuild).toHaveBeenCalledWith('u1', 'Asia/Tokyo', 60, null);
 
     rebuild.mockClear();
     applyTheme('marigold');
     expect(rebuild).toHaveBeenCalledTimes(1);
+  });
+
+  it('rebuilds with the new Today order once me holds it, so the widget follows a rearranged list', () => {
+    (globalThis as unknown as { indexedDB: unknown }).indexedDB = new IDBFactory();
+    mockFetch();
+    const http = new Http({ native: true, apiBase: '' });
+    const device = new DeviceStore();
+    const queue = new OfflineQueue(device);
+    const api = new ApiClient(http, queue);
+    const reminders = new Reminders(api, device);
+    const rebuild = vi.spyOn(reminders, 'rebuild').mockResolvedValue();
+    const tokens = new TokenStore(http, memorySecureStore().store);
+    const auth = new AuthService(api, queue, null, { tokens, reminders });
+    new DeviceSync(auth, api, queue, reminders);
+    auth.setMe(me);
+    rebuild.mockClear();
+
+    auth.setMe({ ...me, todayOrder: ['h:2', 'r:1'] });
+    auth.setMe({ ...me, todayOrder: ['h:2', 'r:1'] });
+
+    expect(rebuild).toHaveBeenCalledTimes(1);
+    expect(rebuild).toHaveBeenCalledWith('u1', me.timezone, 0, ['h:2', 'r:1']);
   });
 
   describe('automatic time zone', () => {
@@ -220,7 +242,7 @@ describe('DeviceSync', () => {
       sync.dropped.set(2);
 
       auth.setMe({ ...me, id: 'u2' });
-      await vi.waitFor(() => expect(rebuild).toHaveBeenCalledWith('u2', me.timezone, 0));
+      await vi.waitFor(() => expect(rebuild).toHaveBeenCalledWith('u2', me.timezone, 0, null));
 
       expect(sync.nativeCheckIn.get()).toBeNull();
       expect(sync.dropped.get()).toBe(0);

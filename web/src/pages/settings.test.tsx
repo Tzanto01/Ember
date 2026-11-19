@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderPage } from '@/test-utils';
@@ -6,6 +6,7 @@ import { env } from '@/lib/env';
 import i18n from '@/lib/i18n';
 import { reminderNames } from '@/lib/native/reminder-names';
 import type { ReminderDestination } from '@/lib/models';
+import { applyGentleMotion, gentleMotion } from '@/lib/theme';
 import { auth, deviceSync, localMode, push } from '@/lib/services';
 import { type FetchMock, me, mockFetch } from '@/lib/test-support';
 import SettingsPage from './settings';
@@ -385,6 +386,44 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     sent.respond(200, { ...me, calmMode: true });
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
     expect(toggle).toBeChecked();
+  });
+
+  it('offers a note after check-in only once turned on, saving it to the account', async () => {
+    const user = userEvent.setup();
+    const { fetch } = await open('/settings/habits');
+    const toggle = screen.getByRole('switch', { name: 'Offer a note after check-in' });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAccessibleDescription(/Off, Ember never asks/);
+
+    await user.click(toggle);
+
+    const sent = await fetch.next('PATCH', '/api/me');
+    expect(sent.body).toEqual({ offerHabitNote: true });
+    sent.respond(200, { ...me, offerHabitNote: true });
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    expect(toggle).toBeChecked();
+    expect(auth.me.get()?.offerHabitNote).toBe(true);
+  });
+
+  it('in the app, "Gentle motion" is on by default and turns off on this device only; the web has no such switch', async () => {
+    const user = userEvent.setup();
+    await open('/settings/appearance');
+    expect(screen.queryByRole('switch', { name: 'Gentle motion' })).toBeNull();
+    cleanup();
+
+    env.native = true;
+    const { fetch } = await open('/settings/appearance');
+    const toggle = screen.getByRole('switch', { name: 'Gentle motion' });
+    expect(toggle).toBeChecked();
+    expect(toggle).toHaveAccessibleDescription(/calm mode/);
+
+    await user.click(toggle);
+
+    expect(toggle).not.toBeChecked();
+    expect(gentleMotion.get()).toBe(false);
+    expect(localStorage.getItem('ember.gentleMotion')).toBe('0');
+    expect(fetch.all.some((c) => c.method === 'PATCH')).toBe(false);
+    applyGentleMotion(true);
   });
 
   it('Help right now shows the crisis lines and sends nothing', async () => {

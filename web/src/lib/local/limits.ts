@@ -7,6 +7,8 @@ export const limits = {
   routineName: 50,
   moodLabel: 24,
   noteText: 2000,
+  habitNoteText: 280,
+  todayOrder: 500,
   timesPerDay: 10,
   rangeDays: 366,
 } as const;

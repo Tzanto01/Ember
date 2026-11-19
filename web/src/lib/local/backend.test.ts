@@ -265,6 +265,52 @@ describe('LocalBackend through ApiClient', () => {
     expect(error.problem?.errors).toEqual({ calmMode: ['Must be true or false.'] });
   });
 
+  it('keeps the Today order on the device, trimmed like the API: own keys once, no routine members, null resets', async () => {
+    await store.replace(seed([localHabit(1), localHabit(2, { routineId: 1, routinePosition: 0 }), localHabit(3)]));
+    await api.createRoutine({ name: 'Morning', habitIds: [2] });
+    expect((await api.getMe()).todayOrder).toBeNull();
+
+    const kept = await api.setTodayOrder(['h:3', 'r:1', 'h:2', 'h:3', 'h:99', 'r:7', 'x:1', 'h:1']);
+
+    expect(kept).toEqual(['h:3', 'r:1', 'h:1']);
+    expect((await api.getMe()).todayOrder).toEqual(['h:3', 'r:1', 'h:1']);
+    expect(await api.setTodayOrder(null)).toBeNull();
+    expect((await api.getMe()).todayOrder).toBeNull();
+    const tooLong = await rejection(api.setTodayOrder(Array.from({ length: 501 }, () => 'h:1')));
+    expect([tooLong.status, tooLong.type]).toEqual([400, 'validation']);
+  });
+
+  it('saves "Offer a note after check-in" on the device, off until chosen', async () => {
+    await store.replace(seed());
+    expect((await api.getMe()).offerHabitNote).toBe(false);
+    expect((await api.updateMe({ offerHabitNote: true })).offerHabitNote).toBe(true);
+    expect((await api.getMe()).offerHabitNote).toBe(true);
+  });
+
+  it('keeps plaintext habit notes per habit and day within the API rules, and drops them with their habit', async () => {
+    await store.replace(seed([localHabit(1), localHabit(2)]));
+
+    expect(await api.saveHabitNote(1, today, { text: '  Felt heavy, went anyway.  ' })).toEqual({
+      habitId: 1,
+      date: today,
+      text: 'Felt heavy, went anyway.',
+    });
+    await api.saveHabitNote(2, '2026-10-30', { text: 'Short one.' });
+    expect(await api.listHabitNotes('2026-10-01', today, 1)).toEqual([{ habitId: 1, date: today, text: 'Felt heavy, went anyway.' }]);
+    expect((await api.listHabitNotes('2026-10-01', today)).map((n) => n.habitId)).toEqual([2, 1]);
+
+    expect((await rejection(api.saveHabitNote(1, '2026-11-02', { text: 'Later' }))).type).toBe('in_future');
+    expect((await rejection(api.saveHabitNote(1, '2026-10-01', { text: 'Early' }))).type).toBe('before_habit_start');
+    expect((await rejection(api.saveHabitNote(1, today, { text: 'a'.repeat(281) }))).status).toBe(400);
+    expect((await rejection(api.saveHabitNote(9, today, { text: 'Nobody' }))).type).toBe('not_found');
+    expect(await api.saveHabitNote(1, today, { text: 'a'.repeat(280) })).toMatchObject({ text: 'a'.repeat(280) });
+
+    await api.saveHabitNote(1, today, null);
+    expect(await api.listHabitNotes('2026-10-01', today, 1)).toEqual([]);
+    await api.deleteHabit(2);
+    expect(await api.listHabitNotes('2026-10-01', today)).toEqual([]);
+  });
+
   it('caps active moods at 20 with conflict', async () => {
     await store.replace(seed());
     for (let i = 0; i < 20; i++) await api.createMood({ label: `Mood ${i}` });

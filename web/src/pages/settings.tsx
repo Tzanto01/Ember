@@ -57,13 +57,21 @@ import { ApiError, asApiError, problemToMessage } from '@/lib/problem';
 import { api, auth, deviceSync, localMode, push, reminders } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import { applyLanguage, currentLanguage, heldLanguage, holdLanguage, type Language, rememberDeviceLanguage, storedLanguage, t } from '@/lib/i18n';
-import { applyCalm, calmMode, rememberAccountTheme, type ThemeId } from '@/lib/theme';
+import {
+  applyCalm,
+  applyGentleMotion,
+  calmMode,
+  gentleMotion,
+  rememberAccountTheme,
+  type ThemeId,
+} from '@/lib/theme';
 import { cn } from '@/lib/utils';
 
 type Section =
   | 'timezone'
   | 'grace'
   | 'streaks'
+  | 'habitNotes'
   | 'calm'
   | 'second'
   | 'discord'
@@ -201,6 +209,7 @@ export default function SettingsPage() {
   const chain = useRef<Promise<unknown>>(Promise.resolve());
   const graceRef = useRef<number | null>(null);
   const streaksRef = useRef<boolean | null>(null);
+  const offerNoteRef = useRef<boolean | null>(null);
   const calmRef = useRef<boolean | null>(null);
   const secondRef = useRef<SecondReminderMinutes | null>(null);
   const scrolled = useRef<string | null>(null);
@@ -217,6 +226,8 @@ export default function SettingsPage() {
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
   const [grace, setGrace] = useState<number | null>(null);
   const [streaks, setStreaks] = useState<boolean | null>(null);
+  const [offerNote, setOfferNote] = useState<boolean | null>(null);
+  const gentle = useStore(gentleMotion);
   const [calm, setCalm] = useState<boolean | null>(null);
   const [second, setSecond] = useState<SecondReminderMinutes | null>(null);
   const [zone, setZone] = useState<string | null>(null);
@@ -331,6 +342,17 @@ export default function SettingsPage() {
       streaksRef.current = null;
       setStreaks(null);
       if (error) fail('streaks', error);
+    });
+  }
+
+  function changeOfferNote(value: boolean): void {
+    offerNoteRef.current = value;
+    setOfferNote(value);
+    void patch('habitNotes', { offerHabitNote: value }).then((error) => {
+      if (offerNoteRef.current !== value) return;
+      offerNoteRef.current = null;
+      setOfferNote(null);
+      if (error) fail('habitNotes', error);
     });
   }
 
@@ -605,6 +627,7 @@ export default function SettingsPage() {
     ...(showSecond ? [{ id: 'second-reminder', title: t('settings.card.secondReminder') }] : []),
     { id: 'routines', title: t('settings.card.routines') },
     { id: 'streaks', title: t('settings.card.streaks') },
+    { id: 'habit-notes', title: t('settings.card.habitNotes') },
     ...(streaksShown ? [{ id: 'grace', title: t('settings.card.grace') }] : []),
     { id: 'timezone', title: t('settings.card.timezone') },
     { id: 'moods', title: t('settings.card.moods') },
@@ -885,6 +908,24 @@ export default function SettingsPage() {
                 </p>
                 {savedStatus('calm')}
                 {outcome('calm')}
+                {env.native && (
+                  <>
+                    <div className="flex min-h-[44px] items-center justify-between gap-4">
+                      <Label htmlFor="gentle-motion" className="min-w-0 font-normal">
+                        {t('settings.gentleMotion.label')}
+                      </Label>
+                      <Switch
+                        id="gentle-motion"
+                        aria-describedby="gentle-motion-hint"
+                        checked={gentle}
+                        onCheckedChange={applyGentleMotion}
+                      />
+                    </div>
+                    <p id="gentle-motion-hint" className="text-[0.875rem] text-muted-foreground">
+                      {t('settings.gentleMotion.hint')}
+                    </p>
+                  </>
+                )}
               </SettingsCard>
             )}
 
@@ -1118,6 +1159,27 @@ export default function SettingsPage() {
                 </p>
                 {savedStatus('streaks')}
                 {outcome('streaks')}
+              </SettingsCard>
+            )}
+
+            {shown('habit-notes') && (
+              <SettingsCard id="habit-notes" title={title('habit-notes')}>
+                <div className="flex min-h-[44px] items-center justify-between gap-4">
+                  <Label htmlFor="offer-habit-note" className="min-w-0 font-normal">
+                    {t('settings.habitNotes.label')}
+                  </Label>
+                  <Switch
+                    id="offer-habit-note"
+                    aria-describedby="offer-habit-note-hint"
+                    checked={offerNote ?? me?.offerHabitNote === true}
+                    onCheckedChange={changeOfferNote}
+                  />
+                </div>
+                <p id="offer-habit-note-hint" className="text-[0.875rem] text-muted-foreground">
+                  {t('settings.habitNotes.hint')}
+                </p>
+                {savedStatus('habitNotes')}
+                {outcome('habitNotes')}
               </SettingsCard>
             )}
 

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, ListOrdered, Moon, Pencil, Plus } from 'lucide-react';
+import { CalendarDays, ChevronDown, ListOrdered, Moon, Pencil, Plus } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,9 @@ import { routineTitle } from '@/components/routines/routine-title';
 import { TipSlot } from '@/components/tips/tip-slot';
 import { checkButtonId } from '@/components/today/check-button';
 import { HabitRow, habitRowId } from '@/components/today/habit-row';
+import { NoteSheet } from '@/components/today/note-sheet';
+import { ListMenu, RowMenu } from '@/components/today/row-menu';
+import { useReorder } from '@/components/today/use-reorder';
 import { HearthIllustration } from '@/components/today/hearth-illustration';
 import { readReward, type RewardKeyword } from '@/components/today/reward';
 import { TodaysEmber } from '@/components/today/todays-ember';
@@ -31,6 +34,7 @@ import { isOffday } from '@/lib/calendar';
 import { highlightMs } from '@/lib/guide/highlight';
 import { t } from '@/lib/i18n';
 import { addDays, formatDate } from '@/lib/local-date';
+import { pulse } from '@/lib/moment/voice';
 import {
   buildHabits,
   type DayState,
@@ -45,7 +49,17 @@ import { asApiError, problemToMessage } from '@/lib/problem';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth, deviceSync } from '@/lib/services';
 import { useStore } from '@/lib/store';
-import { useCalmMode } from '@/lib/theme';
+import { notTodayOpen, rememberNotTodayOpen, useCalmMode } from '@/lib/theme';
+import {
+  habitKey,
+  moveKey,
+  orderAfterMove,
+  planToday,
+  routineKey,
+  routineOrderAfterMove,
+  type TodayItem,
+} from '@/lib/today-plan';
+import { cn } from '@/lib/utils';
 
 interface TodayData {
   /** The build habits; every count on Today reads these only. */
@@ -61,30 +75,6 @@ interface TodayData {
 /** Today's body: one column, from `lg` the door, notices and habits left and the day's cards right. */
 const columns =
   'flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start 2xl:grid-cols-[minmax(0,1.8fr)_minmax(24rem,1fr)] 2xl:gap-8';
-
-interface HabitGroup {
-  routine: Routine | null;
-  habits: Habit[];
-}
-
-/** Habits grouped by routine in each routine's `habitIds` order, then the habits in no shown routine. */
-function groupHabits(habits: Habit[], routines: Routine[] | null): HabitGroup[] {
-  const byId = new Map(habits.map((h) => [h.id, h]));
-  const placed = new Set<number>();
-  const groups: HabitGroup[] = [];
-  for (const routine of routines ?? []) {
-    const members = routine.habitIds.flatMap((id) => {
-      const habit = byId.get(id);
-      if (!habit || placed.has(id)) return [];
-      placed.add(id);
-      return [habit];
-    });
-    if (members.length) groups.push({ routine, habits: members });
-  }
-  const rest = habits.filter((h) => !placed.has(h.id));
-  if (rest.length) groups.push({ routine: null, habits: rest });
-  return groups;
-}
 
 interface Problem {
   heading: string;
@@ -165,6 +155,12 @@ export default function TodayPage() {
   const openHabit = searchParams.get('habit');
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const calm = useCalmMode();
+  const order = me?.todayOrder ?? null;
+  const [laterOpen, setLaterOpen] = useState(notTodayOpen);
+  const [note, setNote] = useState<{ habit: { id: number; name: string }; afterCheckIn: boolean; session: number } | null>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const orderSeq = useRef(0);
+  const orderChain = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => {
     if (synced !== firstSynced.current) void refetch();
@@ -244,14 +240,21 @@ export default function TodayPage() {
       : data.lowDayToday
         ? 'lowday'
         : 'pending';
+    const optimisticCount = nextCount ?? (checkIn ? target : 0);
+    const week = habit.stats.week;
+    const weekStep = (optimisticCount > 0 ? 1 : 0) - (habit.today.count > 0 ? 1 : 0);
     const optimistic: Habit = {
       ...habit,
       today: {
         ...habit.today,
         state: reaches ? 'done' : nextCount ? 'partial' : resting,
         completed: reaches ? true : null,
-        count: nextCount ?? (checkIn ? target : 0),
+        count: optimisticCount,
       },
+      stats:
+        habit.frequency === 'weekly' && week && weekStep
+          ? { ...habit.stats, week: { ...week, done: week.done + weekStep } }
+          : habit.stats,
     };
     mark(habit.id, true);
     setProblem(null);
@@ -267,6 +270,7 @@ export default function TodayPage() {
             ? await api.setDay(habit.id, habit.today.date, true)
             : await api.clearDay(habit.id, habit.today.date);
       updateHabit(habit.id, () => updated);
+      if (checkIn && reaches && auth.me.get()?.offerHabitNote) openNote(habit, true);
       setAnnouncement(
         nextCount === null
           ? checkIn
@@ -296,6 +300,54 @@ export default function TodayPage() {
       inFlight.current.delete(habit.id);
       mark(habit.id, false);
       if (refetching) void queryClient.invalidateQueries({ queryKey: todayKey });
+    }
+  }
+
+  function openNote(habit: { id: number; name: string }, afterCheckIn = false) {
+    setNote((current) => ({ habit: { id: habit.id, name: habit.name }, afterCheckIn, session: (current?.session ?? 0) + 1 }));
+    setNoteOpen(true);
+  }
+
+  function adoptOrder(next: string[] | null) {
+    const current = auth.me.get();
+    if (current) auth.setMe({ ...current, todayOrder: next });
+  }
+
+  /** Saves the full account order (null: by time again) after showing it, one request at a time; a failure puts the last order back. */
+  function saveOrder(next: string[] | null, announcement: string) {
+    const seq = ++orderSeq.current;
+    const before = auth.me.get()?.todayOrder ?? null;
+    adoptOrder(next);
+    setProblem(null);
+    setAnnouncement(announcement);
+    orderChain.current = orderChain.current.then(async () => {
+      try {
+        const kept = await api.setTodayOrder(next);
+        if (seq === orderSeq.current) adoptOrder(kept);
+      } catch (error) {
+        if (seq !== orderSeq.current) return;
+        adoptOrder(before);
+        const apiError = asApiError(error);
+        if (!apiError.handled) setProblem({ heading: t('today.order.failed'), message: problemToMessage(apiError).message });
+      }
+    });
+  }
+
+  /** Saves a routine's full `habitIds` after its shown members were rearranged; a failure puts them back. */
+  async function saveRoutineOrder(routine: Routine, shown: number[], announcement: string) {
+    const habitIds = routineOrderAfterMove(routine.habitIds, shown);
+    const moved = { ...routine, habitIds };
+    const put = (from: Routine, to: Routine) =>
+      setData((d) => ({ ...d, routines: d.routines?.map((r) => (r.id === from.id && r === from ? to : r)) ?? null }));
+    put(routine, moved);
+    setProblem(null);
+    setAnnouncement(announcement);
+    try {
+      put(moved, await api.updateRoutine(routine.id, { habitIds }));
+    } catch (error) {
+      put(moved, routine);
+      const apiError = asApiError(error);
+      if (!apiError.handled) setProblem({ heading: t('today.order.failed'), message: problemToMessage(apiError).message });
     }
   }
 
@@ -353,25 +405,116 @@ export default function TodayPage() {
     />
   );
   const hasHabits = !!data && data.habits.length > 0;
-  const groups = data ? groupHabits(data.habits, data.routines) : [];
-  const habitList = (habits: Habit[], headingLevel: 'h2' | 'h3') => (
-    <ul role="list" className="flex flex-col gap-3">
-      {habits.map((habit) => (
-        <HabitRow
-          key={habit.id}
-          habit={habit}
-          headingLevel={headingLevel}
-          showStreaks={showStreaks}
-          busy={busy.has(habit.id)}
-          highlight={highlighted === habit.id}
-          reward={rewards.get(habit.id) ?? null}
-          onToggle={() => void toggle(habit)}
-          onUndoOne={() => void toggle(habit, true)}
-          onRewardEnd={() => setReward(habit.id, null)}
-        />
-      ))}
-    </ul>
+  const planDate = today ?? data?.habits[0]?.today.date ?? data?.letGo[0]?.today.date ?? '';
+  const plan = data ? planToday([...data.habits, ...data.letGo], data.routines, order, planDate) : null;
+  const sections = plan
+    ? [plan.today.map((item) => item.key), plan.letGo.map((h) => habitKey(h.id)), plan.notToday.map((item) => item.key)]
+    : [[], [], []];
+  const nameOf = (list: string, key: string): string => {
+    if (key.startsWith('r:')) return routineTitle(data?.routines?.find((r) => routineKey(r.id) === key)?.name ?? '');
+    const id = list.startsWith('routine-') ? Number(key) : Number(key.slice(2));
+    return [...(data?.habits ?? []), ...(data?.letGo ?? [])].find((h) => h.id === id)?.name ?? '';
+  };
+  const moveSection = (index: 0 | 1, next: string[], announcement: string) =>
+    saveOrder(orderAfterMove(order, sections, index, next), announcement);
+  const reorder = useReorder({
+    onLift(list, key) {
+      pulse();
+      setAnnouncement(t('today.order.moving', { name: nameOf(list, key) }));
+    },
+    onDrop(list, next) {
+      const dropped = t('today.order.dropped');
+      if (list === 'today') moveSection(0, next, dropped);
+      else if (list === 'letGo') moveSection(1, next, dropped);
+      else {
+        const routine = data?.routines?.find((r) => `routine-${r.id}` === list);
+        if (routine) void saveRoutineOrder(routine, next.map(Number), dropped);
+      }
+    },
+    onCancel: () => setAnnouncement(t('today.order.cancelled')),
+  });
+  const moving = reorder.moving;
+  const liftClass = (list: string, key: string) =>
+    moving?.list === list && moving.key === key
+      ? cn(
+          'relative z-10 rounded-xl ring-2 ring-primary shadow-[0_10px_28px_color-mix(in_oklch,var(--foreground)_20%,transparent)]',
+          !reduceMotion && !calm && 'scale-[1.02] motion-safe:transition-transform motion-safe:duration-150',
+        )
+      : undefined;
+  const listClass = 'flex select-none flex-col gap-3 [-webkit-touch-callout:none]';
+  const movedText = (name: string, by: -1 | 1) =>
+    t(by < 0 ? 'today.order.movedUp' : 'today.order.movedDown', { name });
+  const sectionMove = (index: 0 | 1, keys: string[], key: string, name: string) => ({
+    up: keys.indexOf(key) > 0,
+    down: keys.indexOf(key) < keys.length - 1,
+    onMove: (by: -1 | 1) => moveSection(index, moveKey(keys, key, by), movedText(name, by)),
+  });
+  const habitRow = (
+    habit: Habit,
+    headingLevel: 'h3' | 'h4',
+    extras: { list?: string; reorderKey?: string; menu: ReactNode; doneForWeek?: boolean },
+  ) => (
+    <HabitRow
+      key={habit.id}
+      habit={habit}
+      headingLevel={headingLevel}
+      showStreaks={showStreaks}
+      busy={busy.has(habit.id)}
+      highlight={highlighted === habit.id}
+      reward={rewards.get(habit.id) ?? null}
+      onToggle={() => void toggle(habit)}
+      onUndoOne={() => void toggle(habit, true)}
+      onRewardEnd={() => setReward(habit.id, null)}
+      menu={extras.menu}
+      doneForWeek={extras.doneForWeek}
+      reorderKey={extras.reorderKey}
+      grip={!!extras.list && moving?.list === extras.list}
+      className={extras.list && extras.reorderKey ? liftClass(extras.list, extras.reorderKey) : undefined}
+    />
   );
+  const routineBlock = (item: Extract<TodayItem, { kind: 'routine' }>, keys: string[]) => {
+    const { routine } = item;
+    const list = `routine-${routine.id}`;
+    const ids = item.habits.map((h) => String(h.id));
+    const title = routineTitle(routine.name);
+    return (
+      <li key={item.key} data-reorder-key={item.key} className={liftClass('today', item.key)}>
+        <section aria-labelledby={`routine-${routine.id}`} className="flex flex-col gap-3">
+          <div className="flex min-h-[48px] items-center justify-between gap-2">
+            <h3 id={`routine-${routine.id}`} className="min-w-0 text-[1.125rem] [overflow-wrap:anywhere]">
+              {routine.name}
+            </h3>
+            <div className="flex shrink-0">
+              <Button asChild variant="ghost" size="icon" className="text-muted-foreground">
+                <Link to={`/routines/${routine.id}/edit`} aria-label={t('today.edit', { name: title })}>
+                  <Pencil aria-hidden />
+                </Link>
+              </Button>
+              <RowMenu name={title} move={sectionMove(0, keys, item.key, title)} onNote={null} />
+            </div>
+          </div>
+          <ul role="list" className={listClass} {...reorder.listProps(list, ids)}>
+            {reorder.orderOf(list, ids).map((id) => {
+              const habit = item.habits.find((h) => String(h.id) === id)!;
+              const onMove = (by: -1 | 1) =>
+                void saveRoutineOrder(routine, moveKey(ids, id, by).map(Number), movedText(habit.name, by));
+              return habitRow(habit, 'h4', {
+                list,
+                reorderKey: id,
+                menu: (
+                  <RowMenu
+                    name={habit.name}
+                    move={{ up: ids.indexOf(id) > 0, down: ids.indexOf(id) < ids.length - 1, onMove }}
+                    onNote={() => openNote(habit)}
+                  />
+                ),
+              });
+            })}
+          </ul>
+        </section>
+      </li>
+    );
+  };
 
   const top = (
     <>
@@ -471,40 +614,109 @@ export default function TodayPage() {
               <TapLink to="/history">{t('today.openHistory')}</TapLink>
             </p>
           )}
-          {groups.length === 1 && !groups[0].routine ? (
-            habitList(groups[0].habits, 'h2')
-          ) : (
-            groups.map(({ routine, habits }) => (
-              <section
-                key={routine?.id ?? 'other'}
-                aria-labelledby={routine ? `routine-${routine.id}` : 'routine-other'}
-                className="flex flex-col gap-3"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <h2
-                    id={routine ? `routine-${routine.id}` : 'routine-other'}
-                    className="min-w-0 text-[1.25rem] [overflow-wrap:anywhere]"
-                  >
-                    {routine?.name ?? t('today.otherHabits')}
-                  </h2>
-                  {!routine && (
-                    <TapLink to="/routines" className="shrink-0 px-2">
-                      {t('today.routines')}
-                    </TapLink>
-                  )}
-                  {routine && (
-                    <Button asChild variant="ghost" size="icon" className="shrink-0 text-muted-foreground">
-                      <Link to={`/routines/${routine.id}/edit`} aria-label={t('today.edit', { name: routineTitle(routine.name) })}>
-                        <Pencil aria-hidden />
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-                {habitList(habits, 'h3')}
-              </section>
-            ))
+          {moving && (
+            <p className="sticky top-[calc(env(safe-area-inset-top)+0.5rem)] z-20 rounded-lg border-[length:max(1px,var(--border-width))] border-border bg-card px-4 py-3 text-card-foreground shadow-card">
+              {t('today.order.moving', { name: nameOf(moving.list, moving.key) })}
+            </p>
           )}
-          <LetGoSection habits={data.letGo} />
+          {plan && hasHabits && (
+            <section aria-labelledby="for-today-heading" className="flex flex-col gap-3">
+              <div className="flex min-h-[44px] items-center justify-between gap-2">
+                <h2 id="for-today-heading" className="text-[1.25rem]">
+                  {t('today.forToday')}
+                </h2>
+                {order && (
+                  <ListMenu
+                    onSortByTime={() => saveOrder(null, t('today.order.byTime'))}
+                  />
+                )}
+              </div>
+              {plan.today.length ? (
+                <ul role="list" className={listClass} {...reorder.listProps('today', sections[0])}>
+                  {reorder.orderOf('today', sections[0]).map((key) => {
+                    const item = plan.today.find((i) => i.key === key)!;
+                    if (item.kind === 'routine') return routineBlock(item, sections[0]);
+                    return habitRow(item.habit, 'h3', {
+                      list: 'today',
+                      reorderKey: key,
+                      menu: (
+                        <RowMenu
+                          name={item.habit.name}
+                          move={sectionMove(0, sections[0], key, item.habit.name)}
+                          onNote={() => openNote(item.habit)}
+                        />
+                      ),
+                    });
+                  })}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">{t('today.nothingToday')}</p>
+              )}
+            </section>
+          )}
+          {plan && (
+            <LetGoSection
+              habits={reorder.orderOf('letGo', sections[1]).map((key) => plan.letGo.find((h) => habitKey(h.id) === key)!)}
+              listProps={{ ...reorder.listProps('letGo', sections[1]), className: listClass }}
+              extras={(habit) => {
+                const key = habitKey(habit.id);
+                return {
+                  reorderKey: key,
+                  className: liftClass('letGo', key),
+                  menu: (
+                    <RowMenu
+                      name={habit.name}
+                      move={sectionMove(1, sections[1], key, habit.name)}
+                      onNote={() => openNote(habit)}
+                    />
+                  ),
+                };
+              }}
+            />
+          )}
+          {plan && plan.notToday.length > 0 && (
+            <section aria-labelledby="not-today-heading" className="flex flex-col gap-3">
+              <h2 id="not-today-heading" className="text-[1.25rem]">
+                <button
+                  type="button"
+                  aria-expanded={laterOpen}
+                  aria-controls="not-today-list"
+                  onClick={() => {
+                    rememberNotTodayOpen(!laterOpen);
+                    setLaterOpen(!laterOpen);
+                  }}
+                  className="-mx-2 flex min-h-[48px] w-[calc(100%+1rem)] items-center justify-between gap-2 rounded-md px-2 text-left text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                >
+                  {t('today.notToday', { count: plan.notToday.length })}
+                  <ChevronDown
+                    aria-hidden
+                    className={cn('size-[20px] shrink-0 motion-safe:transition-transform', laterOpen && 'rotate-180')}
+                  />
+                </button>
+              </h2>
+              <ul id="not-today-list" role="list" hidden={!laterOpen} className="flex flex-col gap-3 opacity-85">
+                {plan.notToday.map((item) =>
+                  habitRow(item.habit, 'h3', {
+                    doneForWeek: item.doneForWeek,
+                    menu: <RowMenu name={item.habit.name} move={null} onNote={() => openNote(item.habit)} />,
+                  }),
+                )}
+              </ul>
+            </section>
+          )}
+          {note && today && (
+            <NoteSheet
+              key={note.session}
+              habit={note.habit}
+              date={today}
+              open={noteOpen}
+              onOpenChange={setNoteOpen}
+              afterCheckIn={note.afterCheckIn}
+              onSaved={(saved) =>
+                setAnnouncement(t(saved ? 'habitNote.saved' : 'habitNote.deleted', { name: note.habit.name }))
+              }
+            />
+          )}
           {data.lowDayToday === false && (
             <Button
               id="mark-low-day"

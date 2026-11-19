@@ -1,4 +1,4 @@
-import { Flame, Leaf, Minus, Moon, Pause, Pencil } from 'lucide-react';
+import { CalendarCheck, Flame, GripVertical, Leaf, Minus, Moon, Pause, Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -25,12 +25,22 @@ export interface HabitRowProps {
   onRewardEnd: () => void;
   /** Takes one check-in off a multi-count habit; the row offers it once today has any. */
   onUndoOne?: () => void;
-  /** `h3` when the row sits under a routine heading. */
-  headingLevel?: 'h2' | 'h3';
+  /** `h4` when the row sits under a routine heading. */
+  headingLevel?: 'h2' | 'h3' | 'h4';
   /** The account's `showStreaks`: false leaves the streak chip out. */
   showStreaks: boolean;
   /** Rings the card briefly, after a reminder tap opened Today on this habit. */
   highlight?: boolean;
+  /** The row's "⋯" menu, next to Edit. */
+  menu?: ReactNode;
+  /** A weekly habit whose target was met before today (Not for today): says "Done for this week". */
+  doneForWeek?: boolean;
+  /** Shows the grip while a row of its list is being moved. */
+  grip?: boolean;
+  /** Its Today order key, for hold-and-drag (`useReorder`). */
+  reorderKey?: string;
+  /** Class for the `<li>`, for example the lifted look while it is moved. */
+  className?: string;
 }
 
 /** The DOM id of a habit's Today row. */
@@ -89,6 +99,11 @@ export function HabitRow({
   headingLevel: Heading = 'h2',
   showStreaks,
   highlight = false,
+  menu,
+  doneForWeek = false,
+  grip = false,
+  reorderKey,
+  className,
 }: HabitRowProps) {
   const { t } = useTranslation();
   const state = habit.today.state;
@@ -113,6 +128,13 @@ export function HabitRow({
     );
   } else if (notStarted) {
     meta = <span>{t('today.starts', { date: formatDate(habit.startDate, shortDate) })}</span>;
+  } else if (doneForWeek) {
+    meta = (
+      <span className="inline-flex items-start gap-1.5">
+        <CalendarCheck aria-hidden className="mt-[3px] size-[14px] shrink-0" />
+        {t('today.doneForWeek')}
+      </span>
+    );
   } else if (state === 'offday') {
     meta = (
       <span className="inline-flex items-start gap-1.5">
@@ -141,7 +163,7 @@ export function HabitRow({
   }
 
   return (
-    <li id={habitRowId(habit.id)}>
+    <li id={habitRowId(habit.id)} data-reorder-key={reorderKey} className={className}>
       <Card
         className={cn(
           'relative isolate grid grid-cols-[minmax(0,1fr)_56px] items-center gap-x-3 gap-y-0 py-3 md:py-3',
@@ -152,6 +174,9 @@ export function HabitRow({
           'motion-safe:transition-shadow motion-safe:duration-300',
         )}
       >
+        {grip && (
+          <GripVertical aria-hidden className="absolute top-1/2 left-1 size-[16px] -translate-y-1/2 text-muted-foreground" />
+        )}
         <div className="flex min-w-0 flex-col">
           <Heading className="text-[1.125rem] break-words">{habit.name}</Heading>
           <div className="flex items-center justify-between gap-2">
@@ -176,6 +201,7 @@ export function HabitRow({
                   <Pencil aria-hidden />
                 </Link>
               </Button>
+              {menu}
             </div>
           </div>
         </div>
