@@ -202,6 +202,7 @@ for (const { code, strings } of languages) {
       await page.getByRole('button', { name: tr('habitEdit.pauseHabit') }).click();
       await expect(page.getByRole('button', { name: tr('habitEdit.resume') })).toBeVisible();
       await go(page, '/today', tr('today.title'));
+      await page.getByRole('button', { name: tr('today.notToday', { count: 1 }) }).click();
       await expect(
         page.getByText(strings['today.pausedUntil'].split('{{date}}')[0]).first(),
       ).toBeVisible();

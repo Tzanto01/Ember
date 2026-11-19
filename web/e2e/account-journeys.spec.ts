@@ -73,10 +73,11 @@ test('habit edit, delete, pause until a date and resume', async ({ page }) => {
     page.getByText(/^Paused until .*Pick it up again whenever you like\./),
   ).toBeVisible();
   await page.goto('/today');
+  await page.getByRole('button', { name: 'Not for today · 1' }).click();
   await expect(
     page.getByText(/^Paused until .*You can resume it any time under Edit\./),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Check in Read for today' })).toHaveCount(0);
+  await expect(page.locator('#not-today-list').getByRole('button', { name: 'Check in Read for today' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Check in Stretch more for today' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Edit Read' }).click();

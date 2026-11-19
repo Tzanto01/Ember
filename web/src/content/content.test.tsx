@@ -32,6 +32,7 @@ const allowedClaimPhrases = [
   { file: storeFile, phrase: 'makes no diagnosis, treatment or monitoring claim' },
   { file: storeFile, phrase: 'Avoid "treat", "therapy", "symptom", "medication adherence" and "clinical"' },
   { file: storeFile, phrase: 'diagnostics' },
+  { file: 'web/public/release-notes.json', phrase: 'something about your health' },
 ];
 const dizzy = {
   en: 'If you feel dizzy, breathe normally.',
