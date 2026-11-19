@@ -8,8 +8,14 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.content.res.Configuration;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.provider.Settings;
+import android.util.SizeF;
 import android.view.View;
 import android.widget.RemoteViews;
 import com.getcapacitor.JSArray;
@@ -26,6 +32,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,10 +55,12 @@ import org.json.JSONObject;
 /**
  * The "Today in Ember" home-screen widget. It shows only the snapshot the app last pushed (app-private
  * SharedPreferences), and only while that snapshot (or the next day it carries) is for today in the account's zone,
- * with as many rows as the widget's height fits. Every row tap carries the habit, date, user and a per-snapshot
- * token in an explicit, immutable intent. With a widget key stored, an open or partial row is a broadcast to this
- * receiver, which checks in at once and posts it with the key; without one it opens {@link MainActivity}, which
- * hands the check-in to JS. A done or rest row opens Today at that habit; anywhere else opens Today.
+ * laid out for the widget's size by {@link WidgetPlan} in the style the app last set (theme, colour scheme, motion).
+ * Every row action carries the habit, date, user and a per-snapshot token in an explicit, immutable intent with its
+ * own data Uri. With a widget key stored, checking an open or partial row (a CheckBox on API 31+, the row tap below)
+ * is a broadcast to this receiver, which checks in at once and posts it with the key; without one it opens
+ * {@link MainActivity}, which hands the check-in to JS. A done or rest row's circle opens Today at that habit, never
+ * undoing it; anywhere else opens Today.
  */
 public class TodayWidget extends AppWidgetProvider {
 
@@ -59,7 +68,7 @@ public class TodayWidget extends AppWidgetProvider {
     static final String ACTION_OPEN_TODAY = "app.ember.habits.WIDGET_OPEN_TODAY";
     static final String ACTION_OPEN_HABIT = "app.ember.habits.WIDGET_OPEN_HABIT";
     private static final String ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT";
-    static final int MAX_ROWS = 4;
+    static final int MAX_HABITS = 25;
 
     private static final String PREFS = "ember_widget";
     private static final String SNAPSHOT = "snapshot";
@@ -74,18 +83,12 @@ public class TodayWidget extends AppWidgetProvider {
     private static final Pattern ISO_DATE = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
     private static final List<String> STATES = Arrays.asList("done", "partial", "open", "rest");
     private static final int MAX_NAME = 100;
-    private static final int ROW_DP = 48;
-    private static final int CHROME_DP = 92;
-
-    private static final int[] ROWS = {
-        R.id.widget_row_0, R.id.widget_row_1, R.id.widget_row_2, R.id.widget_row_3,
-    };
-    private static final int[] NAMES = {
-        R.id.widget_name_0, R.id.widget_name_1, R.id.widget_name_2, R.id.widget_name_3,
-    };
-    private static final int[] STATE_TEXTS = {
-        R.id.widget_state_0, R.id.widget_state_1, R.id.widget_state_2, R.id.widget_state_3,
-    };
+    private static final int MAX_DOTS = 10;
+    private static final String THEME = "theme";
+    private static final String COLOR_SCHEME = "colorScheme";
+    private static final String MOTION = "motion";
+    private static final float DEFAULT_WIDTH = 250;
+    private static final float DEFAULT_HEIGHT = 392;
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
@@ -286,7 +289,8 @@ public class TodayWidget extends AppWidgetProvider {
 
     /**
      * Edits the stored row of {@code habitId} on {@code date} (the snapshot's day or its {@code next} day) while the
-     * stored token is still {@code token}; true when {@code edit} changed it. Callers hold the class lock.
+     * stored token is still {@code token}, keeping that day's {@code done} in step; true when {@code edit} changed
+     * it. Callers hold the class lock.
      */
     private static boolean editRow(Context context, String token, String date, long habitId, RowEdit edit) {
         String stored = prefs(context).getString(SNAPSHOT, null);
@@ -302,7 +306,12 @@ public class TodayWidget extends AppWidgetProvider {
             for (int i = 0; habits != null && i < habits.length(); i++) {
                 JSONObject row = habits.optJSONObject(i);
                 if (row == null || row.optLong("id") != habitId) continue;
+                String before = row.optString("state");
                 if (!edit.apply(row)) return false;
+                if (day.has("done")) {
+                    int done = WidgetPlan.done(day.optInt("done"), day.optInt("total"), before, row.optString("state"));
+                    day.put("done", done);
+                }
                 prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit();
                 return true;
             }
@@ -412,8 +421,10 @@ public class TodayWidget extends AppWidgetProvider {
     }
 
     /**
-     * Validates and stores a snapshot with a fresh tap token, then redraws every widget. {@code next} (optional,
-     * {@code date}, {@code habits}, {@code more}) is the following day, shown once the zone reaches its date.
+     * Validates and stores a snapshot with a fresh tap token, then redraws every widget. {@code done} and
+     * {@code total} (counted from the rows when missing) are the day's "x of y". {@code next} (optional, {@code date},
+     * {@code habits}, {@code more}, {@code done}, {@code total}) is the following day, shown once the zone reaches its
+     * date.
      */
     static void save(
         Context context,
@@ -422,6 +433,8 @@ public class TodayWidget extends AppWidgetProvider {
         String timeZone,
         JSONArray habits,
         int more,
+        Integer done,
+        Integer total,
         JSONObject next
     ) throws JSONException {
         if (userId == null || userId.isEmpty() || userId.length() > 100) throw new IllegalArgumentException("userId");
@@ -430,14 +443,16 @@ public class TodayWidget extends AppWidgetProvider {
         new SecureRandom().nextBytes(random);
         StringBuilder token = new StringBuilder();
         for (byte b : random) token.append(String.format(Locale.US, "%02x", b));
-        JSONObject snapshot = day(date, habits, more)
+        JSONObject snapshot = day(date, habits, more, done, total)
             .put("userId", userId)
             .put("timeZone", timeZone)
             .put("token", token.toString());
         if (next != null) {
             String nextDate = next.optString("date");
             if (nextDate.compareTo(date) <= 0) throw new IllegalArgumentException("next");
-            snapshot.put("next", day(nextDate, next.getJSONArray("habits"), next.getInt("more")));
+            Integer nextDone = next.has("done") ? Integer.valueOf(next.getInt("done")) : null;
+            Integer nextTotal = next.has("total") ? Integer.valueOf(next.getInt("total")) : null;
+            snapshot.put("next", day(nextDate, next.getJSONArray("habits"), next.getInt("more"), nextDone, nextTotal));
         }
         synchronized (TodayWidget.class) {
             prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit();
@@ -445,10 +460,12 @@ public class TodayWidget extends AppWidgetProvider {
         refresh(context);
     }
 
-    private static JSONObject day(String date, JSONArray habits, int more) throws JSONException {
+    private static JSONObject day(String date, JSONArray habits, int more, Integer done, Integer total)
+        throws JSONException {
         if (date == null || !ISO_DATE.matcher(date).matches()) throw new IllegalArgumentException("date");
-        if (habits == null || habits.length() > MAX_ROWS || more < 0) throw new IllegalArgumentException("habits");
+        if (habits == null || habits.length() > MAX_HABITS || more < 0) throw new IllegalArgumentException("habits");
         JSONArray rows = new JSONArray();
+        int doneRows = 0;
         for (int i = 0; i < habits.length(); i++) {
             JSONObject habit = habits.getJSONObject(i);
             long id = habit.getLong("id");
@@ -459,6 +476,7 @@ public class TodayWidget extends AppWidgetProvider {
             if (id <= 0 || name.isEmpty() || !STATES.contains(state) || timesPerDay < 1 || count < 0) {
                 throw new IllegalArgumentException("habit");
             }
+            if ("done".equals(state)) doneRows++;
             rows.put(
                 new JSONObject()
                     .put("id", id)
@@ -468,12 +486,20 @@ public class TodayWidget extends AppWidgetProvider {
                     .put("timesPerDay", timesPerDay)
             );
         }
-        return new JSONObject().put("date", date).put("habits", rows).put("more", more);
+        int dayTotal = total == null ? habits.length() + more : total;
+        int dayDone = done == null ? doneRows : done;
+        if (dayTotal < habits.length() || dayDone < 0 || dayDone > dayTotal) throw new IllegalArgumentException("done");
+        return new JSONObject()
+            .put("date", date)
+            .put("habits", rows)
+            .put("more", more)
+            .put("done", dayDone)
+            .put("total", dayTotal);
     }
 
     /**
-     * Forgets the snapshot, widget key, API origin and pending check-ins (sign-out, session end, account deletion)
-     * and redraws the signed-out state.
+     * Forgets the snapshot, widget key, API origin, pending check-ins and style (sign-out, session end, account
+     * deletion) and redraws the signed-out state.
      */
     static void clear(Context context) {
         synchronized (TodayWidget.class) {
@@ -554,38 +580,129 @@ public class TodayWidget extends AppWidgetProvider {
             return snapshot
                 .put("date", today)
                 .put("habits", next.getJSONArray("habits"))
-                .put("more", next.getInt("more"));
+                .put("more", next.getInt("more"))
+                .put("done", next.optInt("done"))
+                .put("total", next.optInt("total", next.getJSONArray("habits").length() + next.getInt("more")));
         } catch (JSONException e) {
             return null;
         }
+    }
+
+    /**
+     * Stores the app's widget style ({@code theme}, {@code colorScheme}, {@code motion}) and redraws. Until the first
+     * call the widget is Hearthlight, follows the system scheme and stands still.
+     */
+    static void setStyle(Context context, String theme, boolean motion, String colorScheme) {
+        prefs(context)
+            .edit()
+            .putString(THEME, theme)
+            .putString(COLOR_SCHEME, colorScheme)
+            .putBoolean(MOTION, motion)
+            .commit();
+        refresh(context);
+    }
+
+    /** What every size of one render shares: language, key, unsaved rows, colors (with night ones on 31+) and motion. */
+    private static final class Look {
+        Context text;
+        boolean keyed;
+        Set<String> unsaved;
+        int[] colors;
+        int[] night;
+        boolean motion;
+    }
+
+    private static Look look(Context context, JSONObject snapshot) {
+        Look look = new Look();
+        look.text = AppLanguage.localized(context);
+        look.keyed = snapshot != null && WidgetKey.get(context) != null && WidgetKey.apiBase(context) != null;
+        look.unsaved = snapshot == null ? new HashSet<>() : unsaved(context);
+        SharedPreferences prefs = prefs(context);
+        String theme = prefs.getString(THEME, null);
+        String scheme = prefs.getString(COLOR_SCHEME, null);
+        int uiMode = context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (Build.VERSION.SDK_INT >= 31 && !"light".equals(scheme) && !"dark".equals(scheme)) {
+            look.colors = WidgetPalette.of(theme, false);
+            look.night = WidgetPalette.of(theme, true);
+        } else {
+            look.colors = WidgetPalette.of(theme, WidgetPalette.dark(scheme, uiMode == Configuration.UI_MODE_NIGHT_YES));
+        }
+        float scale = Settings.Global.getFloat(context.getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
+        look.motion = WidgetPlan.motion(prefs.contains(MOTION), prefs.getBoolean(MOTION, false), scale);
+        return look;
     }
 
     private static void render(Context context, AppWidgetManager manager, int[] ids) {
         if (ids == null || ids.length == 0) return;
         JSONObject snapshot = current(context);
         if (snapshot != null) scheduleMidnight(context, snapshot.optString("timeZone"));
-        for (int id : ids) manager.updateAppWidget(id, views(context, snapshot, rows(manager, id)));
+        Look look = look(context, snapshot);
+        for (int id : ids) manager.updateAppWidget(id, views(context, look, snapshot, manager.getAppWidgetOptions(id)));
     }
 
-    /** Rows that fit the widget's smallest reported height (landscape on phones), from 1 to {@link #MAX_ROWS}. */
-    private static int rows(AppWidgetManager manager, int id) {
-        Bundle options = manager.getAppWidgetOptions(id);
+    /**
+     * On API 31+ one layout per {@link WidgetPlan#SIZES} breakpoint, for the launcher to pick; below, the layout for
+     * the smallest reported size (landscape height on phones), or the biggest when the launcher reports none.
+     */
+    private static RemoteViews views(Context context, Look look, JSONObject snapshot, Bundle options) {
+        if (Build.VERSION.SDK_INT >= 31) {
+            Map<SizeF, RemoteViews> sized = new HashMap<>();
+            for (float[] size : WidgetPlan.SIZES) {
+                sized.put(new SizeF(size[0], size[1]), views(context, look, snapshot, size[0], size[1]));
+            }
+            return new RemoteViews(sized);
+        }
+        int width = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH);
         int height = options == null ? 0 : options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT);
-        if (height <= 0) return MAX_ROWS;
-        return Math.max(1, Math.min(MAX_ROWS, (height - CHROME_DP) / ROW_DP));
+        if (width <= 0 || height <= 0) return views(context, look, snapshot, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        return views(context, look, snapshot, width, height);
     }
 
-    private static RemoteViews views(Context context, JSONObject snapshot, int rows) {
+    private static RemoteViews views(Context context, Look look, JSONObject snapshot, float width, float height) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_today);
-        Context text = AppLanguage.localized(context);
-        views.setTextViewText(R.id.widget_title, text.getString(R.string.widget_name));
-        Intent today = new Intent(context, MainActivity.class).setAction(ACTION_OPEN_TODAY);
-        views.setOnClickPendingIntent(R.id.widget_root, open(context, 0, today));
-        boolean keyed = snapshot != null && WidgetKey.get(context) != null && WidgetKey.apiBase(context) != null;
-        Set<String> unsaved = snapshot == null ? new HashSet<>() : unsaved(context);
+        Context text = look.text;
+        PendingIntent today = open(context, 0, new Intent(context, MainActivity.class).setAction(ACTION_OPEN_TODAY));
+        views.setOnClickPendingIntent(R.id.widget_root, today);
+        views.setOnClickPendingIntent(R.id.widget_flame_box, today);
+        views.setOnClickPendingIntent(R.id.widget_count, today);
+        views.setContentDescription(R.id.widget_flame_box, text.getString(R.string.widget_flame_description));
+        tint(views, R.id.widget_fill, "setColorFilter", look, WidgetPalette.BACKGROUND);
+        tint(views, R.id.widget_border, "setColorFilter", look, WidgetPalette.BORDER);
+        tint(views, R.id.widget_title, "setTextColor", look, WidgetPalette.TEXT);
+        tint(views, R.id.widget_count, "setTextColor", look, WidgetPalette.ACCENT);
+        tint(views, R.id.widget_dots_done, "setTextColor", look, WidgetPalette.ACCENT);
+        tint(views, R.id.widget_dots_open, "setTextColor", look, WidgetPalette.BORDER);
+        tint(views, R.id.widget_empty, "setTextColor", look, WidgetPalette.MUTED);
+        tint(views, R.id.widget_single_name, "setTextColor", look, WidgetPalette.TEXT);
+        tint(views, R.id.widget_more, "setTextColor", look, WidgetPalette.MUTED);
+        views.setViewVisibility(R.id.widget_flame, look.motion ? View.GONE : View.VISIBLE);
+        views.setViewVisibility(R.id.widget_flicker, look.motion ? View.VISIBLE : View.GONE);
+
         JSONArray habits = snapshot == null ? null : snapshot.optJSONArray("habits");
-        int shown = habits == null ? 0 : Math.min(habits.length(), rows);
-        int more = snapshot == null ? 0 : Math.max(0, snapshot.optInt("more")) + (habits == null ? 0 : habits.length() - shown);
+        if (habits == null) habits = new JSONArray();
+        List<String> states = new ArrayList<>();
+        int doneRows = 0;
+        for (int i = 0; i < habits.length(); i++) {
+            JSONObject habit = habits.optJSONObject(i);
+            String state = habit == null ? "" : habit.optString("state");
+            if ("done".equals(state)) doneRows++;
+            states.add(state);
+        }
+        int more = snapshot == null ? 0 : Math.max(0, snapshot.optInt("more"));
+        int total = snapshot == null ? 0 : Math.max(0, snapshot.optInt("total", habits.length() + more));
+        int done = snapshot == null ? 0 : Math.max(0, Math.min(total, snapshot.optInt("done", doneRows)));
+        WidgetPlan plan = WidgetPlan.of(width, height, states, more);
+        boolean single = plan.layout == WidgetPlan.SINGLE;
+        boolean empty = snapshot == null || states.isEmpty() && more == 0;
+
+        views.setTextViewText(R.id.widget_title, single ? "" : text.getString(R.string.widget_today));
+        views.setViewVisibility(R.id.widget_count, total > 0 ? View.VISIBLE : View.GONE);
+        views.setTextViewText(R.id.widget_count, text.getString(R.string.widget_state_partial, done, total));
+        boolean dots = plan.layout != WidgetPlan.TALL && total > 0 && total <= MAX_DOTS;
+        views.setViewVisibility(R.id.widget_dots_done, dots && done > 0 ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_dots_open, dots && done < total ? View.VISIBLE : View.GONE);
+        views.setTextViewText(R.id.widget_dots_done, dots(done));
+        views.setTextViewText(R.id.widget_dots_open, dots(total - done));
         views.setTextViewText(
             R.id.widget_empty,
             text.getString(
@@ -594,39 +711,137 @@ public class TodayWidget extends AppWidgetProvider {
                     : prefs(context).contains(SNAPSHOT) ? R.string.widget_stale : R.string.widget_signed_out
             )
         );
-        views.setViewVisibility(R.id.widget_empty, shown == 0 && more == 0 ? View.VISIBLE : View.GONE);
-        for (int i = 0; i < MAX_ROWS; i++) {
-            JSONObject habit = i < shown ? habits.optJSONObject(i) : null;
-            if (habit == null) {
-                views.setViewVisibility(ROWS[i], View.GONE);
-                continue;
-            }
-            String name = habit.optString("name");
-            String state = stateLabel(text, habit);
-            long habitId = habit.optLong("id");
-            String userId = snapshot.optString("userId");
-            String date = snapshot.optString("date");
-            if (unsaved.contains(pendingKey(userId, habitId, date))) state = text.getString(R.string.widget_not_saved, state);
-            views.setViewVisibility(ROWS[i], View.VISIBLE);
-            views.setTextViewText(NAMES[i], name);
-            views.setTextViewText(STATE_TEXTS[i], state);
-            boolean checkIn = "open".equals(habit.optString("state")) || "partial".equals(habit.optString("state"));
-            views.setContentDescription(
-                ROWS[i],
-                text.getString(checkIn ? R.string.widget_row_description : R.string.widget_row_open_description, name, state)
-            );
-            boolean background = checkIn && keyed;
-            Intent tap = new Intent(context, background ? TodayWidget.class : MainActivity.class)
-                .setAction(checkIn ? ACTION_CHECK_IN : ACTION_OPEN_HABIT)
-                .putExtra("habitId", habitId)
-                .putExtra("date", date)
-                .putExtra("userId", userId)
-                .putExtra("token", snapshot.optString("token"));
-            views.setOnClickPendingIntent(ROWS[i], background ? broadcast(context, i + 1, tap) : open(context, i + 1, tap));
+        views.setViewVisibility(R.id.widget_empty, empty ? View.VISIBLE : View.GONE);
+
+        views.removeAllViews(R.id.widget_rows);
+        views.removeAllViews(R.id.widget_single_circle);
+        boolean list = !empty && !plan.allDone;
+        views.setViewVisibility(R.id.widget_rows, list && !single ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(
+            R.id.widget_single,
+            plan.allDone || list && single && plan.shown > 0 ? View.VISIBLE : View.GONE
+        );
+        if (plan.allDone) {
+            RemoteViews circle = new RemoteViews(context.getPackageName(), R.layout.widget_today_big);
+            circle.setImageViewResource(R.id.widget_row_circle, R.drawable.widget_done);
+            tint(circle, R.id.widget_row_circle, "setColorFilter", look, WidgetPalette.DONE);
+            views.addView(R.id.widget_single_circle, circle);
+            views.setTextViewText(R.id.widget_single_name, text.getString(R.string.widget_all_done));
         }
-        views.setViewVisibility(R.id.widget_more, more > 0 ? View.VISIBLE : View.GONE);
-        views.setTextViewText(R.id.widget_more, text.getString(R.string.widget_more, more));
+        for (int i = plan.start; list && i < plan.start + plan.shown; i++) {
+            JSONObject habit = habits.optJSONObject(i);
+            if (habit == null) continue;
+            if (single) {
+                views.addView(R.id.widget_single_circle, row(context, look, snapshot, habit, true));
+                views.setTextViewText(R.id.widget_single_name, habit.optString("name"));
+            } else {
+                views.addView(R.id.widget_rows, row(context, look, snapshot, habit, false));
+            }
+        }
+        views.setViewVisibility(R.id.widget_more, list && plan.more > 0 ? View.VISIBLE : View.GONE);
+        views.setTextViewText(R.id.widget_more, text.getString(R.string.widget_more, plan.more));
         return views;
+    }
+
+    /**
+     * One habit: a row with its name, or (for {@link WidgetPlan#SINGLE}, {@code big}) its circle alone. On API 31+ an
+     * open or partial habit's circle is a CheckBox that checks in, unchecked on every render; a done or rest circle
+     * opens the habit. Below 31 the whole row (or the big circle) does what today's row taps do.
+     */
+    private static RemoteViews row(Context context, Look look, JSONObject snapshot, JSONObject habit, boolean big) {
+        Context text = look.text;
+        String state = habit.optString("state");
+        boolean checkIn = WidgetPlan.checkIn(state);
+        boolean check = checkIn && Build.VERSION.SDK_INT >= 31;
+        int layout = big
+            ? check ? R.layout.widget_today_big_check : R.layout.widget_today_big
+            : check ? R.layout.widget_today_row_check : R.layout.widget_today_row;
+        RemoteViews row = new RemoteViews(context.getPackageName(), layout);
+        String name = habit.optString("name");
+        long habitId = habit.optLong("id");
+        String userId = snapshot.optString("userId");
+        String date = snapshot.optString("date");
+        String label = stateLabel(text, habit);
+        boolean unsaved = look.unsaved.contains(pendingKey(userId, habitId, date));
+        if (unsaved) label = text.getString(R.string.widget_not_saved, label);
+        if (!big) {
+            row.setTextViewText(R.id.widget_row_name, name);
+            int nameColor = "done".equals(state) ? WidgetPalette.MUTED : WidgetPalette.TEXT;
+            tint(row, R.id.widget_row_name, "setTextColor", look, nameColor);
+            row.setTextViewText(R.id.widget_row_state, label);
+            tint(row, R.id.widget_row_state, "setTextColor", look, WidgetPalette.MUTED);
+            boolean labelled = unsaved || "partial".equals(state) || "rest".equals(state);
+            row.setViewVisibility(R.id.widget_row_state, labelled ? View.VISIBLE : View.GONE);
+        }
+        boolean background = checkIn && look.keyed;
+        Intent tap = new Intent(context, background ? TodayWidget.class : MainActivity.class)
+            .setAction(checkIn ? ACTION_CHECK_IN : ACTION_OPEN_HABIT)
+            .setData(Uri.parse(WidgetPlan.uri(checkIn ? "check-in" : "open", habitId, date)))
+            .putExtra("habitId", habitId)
+            .putExtra("date", date)
+            .putExtra("userId", userId)
+            .putExtra("token", snapshot.optString("token"));
+        PendingIntent pending = background ? broadcast(context, 1, tap) : open(context, 1, tap);
+        int target = big || Build.VERSION.SDK_INT >= 31 ? R.id.widget_row_circle : R.id.widget_row;
+        row.setContentDescription(
+            target,
+            text.getString(checkIn ? R.string.widget_row_description : R.string.widget_row_open_description, name, label)
+        );
+        if (check) {
+            row.setCompoundButtonChecked(R.id.widget_row_circle, false);
+            if ("partial".equals(state)) {
+                row.setInt(R.id.widget_row_circle, "setBackgroundResource", R.drawable.widget_check_partial);
+            }
+            if (look.night == null) {
+                row.setColorStateList(R.id.widget_row_circle, "setBackgroundTintList", checkTint(look.colors));
+            } else {
+                row.setColorStateList(
+                    R.id.widget_row_circle,
+                    "setBackgroundTintList",
+                    checkTint(look.colors),
+                    checkTint(look.night)
+                );
+            }
+            row.setOnCheckedChangeResponse(R.id.widget_row_circle, RemoteViews.RemoteResponse.fromPendingIntent(pending));
+            return row;
+        }
+        row.setImageViewResource(
+            R.id.widget_row_circle,
+            "done".equals(state)
+                ? R.drawable.widget_done
+                : "partial".equals(state) ? R.drawable.widget_ring_partial : R.drawable.widget_ring
+        );
+        tint(
+            row,
+            R.id.widget_row_circle,
+            "setColorFilter",
+            look,
+            "done".equals(state) ? WidgetPalette.DONE : "rest".equals(state) ? WidgetPalette.MUTED : WidgetPalette.ACCENT
+        );
+        row.setOnClickPendingIntent(target, pending);
+        return row;
+    }
+
+    /** Sets a color through {@code method}: as a day and night pair on API 31+ when following the system, else fixed. */
+    private static void tint(RemoteViews views, int id, String method, Look look, int color) {
+        if (look.night != null && Build.VERSION.SDK_INT >= 31) {
+            views.setColorInt(id, method, look.colors[color], look.night[color]);
+        } else {
+            views.setInt(id, method, look.colors[color]);
+        }
+    }
+
+    private static ColorStateList checkTint(int[] colors) {
+        return new ColorStateList(
+            new int[][] { { android.R.attr.state_checked }, {} },
+            new int[] { colors[WidgetPalette.DONE], colors[WidgetPalette.ACCENT] }
+        );
+    }
+
+    private static String dots(int n) {
+        StringBuilder dots = new StringBuilder();
+        for (int i = 0; i < n; i++) dots.append('●');
+        return dots.toString();
     }
 
     private static void scheduleMidnight(Context context, String timeZone) {

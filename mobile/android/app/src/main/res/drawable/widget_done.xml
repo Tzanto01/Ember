@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
+    <path
+        android:fillColor="@color/ember_widget_accent"
+        android:fillType="evenOdd"
+        android:pathData="M20,2 A18,18 0 1,1 20,38 A18,18 0 1,1 20,2 Z M11.16,21.84 L17.57,28.25 L28.91,15.78 L26.09,13.22 L17.43,22.75 L13.84,19.16 Z" />
+</vector>
