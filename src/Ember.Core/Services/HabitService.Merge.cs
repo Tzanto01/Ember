@@ -34,7 +34,7 @@ public partial class HabitService
     /// owning the Discord login and the target still has no Discord login: moves the source's habits (with their logs),
     /// routines, day marks (one per day and kind when both have it), journal entries (the target's wins on a date both have),
     /// own moods, journal key, push subscriptions and phones (one without a session joins <paramref name="sessionId"/>; each kept at
-    /// most at its per-user limit), feedback and Discord login to the target, gives the target the source's Discord reminder answer
+    /// most at its per-user limit), feedback, Lookout refs and Discord login to the target, gives the target the source's Discord reminder answer
     /// (<see cref="User.DiscordReminders"/>, <see cref="User.DiscordRemindersAskedAt"/>) when the target has none and the union of both
     /// accounts' <see cref="User.TipsSeen"/>, merges Fireside (<see cref="MergeFiresideAsync"/>), deletes the source and gives
     /// the target a new security stamp. A plaintext source mood whose trimmed label matches a plaintext target mood
@@ -131,6 +131,8 @@ public partial class HabitService
                 .ExecuteUpdateAsync(s => s.SetProperty(t => t.UserId, targetUserId), cancellationToken);
             await _db.Feedback.Where(f => f.UserId == sourceUserId)
                 .ExecuteUpdateAsync(s => s.SetProperty(f => f.UserId, targetUserId), cancellationToken);
+            await _db.LookoutUserRefs.Where(r => r.UserId == sourceUserId)
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.UserId, targetUserId), cancellationToken);
 
             await MergeFiresideAsync(targetUserId, sourceUserId, cancellationToken);
 

@@ -473,6 +473,68 @@ namespace Ember.Core.Data.Migrations
                     b.ToTable("JournalKeys");
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.LookoutOutbox", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("FeedbackId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Key")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime?>("ParkedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ParkedStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserRef")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FeedbackId");
+
+                    b.ToTable("LookoutOutbox");
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.LookoutUserRef", b =>
+                {
+                    b.Property<string>("Ref")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Ref");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("LookoutUserRefs");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.Mood", b =>
                 {
                     b.Property<int>("Id")
@@ -1189,6 +1251,25 @@ namespace Ember.Core.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.LookoutOutbox", b =>
+                {
+                    b.HasOne("Ember.Core.Models.Feedback", "Feedback")
+                        .WithMany()
+                        .HasForeignKey("FeedbackId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Feedback");
+                });
+
+            modelBuilder.Entity("Ember.Core.Models.LookoutUserRef", b =>
+                {
+                    b.HasOne("Ember.Core.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Ember.Core.Models.Mood", b =>

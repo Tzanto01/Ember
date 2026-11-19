@@ -121,6 +121,15 @@ docker compose exec -T api dotnet Ember.Api.dll --feedback-status planned 42
 
 Pictures are never kept past 12 months after the report. There is no HTTP endpoint for any of this.
 
+**Sending feedback to Lookout (maintainer).** Every new report, and every account deletion of a user who sent feedback, goes into an outbox in `emberdb`. The `lookout-sender` container (profile `lookout`; enable it with `--profile lookout` or `COMPOSE_PROFILES`) delivers the outbox in order to Lookout's ingest at `172.31.250.18:8081` from the pinned address `172.31.250.20`, with the key from `~/.config/lookout/apps/ember.key`. Without that profile and config nothing is sent. Rows Lookout refuses are parked (`ParkedAt`, `ParkedStatus` in `LookoutOutbox`) and logged without content. The one-time import of the reports stored before the outbox, with the ops board's comments and order, runs only while Lookout's import is open:
+
+```bash
+docker exec homeserver-postgres psql -U finvarex -d emberops -At -c "SELECT json_build_object('comments', (SELECT coalesce(json_agg(c ORDER BY c.created_at, c.id), '[]') FROM comments c), 'positions', (SELECT coalesce(json_agg(p), '[]') FROM card_positions p))" \
+  | docker compose exec -T lookout-sender dotnet Ember.Api.dll --lookout-import -
+```
+
+It prints one line per report and is safe to run again.
+
 ## Development
 
 Code layout:

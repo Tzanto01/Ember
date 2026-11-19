@@ -60,7 +60,8 @@ public partial class HabitService
     /// overshoot it by what they carry). The per-sender byte budget (<see cref="MaxFeedbackImageBytesPerUserPerDay"/>) is the
     /// caller's. <paramref name="userId"/> is kept only while that user exists; when the user is deleted or merged away in the
     /// meantime the feedback is stored without one and without its pictures, so they never outlive the account. The caller validates the input (<see cref="FeedbackTextError"/>,
-    /// <see cref="FeedbackTitleError"/>, trimmed, pictures from <see cref="FeedbackImages.Sanitize"/>).
+    /// <see cref="FeedbackTitleError"/>, trimmed, pictures from <see cref="FeedbackImages.Sanitize"/>). The same save queues a
+    /// <see cref="LookoutOutbox.Ticket"/> row for Lookout under the sender's <see cref="LookoutUserRef"/> (created on first need), or anonymous.
     /// </summary>
     /// <param name="userId">The sender's account, or null when they have none or send anonymously.</param>
     /// <param name="platform"><c>web</c>, <c>android</c> or <c>discord</c>.</param>
@@ -104,6 +105,28 @@ public partial class HabitService
             Images = images is null ? [] : [.. images],
         };
         _db.Feedback.Add(feedback);
+        LookoutUserRef? newRef = null;
+        string? userRef = null;
+        if (userId is { } owner)
+        {
+            userRef = await _db.LookoutUserRefs.Where(r => r.UserId == owner).OrderBy(r => r.CreatedAt).ThenBy(r => r.Ref)
+                .Select(r => r.Ref).FirstOrDefaultAsync(cancellationToken);
+            if (userRef is null)
+            {
+                newRef = new LookoutUserRef { Ref = LookoutUserRef.NewRef(), UserId = owner, CreatedAt = now };
+                _db.LookoutUserRefs.Add(newRef);
+                userRef = newRef.Ref;
+            }
+        }
+        var outbox = new LookoutOutbox
+        {
+            Kind = LookoutOutbox.Ticket,
+            Key = Guid.CreateVersion7(_time.GetUtcNow()).ToString("N"),
+            Feedback = feedback,
+            UserRef = userRef,
+            CreatedAt = now,
+        };
+        _db.LookoutOutbox.Add(outbox);
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
@@ -115,6 +138,8 @@ public partial class HabitService
             feedback.UserId = null;
             foreach (var image in feedback.Images) _db.Entry(image).State = EntityState.Detached;
             feedback.Images.Clear();
+            if (newRef is not null) _db.Entry(newRef).State = EntityState.Detached;
+            outbox.UserRef = null;
             await _db.SaveChangesAsync(cancellationToken);
         }
 

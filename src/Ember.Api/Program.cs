@@ -15,6 +15,13 @@ if (args is ["--healthcheck"])
 }
 
 if (FeedbackCli.Handles(args)) return await FeedbackCli.RunAsync(args);
+if (LookoutImportCli.Handles(args)) return await LookoutImportCli.RunAsync(args);
+
+if (args is ["--lookout-sender"])
+{
+    await LookoutSender.BuildHost().RunAsync();
+    return 0;
+}
 
 var app = ApiApp.Build(ApiMetrics.Add(ApiApp.CreateBuilder(args)));
 app.Run();

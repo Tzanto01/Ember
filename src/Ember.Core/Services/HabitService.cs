@@ -837,12 +837,30 @@ public partial class HabitService
             .Select(u => u.Id)
             .ToListAsync(cancellationToken);
 
-    /// <summary>Permanently deletes the user; the database cascades to all their habits, logs, day marks, routines, journal entries, own moods, journal key and "What helps me" list (reminders live on the habits and routines).</summary>
+    /// <summary>
+    /// Permanently deletes the user; the database cascades to all their habits, logs, day marks, routines, journal entries, own moods, journal key, "What helps me" list
+    /// (reminders live on the habits and routines), feedback with its unsent Lookout rows, and Lookout refs. In the same transaction, with the user row locked (PostgreSQL),
+    /// first queues one <see cref="LookoutOutbox.UserDelete"/> row per <see cref="LookoutUserRef"/> of the user, so Lookout deletes after every ticket already queued.
+    /// </summary>
     public async Task DeleteUserDataAsync(Guid userId)
     {
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        if (_db.Database.IsNpgsql())
+            await _db.Database.ExecuteSqlAsync($"""SELECT 1 FROM "AspNetUsers" WHERE "Id" = {userId} FOR UPDATE""");
+
+        var refs = await _db.LookoutUserRefs.Where(r => r.UserId == userId).OrderBy(r => r.CreatedAt).ThenBy(r => r.Ref)
+            .Select(r => r.Ref).ToListAsync();
+        if (refs.Count > 0)
+        {
+            var now = _time.GetUtcNow().UtcDateTime;
+            _db.LookoutOutbox.AddRange(refs.Select(r => new LookoutOutbox { Kind = LookoutOutbox.UserDelete, UserRef = r, CreatedAt = now }));
+            await _db.SaveChangesAsync();
+        }
+
         await _db.Users
             .Where(u => u.Id == userId)
             .ExecuteDeleteAsync();
+        await transaction.CommitAsync();
     }
 
     /// <summary>How long an email signup may stay unconfirmed before <see cref="DeleteStaleUnconfirmedAccountsAsync"/> removes it.</summary>

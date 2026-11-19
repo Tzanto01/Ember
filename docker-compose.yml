@@ -72,13 +72,51 @@ services:
     networks:
       - homeserver-net
 
+  lookout-sender:
+    profiles: ["lookout"]
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      args:
+        VITE_PUBLIC_ORIGIN: ${VITE_PUBLIC_ORIGIN:-}
+    command: ["--lookout-sender"]
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    mem_limit: 192m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=emberdb;Username=${DB_USER};Password=${DB_PASSWORD};GSS Encryption Mode=Disable
+      Lookout__IngestUrl: http://172.31.250.18:8081
+      Lookout__KeyFile: /run/secrets/lookout_app_ember
+      Logging__LogLevel__Default: Information
+      Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
+    secrets:
+      - lookout_app_ember
+    networks:
+      homeserver-net:
+        gw_priority: 1
+      lookout-net:
+        ipv4_address: 172.31.250.20
+
 volumes:
   ember-api-keys:
 
 secrets:
   ember_metrics:
     file: ${HOME}/.config/ember-ops/api-metrics.key
+  lookout_app_ember:
+    file: ${HOME}/.config/lookout/apps/ember.key
 
 networks:
   homeserver-net:
+    external: true
+  lookout-net:
     external: true
