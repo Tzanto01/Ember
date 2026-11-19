@@ -43,7 +43,7 @@ function LetGoRow({ habit, extras }: { habit: LetGoHabit; extras?: LetGoRowExtra
   return (
     <li data-reorder-key={extras?.reorderKey} className={extras?.className}>
       <Card className="flex-row flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 md:py-3">
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 grow basis-32 flex-col">
           <h3 className="text-[1.125rem] break-words">{habit.name}</h3>
           <p className="text-[0.875rem] text-muted-foreground [overflow-wrap:anywhere]">
             {paused ? (
@@ -60,7 +60,7 @@ function LetGoRow({ habit, extras }: { habit: LetGoHabit; extras?: LetGoRowExtra
             )}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
           <Button asChild variant="ghost" size="icon" className="text-muted-foreground">
             <Link to={`/habits/${habit.id}/edit`} aria-label={t('today.edit', { name: habit.name })}>
               <Pencil aria-hidden />
