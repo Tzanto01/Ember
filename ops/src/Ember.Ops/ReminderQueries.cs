@@ -46,9 +46,11 @@ public static class ReminderQueries
             Db.Command("""SELECT "Date", count(*)::int FROM "ReminderMessages" WHERE "Date" BETWEEN $1 AND $2 GROUP BY 1""", from, today),
             Db.Command("""SELECT "Date", count(*)::int FROM "PushReminders" WHERE "Date" BETWEEN $1 AND $2 GROUP BY 1""", from, today),
             Db.Command("""
-                SELECT count(*) FILTER (WHERE "DiscordReminders" IS TRUE)::int, count(*) FILTER (WHERE "DmFailureCount" > 0)::int,
+                SELECT count(*) FILTER (WHERE "DiscordReminders" IS TRUE AND "DmRemindersPausedAt" IS NULL
+                                         AND EXISTS (SELECT FROM "AspNetUserLogins" l WHERE l."UserId" = u."Id" AND l."LoginProvider" = 'Discord'))::int,
+                       count(*) FILTER (WHERE "DmFailureCount" > 0)::int,
                        count(*) FILTER (WHERE "DmRemindersPausedAt" IS NOT NULL)::int, count(*) FILTER (WHERE "SecondReminderMinutes" > 0)::int
-                FROM "AspNetUsers"
+                FROM "AspNetUsers" u
                 """),
             Db.Command("""SELECT "SecondReminderMinutes", count(*)::int FROM "AspNetUsers" WHERE "SecondReminderMinutes" > 0 GROUP BY 1 ORDER BY 1"""),
             Db.Command($"""

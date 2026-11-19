@@ -51,7 +51,7 @@ public static class OverviewQueries
                 WHERE seen >= (($1::date - 13)::timestamp AT TIME ZONE 'Europe/Berlin')
                 """, today),
             Db.Command("""
-                SELECT count(*)::int, count(*) FILTER (WHERE "PausedUntil" >= $1 AND ("PausedFrom" IS NULL OR "PausedFrom" <= $1))::int, count(*) FILTER (WHERE "NextReminderUtc" IS NOT NULL)::int
+                SELECT count(*)::int, count(*) FILTER (WHERE "PausedUntil" >= $1 AND ("PausedFrom" IS NULL OR "PausedFrom" <= $1))::int, count(*) FILTER (WHERE cardinality("ReminderTimes") > 0)::int
                 FROM "Habits"
                 """, today),
             Db.Command("""SELECT count(*)::int, count(DISTINCT "UserId")::int FROM "Routines" """),

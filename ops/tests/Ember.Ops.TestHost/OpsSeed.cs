@@ -43,6 +43,11 @@ public static class OpsSeed
                 ["Language"] = "en",
             };
             await rows.InsertAsync("AspNetUsers", user, ct);
+            if (i % 2 == 0)
+                await rows.InsertAsync("AspNetUserLogins", new()
+                {
+                    ["LoginProvider"] = "Discord", ["ProviderKey"] = $"{900_000 + i}", ["UserId"] = id,
+                }, ct, returning: null);
         }
 
         var routines = new List<(int Id, Guid User)>();
@@ -73,6 +78,7 @@ public static class OpsSeed
                     ["RoutineId"] = h == 1 && i < 4 ? routines[i].Id : null,
                     ["PausedUntil"] = i == 7 && h == 0 ? today.AddDays(5) : null,
                     ["NextReminderUtc"] = h == 2 ? null : utcNow.AddHours(2 + h),
+                    ["ReminderTimes"] = h == 2 ? Array.Empty<TimeOnly>() : new[] { TimeOnly.FromDateTime(utcNow.AddHours(2 + h)) },
                     ["SecondReminderUtc"] = i == 1 && h == 0 ? utcNow.AddMinutes(10) : null,
                     ["TimesPerDay"] = 1,
                 };
