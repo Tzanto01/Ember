@@ -31,7 +31,7 @@ test('a let-go habit has its own section below build habits and leaves their cou
   const section = page.getByRole('region', { name: 'Letting go' });
   await expect(section).toBeVisible();
   const row = letGoRow(page, 'Late snacks');
-  await expect(row.getByText('1 day free')).toBeVisible();
+  await expect(row.getByText('1 day without')).toBeVisible();
   await expect(row.getByRole('button', { name: 'I slipped: Late snacks' })).toBeVisible();
 
   const stretch = await page.getByRole('heading', { name: 'Stretch', exact: true }).boundingBox();
@@ -47,7 +47,7 @@ test('a slip is noted with a reason, can be undone, and the sheet reopens clean'
   await createWebUser(page);
   await createLetGoHabit(page, 'Late snacks');
   const row = letGoRow(page, 'Late snacks');
-  await expect(row.getByText('1 day free')).toBeVisible();
+  await expect(row.getByText('1 day without')).toBeVisible();
 
   await row.getByRole('button', { name: 'I slipped: Late snacks' }).click();
   const sheet = slipDialog(page);
@@ -63,7 +63,7 @@ test('a slip is noted with a reason, can be undone, and the sheet reopens clean'
   await expect(sheet.getByRole('status')).toHaveText('Taken back. Today has no slips noted.');
   await sheet.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(sheet).toHaveCount(0);
-  await expect(row.getByText('1 day free')).toBeVisible();
+  await expect(row.getByText('1 day without')).toBeVisible();
 
   await row.getByRole('button', { name: 'I slipped: Late snacks' }).click();
   await sheet.getByRole('button', { name: 'Tired', exact: true }).click();
@@ -79,7 +79,7 @@ test('a slip is noted with a reason, can be undone, and the sheet reopens clean'
   await expect(sheet.getByRole('status')).toHaveCount(0);
 });
 
-test('history shows days free, longest stretch and free days, marks a slip softly and removes it from the day panel', async ({
+test('history shows days without, longest stretch and days without this month, marks a slip softly and removes it from the day panel', async ({
   page,
 }) => {
   await createWebUser(page);
@@ -91,10 +91,10 @@ test('history shows days free, longest stretch and free days, marks a slip softl
   await showMonthOf(page, today);
   await expect(dayButton(page, today)).toHaveAttribute('data-state', 'free');
   const tiles = page.locator('dl');
-  await expect(tiles.getByText('Days free', { exact: true })).toBeVisible();
-  await expect(tiles.getByText('1 day free', { exact: true })).toBeVisible();
+  await expect(tiles.getByText('Days without', { exact: true })).toBeVisible();
+  await expect(tiles.getByText('1 day without', { exact: true })).toBeVisible();
   await expect(tiles.getByText('Longest stretch', { exact: true })).toBeVisible();
-  await expect(tiles.getByText('Free days this month', { exact: true })).toBeVisible();
+  await expect(tiles.getByText('Days without this month', { exact: true })).toBeVisible();
 
   await page.getByRole('banner').getByRole('link', { name: 'Today' }).click();
   const row = letGoRow(page, 'Late snacks');
@@ -114,7 +114,7 @@ test('history shows days free, longest stretch and free days, marks a slip softl
   await panel.getByRole('button', { name: "Remove this day's slips" }).click();
   await expect(dayButton(page, today)).toHaveAttribute('data-state', 'free');
   await expect(panel.getByRole('button', { name: "Remove this day's slips" })).toHaveCount(0);
-  await expect(page.locator('dl').getByText('1 day free', { exact: true })).toBeVisible();
+  await expect(page.locator('dl').getByText('1 day without', { exact: true })).toBeVisible();
 });
 
 test('the craving feeling runs the urge-surfing practice, with no account', async ({ page }) => {
@@ -148,7 +148,7 @@ test('the Today let-go row and slip sheet read in German', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Loslassen' })).toBeVisible();
   const row = letGoRow(page, 'Spätsnacks');
-  await expect(row.getByText('1 Tag frei')).toBeVisible();
+  await expect(row.getByText('1 Tag ohne')).toBeVisible();
   await row.getByRole('button', { name: 'Ausgerutscht: Spätsnacks' }).click();
   const sheet = page.getByRole('dialog', { name: 'Einen Ausrutscher notieren' });
   await sheet.getByRole('button', { name: 'Müde', exact: true }).click();
