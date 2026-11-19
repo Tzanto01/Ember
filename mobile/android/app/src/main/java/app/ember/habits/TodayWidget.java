@@ -33,8 +33,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -60,9 +65,11 @@ public class TodayWidget extends AppWidgetProvider {
     private static final String SNAPSHOT = "snapshot";
     private static final String PENDING = "pending";
     private static final int TIMEOUT_MS = 4000;
-    private static final long QUEUE_LIMIT_MS = 1500;
+    private static final long BUDGET_MS = 8000;
+    private static final long MIN_REQUEST_MS = 1000;
     private static final int MAX_ANSWER = 4096;
     private static final ExecutorService NETWORK = Executors.newSingleThreadExecutor();
+    private static final ExecutorService CALLS = Executors.newCachedThreadPool();
     private static final Map<String, Integer> IN_FLIGHT = new HashMap<>();
     private static final Pattern ISO_DATE = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
     private static final List<String> STATES = Arrays.asList("done", "partial", "open", "rest");
@@ -103,10 +110,12 @@ public class TodayWidget extends AppWidgetProvider {
 
     /**
      * Checks in a validated open or partial row: the stored row moves to {@code min(count + 1, timesPerDay)} and a
-     * pending entry for that count is saved before the POST, so a failed or killed request is replayed by JS. Any
-     * other tap only redraws.
+     * pending entry for that count is saved before the POST, so a failed or killed request is replayed by JS. The
+     * request must finish within {@link #BUDGET_MS} of the tap, or it is dropped and stays pending. Any other tap
+     * only redraws.
      */
     private void checkIn(Context context, Intent intent) {
+        long deadline = SystemClock.elapsedRealtime() + BUDGET_MS;
         JSONObject snapshot = current(context);
         String key = WidgetKey.get(context);
         String apiBase = WidgetKey.apiBase(context);
@@ -135,43 +144,102 @@ public class TodayWidget extends AppWidgetProvider {
                 inFlight(userId, habitId, date, 1);
             }
         }
-        refresh(context);
-        if (!tapped) return;
+        if (!tapped) {
+            refresh(context);
+            return;
+        }
         Context app = context.getApplicationContext();
-        PendingResult result = goAsync();
-        long received = SystemClock.elapsedRealtime();
-        NETWORK.execute(() -> {
-            try {
-                if (SystemClock.elapsedRealtime() - received < QUEUE_LIMIT_MS) {
-                    post(app, apiBase, key, token, userId, habitId, date);
+        PendingResult result = null;
+        try {
+            refresh(context);
+            result = goAsync();
+            PendingResult async = result;
+            NETWORK.execute(() -> {
+                try {
+                    try {
+                        send(app, apiBase, key, token, userId, habitId, date, deadline);
+                    } finally {
+                        inFlight(userId, habitId, date, -1);
+                    }
+                    refresh(app);
+                } finally {
+                    async.finish();
                 }
-            } finally {
-                inFlight(userId, habitId, date, -1);
-                refresh(app);
-                result.finish();
-            }
-        });
+            });
+        } catch (RuntimeException e) {
+            inFlight(userId, habitId, date, -1);
+            if (result != null) result.finish();
+            throw e;
+        }
     }
 
     /**
-     * POSTs one check-in with the widget key. A 200 answer updates the row while the snapshot is unchanged and
-     * settles the pending entry; a 401 erases the key; anything else leaves the entry pending.
+     * Runs {@link #post} on its own thread and waits for it until {@code deadline}, disconnecting on timeout; skips
+     * it when less than {@link #MIN_REQUEST_MS} is left. A valid answer settles the pending entry and updates the row
+     * while the snapshot is unchanged and no other request for that row is in flight or queued. Callers hold this
+     * request's in-flight mark.
      */
-    private static void post(
+    private static void send(
         Context context,
         String apiBase,
         String key,
         String token,
         String userId,
         long habitId,
-        String date
+        String date,
+        long deadline
+    ) {
+        long remaining = deadline - SystemClock.elapsedRealtime();
+        if (remaining < MIN_REQUEST_MS) return;
+        AtomicReference<HttpURLConnection> open = new AtomicReference<>();
+        Future<JSONObject> call = CALLS.submit(() -> post(context, apiBase, key, habitId, date, deadline, open));
+        JSONObject answer;
+        try {
+            answer = call.get(remaining, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException | TimeoutException | InterruptedException e) {
+            call.cancel(true);
+            HttpURLConnection connection = open.get();
+            if (connection != null) connection.disconnect();
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+            return;
+        }
+        if (answer == null) return;
+        String state = answer.optString("state");
+        int count = answer.optInt("count");
+        int timesPerDay = answer.optInt("timesPerDay");
+        synchronized (TodayWidget.class) {
+            if (IN_FLIGHT.getOrDefault(pendingKey(userId, habitId, date), 0) <= 1) {
+                editRow(context, token, date, habitId, row -> {
+                    row.put("state", state).put("count", Math.min(count, timesPerDay)).put("timesPerDay", timesPerDay);
+                    return true;
+                });
+            }
+            settlePending(context, userId, habitId, date, count);
+        }
+    }
+
+    /**
+     * POSTs one check-in with the widget key, each timeout capped by what is left until {@code deadline}, and
+     * publishes the connection in {@code open} so a timed-out caller can disconnect it. Returns a validated 200
+     * answer, else null; a 401 erases the key.
+     */
+    private static JSONObject post(
+        Context context,
+        String apiBase,
+        String key,
+        long habitId,
+        String date,
+        long deadline,
+        AtomicReference<HttpURLConnection> open
     ) {
         HttpURLConnection connection = null;
         try {
             byte[] body = new JSONObject().put("habitId", habitId).put("date", date).toString().getBytes(StandardCharsets.UTF_8);
             connection = (HttpURLConnection) new URL(apiBase + "/api/widget/check-in").openConnection();
-            connection.setConnectTimeout(TIMEOUT_MS);
-            connection.setReadTimeout(TIMEOUT_MS);
+            open.set(connection);
+            int timeout = (int) Math.max(1, Math.min(TIMEOUT_MS, deadline - SystemClock.elapsedRealtime()));
+            connection.setConnectTimeout(timeout);
+            connection.setReadTimeout(timeout);
             connection.setInstanceFollowRedirects(false);
             connection.setUseCaches(false);
             connection.setRequestMethod("POST");
@@ -185,21 +253,15 @@ public class TodayWidget extends AppWidgetProvider {
             }
             int status = connection.getResponseCode();
             if (status == HttpURLConnection.HTTP_UNAUTHORIZED) WidgetKey.erase(context, key);
-            if (status != HttpURLConnection.HTTP_OK) return;
+            if (status != HttpURLConnection.HTTP_OK) return null;
             JSONObject answer = new JSONObject(read(connection.getInputStream()));
             String state = answer.getString("state");
             int count = answer.getInt("count");
             int timesPerDay = answer.getInt("timesPerDay");
-            if (!STATES.contains(state) || count < 0 || timesPerDay < 1) return;
-            synchronized (TodayWidget.class) {
-                editRow(context, token, date, habitId, row -> {
-                    row.put("state", state).put("count", Math.min(count, timesPerDay)).put("timesPerDay", timesPerDay);
-                    return true;
-                });
-                settlePending(context, userId, habitId, date, count);
-            }
+            if (!STATES.contains(state) || count < 0 || timesPerDay < 1) return null;
+            return answer;
         } catch (IOException | JSONException | RuntimeException e) {
-            return;
+            return null;
         } finally {
             if (connection != null) connection.disconnect();
         }
@@ -303,17 +365,22 @@ public class TodayWidget extends AppWidgetProvider {
 
     /**
      * Returns and removes the pending widget check-ins ({@code userId}, {@code habitId}, {@code date} and the
-     * absolute {@code count} the tap aimed for), then redraws.
+     * absolute {@code count} the tap aimed for), then redraws. Entries with a request still in flight or queued stay
+     * stored, so the widget's own POST cannot land on top of the count JS sets.
      */
     static JSArray takePending(Context context) {
         JSArray result = new JSArray();
         synchronized (TodayWidget.class) {
             JSONArray entries = pending(context);
+            JSONArray kept = new JSONArray();
             for (int i = 0; i < entries.length(); i++) {
                 JSONObject entry = entries.optJSONObject(i);
-                if (entry != null) result.put(entry);
+                if (entry == null) continue;
+                String key = pendingKey(entry.optString("userId"), entry.optLong("habitId"), entry.optString("date"));
+                if (IN_FLIGHT.containsKey(key)) kept.put(entry);
+                else result.put(entry);
             }
-            prefs(context).edit().remove(PENDING).commit();
+            prefs(context).edit().putString(PENDING, kept.toString()).commit();
         }
         refresh(context);
         return result;
