@@ -8,19 +8,19 @@ slash /fireside
   send: SubCommand
 slash /habit
   add: SubCommand
-  template: SubCommand
-  list: SubCommand
   checkin: SubCommand
-  history: SubCommand
-  streak: SubCommand
-  share: SubCommand
   delete: SubCommand
   edit: SubCommand
   frequency: SubCommand
-  pause: SubCommand
   grace: SubCommand
+  history: SubCommand
+  list: SubCommand
+  pause: SubCommand
   second-reminder: SubCommand
     delay: String required choices=[Off, FifteenMinutes, ThirtyMinutes, OneHour, TwoHours]
+  share: SubCommand
+  streak: SubCommand
+  template: SubCommand
 slash /help
 slash /link
 slash /privacy

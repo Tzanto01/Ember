@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Habit, Routine } from './models';
+import type { AnyHabit, Habit, Routine } from './models';
 import { habit, letGoHabit } from './test-support';
 import { moveKey, orderAfterMove, planToday, routineOrderAfterMove, widgetDay } from './today-plan';
 
@@ -343,7 +343,8 @@ describe('planToday pauses and routine membership', () => {
 });
 
 describe('Today order in the other sections', () => {
-  const planWith = (habits: Habit[], order: string[] | null) => planToday(habits, [], order, date);
+  const planWith = (habits: AnyHabit[], order: string[] | null) =>
+    planToday(habits, [], order, date);
 
   it('orders the let-go section by reminder time, then name, and by the saved order once there is one', () => {
     const coffee = { ...letGoHabit, id: 11, name: 'Coffee' };

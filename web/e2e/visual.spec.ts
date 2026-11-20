@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { createWebUser } from './support/accounts';
 import { seedLocalMode, settled, visualNow } from './support/visual';
 
+test.skip(process.platform !== 'linux', 'The baselines are Linux Chromium renders.');
+
 const sizes = [
   { name: 'phone', width: 390, height: 844 },
   { name: 'desktop', width: 1280, height: 800 },

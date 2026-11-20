@@ -543,14 +543,23 @@ describe('LocalBackend through ApiClient', () => {
 
   describe('pausing', () => {
     it('pauses from today until a day, drops a pause that began today on resume and keeps the past part of an older one', async () => {
-      await store.replace(seed([localHabit(1), localHabit(2, { pausedFrom: '2026-10-30', pausedUntil: '2026-11-05' })]));
+      await store.replace(
+        seed([
+          localHabit(1),
+          localHabit(2, { pausedFrom: '2026-10-30', pausedUntil: '2026-11-05' }),
+        ]),
+      );
 
       expect(await api.pauseHabit(1, '2026-11-05')).toMatchObject({
         pausedFrom: today,
         pausedUntil: '2026-11-05',
         pausedToday: true,
       });
-      expect(await api.pauseHabit(1, null)).toMatchObject({ pausedFrom: null, pausedUntil: null, pausedToday: false });
+      expect(await api.pauseHabit(1, null)).toMatchObject({
+        pausedFrom: null,
+        pausedUntil: null,
+        pausedToday: false,
+      });
       expect(await api.pauseHabit(2, null)).toMatchObject({
         pausedFrom: '2026-10-30',
         pausedUntil: '2026-10-31',
@@ -767,7 +776,9 @@ describe('LocalBackend through ApiClient', () => {
     await api.updateMood(first.id, { archived: true });
     await api.saveDayNote(today, { text: 'Hello' });
 
-    expect((await api.listMoods()).map((m) => [m.id, m.label, m.archived])).toEqual([
+    expect(
+      (await api.listMoods()).map((m) => [m.id, 'label' in m ? m.label : null, m.archived]),
+    ).toEqual([
       [first.id, 'Calm', true],
       [second.id, 'Tired', false],
     ]);

@@ -12,6 +12,7 @@ namespace Ember.Tests;
 /// Messages already sent carry component and modal custom IDs and users have slash commands memorized, so renaming any of them
 /// breaks old buttons and habits. The golden lists the registered surface without wording and without the handler classes.
 /// </summary>
+[Collection("Integration")]
 public class BotInteractionsGoldenTests
 {
     [Fact]
@@ -44,7 +45,10 @@ public class BotInteractionsGoldenTests
 
     private static void AppendOptions(List<string> lines, IEnumerable<ApplicationCommandOptionProperties>? options, string indent)
     {
-        foreach (var option in options ?? [])
+        var list = options?.ToList() ?? [];
+        if (list.All(o => o.Type is ApplicationCommandOptionType.SubCommand or ApplicationCommandOptionType.SubCommandGroup))
+            list = [.. list.OrderBy(o => o.Name, StringComparer.Ordinal)];
+        foreach (var option in list)
         {
             var details = new StringBuilder($"{indent}{option.Name}: {option.Type}");
             if (option.IsRequired == true) details.Append(" required");

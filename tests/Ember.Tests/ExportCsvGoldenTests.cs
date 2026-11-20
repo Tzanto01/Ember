@@ -1,5 +1,6 @@
 using Ember.Core.Models;
 using Ember.Core.Services;
+using FluentAssertions;
 
 namespace Ember.Tests;
 
@@ -97,11 +98,18 @@ public class ExportCsvGoldenTests
         return user;
     }
 
+    private static string WithCrlfRows(string csv)
+    {
+        csv.Should().EndWith("\r\n");
+        csv.Replace("\r\n", "").Should().NotContain("\n", "every CSV row ends in CRLF");
+        return csv;
+    }
+
     [Fact]
     public void FullCsv_KeepsTheHeaderColumnOrderAndRowLayout()
-        => GoldenFile.AssertMatches("export-full.csv", ExportBuilder.BuildCsv(FullUser()));
+        => GoldenFile.AssertMatches("export-full.csv", WithCrlfRows(ExportBuilder.BuildCsv(FullUser())));
 
     [Fact]
     public void DiscordCsv_KeepsTheHeaderColumnOrderAndLeavesOutJournalAndAccountRows()
-        => GoldenFile.AssertMatches("export-discord.csv", ExportBuilder.BuildCsv(FullUser(), forDiscord: true));
+        => GoldenFile.AssertMatches("export-discord.csv", WithCrlfRows(ExportBuilder.BuildCsv(FullUser(), forDiscord: true)));
 }
