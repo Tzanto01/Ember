@@ -127,7 +127,8 @@ export class DeviceSync {
     });
     const { LocalNotifications } = await import('@capacitor/local-notifications');
     await LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
-      const { id, extra } = event.notification;
+      const { id } = event.notification;
+      const extra: unknown = event.notification.extra;
       const done = event.actionId === doneAction && !!this.reminders?.wasIssued(id, extra);
       void this.checkIn(done ? extra : null, event.actionId === doneAction ? null : extra);
     });

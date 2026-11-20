@@ -71,7 +71,7 @@ export async function handlePush(
   if (notification?.data !== undefined) options.data = notification.data;
   const actions = Array.isArray(notification?.actions)
     ? notification.actions.filter(
-        (a): a is Action => typeof a?.action === 'string' && typeof a?.title === 'string',
+        (a: { action?: unknown; title?: unknown } | null | undefined): a is Action => typeof a?.action === 'string' && typeof a?.title === 'string',
       )
     : [];
   if (actions.length) (options as NotificationOptions & { actions: Action[] }).actions = actions;

@@ -50,6 +50,11 @@ export default defineConfig(
       '@typescript-eslint/unbound-method': 'off',
       // Async fakes implement Promise-returning interfaces without needing an await.
       '@typescript-eslint/require-await': 'off',
+      // Tests read back JSON.parse output and mock.calls payloads, which are `any` by design.
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
   {
@@ -64,10 +69,6 @@ export default defineConfig(
       '@typescript-eslint/no-unnecessary-condition': 'off',
       '@typescript-eslint/no-deprecated': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
       '@typescript-eslint/no-meaningless-void-operator': 'off',
       '@typescript-eslint/no-misused-spread': 'off',
