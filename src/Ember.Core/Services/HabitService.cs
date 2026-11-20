@@ -180,7 +180,7 @@ public partial class HabitService
             CreatedAt = _time.GetUtcNow().UtcDateTime
         };
         if (reminderTimes is not null) habit.ReminderTimes = HabitRules.NormalizeReminderTimes(reminderTimes, habit.TimesPerDay);
-        habit.NextReminderUtc = NextReminderUtc(habit, await GetUserTzAsync(userId));
+        habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         _db.Habits.Add(habit);
         await _db.SaveChangesAsync();
 
@@ -443,7 +443,7 @@ public partial class HabitService
         if (habit.ReminderTimes.Count > target)
         {
             habit.ReminderTimes = habit.ReminderTimes.Take(target).ToList();
-            habit.NextReminderUtc = NextReminderUtc(habit, await GetUserTzAsync(userId));
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync();
@@ -504,12 +504,12 @@ public partial class HabitService
         else if (newReminderTimes is not null)
         {
             habit.ReminderTimes = HabitRules.NormalizeReminderTimes(newReminderTimes, habit.TimesPerDay);
-            habit.NextReminderUtc = NextReminderUtc(habit, await GetUserTzAsync(userId));
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
         else if (newReminderTime.HasValue)
         {
             habit.ReminderTime = newReminderTime;
-            habit.NextReminderUtc = NextReminderUtc(habit, await GetUserTzAsync(userId));
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
 
         await _db.SaveChangesAsync();
@@ -553,9 +553,9 @@ public partial class HabitService
             .ToListAsync();
 
         foreach (var habit in habits)
-            habit.NextReminderUtc = NextReminderUtc(habit, tz);
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, tz, _time.GetUtcNow().UtcDateTime);
         foreach (var routine in await _db.Routines.Where(r => r.UserId == userId && r.ReminderTime != null).ToListAsync())
-            routine.NextReminderUtc = NextReminderUtc(routine, tz);
+            routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, tz, _time.GetUtcNow().UtcDateTime);
 
         await _db.SaveChangesAsync();
         return habits.Count;
@@ -782,9 +782,6 @@ public partial class HabitService
                 .SetProperty(u => u.DmRemindersPausedAt, (DateTime?)null)
                 .SetProperty(u => u.DmPauseNoticeSentAt, (DateTime?)null));
     }
-
-    private DateTime? NextReminderUtc(Habit habit, TimeZoneInfo tz)
-        => TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, _time.GetUtcNow().UtcDateTime);
 
     /// <summary>
     /// Pauses the habit through the local day <paramref name="pausedUntil"/>, or resumes it when null.

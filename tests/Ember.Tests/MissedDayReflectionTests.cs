@@ -44,7 +44,7 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitRules.IsActiveOn(habit, yesterday).Should().BeFalse();
+        HabitRules.IsActiveOn(habit, yesterday, TimeZoneInfo.Utc).Should().BeFalse();
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitRules.IsActiveOn(habit, yesterday).Should().BeFalse();
+        HabitRules.IsActiveOn(habit, yesterday, TimeZoneInfo.Utc).Should().BeFalse();
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitRules.IsActiveOn(habit, yesterday).Should().BeTrue();
+        HabitRules.IsActiveOn(habit, yesterday, TimeZoneInfo.Utc).Should().BeTrue();
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class MissedDayReflectionTests
             weeklyTarget: 3,
             (0, true));
 
-        HabitRules.IsActiveOn(habit, earlierDay).Should().BeFalse();
-        HabitRules.IsActiveOn(habit, today).Should().BeTrue();
+        HabitRules.IsActiveOn(habit, earlierDay, TimeZoneInfo.Utc).Should().BeFalse();
+        HabitRules.IsActiveOn(habit, today, TimeZoneInfo.Utc).Should().BeTrue();
     }
 }

@@ -48,8 +48,8 @@ public class ScheduleTests
     {
         var habit = Weekdays(MonWedFri, (2, true), (4, true), (5, true), (7, true));
 
-        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 0).Should().Be((4, 0));
-        HabitRules.BestStreak(habit, Today, graceDays: 0).Should().Be(4);
+        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 0, null).Should().Be((4, 0));
+        HabitRules.BestStreak(habit, Today, graceDays: 0, null).Should().Be(4);
     }
 
     [Fact]
@@ -59,8 +59,8 @@ public class ScheduleTests
         habit.TimesPerDay = 2;
         AddLog(habit, 3, 1);
 
-        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 1).Should().Be((2, 1));
-        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 0).Should().Be((1, 0));
+        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 1, null).Should().Be((2, 1));
+        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 0, null).Should().Be((1, 0));
     }
 
     [Fact]

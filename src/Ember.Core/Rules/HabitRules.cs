@@ -61,17 +61,16 @@ public static class HabitRules
     /// <summary>
     /// Returns how many of the last <paramref name="days"/> days were kept, using a rolling window ending on the
     /// user's local <paramref name="today"/>. A day is kept when it was completed (offdays included) or is one of the user's
-    /// <paramref name="lowDays"/>; low days only count from the habit's local start day (<see cref="StartDate"/> in
-    /// <paramref name="tz"/>, UTC when omitted), outside its paused range and on scheduled days (<see cref="IsScheduledOn"/>).
+    /// <paramref name="lowDays"/> (null counts completed days only); low days only count from the habit's local start day
+    /// (<see cref="StartDate"/> in <paramref name="tz"/>), outside its paused range and on scheduled days (<see cref="IsScheduledOn"/>).
     /// </summary>
-    public static int FlexibleStreak(Habit habit, DateOnly today, int days = 7, IReadOnlySet<DateOnly>? lowDays = null,
-        TimeZoneInfo? tz = null)
+    public static int FlexibleStreak(Habit habit, DateOnly today, int days, IReadOnlySet<DateOnly>? lowDays, TimeZoneInfo tz)
     {
         var cutoff = today.AddDays(-(days - 1));
         var kept = habit.Logs.Where(l => l.Completed && l.Date >= cutoff).Select(l => l.Date).ToHashSet();
         if (lowDays is not null)
         {
-            var start = StartDate(habit, tz ?? TimeZoneInfo.Utc);
+            var start = StartDate(habit, tz);
             var from = start > cutoff ? start : cutoff;
             kept.UnionWith(lowDays.Where(d => d >= from && d <= today && !IsPausedOn(habit, d) && IsScheduledOn(habit, d)));
         }
@@ -97,8 +96,8 @@ public static class HabitRules
     /// (not <see cref="IsScheduledOn"/>) that isn't done, so grace only ever covers scheduled days; a done offday extends it.
     /// A partial day counts as not done. Streaks are computed from the logs, never stored, so backfilling an older day heals the streak retroactively.
     /// </summary>
-    public static (int streak, int graceUsed) ConsecutiveStreak(Habit habit, DateOnly today, int graceDays = 1,
-        IReadOnlySet<DateOnly>? lowDays = null)
+    public static (int streak, int graceUsed) ConsecutiveStreak(Habit habit, DateOnly today, int graceDays,
+        IReadOnlySet<DateOnly>? lowDays)
     {
         var completed = CompletedDays(habit);
         return completed.Count == 0 ? (0, 0) : StreakEndingAt(habit, today, today, graceDays, lowDays, completed);
@@ -122,7 +121,7 @@ public static class HabitRules
     /// Returns the longest streak the habit ever had, by the same rules as <see cref="ConsecutiveStreak"/>:
     /// grace days per rolling 7-day window, open days, low days, pauses and the switchover date. Never below the current streak.
     /// </summary>
-    public static int BestStreak(Habit habit, DateOnly today, int graceDays = 1, IReadOnlySet<DateOnly>? lowDays = null)
+    public static int BestStreak(Habit habit, DateOnly today, int graceDays, IReadOnlySet<DateOnly>? lowDays)
     {
         var completed = CompletedDays(habit);
         return completed
@@ -198,10 +197,10 @@ public static class HabitRules
     /// Returns whether the habit should be counted as active on the given date.
     /// A habit is only active on dates strictly after its creation date — the day
     /// it was created is excluded because the user had no full day to complete it.
-    /// Pass the user's <paramref name="tz"/> to compare against the local creation day.
+    /// The creation day is the local one in the user's <paramref name="tz"/>.
     /// </summary>
-    public static bool IsActiveOn(Habit habit, DateOnly date, TimeZoneInfo? tz = null)
-        => StartDate(habit, tz ?? TimeZoneInfo.Utc) < date;
+    public static bool IsActiveOn(Habit habit, DateOnly date, TimeZoneInfo tz)
+        => StartDate(habit, tz) < date;
 
     /// <summary>The habit's creation day in <paramref name="tz"/> (the user's current timezone): the first day that can be logged.</summary>
     public static DateOnly StartDate(Habit habit, TimeZoneInfo tz)
@@ -213,6 +212,16 @@ public static class HabitRules
     /// </summary>
     public static List<TimeOnly> NormalizeReminderTimes(IEnumerable<TimeOnly> times, int max)
         => times.Distinct().Order().Take(max).ToList();
+
+    /// <summary>The habit's next reminder after <paramref name="nowUtc"/> among its <see cref="Habit.ReminderTimes"/> in <paramref name="tz"/>, or null without any.</summary>
+    public static DateTime? NextReminderUtc(Habit habit, TimeZoneInfo tz, DateTime nowUtc)
+        => TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, nowUtc);
+
+    /// <summary>The routine's next reminder after <paramref name="nowUtc"/> at its <see cref="Routine.ReminderTime"/> in <paramref name="tz"/>, or null without one.</summary>
+    public static DateTime? NextReminderUtc(Routine routine, TimeZoneInfo tz, DateTime nowUtc)
+        => routine.ReminderTime is { } time
+            ? TimezoneHelper.NextOccurrenceUtc(time, tz, nowUtc)
+            : null;
 
     /// <summary>
     /// The routine members a reminder on the user's local <paramref name="today"/> is for: those whose day (<see cref="DayOn"/>)

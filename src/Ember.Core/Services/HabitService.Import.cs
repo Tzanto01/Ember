@@ -1,4 +1,5 @@
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
@@ -56,7 +57,7 @@ public partial class HabitService
         foreach (var routine in data.Routines)
         {
             routine.UserId = userId;
-            routine.NextReminderUtc = NextReminderUtc(routine, tz);
+            routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, tz, _time.GetUtcNow().UtcDateTime);
         }
         _db.Routines.AddRange(data.Routines);
         await _db.SaveChangesAsync();
@@ -64,7 +65,7 @@ public partial class HabitService
         foreach (var habit in data.Habits)
         {
             habit.UserId = userId;
-            habit.NextReminderUtc = NextReminderUtc(habit, tz);
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, tz, _time.GetUtcNow().UtcDateTime);
         }
         foreach (var mark in data.DayMarks) mark.UserId = userId;
         foreach (var mood in data.Moods) mood.UserId = userId;

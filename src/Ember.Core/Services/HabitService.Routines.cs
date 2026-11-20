@@ -60,7 +60,7 @@ public partial class HabitService
         if (habitIds is not null && !await SetRoutineHabitsAsync(userId, routine, habitIds))
             return (RoutineWriteResult.NotFound, null);
 
-        routine.NextReminderUtc = NextReminderUtc(routine, await GetUserTzAsync(userId));
+        routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         _db.Routines.Add(routine);
         await _db.SaveChangesAsync();
         return (RoutineWriteResult.Saved, routine);
@@ -92,7 +92,7 @@ public partial class HabitService
         else if (reminderTime.HasValue)
         {
             routine.ReminderTime = reminderTime;
-            routine.NextReminderUtc = NextReminderUtc(routine, await GetUserTzAsync(userId));
+            routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
 
         await _db.SaveChangesAsync();
@@ -203,9 +203,4 @@ public partial class HabitService
         }
         return true;
     }
-
-    private DateTime? NextReminderUtc(Routine routine, TimeZoneInfo tz)
-        => routine.ReminderTime is { } time
-            ? TimezoneHelper.NextOccurrenceUtc(time, tz, _time.GetUtcNow().UtcDateTime)
-            : null;
 }

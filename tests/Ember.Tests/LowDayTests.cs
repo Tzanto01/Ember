@@ -37,7 +37,7 @@ public class LowDayTests
         // Closed gaps 2 and 4 days ago; one grace day per week covers only one of them, the low day covers the other.
         var habit = HabitFactory.Make((0, true), (1, true), (3, true), (5, true), (6, true));
 
-        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 1).streak.Should().Be(3);
+        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 1, null).streak.Should().Be(3);
         HabitRules.ConsecutiveStreak(habit, Today, graceDays: 1, LowDays(4)).Should().Be((5, 1));
     }
 
@@ -49,7 +49,7 @@ public class LowDayTests
         habit.CreatedAt = Today.AddDays(-3).ToDateTime(new TimeOnly(23, 30), DateTimeKind.Utc);
         var tokyo = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tokyo");
 
-        HabitRules.FlexibleStreak(habit, Today, 7, LowDays(3)).Should().Be(1);
+        HabitRules.FlexibleStreak(habit, Today, 7, LowDays(3), TimeZoneInfo.Utc).Should().Be(1);
         HabitRules.FlexibleStreak(habit, Today, 7, LowDays(3), tokyo).Should().Be(0);
     }
 
@@ -58,7 +58,7 @@ public class LowDayTests
     {
         var habit = HabitFactory.Make((0, true), (1, true), (2, false));
 
-        HabitRules.FlexibleStreak(habit, Today, 7, LowDays(1, 2, 3, 8)).Should().Be(4);
+        HabitRules.FlexibleStreak(habit, Today, 7, LowDays(1, 2, 3, 8), TimeZoneInfo.Utc).Should().Be(4);
     }
 
     [Fact]
@@ -69,8 +69,8 @@ public class LowDayTests
         paused.PausedFrom = Today.AddDays(-4);
         paused.PausedUntil = Today.AddDays(-3);
 
-        HabitRules.FlexibleStreak(habit, Today, 7, LowDays(2, 3, 4, 5)).Should().Be(1);
-        HabitRules.FlexibleStreak(paused, Today, 7, LowDays(3, 4, 5)).Should().Be(2);
+        HabitRules.FlexibleStreak(habit, Today, 7, LowDays(2, 3, 4, 5), TimeZoneInfo.Utc).Should().Be(1);
+        HabitRules.FlexibleStreak(paused, Today, 7, LowDays(3, 4, 5), TimeZoneInfo.Utc).Should().Be(2);
     }
 
     [Fact]

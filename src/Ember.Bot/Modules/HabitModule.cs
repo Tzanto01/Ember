@@ -360,7 +360,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
                 {
                     var (done, target) = HabitRules.WeeklyProgress(h, today);
                     var total = h.Logs.Count(l => l.Completed);
-                    var last28 = HabitRules.FlexibleStreak(h, today, 28);
+                    var last28 = HabitRules.FlexibleStreak(h, today, 28, lowDays: null, TimeZoneInfo.Utc);
                     statsText = t.Format("habit.stats.weekly", done, target, last28, total);
                 }
                 else if (!showStreaks)
@@ -400,7 +400,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         if (h.FrequencyType == FrequencyType.Weekly)
         {
             var (done, target) = HabitRules.WeeklyProgress(h, today);
-            return t.Format("habit.progress.weekly", done, target, HabitRules.FlexibleStreak(h, today, 28));
+            return t.Format("habit.progress.weekly", done, target, HabitRules.FlexibleStreak(h, today, 28, lowDays: null, TimeZoneInfo.Utc));
         }
 
         var last7 = t.Format("habit.progress.last7", HabitRules.FlexibleStreak(h, today, 7, lowDays, tz));

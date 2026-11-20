@@ -88,7 +88,7 @@ public class LocalDayTests
 
         var habit = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitAsync(503, habitId));
         habit!.Logs.Select(l => l.Date).Should().BeEquivalentTo([new DateOnly(2026, 1, 13), new DateOnly(2026, 1, 14)]);
-        HabitRules.ConsecutiveStreak(habit, new DateOnly(2026, 1, 14), graceDays: 0).streak.Should().Be(2);
+        HabitRules.ConsecutiveStreak(habit, new DateOnly(2026, 1, 14), graceDays: 0, null).streak.Should().Be(2);
     }
 
     [Fact]

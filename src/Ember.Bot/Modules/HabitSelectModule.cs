@@ -278,11 +278,11 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             var (done, target) = HabitRules.WeeklyProgress(habit, today);
             var total = habit.Logs.Count(l => l.Completed);
             titleLine = t.Format("habit.share.weekly.title", done, target);
-            statsLine = t.Format("habit.share.weekly.stats", HabitRules.FlexibleStreak(habit, today, 28), total);
+            statsLine = t.Format("habit.share.weekly.stats", HabitRules.FlexibleStreak(habit, today, 28, lowDays: null, TimeZoneInfo.Utc), total);
         }
         else if (!showStreaks)
         {
-            var last30 = HabitRules.FlexibleStreak(habit, today, 30);
+            var last30 = HabitRules.FlexibleStreak(habit, today, 30, lowDays: null, TimeZoneInfo.Utc);
             titleLine = t.Format("habit.share.flexible.title", last30);
             statsLine = t.Format("habit.share.flexible.stats", last30, habit.Logs.Count(l => l.Completed));
         }
@@ -290,7 +290,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
         {
             var (streak, graceUsed) = HabitRules.ConsecutiveStreak(habit, today, grace, lowDays);
             var best = HabitRules.BestStreak(habit, today, grace, lowDays);
-            var last30 = HabitRules.FlexibleStreak(habit, today, 30);
+            var last30 = HabitRules.FlexibleStreak(habit, today, 30, lowDays: null, TimeZoneInfo.Utc);
             var total = habit.Logs.Count(l => l.Completed);
             var graceStr = graceUsed > 0 ? " " + t.Plural("habit.progress.grace", graceUsed) : "";
             var fireCount = Math.Min(streak / 7 + 1, 5);

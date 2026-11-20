@@ -165,7 +165,7 @@ public class PauseServiceTests
         async Task<(int Streak, int GraceUsed)> StreakAsync() => await host.WithScopeAsync(async sp =>
         {
             var habit = (await sp.GetRequiredService<HabitService>().GetHabitAsync(UserId, habitId))!;
-            return HabitRules.ConsecutiveStreak(habit, today, graceDays: 0);
+            return HabitRules.ConsecutiveStreak(habit, today, graceDays: 0, null);
         });
 
         (await StreakAsync()).Should().Be((2, 0));

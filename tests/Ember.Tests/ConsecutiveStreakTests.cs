@@ -23,7 +23,7 @@ public class ConsecutiveStreakTests
         var s = TimezoneHelper.SwitchoverDate;
         var habit = HabitWithLogsOn(s.AddDays(1), s.AddDays(-1), s.AddDays(-2));
 
-        var (streak, graceUsed) = HabitRules.ConsecutiveStreak(habit, s.AddDays(1), graceDays: 0);
+        var (streak, graceUsed) = HabitRules.ConsecutiveStreak(habit, s.AddDays(1), graceDays: 0, null);
 
         streak.Should().Be(3);
         graceUsed.Should().Be(0);
@@ -35,7 +35,7 @@ public class ConsecutiveStreakTests
         var s = TimezoneHelper.SwitchoverDate;
         var habit = HabitWithLogsOn(s.AddDays(3), s.AddDays(2), s, s.AddDays(-1));
 
-        var (streak, _) = HabitRules.ConsecutiveStreak(habit, s.AddDays(3), graceDays: 0);
+        var (streak, _) = HabitRules.ConsecutiveStreak(habit, s.AddDays(3), graceDays: 0, null);
 
         streak.Should().Be(2);
     }

@@ -141,7 +141,7 @@ public class HistoryTests
             var today = await service.GetLocalTodayAsync(UserId);
             var lowDays = await service.GetLowDaysAsync(UserId);
             var (s, g) = HabitRules.ConsecutiveStreak(habit, today, await service.GetGraceDaysAsync(UserId), lowDays);
-            return (s, g, HabitRules.FlexibleStreak(habit, today, 7, lowDays));
+            return (s, g, HabitRules.FlexibleStreak(habit, today, 7, lowDays, TimeZoneInfo.Utc));
         });
 
         streak.Should().Be(6);

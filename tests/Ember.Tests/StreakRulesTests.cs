@@ -90,7 +90,7 @@ public class StreakRulesTests
     [MemberData(nameof(ConsecutiveCases))]
     public void ConsecutiveStreak_FollowsTheRules(ConsecutiveCase c)
     {
-        var (streak, graceUsed) = HabitRules.ConsecutiveStreak(c.Habit(), c.Today, c.GraceDays);
+        var (streak, graceUsed) = HabitRules.ConsecutiveStreak(c.Habit(), c.Today, c.GraceDays, null);
 
         streak.Should().Be(c.Streak);
         if (c.GraceUsed is { } expectedGrace)
