@@ -77,6 +77,7 @@ class WidgetStorePendingTest {
         WidgetStore.inFlight("user-1", 5, "2026-03-14", 1)
 
         try {
+            assertEquals(setOf(WidgetStore.pendingKey("user-1", 6, "2026-03-14")), WidgetStore.unsaved(context))
             assertEquals(setOf("user-1/6/2026-03-14=1"), taken())
         } finally {
             WidgetStore.inFlight("user-1", 5, "2026-03-14", -1)

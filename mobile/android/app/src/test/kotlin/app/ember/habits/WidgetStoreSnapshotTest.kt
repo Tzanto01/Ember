@@ -9,6 +9,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -187,5 +188,44 @@ class WidgetStoreSnapshotTest {
 
         assertEquals(mapOf("theme" to "ember", "colorScheme" to "dark", "motion" to true), prefs.all)
         assertNull(WidgetStore.current(context))
+    }
+
+    private fun markDone(token: String, date: String, habitId: Long) =
+        synchronized(WidgetStore.LOCK) {
+            WidgetStore.editRow(context, token, date, habitId) { row ->
+                row.put("state", "done").put("count", 1)
+                true
+            }
+        }
+
+    @Test
+    fun aRowEditLandsOnlyWhileTheSnapshotIsTheOneTapped() {
+        save(habits = rows(habit(1), habit(2)))
+        val token = WidgetStore.current(context)!!.getString("token")
+
+        assertFalse(markDone("0".repeat(32), zone.today, 1))
+        assertFalse(markDone(token, dayBefore(zone.today), 1))
+        assertFalse(markDone(token, zone.today, 3))
+        assertEquals(0, WidgetStore.current(context)!!.getInt("done"))
+
+        assertTrue(markDone(token, zone.today, 1))
+        val current = WidgetStore.current(context)!!
+        assertEquals("done", current.getJSONArray("habits").getJSONObject(0).getString("state"))
+        assertEquals(1, current.getInt("done"))
+    }
+
+    @Test
+    fun aRowOfTheNextDayIsEditedInThatDay() {
+        val tomorrow = LocalDate.parse(zone.today).plusDays(1).toString()
+        save(habits = rows(habit(1)), next = JSONObject().put("date", tomorrow).put("habits", rows(habit(1))).put("more", 0))
+        val token = WidgetStore.current(context)!!.getString("token")
+
+        assertTrue(markDone(token, tomorrow, 1))
+
+        val stored = JSONObject(prefs.getString("snapshot", null)!!)
+        assertEquals("open", stored.getJSONArray("habits").getJSONObject(0).getString("state"))
+        val next = stored.getJSONObject("next")
+        assertEquals("done", next.getJSONArray("habits").getJSONObject(0).getString("state"))
+        assertEquals(1, next.getInt("done"))
     }
 }
