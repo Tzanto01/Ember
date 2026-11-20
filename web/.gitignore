@@ -46,3 +46,6 @@ Thumbs.db
 /test-results
 /playwright-report
 /e2e/.auth
+
+# ESLint
+.eslintcache
