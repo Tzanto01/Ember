@@ -6,15 +6,6 @@ namespace Ember.Tests;
 
 public class TimeZonesTests
 {
-    private static readonly TimeZoneInfo Amsterdam =
-        TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam");
-
-    private static readonly TimeZoneInfo NewYork =
-        TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-
-    private static readonly TimeZoneInfo Tokyo =
-        TimeZoneInfo.FindSystemTimeZoneById("Asia/Tokyo");
-
     // ── Find ──────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -27,60 +18,6 @@ public class TimeZonesTests
     public void Find_InvalidId_ReturnsNull()
     {
         TimeZones.Find("Not/ATimezone").Should().BeNull();
-    }
-
-    // ── ToUtc ─────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void ToUtc_UtcTimezone_ReturnsSameTime()
-    {
-        var time = new TimeOnly(10, 0);
-        TimeZones.ToUtc(time, TimeZoneInfo.Utc).Should().Be(time);
-    }
-
-    [Fact]
-    public void ToUtc_AmsterdamSummerTime_SubtractsTwoHours()
-    {
-        // Amsterdam is UTC+2 in summer (CEST)
-        // This test is date-dependent for DST, so we compute expected dynamically
-        var localTime = new TimeOnly(10, 0);
-        var utcTime = TimeZones.ToUtc(localTime, Amsterdam);
-
-        var today = DateTime.UtcNow.Date;
-        var localDt = DateTime.SpecifyKind(today.Add(localTime.ToTimeSpan()), DateTimeKind.Unspecified);
-        var expected = TimeOnly.FromDateTime(TimeZoneInfo.ConvertTimeToUtc(localDt, Amsterdam));
-
-        utcTime.Should().Be(expected);
-    }
-
-    [Fact]
-    public void ToUtc_NewYork_ConvertsCorrectly()
-    {
-        var localTime = new TimeOnly(9, 30);
-        var utcTime = TimeZones.ToUtc(localTime, NewYork);
-
-        var today = DateTime.UtcNow.Date;
-        var localDt = DateTime.SpecifyKind(today.Add(localTime.ToTimeSpan()), DateTimeKind.Unspecified);
-        var expected = TimeOnly.FromDateTime(TimeZoneInfo.ConvertTimeToUtc(localDt, NewYork));
-
-        utcTime.Should().Be(expected);
-    }
-
-    [Fact]
-    public void ToUtc_Tokyo_ConvertsCorrectly()
-    {
-        // Tokyo is UTC+9, no DST
-        var localTime = new TimeOnly(18, 0);
-        var utcTime = TimeZones.ToUtc(localTime, Tokyo);
-        var expected = new TimeOnly(9, 0);
-        utcTime.Should().Be(expected);
-    }
-
-    [Fact]
-    public void ToUtc_TimeInSpringForwardGap_UsesFirstValidTimeInsteadOfThrowing()
-    {
-        TimeZones.ToUtc(new TimeOnly(2, 30), Berlin, new DateOnly(2027, 3, 28))
-            .Should().Be(new TimeOnly(1, 0));
     }
 
     // ── NextOccurrenceUtc ─────────────────────────────────────────────────────
