@@ -109,13 +109,16 @@ export default function SettingsPage() {
   });
   const discordNotice = discordOutcome && discordMessage(discordOutcome);
 
+  const [claimOnEntry] = useState(!local);
+
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const linked = params.get('discord') === 'linked';
+    const linked = discordOutcome === 'linked';
     void (linked ? auth.refreshAntiforgery() : Promise.resolve()).then(() => auth.loadMe(true)).catch(() => null);
-    if (!local) claimed.current = push.claim();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; adding deps would rerun it
-  }, []);
+  }, [discordOutcome]);
+
+  useEffect(() => {
+    if (claimOnEntry) claimed.current = push.claim();
+  }, [claimOnEntry]);
 
   const [streaks, changeStreaks] = useMePatchField((value: boolean) => patch('streaks', { showStreaks: value }), {
     onError: (error) => fail('streaks', error),
