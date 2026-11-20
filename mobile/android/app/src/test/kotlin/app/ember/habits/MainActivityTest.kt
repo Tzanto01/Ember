@@ -4,6 +4,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.os.Bundle
+import android.os.Looper
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
 import android.webkit.ServiceWorkerWebSettings
@@ -13,23 +15,33 @@ import com.getcapacitor.JSObject
 import com.getcapacitor.PluginCall
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import org.robolectric.shadows.ShadowLog
+import org.robolectric.shadows.ShadowSystemClock
 import org.robolectric.shadows.ShadowWebView
+import java.time.Duration
 
 /**
  * How launches reach the web app: a moment door on a cold start is the pending launch action, on a warm one an
  * `openMoment` event; a validated widget tap is a `widgetTap` event; replayed, restored and foreign launches do
- * nothing. Runs the real Capacitor bridge, so the web app's side is a listener on the EmberWidget plugin.
+ * nothing; a dead WebView renderer recreates the activity once and then gives up; the launch log names extras but
+ * never their values. Runs the real Capacitor bridge, so the web app's side is a listener on the EmberWidget plugin.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], shadows = [NoServiceWorkers::class])
@@ -50,6 +62,8 @@ class MainActivityTest {
 
     @Before
     fun setUp() {
+        shadowOf(context).declareActionUnbindable("android.support.customtabs.action.CustomTabsService")
+        MainActivity.rendererGoneAt = null
         ShadowWebView.setCurrentWebViewPackage(
             PackageInfo().apply {
                 packageName = "com.google.android.webview"
@@ -75,6 +89,23 @@ class MainActivityTest {
         val call = Call(JSObject().put("eventName", event))
         plugin().addListener(call)
         return call
+    }
+
+    /**
+     * The WebView's render process dies, as Android reports it to the bridge's client, and the main thread then runs
+     * what that scheduled; true when the death was handled.
+     */
+    private fun ActivityController<MainActivity>.rendererGone(): Boolean {
+        val bridge = get().bridge
+        val handled = bridge.webViewClient.onRenderProcessGone(
+            bridge.webView,
+            object : RenderProcessGoneDetail() {
+                override fun didCrash() = true
+                override fun rendererPriorityAtExit() = 0
+            },
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        return handled
     }
 
     private fun launcher() = Intent(Intent.ACTION_MAIN).setComponent(ComponentName(context, MainActivity::class.java))
@@ -155,6 +186,89 @@ class MainActivityTest {
         assertEquals(0, taps.resolved.size)
         warm.newIntent(tap(token))
         assertEquals(1, taps.resolved.size)
+    }
+
+    @Test
+    fun aDeadRendererRecreatesTheActivityWithoutReplayingTheLaunch() {
+        val app = start(moment())
+        val first = app.get()
+        val deadWebView = first.bridge.webView
+        assertEquals("moment", app.launchAction())
+
+        assertTrue(app.rendererGone())
+
+        assertNull(deadWebView.parent)
+        assertNotSame(first, app.get())
+        assertTrue(first.isDestroyed)
+        assertFalse(app.get().isFinishing)
+        assertNull(app.launchAction())
+    }
+
+    @Test
+    fun aSecondRendererDeathWithinTheWindowFinishesInsteadOfLooping() {
+        val app = start(launcher())
+        assertTrue(app.rendererGone())
+        val recreated = app.get()
+
+        ShadowSystemClock.advanceBy(Duration.ofMillis(MainActivity.RENDERER_RETRY_WINDOW_MS / 2))
+        assertTrue(app.rendererGone())
+
+        assertTrue(recreated.isFinishing)
+        assertSame(recreated, app.get())
+    }
+
+    @Test
+    fun aRendererDeathAfterTheWindowRecreatesAgain() {
+        val app = start(launcher())
+        assertTrue(app.rendererGone())
+        val recreated = app.get()
+
+        ShadowSystemClock.advanceBy(Duration.ofMillis(MainActivity.RENDERER_RETRY_WINDOW_MS))
+        assertTrue(app.rendererGone())
+
+        assertNotSame(recreated, app.get())
+        assertFalse(app.get().isFinishing)
+    }
+
+    @Test
+    fun aRendererDeathWhileFinishingDoesNotBringTheActivityBack() {
+        val app = start(launcher())
+        val leaving = app.get()
+        leaving.finish()
+
+        assertTrue(app.rendererGone())
+
+        assertSame(leaving, app.get())
+        assertTrue(leaving.isFinishing)
+    }
+
+    @Test
+    fun theLaunchLogNamesExtrasButNeverTheirValues() {
+        val token = today()
+        val date = WidgetStore.current(context)!!.getString("date")
+        ShadowLog.clear()
+
+        val app = start(tap(token))
+        app.newIntent(tap(token).addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY))
+        app.newIntent(launcher())
+        app.newIntent(
+            Intent("forged\nrenderer gone").setComponent(ComponentName(context, MainActivity::class.java))
+                .addCategory("cat\rgory").putExtra("key\nname", 1),
+        )
+
+        val lines = ShadowLog.getLogsForTag(MainActivity.LOG_TAG).map { it.msg }
+        val launch = lines.singleOrNull { it.startsWith("launch ") }
+        assertNotNull(lines.toString(), launch)
+        assertTrue(launch, launch!!.contains("component=app.ember.habits.MainActivity"))
+        assertTrue(launch, launch.contains("extras=[date, habitId, token, userId]"))
+        assertTrue(launch, launch.contains("saved=false history=false"))
+        assertEquals(3, lines.count { it.startsWith("newIntent ") })
+        assertTrue(lines.toString(), lines.none { '\n' in it || '\r' in it })
+        assertTrue(lines.toString(), "route ignored reason=from history" in lines)
+        assertTrue(lines.toString(), "route ignored reason=no moment or valid widget tap" in lines)
+        for (value in listOf(token, "user-1", date)) {
+            assertTrue("$value leaked into $lines", lines.none { value in it })
+        }
     }
 }
 
