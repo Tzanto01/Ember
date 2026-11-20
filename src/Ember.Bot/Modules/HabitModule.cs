@@ -1,3 +1,4 @@
+using System.Globalization;
 using Ember.Core.Localization;
 using Discord;
 using Discord.Interactions;
@@ -115,7 +116,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             var label = h.Name.Length > SelectMenuOptionBuilder.MaxSelectLabelLength
                 ? h.Name[..SelectMenuOptionBuilder.MaxSelectLabelLength]
                 : h.Name;
-            menu.AddOption(label, h.Id.ToString(), h.Kind == HabitKind.LetGo && tz is not null
+            menu.AddOption(label, h.Id.ToString(CultureInfo.InvariantCulture), h.Kind == HabitKind.LetGo && tz is not null
                 ? DaysFreeText(t, HabitService.LetGoStatsOn(h, today, tz).DaysFree)
                 : FrequencyLabel(t, h));
         }

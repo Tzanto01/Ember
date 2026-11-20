@@ -1,3 +1,4 @@
+using System.Globalization;
 using Discord;
 using Ember.Core.Localization;
 using Discord.Interactions;
@@ -124,7 +125,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
             .WithMinValues(1)
             .WithMaxValues(1);
         for (var n = 1; n <= Limits.TimesPerDay; n++)
-            menu.AddOption(n == 1 ? t.Get("freq.times.once") : t.Format("freq.times.option", n), n.ToString(), isDefault: n == habit.TimesPerDay);
+            menu.AddOption(n == 1 ? t.Get("freq.times.once") : t.Format("freq.times.option", n), n.ToString(CultureInfo.InvariantCulture), isDefault: n == habit.TimesPerDay);
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
