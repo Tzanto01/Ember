@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
-import { saveFile } from '@/lib/api-client';
+import { saveFile } from '@/lib/browser-download';
 import { env } from '@/lib/env';
 import { formatInstantDate } from '@/lib/local-date';
 import type { ExportFormat } from '@/lib/models';

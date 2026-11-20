@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
-import { saveFile } from '@/lib/api-client';
+import { saveFile } from '@/lib/browser-download';
 import { env } from '@/lib/env';
 
 /** Copies `text` to the clipboard and says whether it worked, in a polite status next to the button. */

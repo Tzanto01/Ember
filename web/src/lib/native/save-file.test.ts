@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { saveFile } from '../api-client';
+import { saveFile } from '../browser-download';
 import { env } from '../env';
 import { saveExport } from './save-file';
 
@@ -7,7 +7,7 @@ const save = vi.hoisted(() => vi.fn());
 
 vi.mock('@capacitor/core', () => ({ registerPlugin: () => ({ save }) }));
 vi.mock('../env', () => ({ env: { native: false } }));
-vi.mock('../api-client', () => ({ saveFile: vi.fn() }));
+vi.mock('../browser-download', () => ({ saveFile: vi.fn() }));
 
 describe('saveExport', () => {
   const file = { blob: new Blob(['{"a":1}'], { type: 'text/csv' }), fileName: 'ember.csv' };

@@ -1,5 +1,6 @@
 import { registerPlugin } from '@capacitor/core';
-import { type ExportFile, saveFile } from '../api-client';
+import type { ExportFile } from '../api-client';
+import { saveFile } from '../browser-download';
 import { env } from '../env';
 
 /** The custom native plugin (`BackupFile`, Android only): a system "Save as" picker that writes `text`. */

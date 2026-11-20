@@ -39,7 +39,7 @@ import { Notice, type NoticeTone } from '@/components/ui/notice';
 import { NativeSelect } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { saveFile } from '@/lib/api-client';
+import { saveFile } from '@/lib/browser-download';
 import { env } from '@/lib/env';
 import { browserTimeZone, formatInstantDate, isValidTimeZone, timeZoneLabel } from '@/lib/local-date';
 import {
