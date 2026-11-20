@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { flushSync } from 'react-dom';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
 import { BackLink } from '@/components/back-link';
@@ -26,10 +26,13 @@ import { AppUpdatesSettings } from '@/components/settings/app-updates-settings';
 import { DiscordCard } from '@/components/settings/discord-card';
 import { DmRemindersCard } from '@/components/settings/dm-reminders-card';
 import { FeedbackForm } from '@/components/settings/feedback-form';
+import { GraceCard } from '@/components/settings/grace-card';
+import { HabitNotesCard } from '@/components/settings/habit-notes-card';
 import { HelpsSettings } from '@/components/settings/helps-settings';
 import { JournalSettings } from '@/components/settings/journal-settings';
 import { PhoneRemindersCard } from '@/components/settings/phone-reminders-card';
 import { PushCard } from '@/components/settings/push-card';
+import { SecondReminderCard } from '@/components/settings/second-reminder-card';
 import { SettingsCard } from '@/components/settings/settings-card';
 import {
   type SettingsMessage,
@@ -37,24 +40,18 @@ import {
   useSettingsStatusState,
 } from '@/components/settings/settings-status';
 import { settingsGroupOf, settingsGroups } from '@/components/settings/settings-groups';
+import { StreaksCard } from '@/components/settings/streaks-card';
+import { TimezoneCard } from '@/components/settings/timezone-card';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
 import { Button } from '@/components/ui/button';
 import { Input, PasswordInput } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
-import { NativeSelect } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
 import { useMePatchField } from '@/hooks/use-me-patch';
 import { saveFile } from '@/lib/browser-download';
 import { env } from '@/lib/env';
-import { browserTimeZone, formatInstantDate, isValidTimeZone, timeZoneLabel } from '@/lib/local-date';
-import {
-  type ExportFormat,
-  graceOptions,
-  secondReminderChoices,
-  type SecondReminderMinutes,
-} from '@/lib/models';
+import { formatInstantDate } from '@/lib/local-date';
+import type { ExportFormat } from '@/lib/models';
 import { openOnWeb } from '@/lib/native/browser';
 import { updaterAvailable } from '@/lib/native/updater';
 import { asApiError } from '@/lib/problem';
@@ -76,23 +73,8 @@ function discordMessage(outcome: DiscordOutcome): SettingsMessage {
   return { tone: discordOutcomes[outcome], text: t(`settings.discord.outcome.${outcome}`) };
 }
 
-const zones = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
-
-function secondReminderLabel(minutes: SecondReminderMinutes): string {
-  if (minutes === 0) return t('settings.second.off');
-  return minutes % 60 === 0
-    ? t('settings.second.hours', { count: minutes / 60 })
-    : t('settings.second.minutes', { count: minutes });
-}
-
 const exportFormats: ExportFormat[] = ['json', 'csv'];
 const wideQuery = '(min-width: 48rem)';
-
-function zoneError(value: string): string | null {
-  const zone = value.trim();
-  if (!zone) return t('settings.timezone.empty');
-  return isValidTimeZone(zone) ? null : t('settings.timezone.unknown');
-}
 
 const passwordRequired: Validator = (value) => (value ? null : t('settings.passwordRequired'));
 const noPassword: Validator = () => null;
@@ -138,22 +120,17 @@ export default function SettingsPage() {
   const local = useStore(localMode.mode) === 'local';
   const pushAvailable = useStore(push.available);
   const status = useSettingsStatusState();
-  const { busy, message, start, finish, fail, outcome, savedStatus, patch } = status;
+  const { busy, message, start, finish, fail, outcome, patch } = status;
 
   const scrolled = useRef<string | null>(null);
-  const tzForm = useRef<HTMLFormElement>(null);
   const deleteForm = useRef<HTMLFormElement>(null);
   const withdrawButton = useRef<HTMLButtonElement>(null);
   const withdrawText = useRef<HTMLParagraphElement>(null);
   const claimed = useRef<Promise<void> | null>(null);
 
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
-  const [zone, setZone] = useState<string | null>(null);
-  const [zoneTouched, setZoneTouched] = useState(false);
-  const [zoneServerError, setZoneServerError] = useState<string | null>(null);
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [deleteErrors, setDeleteErrors] = useState<{ password?: string; confirm?: string }>({});
-  const [browserZone] = useState(browserTimeZone);
   const [discordOutcome] = useState<DiscordOutcome | null>(() => {
     const outcome = new URLSearchParams(location.search).get('discord');
     return outcome && Object.hasOwn(discordOutcomes, outcome) ? (outcome as DiscordOutcome) : null;
@@ -171,43 +148,9 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; adding deps would rerun it
   }, []);
 
-  const [grace, changeGrace] = useMePatchField((value: number) => patch('grace', { graceDaysPerWeek: value }), {
-    onError: (error) => fail('grace', error),
-  });
   const [streaks, changeStreaks] = useMePatchField((value: boolean) => patch('streaks', { showStreaks: value }), {
     onError: (error) => fail('streaks', error),
   });
-  const [offerNote, changeOfferNote] = useMePatchField(
-    (value: boolean) => patch('habitNotes', { offerHabitNote: value }),
-    { onError: (error) => fail('habitNotes', error) },
-  );
-  const [second, changeSecond] = useMePatchField(
-    (value: SecondReminderMinutes) => patch('second', { secondReminderMinutes: value }),
-    { onError: (error) => fail('second', error) },
-  );
-
-  async function saveTimezone(chosen?: string): Promise<void> {
-    if (status.isBusy()) return;
-    let next = chosen;
-    if (next === undefined) {
-      flushSync(() => setZoneTouched(true));
-      if (zoneError(zoneValue)) {
-        focusFirstInvalid(tzForm.current);
-        return;
-      }
-      next = zoneValue.trim();
-    }
-    setZoneServerError(null);
-    const error = await patch('timezone', { timezone: next });
-    if (!error) {
-      setZone(null);
-      setZoneTouched(false);
-    } else if (error.status === 400) {
-      setZoneServerError(t('settings.timezone.unknown'));
-    } else {
-      fail('timezone', error);
-    }
-  }
 
   async function exportAs(format: ExportFormat): Promise<void> {
     if (status.isBusy()) return;
@@ -357,12 +300,6 @@ export default function SettingsPage() {
     return () => cancelAnimationFrame(frame);
   }, [me, pushAvailable, location.hash, redirect]);
 
-  const zoneValue = zone ?? me?.timezone ?? '';
-  const zoneMessage = (zoneTouched ? zoneError(zoneValue) : null) ?? zoneServerError;
-  const suggestZone = !!me && isValidTimeZone(browserZone) && (!me.timezoneSet || me.timezone !== browserZone);
-  const graceShown = grace ?? me?.graceDaysPerWeek ?? 0;
-  const secondShown = second ?? me?.secondReminderMinutes ?? 0;
-
   const notice = discordNotice && (
     <Notice tone={discordNotice.tone}>
       <p>{discordNotice.text}</p>
@@ -488,27 +425,7 @@ export default function SettingsPage() {
 
               {shown('phone-reminders') && <PhoneRemindersCard title={title('phone-reminders')} local={local} />}
 
-              {shown('second-reminder') && (
-                <SettingsCard id="second-reminder" title={title('second-reminder')}>
-                  <FormField label={t('settings.card.secondReminder')} hint={t('settings.second.hint')}>
-                    {(field) => (
-                      <NativeSelect
-                        {...field}
-                        value={String(secondShown)}
-                        onChange={(event) => changeSecond(Number(event.target.value) as SecondReminderMinutes)}
-                      >
-                        {secondReminderChoices.map((n) => (
-                          <option key={n} value={n}>
-                            {secondReminderLabel(n)}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    )}
-                  </FormField>
-                  {savedStatus('second')}
-                  {outcome('second')}
-                </SettingsCard>
-              )}
+              {shown('second-reminder') && <SecondReminderCard title={title('second-reminder')} me={me} />}
 
               {shown('routines') && (
                 <SettingsCard id="routines" title={title('routines')}>
@@ -522,150 +439,14 @@ export default function SettingsPage() {
               )}
 
               {shown('streaks') && (
-                <SettingsCard id="streaks" title={title('streaks')}>
-                  <div className="flex min-h-[44px] items-center justify-between gap-4">
-                    <Label htmlFor="show-streaks" className="min-w-0 font-normal">
-                      {t('settings.streaks.label')}
-                    </Label>
-                    <Switch
-                      id="show-streaks"
-                      aria-describedby="show-streaks-hint"
-                      checked={streaksShown}
-                      onCheckedChange={changeStreaks}
-                    />
-                  </div>
-                  <p id="show-streaks-hint" className="text-[0.875rem] text-muted-foreground">
-                    {t('settings.streaks.hint')}
-                  </p>
-                  {savedStatus('streaks')}
-                  {outcome('streaks')}
-                </SettingsCard>
+                <StreaksCard title={title('streaks')} checked={streaksShown} onCheckedChange={changeStreaks} />
               )}
 
-              {shown('habit-notes') && (
-                <SettingsCard id="habit-notes" title={title('habit-notes')}>
-                  <div className="flex min-h-[44px] items-center justify-between gap-4">
-                    <Label htmlFor="offer-habit-note" className="min-w-0 font-normal">
-                      {t('settings.habitNotes.label')}
-                    </Label>
-                    <Switch
-                      id="offer-habit-note"
-                      aria-describedby="offer-habit-note-hint"
-                      checked={offerNote ?? me.offerHabitNote}
-                      onCheckedChange={changeOfferNote}
-                    />
-                  </div>
-                  <p id="offer-habit-note-hint" className="text-[0.875rem] text-muted-foreground">
-                    {t('settings.habitNotes.hint')}
-                  </p>
-                  {savedStatus('habitNotes')}
-                  {outcome('habitNotes')}
-                </SettingsCard>
-              )}
+              {shown('habit-notes') && <HabitNotesCard title={title('habit-notes')} me={me} />}
 
-              {shown('grace') && (
-                <SettingsCard id="grace" title={title('grace')}>
-                  <FormField
-                    label={t('settings.grace.label')}
-                    hint={t('settings.grace.hint')}
-                  >
-                    {(field) => (
-                      <NativeSelect
-                        {...field}
-                        value={String(graceShown)}
-                        onChange={(event) => changeGrace(Number(event.target.value))}
-                      >
-                        {graceOptions.map((n) => (
-                          <option key={n} value={n}>
-                            {n === 0 ? t('settings.grace.none') : t('settings.grace.perWeek', { count: n })}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    )}
-                  </FormField>
-                  <p className="text-[0.875rem] text-muted-foreground">{t('settings.grace.note')}</p>
-                  {savedStatus('grace')}
-                  {outcome('grace')}
-                </SettingsCard>
-              )}
+              {shown('grace') && <GraceCard title={title('grace')} me={me} />}
 
-              {shown('timezone') && (
-                <SettingsCard id="timezone" title={title('timezone')}>
-                  {me.timezoneSet ? (
-                    <p>
-                      <Trans
-                        i18nKey="settings.timezone.follows"
-                        values={{ zone: timeZoneLabel(me.timezone) }}
-                        components={{ strong: <strong /> }}
-                      />
-                    </p>
-                  ) : (
-                    <p>
-                      <Trans
-                        i18nKey="settings.timezone.notSet"
-                        values={{ zone: timeZoneLabel(me.timezone) }}
-                        components={{ strong: <strong /> }}
-                      />
-                    </p>
-                  )}
-                  {suggestZone && (
-                    <div>
-                      <Button
-                        type="button"
-                        aria-disabled={busy !== null || undefined}
-                        onClick={() => void saveTimezone(browserZone)}
-                      >
-                        {t('settings.timezone.use', { zone: browserZone })}
-                      </Button>
-                    </div>
-                  )}
-                  <form
-                    ref={tzForm}
-                    noValidate
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void saveTimezone();
-                    }}
-                    className="flex flex-col gap-3"
-                  >
-                    <FormField
-                      label={t('settings.timezone.label')}
-                      hint={t('settings.timezone.hint')}
-                      error={zoneMessage}
-                    >
-                      {(field) => (
-                        <Input
-                          {...field}
-                          type="text"
-                          list="timezone-list"
-                          autoComplete="off"
-                          spellCheck={false}
-                          value={zoneValue}
-                          onChange={(event) => setZone(event.target.value)}
-                          onBlur={() => setZoneTouched(true)}
-                        />
-                      )}
-                    </FormField>
-                    <datalist id="timezone-list">
-                      {zones.map((name) => (
-                        <option key={name} value={name} />
-                      ))}
-                    </datalist>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <BusyButton
-                        type="submit"
-                        variant="secondary"
-                        busy={busy === 'timezone'}
-                        busyLabel={t('settings.saving')}
-                      >
-                        {t('settings.timezone.save')}
-                      </BusyButton>
-                      {savedStatus('timezone')}
-                    </div>
-                  </form>
-                  {outcome('timezone')}
-                </SettingsCard>
-              )}
+              {shown('timezone') && <TimezoneCard title={title('timezone')} me={me} />}
 
               {shown('moods') && (
                 <SettingsCard id="moods" title={title('moods')}>
