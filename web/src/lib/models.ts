@@ -515,6 +515,7 @@ export type ProblemType =
 
 /** RFC 7807 problem details as sent by the API. */
 export interface ProblemDetails {
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- names the known problem types while accepting any the API sends
   type?: ProblemType | string;
   title?: string;
   status?: number;
