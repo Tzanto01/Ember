@@ -7,6 +7,7 @@ using Ember.Bot.Modules;
 using Ember.Bot.Services;
 using Ember.Core.Data;
 using Ember.Core.Services;
+using Ember.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,22 +45,8 @@ public static class AppHost
             })
             .ConfigureServices((context, services) =>
             {
-                services.AddDbContext<EmberDbContext>(dbOptions =>
-                {
-                    if (options.ConfigureDbContext is not null)
-                    {
-                        options.ConfigureDbContext(dbOptions, context);
-                        return;
-                    }
-
-                    dbOptions.UseNpgsql(context.Configuration.GetConnectionString("DefaultConnection"));
-                });
-
-                services.AddSingleton(TimeProvider.System);
-                services.AddSingleton(sp => new DeletionLedger(context.Configuration[DeletionLedger.FileSetting], sp.GetRequiredService<TimeProvider>(),
-                    sp.GetRequiredService<ILogger<DeletionLedger>>()));
-                services.AddScoped<HabitService>();
-                services.AddScoped<FiresideService>();
+                services.AddEmberCore(context.Configuration,
+                    options.ConfigureDbContext is { } configureDb ? dbOptions => configureDb(dbOptions, context) : null);
 
                 services.AddQuartz(q =>
                 {

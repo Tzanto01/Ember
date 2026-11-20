@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Api;
@@ -7,8 +8,6 @@ namespace Ember.Api;
 /// <summary>Routines: named, ordered groups of habits with an optional shared reminder.</summary>
 internal static class RoutineEndpoints
 {
-    public const int MaxNameLength = 50;
-
     public sealed record RoutineDto(int Id, string Name, string? ReminderTime, List<string> ReminderChannels, List<int> HabitIds,
         List<string> ReminderExclusions, bool ServerReminders);
 
@@ -29,7 +28,7 @@ internal static class RoutineEndpoints
         api.MapPost("/routines", async (CreateRoutineRequest request, ClaimsPrincipal principal, HabitService habits) =>
         {
             var errors = new Dictionary<string, string[]>();
-            var name = HabitEndpoints.ValidName(request.Name, errors, MaxNameLength);
+            var name = HabitEndpoints.ValidName(request.Name, errors, Limits.RoutineNameLength);
             var reminder = HabitEndpoints.ParseReminder(request.ReminderTime, errors);
             var userId = principal.UserId();
             var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
@@ -41,7 +40,7 @@ internal static class RoutineEndpoints
             {
                 RoutineWriteResult.Saved => Results.Created($"/api/routines/{routine!.Id}", ToDto(routine, await LoadDestinations(habits, userId))),
                 RoutineWriteResult.LimitReached => Problems.Conflict(
-                    $"You already have {HabitService.MaxRoutinesPerUser} routines, the most Ember can hold. Delete one to add another."),
+                    $"You already have {Limits.RoutinesPerUser} routines, the most Ember can hold. Delete one to add another."),
                 _ => Problems.NotFound(),
             };
         });
@@ -49,7 +48,7 @@ internal static class RoutineEndpoints
         api.MapPatch("/routines/{id:int}", async (int id, UpdateRoutineRequest request, ClaimsPrincipal principal, HabitService habits) =>
         {
             var errors = new Dictionary<string, string[]>();
-            var name = request.Name is null ? null : HabitEndpoints.ValidName(request.Name, errors, MaxNameLength);
+            var name = request.Name is null ? null : HabitEndpoints.ValidName(request.Name, errors, Limits.RoutineNameLength);
             var reminder = HabitEndpoints.ParseReminder(request.ReminderTime, errors);
             if (request.ReminderTime is not null && request.ClearReminder == true)
                 errors["reminderTime"] = ["Can't be combined with clearReminder."];

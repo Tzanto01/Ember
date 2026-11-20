@@ -2,6 +2,7 @@ using System.Formats.Tar;
 using System.Globalization;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api;
@@ -35,7 +36,7 @@ internal static class FeedbackCli
         try
         {
             var configuration = new ConfigurationBuilder().AddEnvironmentVariables().Build();
-            var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(configuration.GetConnectionString("DefaultConnection")).Options;
+            var options = ServiceCollectionExtensions.EmberDbOptions(configuration);
             await using var db = new EmberDbContext(options);
             return args switch
             {

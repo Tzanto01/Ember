@@ -1,5 +1,6 @@
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api;
@@ -20,12 +21,11 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
 
     private int _failures;
 
-    /// <summary>The sender host: environment configuration, console logging, the database, <see cref="TimeProvider.System"/> and this loop only.</summary>
+    /// <summary>The sender host: environment configuration, console logging, Ember's Core (<see cref="ServiceCollectionExtensions.AddEmberCore"/>) and this loop only.</summary>
     public static IHost BuildHost()
     {
         var builder = Host.CreateApplicationBuilder();
-        builder.Services.AddDbContext<EmberDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddEmberCore(builder.Configuration);
         builder.Services.AddSingleton(_ => LookoutIngest.CreateClient());
         builder.Services.AddHostedService<LookoutSender>();
         return builder.Build();

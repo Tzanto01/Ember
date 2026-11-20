@@ -1,4 +1,5 @@
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
@@ -11,7 +12,7 @@ public enum RoutineWriteResult
     /// <summary>The routine, or one of the listed habits, isn't the user's. Nothing was written.</summary>
     NotFound,
 
-    /// <summary>The user already has <see cref="HabitService.MaxRoutinesPerUser"/> routines. Nothing was written.</summary>
+    /// <summary>The user already has <see cref="Limits.RoutinesPerUser"/> routines. Nothing was written.</summary>
     LimitReached,
 }
 
@@ -27,9 +28,6 @@ public enum RoutineOrderResult
 /// <summary>Routines: named, ordered groups of habits with an optional shared reminder.</summary>
 public partial class HabitService
 {
-    /// <summary>Most routines a single user can have.</summary>
-    public const int MaxRoutinesPerUser = 10;
-
     /// <summary>
     /// The routine members a reminder on the user's local <paramref name="today"/> is for: those whose day (<see cref="DayOn"/>)
     /// is pending or partial, in <see cref="Habit.RoutinePosition"/> order. Done, offday, paused, low and not-started days and let-go habits are left out.
@@ -58,7 +56,7 @@ public partial class HabitService
     public async Task<(RoutineWriteResult Result, Routine? Routine)> AddRoutineAsync(Guid userId, string name, TimeOnly? reminderTime,
         IReadOnlyCollection<string>? reminderExclusions, IReadOnlyList<int>? habitIds)
     {
-        if (await _db.Routines.CountAsync(r => r.UserId == userId) >= MaxRoutinesPerUser)
+        if (await _db.Routines.CountAsync(r => r.UserId == userId) >= Limits.RoutinesPerUser)
             return (RoutineWriteResult.LimitReached, null);
 
         var routine = new Routine

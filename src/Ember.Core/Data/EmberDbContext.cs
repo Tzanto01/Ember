@@ -1,4 +1,5 @@
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -58,7 +59,7 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
         modelBuilder.Entity<Habit>(entity =>
         {
             entity.HasKey(h => h.Id);
-            entity.Property(h => h.Name).HasMaxLength(100).IsRequired();
+            entity.Property(h => h.Name).HasMaxLength(Limits.HabitNameLength).IsRequired();
             entity.HasIndex(h => h.NextReminderUtc);
             entity.HasIndex(h => h.SecondReminderUtc);
             entity.Property(h => h.TimesPerDay).HasDefaultValue(1);
@@ -75,7 +76,7 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
         modelBuilder.Entity<Routine>(entity =>
         {
             entity.HasKey(r => r.Id);
-            entity.Property(r => r.Name).HasMaxLength(50).IsRequired();
+            entity.Property(r => r.Name).HasMaxLength(Limits.RoutineNameLength).IsRequired();
             entity.HasIndex(r => r.NextReminderUtc);
             entity.HasIndex(r => r.SecondReminderUtc);
             entity.HasOne(r => r.User)

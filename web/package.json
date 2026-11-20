@@ -10,6 +10,7 @@
     "build:mobile": "tsc --noEmit -p tsconfig.json && vite build --mode mobile",
     "test": "vitest run",
     "guide:stamp": "bun scripts/guide-stamp.ts",
+    "legal:stamp": "bun scripts/legal-stamp.ts",
     "e2e": "playwright test",
     "cap:sync": "cap sync android"
   },

@@ -1,6 +1,7 @@
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Linq.Expressions;
@@ -9,9 +10,6 @@ namespace Ember.Core.Services;
 
 public partial class HabitService
 {
-    /// <summary>Most habits a single user can track.</summary>
-    public const int MaxHabitsPerUser = 25;
-
     /// <summary>How long the Snooze button delays a reminder.</summary>
     public static readonly TimeSpan SnoozeDelay = TimeSpan.FromMinutes(60);
 
@@ -30,8 +28,6 @@ public partial class HabitService
     /// <summary>How long before the deletion the user is reminded, and the least time between that reminder and the deletion.</summary>
     public static readonly TimeSpan DeletionReminderLead = TimeSpan.FromDays(3);
 
-    /// <summary>Most check-ins a daily or weekdays habit can need per day (<see cref="Habit.TimesPerDay"/>).</summary>
-    public const int MaxTimesPerDay = 10;
 
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
@@ -154,7 +150,7 @@ public partial class HabitService
     }
 
     /// <exception cref="ConsentRequiredException">The user hasn't agreed to the current health-data consent.</exception>
-    /// <exception cref="HabitLimitReachedException">The user already tracks <see cref="MaxHabitsPerUser"/> habits.</exception>
+    /// <exception cref="HabitLimitReachedException">The user already tracks <see cref="Limits.HabitsPerUser"/> habits.</exception>
     /// <remarks>
     /// <paramref name="days"/> is stored for <see cref="FrequencyType.Weekdays"/> habits only; weekly habits always get <paramref name="timesPerDay"/> 1.
     /// <paramref name="reminderTimes"/>, when given, replaces <paramref name="reminderTime"/> and is kept as <see cref="NormalizeReminderTimes"/> does.
@@ -167,7 +163,7 @@ public partial class HabitService
         GuardLetGo(kind, frequency, timesPerDay, weeklyTarget, days, reminderTimes?.Distinct().Count() ?? 0);
         if (!await HasHealthDataConsentAsync(userId))
             throw new ConsentRequiredException();
-        if (await _db.Habits.CountAsync(h => h.UserId == userId) >= MaxHabitsPerUser)
+        if (await _db.Habits.CountAsync(h => h.UserId == userId) >= Limits.HabitsPerUser)
             throw new HabitLimitReachedException();
 
         var habit = new Habit
@@ -617,13 +613,13 @@ public partial class HabitService
     /// above a lowered target are clamped to it, and only the user's local today is recomputed against it. Reminder times beyond the
     /// new target are dropped, keeping the earliest. Null when the habit isn't the user's.
     /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timesPerDay"/> is outside 1 to <see cref="MaxTimesPerDay"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timesPerDay"/> is outside 1 to <see cref="Limits.TimesPerDay"/>.</exception>
     /// <exception cref="ArgumentException">A weekdays habit without any <paramref name="days"/>, or a let-go habit that wouldn't stay daily once a day.</exception>
     public async Task<Habit?> SetScheduleAsync(Guid userId, int habitId, FrequencyType type, int? weeklyTarget, ScheduleDays? days,
         int timesPerDay)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(timesPerDay, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(timesPerDay, MaxTimesPerDay);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(timesPerDay, Limits.TimesPerDay);
         if (type == FrequencyType.Weekdays && days.GetValueOrDefault() == ScheduleDays.None)
             throw new ArgumentException("A weekdays habit needs at least one day.", nameof(days));
 
@@ -883,11 +879,25 @@ public partial class HabitService
     /// first queues one <see cref="LookoutOutbox.UserDelete"/> row per <see cref="LookoutUserRef"/> of the user, so Lookout deletes after every ticket already queued.
     /// Records a deleted account in the <see cref="DeletionLedger"/>.
     /// </summary>
-    public async Task DeleteUserDataAsync(Guid userId)
+    public Task DeleteUserDataAsync(Guid userId) => DeleteUserAsync(userId, onlyUnprotected: false);
+
+    /// <summary>
+    /// Deletes the user like <see cref="DeleteUserDataAsync(Guid)"/>, unless the account has a password or two-step sign-in
+    /// (<see cref="IsProtectedAccountAsync"/>): such an account is deleted only in the web app, which asks for them. The check and the
+    /// delete run in one transaction with the user row locked (PostgreSQL). Returns false, deleting nothing, for a protected account.
+    /// </summary>
+    public Task<bool> DeleteUnprotectedUserDataAsync(Guid userId) => DeleteUserAsync(userId, onlyUnprotected: true);
+
+    /// <summary>Whether the account has a password or two-step sign-in, so deleting it needs the web app's step-up.</summary>
+    public Task<bool> IsProtectedAccountAsync(Guid userId)
+        => _db.Users.AnyAsync(u => u.Id == userId && (u.PasswordHash != null || u.TwoFactorEnabled));
+
+    private async Task<bool> DeleteUserAsync(Guid userId, bool onlyUnprotected)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync();
         if (_db.Database.IsNpgsql())
             await _db.Database.ExecuteSqlAsync($"""SELECT 1 FROM "AspNetUsers" WHERE "Id" = {userId} FOR UPDATE""");
+        if (onlyUnprotected && await IsProtectedAccountAsync(userId)) return false;
 
         var refs = await _db.LookoutUserRefs.Where(r => r.UserId == userId).OrderBy(r => r.CreatedAt).ThenBy(r => r.Ref)
             .Select(r => r.Ref).ToListAsync();
@@ -903,6 +913,7 @@ public partial class HabitService
             .ExecuteDeleteAsync();
         await transaction.CommitAsync();
         if (deleted > 0) _ledger?.Record(DeletionLedger.Account, userId);
+        return true;
     }
 
     /// <summary>How long an email signup may stay unconfirmed before <see cref="DeleteStaleUnconfirmedAccountsAsync"/> removes it.</summary>

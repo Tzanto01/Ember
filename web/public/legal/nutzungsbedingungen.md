@@ -4,7 +4,7 @@
 
 ---
 
-**Stand:** 14. November 2026
+**Stand:** 20. November 2026
 
 Schön, dass du Ember nutzt. Diese Bedingungen regeln, wie das zwischen dir und uns läuft. Wir haben sie kurz gehalten.
 
@@ -65,7 +65,7 @@ Du kannst deine Daten jederzeit exportieren: vollständig unter „Deine Daten�
 
 ## 9. Ende der Nutzung
 
-- **Durch dich:** Du kannst jederzeit aufhören. Mit „Dein Konto löschen“ in den Einstellungen der Web-App oder der App, oder mit `/privacy delete` im Discord-Bot, löschst du sofort alle deine Daten. Damit endet auch die Vereinbarung zwischen uns.
+- **Durch dich:** Du kannst jederzeit aufhören. Mit „Dein Konto löschen“ in den Einstellungen der Web-App oder der App, oder mit `/privacy delete` im Discord-Bot (bei Konten ohne Passwort und ohne Anmeldung in zwei Schritten), löschst du sofort alle deine Daten. Damit endet auch die Vereinbarung zwischen uns.
 - **Durch uns:** Wir können Ember ganz einstellen. Wenn möglich, kündigen wir das mindestens **30** Tage vorher in Ember an, damit du deine Daten exportieren kannst. Danach löschen wir alle Daten.
 - **Bei Verstößen:** Wenn jemand gegen Abschnitt 7 verstößt, können wir diese Person von Ember ausschließen und ihre Daten löschen. Bei schweren Verstößen auch ohne Vorwarnung.
 

@@ -3,6 +3,7 @@ using Ember.Core.Localization;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Bot.Modules;
@@ -122,7 +123,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
             .WithPlaceholder(t.Get("freq.times.placeholder"))
             .WithMinValues(1)
             .WithMaxValues(1);
-        for (var n = 1; n <= HabitService.MaxTimesPerDay; n++)
+        for (var n = 1; n <= Limits.TimesPerDay; n++)
             menu.AddOption(n == 1 ? t.Get("freq.times.once") : t.Format("freq.times.option", n), n.ToString(), isDefault: n == habit.TimesPerDay);
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
@@ -137,7 +138,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId) || !int.TryParse(values[0], out var times)
-            || times is < 1 or > HabitService.MaxTimesPerDay)
+            || times is < 1 or > Limits.TimesPerDay)
         {
             await BadIdAsync(t);
             return;

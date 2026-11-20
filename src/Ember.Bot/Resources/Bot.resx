@@ -946,6 +946,12 @@ Want to go ahead?</value>
   <data name="privacy.delete.cancelled" xml:space="preserve">
     <value>No problem, nothing was deleted.</value>
   </data>
+  <data name="privacy.delete.web.link" xml:space="preserve">
+    <value>Your account has a password or two-step sign-in, so to keep it safe it can only be deleted in the Ember web app. 💙 You'll find it in Settings: {0}/settings#delete</value>
+  </data>
+  <data name="privacy.delete.web.app" xml:space="preserve">
+    <value>Your account has a password or two-step sign-in, so to keep it safe it can only be deleted in the Ember web app. 💙 You'll find it in Settings under "Delete your account".</value>
+  </data>
   <data name="export.nothing" xml:space="preserve">
     <value>There's nothing stored about you yet, so there's nothing to export. 🌿</value>
   </data>

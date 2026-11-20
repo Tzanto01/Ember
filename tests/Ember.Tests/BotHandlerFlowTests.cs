@@ -266,7 +266,7 @@ public class BotHandlerFlowTests
         await FrequencyAsync(host, m => m.SetWeekdaysAsync(habitId.ToString(), ["tue", "thu"]));
 
         await FrequencyAsync(host, m => m.SetTimesAsync(habitId.ToString(), ["3"]));
-        var tooMany = await FrequencyAsync(host, m => m.SetTimesAsync(habitId.ToString(), [(HabitService.MaxTimesPerDay + 1).ToString()]));
+        var tooMany = await FrequencyAsync(host, m => m.SetTimesAsync(habitId.ToString(), [(Ember.Core.Rules.Limits.TimesPerDay + 1).ToString()]));
 
         var habit = await HabitAsync(host, habitId);
         (habit.TimesPerDay, habit.Days).Should().Be((3, ScheduleDays.Tue | ScheduleDays.Thu));

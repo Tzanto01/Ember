@@ -161,9 +161,6 @@ public partial class HabitService
     public async Task<bool> ClaimDmPauseNoticeAsync(ulong discordUserId)
         => await ClaimDmPauseNoticeAsync(await FindDiscordUserAsync(discordUserId));
 
-    public async Task DeleteUserDataAsync(ulong discordUserId)
-        => await DeleteUserDataAsync(await FindDiscordUserAsync(discordUserId));
-
     public async Task ReleaseDmPauseNoticeAsync(ulong discordUserId)
         => await ReleaseDmPauseNoticeAsync(await FindDiscordUserAsync(discordUserId));
 

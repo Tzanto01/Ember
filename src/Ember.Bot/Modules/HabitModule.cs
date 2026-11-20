@@ -2,6 +2,7 @@ using Ember.Core.Localization;
 using Discord;
 using Discord.Interactions;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -144,7 +145,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             .WithCustomId("habit:add:modal")
             .AddTextInput(t.Get("habit.add.modal.label"), "habit_name",
                 placeholder: t.Get("habit.add.modal.placeholder"),
-                minLength: 1, maxLength: 100, required: true)
+                minLength: 1, maxLength: Limits.HabitNameLength, required: true)
             .Build();
 
         await RespondWithModalAsync(modal);
