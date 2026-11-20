@@ -65,7 +65,7 @@ internal static class BotHandlers
 
     private static bool ReachedDiscord(Exception ex)
         => ex.StackTrace is { } trace && trace.Contains("Discord.WebSocket.Socket", StringComparison.Ordinal)
-           && (trace.Contains("UpdateAsync", StringComparison.Ordinal) || trace.Contains("RespondAsync", StringComparison.Ordinal));
+           && (trace.Contains("UpdateAsync", StringComparison.Ordinal) || trace.Contains("RespondAsync", StringComparison.Ordinal) || trace.Contains("FollowupAsync", StringComparison.Ordinal));
 
     public static IEnumerable<string?> ButtonIds(MessageComponent? components)
         => components!.Components.OfType<ActionRowComponent>().SelectMany(r => r.Components).OfType<ButtonComponent>().Select(b => b.CustomId);
@@ -160,5 +160,98 @@ internal sealed class RecordingExportModule(HabitService habits, BotReplies repl
         replies.Files.Add(new BotFile(attachment.FileName, reader.ReadToEnd()));
         replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
         return Task.FromResult<IUserMessage>(null!);
+    }
+}
+
+internal sealed class RecordingHabitModule(HabitService habits, BotReplies replies) : HabitModule(habits, BotHandlers.NoConfig)
+{
+    protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.CompletedTask;
+    }
+
+    protected override Task<IUserMessage> FollowupAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.FromResult<IUserMessage>(null!);
+    }
+}
+
+internal sealed class RecordingReflectModule(HabitService habits, BotReplies replies) : ReflectDismissModule(habits, BotHandlers.NoConfig)
+{
+    protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class RecordingHistoryModule(HabitService habits, BotReplies replies) : HistoryModule(habits, BotHandlers.NoConfig)
+{
+    protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class RecordingDiscordRemindersModule(HabitService habits, BotReplies replies) : DiscordRemindersModule(habits)
+{
+    protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class RecordingReminderSetupModule(HabitService habits, BotReplies replies) : ReminderSetupModule(habits)
+{
+    protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class RecordingCheckInModule(HabitService habits, BotReplies replies) : CheckInButtonModule(habits, TimeProvider.System, BotHandlers.NoConfig)
+{
+    protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.CompletedTask;
+    }
+
+    protected override Task<IUserMessage> FollowupAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.FromResult<IUserMessage>(null!);
+    }
+}
+
+internal sealed class RecordingDmRetryModule(HabitService habits, BotReplies replies) : DmRetryModule(habits, new TestDiscordDmSender())
+{
+    protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
+        AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
+        PollProperties? poll = null, MessageFlags flags = MessageFlags.None)
+    {
+        replies.Sent.Add(new BotReply(text, embed, components, ephemeral));
+        return Task.CompletedTask;
     }
 }
