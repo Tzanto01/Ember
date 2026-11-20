@@ -12,10 +12,6 @@ export default defineConfig(
     // Playwright specs and bun scripts are outside tsconfig.json, which type-aware lint needs.
     ignores: ['e2e/**', 'scripts/**'],
   },
-  {
-    // Owned by a parallel slice in this wave; lint after merge.
-    ignores: ['src/lib/guide/**', 'src/locales/**'],
-  },
   tseslint.configs.strictTypeChecked,
   {
     ...reactHooksRecommended,
@@ -58,7 +54,7 @@ export default defineConfig(
       ],
       // Numbers in template strings (counts, ids, pixel sizes) format predictably.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
-      // Its remaining findings are `!` on indexed reads that noUncheckedIndexedAccess makes necessary; turn it back on with that option.
+      // Its remaining findings are `!` on indexed reads, needed once noUncheckedIndexedAccess is on (a later slice); turn it back on then.
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       // `!` marks invariants the code relies on (Map lookups by known keys, finds after inserts, in-range indexes); replacing them with runtime checks would change behavior.
       '@typescript-eslint/no-non-null-assertion': 'off',
