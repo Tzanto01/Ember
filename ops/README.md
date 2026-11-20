@@ -127,12 +127,12 @@ After the first deploy of this version, nothing uses the network `ember-ops-edge
 
 ## Develop
 
-Everything runs from the repo root. The solution is `ops/Ember.Ops.slnx`, separate from Ember's.
+Everything runs from the repo root. The ops projects are part of Ember's solution, `Ember.slnx`, so `dotnet build` and `dotnet test` at the root include them.
 
 | Task | Command |
 |---|---|
-| Build | `dotnet build ops/Ember.Ops.slnx` |
-| .NET tests (need Docker) | `dotnet test ops/Ember.Ops.slnx` |
+| Build | `dotnet build ops/src/Ember.Ops` |
+| .NET tests (need Docker) | `dotnet test ops/tests/Ember.Ops.Tests` |
 | Test host on http://127.0.0.1:5185 | `dotnet run --project ops/tests/Ember.Ops.TestHost` (add `-- --prod-schema` for production's schema) |
 
 The test host starts a throwaway PostgreSQL container (Testcontainers, needs Docker), applies Ember's migrations and both SQL scripts, and seeds synthetic data. Notices go to an in-process fake endpoint with a random token, never to the real one. Its Lookout routes accept the hub only from `127.0.0.1`, so call it as `http://127.0.0.1:5185`, not `localhost`. Its key comes from the file named by `LOOKOUT_KEY_FILE`. Without that variable it uses a built-in synthetic key.

@@ -4,6 +4,11 @@
     <Project Path="src/Ember.Bot/Ember.Bot.csproj" />
     <Project Path="src/Ember.Core/Ember.Core.csproj" />
   </Folder>
+  <Folder Name="/ops/">
+    <Project Path="ops/src/Ember.Ops/Ember.Ops.csproj" />
+    <Project Path="ops/tests/Ember.Ops.TestHost/Ember.Ops.TestHost.csproj" />
+    <Project Path="ops/tests/Ember.Ops.Tests/Ember.Ops.Tests.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Ember.Api.TestHost/Ember.Api.TestHost.csproj" />
     <Project Path="tests/Ember.Api.Tests/Ember.Api.Tests.csproj" />

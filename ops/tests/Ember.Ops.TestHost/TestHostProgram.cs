@@ -102,11 +102,11 @@ public static class TestHostProgram
         }
     }
 
-    /// <summary>The <c>ops</c> directory: the nearest ancestor of the build output containing <c>Ember.Ops.slnx</c>.</summary>
+    /// <summary>The <c>ops</c> directory: the nearest ancestor of the build output containing <c>sql/ember_dashboard.sql</c>.</summary>
     public static string OpsRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
-            if (File.Exists(Path.Combine(dir.FullName, "Ember.Ops.slnx"))) return dir.FullName;
-        throw new InvalidOperationException("Ember.Ops.slnx not found above the build output.");
+            if (File.Exists(Path.Combine(dir.FullName, "sql", "ember_dashboard.sql"))) return dir.FullName;
+        throw new InvalidOperationException("ops root with sql/ember_dashboard.sql not found above the build output.");
     }
 }
