@@ -154,12 +154,13 @@ class CheckInClientTest {
 
     @Test
     fun aServerSlowerThanTheTapsBudgetIsCutOffAndTheCheckInStaysPending() {
-        server.enqueue(MockResponse().setBody(confirmed).setHeadersDelay(1500, TimeUnit.MILLISECONDS))
+        server.enqueue(MockResponse().setBody(confirmed).setHeadersDelay(2000, TimeUnit.MILLISECONDS))
 
         val started = System.nanoTime()
-        send(deadline = SystemClock.elapsedRealtime() + 1000)
+        send(deadline = SystemClock.elapsedRealtime() + 1200)
         val tookMs = (System.nanoTime() - started) / 1_000_000
 
+        assertEquals(1, server.requestCount)
         assertTrue("took $tookMs ms", tookMs < 2500)
         assertEquals(1, row().getInt("count"))
         assertEquals(2, pendingCount())

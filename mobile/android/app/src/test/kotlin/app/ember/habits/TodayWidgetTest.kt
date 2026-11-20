@@ -5,9 +5,13 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Looper
 import android.view.View
+import android.widget.CompoundButton
+import app.ember.habits.widget.CheckInClient
 import app.ember.habits.widget.WidgetStore
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -16,6 +20,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
@@ -33,12 +38,11 @@ class TodayWidgetTest {
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
 
-    private fun awaitNoRequest(habitId: Long) {
-        val until = System.currentTimeMillis() + 5000
-        while (WidgetStore.inFlightCount("user-1", habitId, host.today) > 0 && System.currentTimeMillis() < until) {
-            Thread.sleep(10)
-        }
-        assertEquals(0, WidgetStore.inFlightCount("user-1", habitId, host.today))
+    /** Waits until the check-ins queued so far, their redraw included, have finished. */
+    private fun awaitCheckIns() {
+        val done = CountDownLatch(1)
+        CheckInClient.queue { done.countDown() }
+        assertTrue(done.await(5, TimeUnit.SECONDS))
     }
 
     private fun row(habitId: Long) = WidgetStore.current(host.context)!!.getJSONArray("habits").let { habits ->
@@ -66,7 +70,7 @@ class TodayWidgetTest {
 
         host.view(250f, 296f).all(R.id.widget_row)[1].performClick()
         idle()
-        awaitNoRequest(2)
+        awaitCheckIns()
 
         assertEquals("partial", row(2).getString("state"))
         assertEquals(1, row(2).getInt("count"))
@@ -76,6 +80,29 @@ class TodayWidgetTest {
         assertEquals(1, pending.length())
         assertEquals(2L, pending.getJSONObject(0).getLong("habitId"))
         assertEquals(1, pending.getJSONObject(0).getInt("count"))
+    }
+
+    @Test
+    @Config(sdk = [36])
+    fun checkingAKeyedCheckBoxOnApi31BroadcastsTheRowsCheckInToTheWidget() {
+        host.key()
+        host.today(host.habit(1, "Water", "done", 1), host.habit(2, "Walk", "open", 0, 2))
+        val token = host.token
+
+        val walk = host.view(250f, 296f).all(R.id.widget_row_circle).filterIsInstance<CompoundButton>().single()
+        walk.performClick()
+
+        val tap = shadowOf(RuntimeEnvironment.getApplication()).broadcastIntents.single()
+        assertEquals(TodayWidget.ACTION_CHECK_IN, tap.action)
+        assertEquals(TodayWidget::class.java.name, tap.component!!.className)
+        assertEquals("ember://widget/check-in/2/${host.today}", tap.dataString)
+        assertEquals(2L, tap.getLongExtra("habitId", 0))
+        assertEquals(host.today, tap.getStringExtra("date"))
+        assertEquals("user-1", tap.getStringExtra("userId"))
+        assertEquals(token, tap.getStringExtra("token"))
+        idle()
+        awaitCheckIns()
+        assertEquals("partial", row(2).getString("state"))
     }
 
     @Test

@@ -11,7 +11,6 @@ import app.ember.habits.plugin.EmberWidgetPlugin
 import app.ember.habits.widget.WidgetStore
 import com.getcapacitor.JSObject
 import com.getcapacitor.PluginCall
-import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -84,18 +83,9 @@ class MainActivityTest {
         Intent(MainActivity.ACTION_OPEN_MOMENT).setComponent(component)
 
     private fun today(): String {
-        WidgetStore.save(
-            context,
-            "user-1",
-            java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString(),
-            "UTC",
-            JSONArray().put(JSONObject().put("id", 2).put("name", "Walk").put("state", "open").put("count", 0).put("timesPerDay", 1)),
-            0,
-            null,
-            null,
-            null,
-        )
-        return WidgetStore.current(context)!!.getString("token")
+        val host = TodayHost()
+        host.today(host.habit(2, "Walk"))
+        return host.token
     }
 
     private fun tap(token: String) = Intent(TodayWidget.ACTION_CHECK_IN)
