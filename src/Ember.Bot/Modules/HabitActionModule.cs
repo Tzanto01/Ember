@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -40,7 +41,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habit:add:modal ───────────────────────────────────────────────────────
 
-    [ModalInteraction("habit:add:modal")]
+    [ModalInteraction(HabitIds.AddModal)]
     public async Task OnAddModalAsync(HabitAddModal modal)
     {
         var name = modal.HabitName.Trim();
@@ -81,17 +82,17 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         if (!hasTimezone)
         {
             components = new ComponentBuilder()
-                .WithButton(t.Get("common.timezone-first"), $"onboard:timezone:{habit.Id}", ButtonStyle.Primary, new Emoji("🌍"))
-                .WithButton(t.Get("common.skip-for-now"), $"reminder:skip:{habit.Id}", ButtonStyle.Secondary);
+                .WithButton(t.Get("common.timezone-first"), OnboardingIds.Timezone(habit.Id), ButtonStyle.Primary, new Emoji("🌍"))
+                .WithButton(t.Get("common.skip-for-now"), ReminderIds.Skip(habit.Id), ButtonStyle.Secondary);
         }
         else
         {
             components = new ComponentBuilder()
-                .WithButton(t.Get("common.set-reminder"), $"reminder:set:{habit.Id}", ButtonStyle.Primary, new Emoji("⏰"))
-                .WithButton(t.Get("common.not-now"), $"reminder:skip:{habit.Id}", ButtonStyle.Secondary);
+                .WithButton(t.Get("common.set-reminder"), ReminderIds.Set(habit.Id), ButtonStyle.Primary, new Emoji("⏰"))
+                .WithButton(t.Get("common.not-now"), ReminderIds.Skip(habit.Id), ButtonStyle.Secondary);
         }
 
-        components.WithButton(t.Get("common.days-and-times"), $"freq:menu:{habit.Id}", ButtonStyle.Secondary, new Emoji("📅"), row: 1);
+        components.WithButton(t.Get("common.days-and-times"), FrequencyIds.Menu(habit.Id), ButtonStyle.Secondary, new Emoji("📅"), row: 1);
         await RespondAsync(embed: embed, components: components.Build(), ephemeral: true);
 
         // DM confirmation / onboarding
@@ -117,7 +118,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habitaction:checkin:done:{habitId} ────────────────────────────────────
 
-    [ComponentInteraction("habitaction:checkin:done:*")]
+    [ComponentInteraction(HabitActionIds.CheckInDonePattern)]
     public async Task OnCheckinDoneAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -148,7 +149,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habitaction:checkin:skip:{habitId} ────────────────────────────────────
 
-    [ComponentInteraction("habitaction:checkin:skip:*")]
+    [ComponentInteraction(HabitActionIds.CheckInSkipPattern)]
     public async Task OnCheckinSkipAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -178,10 +179,10 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habitaction:slip:{habitId} / letgo:slip:{habitId} ──────────────────────
 
-    [ComponentInteraction("habitaction:slip:*")]
+    [ComponentInteraction(HabitActionIds.SlipPattern)]
     public async Task OnSlipAsync(string habitIdStr) => await SlipAsync(habitIdStr, inPlace: true);
 
-    [ComponentInteraction("letgo:slip:*")]
+    [ComponentInteraction(LetGoIds.SlipPattern)]
     public async Task OnListSlipAsync(string habitIdStr) => await SlipAsync(habitIdStr, inPlace: false);
 
     /// <summary>Records one slip without a reason on the user's local today and answers with <see cref="HabitModule.SlipNotedText"/>.</summary>
@@ -221,7 +222,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habitaction:delete:confirm:{habitId} ──────────────────────────────────
 
-    [ComponentInteraction("habitaction:delete:confirm:*")]
+    [ComponentInteraction(HabitActionIds.DeleteConfirmPattern)]
     public async Task OnDeleteConfirmAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -241,7 +242,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habitaction:delete:cancel ─────────────────────────────────────────────
 
-    [ComponentInteraction("habitaction:delete:cancel")]
+    [ComponentInteraction(HabitActionIds.DeleteCancel)]
     public async Task OnDeleteCancelAsync()
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -255,7 +256,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habitaction:edit:rename:{habitId} ─────────────────────────────────────
 
-    [ComponentInteraction("habitaction:edit:rename:*")]
+    [ComponentInteraction(HabitActionIds.RenamePattern)]
     public async Task OnEditRenameAsync(string habitIdStr)
     {
         var sourceMessageId = ((SocketMessageComponent)Context.Interaction).Message.Id;
@@ -263,7 +264,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
         var modal = new ModalBuilder()
             .WithTitle(t.Get("habit.rename.modal.title"))
-            .WithCustomId($"habit:rename:modal:{habitIdStr}:{sourceMessageId}")
+            .WithCustomId(HabitIds.RenameModal(habitIdStr, sourceMessageId))
             .AddTextInput(t.Get("habit.rename.modal.label"), "habit_name",
                 minLength: 1, maxLength: Limits.HabitNameLength, required: true)
             .Build();
@@ -274,7 +275,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habit:rename:modal:{habitId}:{sourceMessageId} ────────────────────────
 
-    [ModalInteraction("habit:rename:modal:*:*")]
+    [ModalInteraction(HabitIds.RenameModalPattern)]
     public async Task OnRenameModalAsync(string habitIdStr, string _, HabitRenameModal modal)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -311,7 +312,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habitaction:pause:{habitId}:{duration} ────────────────────────────────
 
-    [ComponentInteraction("habitaction:pause:*:*")]
+    [ComponentInteraction(HabitActionIds.PausePattern)]
     public async Task OnPauseAsync(string habitIdStr, string duration)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -345,7 +346,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habitaction:freq:{habitId}:daily ─────────────────────────────────────
 
-    [ComponentInteraction("habitaction:freq:*:*")]
+    [ComponentInteraction(HabitActionIds.FrequencyPattern)]
     public async Task OnFreqDailyAsync(string habitIdStr, string freqType)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -368,7 +369,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habit:grace:{days} ────────────────────────────────────────────────────
 
-    [ComponentInteraction("habit:grace:*")]
+    [ComponentInteraction(HabitIds.GracePattern)]
     public async Task OnGraceAsync(string daysStr)
     {
         if (!int.TryParse(daysStr, out var days) || days < 0 || days > 3)
@@ -390,7 +391,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── habit:streaks:{on|off} ────────────────────────────────────────────────
 
-    [ComponentInteraction("habit:streaks:*")]
+    [ComponentInteraction(HabitIds.StreaksPattern)]
     public async Task OnStreaksAsync(string state)
     {
         if (state is not ("on" or "off")) { await BadIdAsync(await BotTexts.ForAsync(_habits, Context.Interaction)); return; }
@@ -412,7 +413,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── tip:streaks:{on|off} ──────────────────────────────────────────────────
 
-    [ComponentInteraction("tip:streaks:*")]
+    [ComponentInteraction(TipIds.StreaksPattern)]
     public async Task OnStreaksTipAsync(string state)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -436,8 +437,8 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         if (!await habits.NeedsStreaksQuestionAsync(interaction.User.Id)) return;
 
         var buttons = new ComponentBuilder()
-            .WithButton(t.Get("habit.streaks-tip.show"), "tip:streaks:on", ButtonStyle.Primary)
-            .WithButton(t.Get("habit.streaks-tip.not-for-me"), "tip:streaks:off", ButtonStyle.Secondary)
+            .WithButton(t.Get("habit.streaks-tip.show"), TipIds.Streaks(show: true), ButtonStyle.Primary)
+            .WithButton(t.Get("habit.streaks-tip.not-for-me"), TipIds.Streaks(show: false), ButtonStyle.Secondary)
             .Build();
         await interaction.FollowupAsync(t.Get("habit.streaks-tip.question"), components: buttons, ephemeral: true);
     }

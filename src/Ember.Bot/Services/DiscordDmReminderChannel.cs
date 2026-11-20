@@ -1,4 +1,5 @@
 using Discord;
+using Ember.Bot.CustomIds;
 using Ember.Bot.Modules;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -77,9 +78,9 @@ public class DiscordDmReminderChannel : IReminderChannel
 
         var now = _time.GetUtcNow().ToUnixTimeSeconds();
         var components = new ComponentBuilder()
-            .WithButton(t.Get("reminder.done"), $"checkin:done:{reminder.HabitId}:{now}", ButtonStyle.Success)
-            .WithButton(SkipLabel(t), $"checkin:skip:{reminder.HabitId}:{now}", ButtonStyle.Secondary)
-            .WithButton(t.Get("reminder.snooze"), $"checkin:snooze:{reminder.HabitId}:{now}", ButtonStyle.Secondary)
+            .WithButton(t.Get("reminder.done"), CheckInIds.Done(reminder.HabitId, now), ButtonStyle.Success)
+            .WithButton(SkipLabel(t), CheckInIds.Skip(reminder.HabitId, now), ButtonStyle.Secondary)
+            .WithButton(t.Get("reminder.snooze"), CheckInIds.Snooze(reminder.HabitId, now), ButtonStyle.Secondary)
             .WithButton(DiscordRemindersModule.StopButton(t, discordUserId), row: 1)
             .Build();
 
@@ -116,7 +117,7 @@ public class DiscordDmReminderChannel : IReminderChannel
         {
             var label = t.Format("reminder.routine.done-button", habit.Name);
             if (label.Length > MaxButtonLabel) label = label[..(MaxButtonLabel - 1)] + "…";
-            components.WithButton(label, $"checkin:done:{habit.Id}:{now}", ButtonStyle.Success, row: i / ButtonsPerRow);
+            components.WithButton(label, CheckInIds.Done(habit.Id, now), ButtonStyle.Success, row: i / ButtonsPerRow);
             count++;
         }
         components.WithButton(DiscordRemindersModule.StopButton(t, discordUserId),

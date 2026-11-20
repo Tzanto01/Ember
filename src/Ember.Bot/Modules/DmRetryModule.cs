@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Services;
@@ -9,7 +10,7 @@ namespace Ember.Bot.Modules;
 
 /// <summary>
 /// Lets a user whose DM reminders were paused (Discord refused the DMs) check that Ember can
-/// reach them again. Custom ID: "dmretry:{discordUserId}".
+/// reach them again. Custom id: <see cref="DmRetryIds"/>.
 /// </summary>
 public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
 {
@@ -25,10 +26,10 @@ public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     internal static MessageComponent RetryButton(Texts t, ulong userId) => new ComponentBuilder()
-        .WithButton(t.Get("dmretry.try-again"), $"dmretry:{userId}", ButtonStyle.Primary)
+        .WithButton(t.Get("dmretry.try-again"), DmRetryIds.Retry(userId), ButtonStyle.Primary)
         .Build();
 
-    [ComponentInteraction("dmretry:*")]
+    [ComponentInteraction(DmRetryIds.RetryPattern)]
     public async Task OnRetryAsync(string userIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);

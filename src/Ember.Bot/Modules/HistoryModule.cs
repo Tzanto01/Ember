@@ -2,6 +2,7 @@ using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -16,7 +17,7 @@ namespace Ember.Bot.Modules;
 public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
 {
     internal const int Days = 14;
-    private const string DateFormat = "yyyyMMdd";
+    private const string DateFormat = HistoryIds.DateFormat;
 
     private readonly HabitService _habits;
     private readonly IConfiguration _config;
@@ -27,7 +28,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         _config = config;
     }
 
-    [ComponentInteraction("habit:select:history")]
+    [ComponentInteraction(HabitIds.SelectHistory)]
     public async Task OnSelectHistoryAsync(string[] values)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -35,7 +36,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         await RenderAsync(t, habitId);
     }
 
-    [ComponentInteraction("history:day:*:*:*")]
+    [ComponentInteraction(HistoryIds.DayPattern)]
     public async Task OnDayAsync(string ownerIdStr, string habitIdStr, string dateStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -61,7 +62,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         await RenderAsync(t, habitId);
     }
 
-    [ComponentInteraction("history:low:*:*")]
+    [ComponentInteraction(HistoryIds.LowPattern)]
     public async Task OnLowDayAsync(string ownerIdStr, string habitIdStr, string[] values)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -147,14 +148,14 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
             var day = days[i];
             builder.WithButton(
                 DayLabel(t, day),
-                $"history:day:{userId}:{habitId}:{day.Date.ToString(DateFormat, CultureInfo.InvariantCulture)}",
+                HistoryIds.Day(userId, habitId, day.Date),
                 day.State == DayState.Done ? ButtonStyle.Success : ButtonStyle.Secondary,
                 disabled: day.State == DayState.BeforeStart,
                 row: i / 5);
         }
 
         var menu = new SelectMenuBuilder()
-            .WithCustomId($"history:low:{userId}:{habitId}")
+            .WithCustomId(HistoryIds.Low(userId, habitId))
             .WithPlaceholder(t.Get("history.low.placeholder"))
             .WithMinValues(1)
             .WithMaxValues(1);
@@ -177,7 +178,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
             var date = day.Date.ToString(t.Get("date.button"), t.Culture);
             builder.WithButton(
                 day.State == LetGoDayState.BeforeStart ? date : $"{date} {HabitModule.LetGoMark(day.State)}",
-                $"history:letgo:{habit.Id}:{day.Date.ToString(DateFormat, CultureInfo.InvariantCulture)}",
+                HistoryIds.LetGo(habit.Id, day.Date),
                 ButtonStyle.Secondary,
                 disabled: true,
                 row: i / 5);

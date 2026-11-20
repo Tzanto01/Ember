@@ -1,4 +1,5 @@
 using Discord;
+using Ember.Bot.CustomIds;
 using Ember.Bot.Services;
 using Ember.Core.Models;
 using Ember.Core.Services;
@@ -136,10 +137,10 @@ public class MissedDayReflectionJob : IJob
         var date = yesterday.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
         var components = new ComponentBuilder();
         if (open.Count > 0)
-            components.WithButton(t.Get("missedday.log"), $"reflect:log:{discordId}:{date}", ButtonStyle.Success, new Emoji("✅"));
+            components.WithButton(t.Get("missedday.log"), ReflectIds.Log(discordId, date), ButtonStyle.Success, new Emoji("✅"));
         components
-            .WithButton(t.Get("missedday.low"), $"reflect:low:{discordId}:{date}", ButtonStyle.Secondary, new Emoji("🌙"))
-            .WithButton(t.Get("missedday.dismiss"), $"reflect:dismiss:{discordId}", ButtonStyle.Secondary);
+            .WithButton(t.Get("missedday.low"), ReflectIds.Low(discordId, date), ButtonStyle.Secondary, new Emoji("🌙"))
+            .WithButton(t.Get("missedday.dismiss"), ReflectIds.Dismiss(discordId), ButtonStyle.Secondary);
 
         await _discord.SendMessageAsync(discordId, embed: embed, components: components.Build());
     }

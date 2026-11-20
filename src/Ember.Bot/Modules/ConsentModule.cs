@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -9,7 +10,7 @@ namespace Ember.Bot.Modules;
 
 /// <summary>
 /// Asks for explicit consent to store habit names, check-ins, low days, day notes and moods (GDPR Art. 9(2)(a)).
-/// Custom IDs: "consent:agree:{discordUserId}", "consent:decline:{discordUserId}".
+/// Custom ids: <see cref="ConsentIds"/>.
 /// </summary>
 public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
 {
@@ -37,8 +38,8 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     internal static MessageComponent PromptButtons(Texts t, ulong userId) => new ComponentBuilder()
-        .WithButton(t.Get("consent.agree"), $"consent:agree:{userId}", ButtonStyle.Success)
-        .WithButton(t.Get("consent.decline"), $"consent:decline:{userId}", ButtonStyle.Secondary)
+        .WithButton(t.Get("consent.agree"), ConsentIds.Agree(userId), ButtonStyle.Success)
+        .WithButton(t.Get("consent.decline"), ConsentIds.Decline(userId), ButtonStyle.Secondary)
         .Build();
 
     /// <summary>Answers the interaction with the consent prompt and notes that it was shown today.</summary>
@@ -63,7 +64,7 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
         return true;
     }
 
-    [ComponentInteraction("consent:agree:*")]
+    [ComponentInteraction(ConsentIds.AgreePattern)]
     public async Task OnAgreeAsync(string ownerIdStr)
     {
         if (!await TryAnswerAsync(_habits, ownerIdStr, Context.User.Id, agreed: true, Languages.FromLocale(Context.Interaction.UserLocale)))
@@ -92,7 +93,7 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
                 .ToString(t.Get("date.full"), t.Culture))
             : t.Get("consent.declined");
 
-    [ComponentInteraction("consent:decline:*")]
+    [ComponentInteraction(ConsentIds.DeclinePattern)]
     public async Task OnDeclineAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -109,7 +110,7 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
             m.Content = content;
             m.Embed = null;
             m.Components = new ComponentBuilder()
-                .WithButton(t.Get("consent.delete-button"), $"privacy:delete:start:{Context.User.Id}", ButtonStyle.Secondary)
+                .WithButton(t.Get("consent.delete-button"), PrivacyIds.DeleteStart(Context.User.Id), ButtonStyle.Secondary)
                 .Build();
         });
     }

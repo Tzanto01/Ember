@@ -1,6 +1,7 @@
 using System.Globalization;
 using Discord;
 using Discord.Interactions;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -100,13 +101,13 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     internal static SelectMenuBuilder BuildHabitSelectMenu(
         Texts t,
         IReadOnlyList<Habit> habits,
-        string action,
+        string customId,
         string placeholder,
         DateOnly today = default,
         TimeZoneInfo? tz = null)
     {
         var menu = new SelectMenuBuilder()
-            .WithCustomId($"habit:select:{action}")
+            .WithCustomId(customId)
             .WithPlaceholder(placeholder)
             .WithMinValues(1)
             .WithMaxValues(1);
@@ -125,8 +126,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     /// <summary><see cref="BuildHabitSelectMenu"/> for the user of this interaction, with days free on let-go habits.</summary>
-    private async Task<SelectMenuBuilder> HabitMenuAsync(Texts t, IReadOnlyList<Habit> habits, string action, string placeholder)
-        => BuildHabitSelectMenu(t, habits, action, placeholder,
+    private async Task<SelectMenuBuilder> HabitMenuAsync(Texts t, IReadOnlyList<Habit> habits, string customId, string placeholder)
+        => BuildHabitSelectMenu(t, habits, customId, placeholder,
             await _habits.GetLocalTodayAsync(Context.User.Id), await _habits.GetUserTzAsync(Context.User.Id));
 
     // ── /habit add ────────────────────────────────────────────────────────────
@@ -143,7 +144,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 
         var modal = new ModalBuilder()
             .WithTitle(t.Get("habit.add.modal.title"))
-            .WithCustomId("habit:add:modal")
+            .WithCustomId(HabitIds.AddModal)
             .AddTextInput(t.Get("habit.add.modal.label"), "habit_name",
                 placeholder: t.Get("habit.add.modal.placeholder"),
                 minLength: 1, maxLength: Limits.HabitNameLength, required: true)
@@ -165,7 +166,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var menu = new SelectMenuBuilder()
-            .WithCustomId("habit:template:select")
+            .WithCustomId(HabitIds.TemplateSelect)
             .WithPlaceholder(t.Get("habit.template.placeholder"))
             .WithMinValues(1)
             .WithMaxValues(1);
@@ -254,7 +255,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         {
             var label = t.Format("habit.letgo.slip-button.named", letGo[i].Name);
             if (label.Length > ButtonBuilder.MaxButtonLabelLength) label = label[..(ButtonBuilder.MaxButtonLabelLength - 1)] + "…";
-            builder.WithButton(label, $"letgo:slip:{letGo[i].Id}", ButtonStyle.Secondary, row: i / 5);
+            builder.WithButton(label, LetGoIds.Slip(letGo[i].Id), ButtonStyle.Secondary, row: i / 5);
         }
         return builder.Build();
     }
@@ -274,7 +275,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, "checkin", t.Get("habit.checkin.placeholder"));
+        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectCheckIn, t.Get("habit.checkin.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.checkin.prompt"), components: components, ephemeral: true);
     }
@@ -294,7 +295,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, "history", t.Get("habit.history.placeholder"));
+        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectHistory, t.Get("habit.history.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.history.prompt"), components: components, ephemeral: true);
     }
@@ -332,7 +333,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var showStreaks = await service.GetShowStreaksAsync(userId);
 
         var toggle = new ComponentBuilder()
-            .WithButton(t.Get(showStreaks ? "habit.stats.hide-streaks" : "habit.stats.show-streaks"), $"habit:streaks:{(showStreaks ? "off" : "on")}", ButtonStyle.Secondary)
+            .WithButton(t.Get(showStreaks ? "habit.stats.hide-streaks" : "habit.stats.show-streaks"), HabitIds.Streaks(show: !showStreaks), ButtonStyle.Secondary)
             .Build();
 
         const int pageSize = 6;
@@ -424,7 +425,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, "share", t.Get("habit.share.prompt"));
+        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectShare, t.Get("habit.share.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.share.prompt"), components: components, ephemeral: true);
     }
@@ -444,7 +445,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, "delete", t.Get("habit.delete.placeholder"));
+        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectDelete, t.Get("habit.delete.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.delete.prompt"), components: components, ephemeral: true);
     }
@@ -464,7 +465,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, "edit", t.Get("habit.edit.prompt"));
+        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectEdit, t.Get("habit.edit.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.edit.prompt"), components: components, ephemeral: true);
     }
@@ -484,7 +485,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, "frequency", t.Get("habit.frequency.placeholder"));
+        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectFrequency, t.Get("habit.frequency.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.frequency.prompt"), components: components, ephemeral: true);
     }
@@ -504,7 +505,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, "pause", t.Get("habit.pause.prompt"));
+        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectPause, t.Get("habit.pause.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.pause.prompt"), components: components, ephemeral: true);
     }
@@ -518,10 +519,10 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         var components = new ComponentBuilder()
-            .WithButton(t.Get("habit.grace.strict"), "habit:grace:0", current == 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .WithButton(t.Plural("habit.grace.button", 1), "habit:grace:1", current == 1 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .WithButton(t.Plural("habit.grace.button", 2), "habit:grace:2", current == 2 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .WithButton(t.Plural("habit.grace.button", 3), "habit:grace:3", current == 3 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .WithButton(t.Get("habit.grace.strict"), HabitIds.Grace(0), current == 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .WithButton(t.Plural("habit.grace.button", 1), HabitIds.Grace(1), current == 1 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .WithButton(t.Plural("habit.grace.button", 2), HabitIds.Grace(2), current == 2 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .WithButton(t.Plural("habit.grace.button", 3), HabitIds.Grace(3), current == 3 ? ButtonStyle.Primary : ButtonStyle.Secondary)
             .Build();
 
         await RespondAsync(

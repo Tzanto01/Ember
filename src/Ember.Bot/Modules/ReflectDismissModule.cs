@@ -2,6 +2,7 @@ using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Bot.Jobs;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -27,7 +28,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
         _config = config;
     }
 
-    [ComponentInteraction("reflect:dismiss:*")]
+    [ComponentInteraction(ReflectIds.DismissPattern)]
     public async Task DismissAsync(string userId)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -42,7 +43,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
         catch { /* Message may already be gone */ }
     }
 
-    [ComponentInteraction("reflect:log:*:*")]
+    [ComponentInteraction(ReflectIds.LogPattern)]
     public async Task LogAsync(string ownerIdStr, string dateStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -74,7 +75,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
         }
 
         var menu = new SelectMenuBuilder()
-            .WithCustomId($"reflect:pick:{Context.User.Id}:{dateStr}")
+            .WithCustomId(ReflectIds.Pick(Context.User.Id, dateStr))
             .WithPlaceholder(t.Get("reflect.pick.placeholder"))
             .WithMinValues(1)
             .WithMaxValues(Math.Min(open.Count, 25));
@@ -83,8 +84,8 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
 
         var components = new ComponentBuilder()
             .WithSelectMenu(menu)
-            .WithButton(t.Get("reflect.low-button"), $"reflect:low:{Context.User.Id}:{dateStr}", ButtonStyle.Secondary, new Emoji("🌙"), row: 1)
-            .WithButton(t.Get("reflect.move-on"), $"reflect:dismiss:{Context.User.Id}", ButtonStyle.Secondary, row: 1)
+            .WithButton(t.Get("reflect.low-button"), ReflectIds.Low(Context.User.Id, dateStr), ButtonStyle.Secondary, new Emoji("🌙"), row: 1)
+            .WithButton(t.Get("reflect.move-on"), ReflectIds.Dismiss(Context.User.Id), ButtonStyle.Secondary, row: 1)
             .Build();
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
@@ -94,7 +95,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
         });
     }
 
-    [ComponentInteraction("reflect:pick:*:*")]
+    [ComponentInteraction(ReflectIds.PickPattern)]
     public async Task PickAsync(string ownerIdStr, string dateStr, string[] values)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -117,7 +118,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
         await CloseAsync(t.Plural("reflect.logged", logged, Label(t, date)));
     }
 
-    [ComponentInteraction("reflect:low:*:*")]
+    [ComponentInteraction(ReflectIds.LowPattern)]
     public async Task LowDayAsync(string ownerIdStr, string dateStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);

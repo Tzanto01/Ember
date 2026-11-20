@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -29,7 +30,7 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
     /// <summary>The template's one-line description in the user's language.</summary>
     internal static string Description(Texts t, HabitTemplates.Template template) => t.Get($"template.{template.Key}.description");
 
-    [ComponentInteraction("habit:template:select")]
+    [ComponentInteraction(HabitIds.TemplateSelect)]
     public async Task HandleTemplateSelectAsync(string[] selected)
     {
         var key = selected[0];
@@ -92,18 +93,18 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
         if (!hasTimezone)
         {
             components = new ComponentBuilder()
-                .WithButton(t.Get("common.timezone-first"), $"onboard:timezone:{habit.Id}", ButtonStyle.Primary, new Emoji("🌍"))
-                .WithButton(t.Get("common.skip-for-now"), $"reminder:skip:{habit.Id}", ButtonStyle.Secondary);
+                .WithButton(t.Get("common.timezone-first"), OnboardingIds.Timezone(habit.Id), ButtonStyle.Primary, new Emoji("🌍"))
+                .WithButton(t.Get("common.skip-for-now"), ReminderIds.Skip(habit.Id), ButtonStyle.Secondary);
         }
         else
         {
             components = new ComponentBuilder()
-                .WithButton(t.Format("template.remind-at", reminderLabel), $"reminder:preset:{habit.Id}:{template.SuggestedReminderTime:HH\\:mm}", ButtonStyle.Primary, new Emoji("⏰"))
-                .WithButton(t.Get("template.other-time"), $"reminder:set:{habit.Id}", ButtonStyle.Secondary)
-                .WithButton(t.Get("template.no-reminder"), $"reminder:skip:{habit.Id}", ButtonStyle.Secondary);
+                .WithButton(t.Format("template.remind-at", reminderLabel), ReminderIds.Preset(habit.Id, template.SuggestedReminderTime), ButtonStyle.Primary, new Emoji("⏰"))
+                .WithButton(t.Get("template.other-time"), ReminderIds.Set(habit.Id), ButtonStyle.Secondary)
+                .WithButton(t.Get("template.no-reminder"), ReminderIds.Skip(habit.Id), ButtonStyle.Secondary);
         }
 
-        components.WithButton(t.Get("common.days-and-times"), $"freq:menu:{habit.Id}", ButtonStyle.Secondary, new Emoji("📅"), row: 1);
+        components.WithButton(t.Get("common.days-and-times"), FrequencyIds.Menu(habit.Id), ButtonStyle.Secondary, new Emoji("📅"), row: 1);
         await RespondAsync(embed: embed, components: components.Build(), ephemeral: true);
         await HabitActionModule.AskStreaksOnceAsync(Context.Interaction, _habits, t);
     }

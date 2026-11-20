@@ -2,6 +2,7 @@ using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -20,7 +21,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
     // ── "Set a reminder" button ───────────────────────────────────────────────
 
-    [ComponentInteraction("reminder:set:*")]
+    [ComponentInteraction(ReminderIds.SetPattern)]
     public async Task OnSetReminderAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -42,9 +43,9 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
                 m.Content = t.Get("reminder.need-timezone");
                 m.Embed = null;
                 m.Components = new ComponentBuilder()
-                    .WithButton(t.Get("reminder.set-timezone"), $"onboard:timezone:{habitIdStr}", ButtonStyle.Primary, new Emoji("🌍"))
-                    .WithButton(t.Get("reminder.on-utc"), $"reminder:time:{habitIdStr}", ButtonStyle.Secondary)
-                    .WithButton(t.Get("common.not-now"), $"reminder:skip:{habitIdStr}", ButtonStyle.Secondary)
+                    .WithButton(t.Get("reminder.set-timezone"), OnboardingIds.Timezone(habitIdStr), ButtonStyle.Primary, new Emoji("🌍"))
+                    .WithButton(t.Get("reminder.on-utc"), ReminderIds.Time(habitIdStr), ButtonStyle.Secondary)
+                    .WithButton(t.Get("common.not-now"), ReminderIds.Skip(habitIdStr), ButtonStyle.Secondary)
                     .Build();
             });
             return;
@@ -54,7 +55,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     }
 
     /// <summary>"I'm on UTC": the time modal without asking for a timezone first.</summary>
-    [ComponentInteraction("reminder:time:*")]
+    [ComponentInteraction(ReminderIds.TimePattern)]
     public async Task OnKeepUtcAsync(string habitIdStr) => await OpenTimeModalAsync(await BotTexts.ForAsync(_habits, Context.Interaction), habitIdStr);
 
     private async Task OpenTimeModalAsync(Texts t, string habitIdStr)
@@ -65,7 +66,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
         var modal = new ModalBuilder()
             .WithTitle(t.Get("reminder.modal.title"))
-            .WithCustomId($"reminder:modal:{habitIdStr}:{sourceMessageId}")
+            .WithCustomId(ReminderIds.Modal(habitIdStr, sourceMessageId))
             .AddTextInput(t.Get("reminder.modal.label"), "reminder_time",
                 placeholder: t.Get("reminder.modal.placeholder"),
                 minLength: 3, maxLength: 8, required: true)
@@ -80,7 +81,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
     // ── "Remind me at HH:mm" button (from /habit template) ────────────────────
 
-    [ComponentInteraction("reminder:preset:*:*:*")]
+    [ComponentInteraction(ReminderIds.PresetPattern)]
     public async Task OnPresetReminderAsync(string habitIdStr, string hour, string minute)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -147,7 +148,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
     // ── "Not now" button ──────────────────────────────────────────────────────
 
-    [ComponentInteraction("reminder:skip:*")]
+    [ComponentInteraction(ReminderIds.SkipPattern)]
     public async Task OnSkipReminderAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -162,7 +163,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
     // ── "Remove reminder" button (from /habit edit) ───────────────────────────
 
-    [ComponentInteraction("reminder:clear:*")]
+    [ComponentInteraction(ReminderIds.ClearPattern)]
     public async Task OnClearReminderAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -190,7 +191,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
     // ── "Cancel" button (from /habit edit) ───────────────────────────────────
 
-    [ComponentInteraction("reminder:cancel:*")]
+    [ComponentInteraction(ReminderIds.CancelPattern)]
     public async Task OnCancelEditAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -204,7 +205,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
     // ── Modal submit ──────────────────────────────────────────────────────────
 
-    [ModalInteraction("reminder:modal:*:*")]
+    [ModalInteraction(ReminderIds.ModalPattern)]
     public async Task OnReminderModalAsync(string habitIdStr, string sourceMessageIdStr, ReminderModal modal)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -217,7 +218,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
         if (!TryParseTime(modal.ReminderTime, out var parsed))
         {
             await RespondAsync(t.Get("reminder.bad-time"),
-                components: new ComponentBuilder().WithButton(t.Get("reminder.try-again"), $"reminder:set:{habitId}", ButtonStyle.Primary, new Emoji("⏰")).Build(),
+                components: new ComponentBuilder().WithButton(t.Get("reminder.try-again"), ReminderIds.Set(habitId), ButtonStyle.Primary, new Emoji("⏰")).Build(),
                 ephemeral: true);
             return;
         }

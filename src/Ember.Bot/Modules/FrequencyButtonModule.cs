@@ -2,6 +2,7 @@ using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -27,7 +28,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         _habits = habits;
     }
 
-    [ComponentInteraction("freq:weekly:*:*")]
+    [ComponentInteraction(FrequencyIds.WeeklyPattern)]
     public async Task SetWeeklyTargetAsync(string habitIdStr, string targetStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -53,7 +54,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
             });
     }
 
-    [ComponentInteraction("freq:menu:*")]
+    [ComponentInteraction(FrequencyIds.MenuPattern)]
     public async Task ShowMenuAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -66,7 +67,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
             components: HabitSelectModule.FrequencyComponents(t, habitId), ephemeral: true);
     }
 
-    [ComponentInteraction("freq:weekdays:*")]
+    [ComponentInteraction(FrequencyIds.WeekdaysPattern)]
     public async Task ShowWeekdaysAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -76,7 +77,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         if (habit.Kind == HabitKind.LetGo) { await DoneAsync(HabitModule.LetGoWebOnlyText(t)); return; }
 
         var menu = new SelectMenuBuilder()
-            .WithCustomId($"freq:days:{habitId}")
+            .WithCustomId(FrequencyIds.Days(habitId))
             .WithPlaceholder(t.Get("freq.days.placeholder"))
             .WithMinValues(1)
             .WithMaxValues(6);
@@ -90,7 +91,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         });
     }
 
-    [ComponentInteraction("freq:days:*")]
+    [ComponentInteraction(FrequencyIds.DaysPattern)]
     public async Task SetWeekdaysAsync(string habitIdStr, string[] values)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -109,7 +110,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         await DoneAsync(t.Format("freq.days.set", habit.Name, HabitModule.FrequencyLabel(t, habit)));
     }
 
-    [ComponentInteraction("freq:times:*")]
+    [ComponentInteraction(FrequencyIds.TimesPattern)]
     public async Task ShowTimesAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -120,7 +121,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         if (habit.FrequencyType == FrequencyType.Weekly) { await WeeklyOnlyOnceAsync(t); return; }
 
         var menu = new SelectMenuBuilder()
-            .WithCustomId($"freq:tpd:{habitId}")
+            .WithCustomId(FrequencyIds.TimesPerDay(habitId))
             .WithPlaceholder(t.Get("freq.times.placeholder"))
             .WithMinValues(1)
             .WithMaxValues(1);
@@ -134,7 +135,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         });
     }
 
-    [ComponentInteraction("freq:tpd:*")]
+    [ComponentInteraction(FrequencyIds.TimesPerDayPattern)]
     public async Task SetTimesAsync(string habitIdStr, string[] values)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);

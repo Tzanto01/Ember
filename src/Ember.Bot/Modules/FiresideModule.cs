@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 
@@ -32,15 +33,15 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
     internal static MessageComponent NoticeButtons(Texts t, int linkId, int? warmthId)
     {
         var buttons = new ComponentBuilder();
-        if (warmthId is null) return buttons.WithButton(t.Get("fireside.okay"), $"fireside:ok:{linkId}", ButtonStyle.Secondary).Build();
-        return buttons.WithButton(t.Get("fireside.send-back"), $"fireside:back:{linkId}", ButtonStyle.Primary)
-            .WithButton(t.Get("fireside.okay"), $"fireside:ok:{linkId}:{warmthId}", ButtonStyle.Secondary).Build();
+        if (warmthId is null) return buttons.WithButton(t.Get("fireside.okay"), FiresideIds.Ok(linkId, null), ButtonStyle.Secondary).Build();
+        return buttons.WithButton(t.Get("fireside.send-back"), FiresideIds.Back(linkId), ButtonStyle.Primary)
+            .WithButton(t.Get("fireside.okay"), FiresideIds.Ok(linkId, warmthId), ButtonStyle.Secondary).Build();
     }
 
     private static MessageComponent MessageMenu(Texts t, int linkId)
     {
         var menu = new SelectMenuBuilder()
-            .WithCustomId($"fireside:msg:{linkId}")
+            .WithCustomId(FiresideIds.Message(linkId))
             .WithPlaceholder(t.Get("fireside.pick-message.placeholder"));
         foreach (var message in FiresideService.Messages)
             menu.AddOption(t.Get("fireside.message." + message), message);
@@ -98,14 +99,14 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var menu = new SelectMenuBuilder()
-            .WithCustomId("fireside:to")
+            .WithCustomId(FiresideIds.To)
             .WithPlaceholder(t.Get("fireside.pick-friend.placeholder"));
         foreach (var friend in state.Friends.Take(FiresideService.MaxFriends))
             menu.AddOption(friend.Name.Length is > 0 and <= 100 ? friend.Name : "…", friend.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
         await FollowupAsync(t.Get("fireside.pick-friend"), components: new ComponentBuilder().WithSelectMenu(menu).Build(), ephemeral: true);
     }
 
-    [ComponentInteraction("fireside:to", ignoreGroupNames: true)]
+    [ComponentInteraction(FiresideIds.To, ignoreGroupNames: true)]
     public async Task PickFriendAsync(string[] values)
     {
         await DeferAsync();
@@ -118,7 +119,7 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
         await UpdateAsync(t.Get("fireside.pick-message"), MessageMenu(t, linkId));
     }
 
-    [ComponentInteraction("fireside:msg:*", ignoreGroupNames: true)]
+    [ComponentInteraction(FiresideIds.MessagePattern, ignoreGroupNames: true)]
     public async Task PickMessageAsync(string link, string[] values)
     {
         await DeferAsync();
@@ -135,7 +136,7 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
         }, new ComponentBuilder().Build());
     }
 
-    [ComponentInteraction("fireside:back:*", ignoreGroupNames: true)]
+    [ComponentInteraction(FiresideIds.BackPattern, ignoreGroupNames: true)]
     public async Task SendBackAsync(string link)
     {
         await DeferAsync(ephemeral: true);
@@ -148,7 +149,7 @@ public class FiresideModule : InteractionModuleBase<SocketInteractionContext>
         await FollowupAsync(t.Get("fireside.pick-message"), components: MessageMenu(t, linkId), ephemeral: true);
     }
 
-    [ComponentInteraction("fireside:ok:*", ignoreGroupNames: true)]
+    [ComponentInteraction(FiresideIds.OkPattern, ignoreGroupNames: true)]
     public async Task OkayAsync(string link)
     {
         await DeferAsync();

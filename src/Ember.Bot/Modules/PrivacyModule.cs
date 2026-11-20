@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -35,7 +36,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("delete", "Permanently delete all your Ember data")]
     public Task DeleteAsync() => RespondWithDeleteConfirmationAsync();
 
-    [ComponentInteraction("privacy:delete:start:*", ignoreGroupNames: true)]
+    [ComponentInteraction(PrivacyIds.DeleteStartPattern, ignoreGroupNames: true)]
     public async Task OnStartDeleteAsync(string ownerIdStr)
     {
         if (!IsOwner(ownerIdStr, Context.User.Id))
@@ -58,8 +59,8 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var buttons = new ComponentBuilder()
-            .WithButton(t.Get("privacy.delete.button"), $"privacy:delete:confirm:{userId}", ButtonStyle.Danger)
-            .WithButton(t.Get("common.cancel"), $"privacy:delete:cancel:{userId}", ButtonStyle.Secondary)
+            .WithButton(t.Get("privacy.delete.button"), PrivacyIds.DeleteConfirm(userId), ButtonStyle.Danger)
+            .WithButton(t.Get("common.cancel"), PrivacyIds.DeleteCancel(userId), ButtonStyle.Secondary)
             .Build();
 
         await RespondAsync(
@@ -68,7 +69,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
             ephemeral: true);
     }
 
-    [ComponentInteraction("privacy:delete:confirm:*", ignoreGroupNames: true)]
+    [ComponentInteraction(PrivacyIds.DeleteConfirmPattern, ignoreGroupNames: true)]
     public async Task OnConfirmDeleteAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -86,7 +87,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
-    [ComponentInteraction("privacy:delete:cancel:*", ignoreGroupNames: true)]
+    [ComponentInteraction(PrivacyIds.DeleteCancelPattern, ignoreGroupNames: true)]
     public async Task OnCancelDeleteAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -109,14 +110,14 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
         var userId = Context.User.Id;
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         var buttons = new ComponentBuilder()
-            .WithButton(t.Get("privacy.withdraw.button"), $"privacy:withdraw:confirm:{userId}", ButtonStyle.Danger)
-            .WithButton(t.Get("common.cancel"), $"privacy:withdraw:cancel:{userId}", ButtonStyle.Secondary)
+            .WithButton(t.Get("privacy.withdraw.button"), PrivacyIds.WithdrawConfirm(userId), ButtonStyle.Danger)
+            .WithButton(t.Get("common.cancel"), PrivacyIds.WithdrawCancel(userId), ButtonStyle.Secondary)
             .Build();
 
         await RespondAsync(t.Get("privacy.withdraw.confirm"), components: buttons, ephemeral: true);
     }
 
-    [ComponentInteraction("privacy:withdraw:confirm:*", ignoreGroupNames: true)]
+    [ComponentInteraction(PrivacyIds.WithdrawConfirmPattern, ignoreGroupNames: true)]
     public async Task OnConfirmWithdrawAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -142,12 +143,12 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
         {
             m.Content = t.Format("privacy.withdraw.done", deletesOn.ToString(t.Get("date.full"), t.Culture));
             m.Components = new ComponentBuilder()
-                .WithButton(t.Get("consent.delete-button"), $"privacy:delete:start:{userId}", ButtonStyle.Secondary)
+                .WithButton(t.Get("consent.delete-button"), PrivacyIds.DeleteStart(userId), ButtonStyle.Secondary)
                 .Build();
         });
     }
 
-    [ComponentInteraction("privacy:withdraw:cancel:*", ignoreGroupNames: true)]
+    [ComponentInteraction(PrivacyIds.WithdrawCancelPattern, ignoreGroupNames: true)]
     public async Task OnCancelWithdrawAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);

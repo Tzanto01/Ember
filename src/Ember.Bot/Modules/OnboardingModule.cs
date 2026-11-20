@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 
@@ -157,12 +158,12 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── Step 1: button → region picker ────────────────────────────────────────
 
-    [ComponentInteraction("onboard:timezone:*")]
+    [ComponentInteraction(OnboardingIds.TimezonePattern)]
     public async Task OnTimezoneButtonAsync(string habitIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         var menu = new SelectMenuBuilder()
-            .WithCustomId($"onboard:region:{habitIdStr}")
+            .WithCustomId(OnboardingIds.Region(habitIdStr))
             .WithPlaceholder(t.Get("onboard.region.placeholder"));
 
         foreach (var (id, emoji) in Regions)
@@ -178,7 +179,7 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── Step 2: region → timezone picker ─────────────────────────────────────
 
-    [ComponentInteraction("onboard:region:*")]
+    [ComponentInteraction(OnboardingIds.RegionPattern)]
     public async Task OnRegionSelectAsync(string habitIdStr, string[] selected)
     {
         var region = selected[0];
@@ -191,7 +192,7 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var menu = new SelectMenuBuilder()
-            .WithCustomId($"onboard:tz:{habitIdStr}")
+            .WithCustomId(OnboardingIds.TimezoneSelect(habitIdStr))
             .WithPlaceholder(t.Get("onboard.tz.placeholder"));
 
         foreach (var id in tzList)
@@ -207,7 +208,7 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── Step 3: timezone selected → save + reminder prompt ───────────────────
 
-    [ComponentInteraction("onboard:tz:*")]
+    [ComponentInteraction(OnboardingIds.TimezoneSelectPattern)]
     public async Task OnTimezoneSelectAsync(string habitIdStr, string[] selected)
     {
         var tzId = selected[0];
@@ -230,8 +231,8 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
             .Build();
 
         var components = new ComponentBuilder()
-            .WithButton(t.Get("onboard.set-reminder"), $"reminder:set:{habitIdStr}", ButtonStyle.Primary)
-            .WithButton(t.Get("common.skip-for-now"), $"reminder:skip:{habitIdStr}", ButtonStyle.Secondary)
+            .WithButton(t.Get("onboard.set-reminder"), ReminderIds.Set(habitIdStr), ButtonStyle.Primary)
+            .WithButton(t.Get("common.skip-for-now"), ReminderIds.Skip(habitIdStr), ButtonStyle.Secondary)
             .Build();
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>

@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using Ember.Bot.CustomIds;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -17,7 +18,6 @@ namespace Ember.Bot.Modules;
 /// </summary>
 public class FeedbackModule : InteractionModuleBase<SocketInteractionContext>
 {
-    internal const string ModalId = "feedback:modal";
 
     /// <summary>The named <see cref="HttpClient"/> for picture downloads: 15 s timeout, no redirects; each whole download (headers and body) also gets 15 s.</summary>
     public const string HttpClientName = "feedback-images";
@@ -64,7 +64,7 @@ public class FeedbackModule : InteractionModuleBase<SocketInteractionContext>
 
         return new ModalBuilder()
             .WithTitle(t.Get("feedback.modal.title"))
-            .WithCustomId(ModalId)
+            .WithCustomId(FeedbackIds.Modal)
             .AddTextDisplay(t.Get("feedback.modal.health"))
             .AddTextInput(t.Get("feedback.modal.feedback-title"), "feedback_title", TextInputStyle.Short,
                 minLength: 1, maxLength: HabitService.MaxFeedbackTitleLength, required: true)
@@ -76,7 +76,7 @@ public class FeedbackModule : InteractionModuleBase<SocketInteractionContext>
             .Build();
     }
 
-    [ModalInteraction(ModalId)]
+    [ModalInteraction(FeedbackIds.Modal)]
     public async Task OnModalAsync(FeedbackModal modal)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);

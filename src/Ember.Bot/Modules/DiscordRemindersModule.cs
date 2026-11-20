@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 
@@ -8,7 +9,7 @@ namespace Ember.Bot.Modules;
 
 /// <summary>
 /// The answer to "may your reminders come here by Discord DM?" (<see cref="Jobs.DiscordReminderAskJob"/>); the latest answer wins.
-/// Custom IDs: "discordreminders:yes:{discordUserId}", "discordreminders:no:{discordUserId}", and "discordreminders:stop:{discordUserId}"
+/// Custom ids: <see cref="DiscordReminderIds"/>.
 /// under every reminder DM. <c>/reminders off|on</c> sets the same answer from a command.
 /// </summary>
 public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionContext>
@@ -26,8 +27,8 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     }
 
     internal static MessageComponent AskButtons(Texts t, ulong userId) => new ComponentBuilder()
-        .WithButton(t.Get("discordreminders.ask.yes"), $"discordreminders:yes:{userId}", ButtonStyle.Primary)
-        .WithButton(t.Get("discordreminders.ask.no"), $"discordreminders:no:{userId}", ButtonStyle.Secondary)
+        .WithButton(t.Get("discordreminders.ask.yes"), DiscordReminderIds.Yes(userId), ButtonStyle.Primary)
+        .WithButton(t.Get("discordreminders.ask.no"), DiscordReminderIds.No(userId), ButtonStyle.Secondary)
         .Build();
 
     internal static MessageComponent TurnOnButton(Texts t, ulong userId) => new ComponentBuilder()
@@ -36,13 +37,13 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
 
     private static ButtonBuilder TurnOn(Texts t, ulong userId) => new ButtonBuilder()
         .WithLabel(t.Get("discordreminders.turn-on"))
-        .WithCustomId($"discordreminders:yes:{userId}")
+        .WithCustomId(DiscordReminderIds.Yes(userId))
         .WithStyle(ButtonStyle.Primary);
 
     /// <summary>The "Stop Discord reminders" button under every reminder DM.</summary>
     internal static ButtonBuilder StopButton(Texts t, ulong userId) => new ButtonBuilder()
         .WithLabel(t.Get("discordreminders.stop"))
-        .WithCustomId($"discordreminders:stop:{userId}")
+        .WithCustomId(DiscordReminderIds.Stop(userId))
         .WithStyle(ButtonStyle.Secondary);
 
     /// <summary>A reminder's buttons after its stop button was used: every other button stays in its row, the stop button becomes "Turn them on".</summary>
@@ -51,7 +52,7 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
         var builder = new ComponentBuilder();
         foreach (var (row, rowIndex) in components.OfType<ActionRowComponent>().Select((r, i) => (r, i)))
             foreach (var button in row.Components.OfType<ButtonComponent>())
-                builder.WithButton(button.CustomId?.StartsWith("discordreminders:stop:", StringComparison.Ordinal) == true
+                builder.WithButton(button.CustomId?.StartsWith(DiscordReminderIds.StopPrefix, StringComparison.Ordinal) == true
                     ? TurnOn(t, userId)
                     : button.ToBuilder(), rowIndex);
         return builder.Build();
@@ -81,13 +82,13 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
         return true;
     }
 
-    [ComponentInteraction("discordreminders:yes:*")]
+    [ComponentInteraction(DiscordReminderIds.YesPattern)]
     public Task OnYesAsync(string ownerIdStr) => AnswerAsync(ownerIdStr, yes: true);
 
-    [ComponentInteraction("discordreminders:no:*")]
+    [ComponentInteraction(DiscordReminderIds.NoPattern)]
     public Task OnNoAsync(string ownerIdStr) => AnswerAsync(ownerIdStr, yes: false);
 
-    [ComponentInteraction("discordreminders:stop:*")]
+    [ComponentInteraction(DiscordReminderIds.StopPattern)]
     public async Task OnStopAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);

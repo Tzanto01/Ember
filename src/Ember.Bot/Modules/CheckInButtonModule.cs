@@ -2,6 +2,7 @@ using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.CustomIds;
 using Ember.Bot.Jobs;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
@@ -12,7 +13,7 @@ namespace Ember.Bot.Modules;
 
 /// <summary>
 /// Handles the "Done ✅", "Skip for today" and "Snooze 1h ⏰" button interactions sent in DM reminders.
-/// Custom ID format: "checkin:done:{habitId}:{unixSeconds}", "checkin:skip:{habitId}:{unixSeconds}", "checkin:snooze:{habitId}:{unixSeconds}"
+/// Custom ids: <see cref="CheckInIds"/>.
 /// Done and skip log the user's local day the reminder was sent on, until the reminder expires
 /// (<see cref="ReminderDispatchJob.IsExpired"/>); after that they close the message instead.
 /// Snooze only works within <see cref="HabitService.SnoozeWindow"/> of the send time and while the snoozed reminder stays on the local day
@@ -51,9 +52,8 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             return null;
 
         var habitIds = components.OfType<ActionRowComponent>().SelectMany(r => r.Components).OfType<ButtonComponent>()
-            .Select(b => b.CustomId?.Split(':'))
-            .Where(p => p is ["checkin", "done", _, _])
-            .Select(p => int.TryParse(p![2], out var id) ? id : 0)
+            .Select(b => CheckInIds.DoneHabitId(b.CustomId))
+            .OfType<int>()
             .ToList();
         foreach (var habitId in habitIds)
             if ((await habits.GetHabitAsync(userId, habitId))?.Logs.Any(l => l.Date == day && l.Completed) != true)
@@ -160,7 +160,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
     internal static MessageComponent? RoutineButtonsAfterDone(IEnumerable<IMessageComponent> components, string tappedId, bool done)
     {
         var buttons = components.OfType<ActionRowComponent>().SelectMany(r => r.Components).OfType<ButtonComponent>().ToList();
-        if (buttons.Count(b => b.CustomId?.StartsWith("checkin:done:", StringComparison.Ordinal) == true) < 2) return null;
+        if (buttons.Count(b => b.CustomId?.StartsWith(CheckInIds.DonePrefix, StringComparison.Ordinal) == true) < 2) return null;
 
         var builder = new ComponentBuilder();
         var kept = buttons.Where(b => !done || b.CustomId != tappedId).ToList();
@@ -168,15 +168,15 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
         return builder.Build();
     }
 
-    [ComponentInteraction("checkin:done:*:*")]
+    [ComponentInteraction(CheckInIds.DonePattern)]
     public async Task OnDoneAsync(string habitIdStr, string timestampStr) =>
         await LogAsync(habitIdStr, timestampStr, completed: true, "common.logged-today", "checkin.logged-day");
 
-    [ComponentInteraction("checkin:skip:*:*")]
+    [ComponentInteraction(CheckInIds.SkipPattern)]
     public async Task OnSkipAsync(string habitIdStr, string timestampStr) =>
         await LogAsync(habitIdStr, timestampStr, completed: false, "common.skipped-today", "checkin.skipped-day");
 
-    [ComponentInteraction("checkin:snooze:*:*")]
+    [ComponentInteraction(CheckInIds.SnoozePattern)]
     public async Task OnSnoozeAsync(string habitIdStr, string timestampStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
