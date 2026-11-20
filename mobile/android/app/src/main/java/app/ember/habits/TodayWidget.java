@@ -336,7 +336,7 @@ public class TodayWidget extends AppWidgetProvider {
     }
 
     /** Records a pending check-in, one per user, habit and date, keeping the highest count. */
-    private static void addPending(Context context, String userId, long habitId, String date, int count) {
+    static void addPending(Context context, String userId, long habitId, String date, int count) {
         synchronized (TodayWidget.class) {
             JSONArray entries = pending(context);
             try {
@@ -358,7 +358,7 @@ public class TodayWidget extends AppWidgetProvider {
     }
 
     /** Drops the pending entry once the server's {@code count} reached its target. */
-    private static void settlePending(Context context, String userId, long habitId, String date, int count) {
+    static void settlePending(Context context, String userId, long habitId, String date, int count) {
         synchronized (TodayWidget.class) {
             JSONArray entries = pending(context);
             JSONArray kept = new JSONArray();
@@ -568,7 +568,7 @@ public class TodayWidget extends AppWidgetProvider {
     }
 
     /** The stored snapshot when it, or its {@code next} day, is for today in its zone, else null. */
-    private static JSONObject current(Context context) {
+    static JSONObject current(Context context) {
         String stored = prefs(context).getString(SNAPSHOT, null);
         if (stored == null) return null;
         try {
