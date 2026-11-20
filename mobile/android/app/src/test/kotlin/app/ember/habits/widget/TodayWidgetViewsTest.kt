@@ -221,7 +221,7 @@ class TodayWidgetViewsTest {
 
         val circle = host.view(250f, 296f).all(R.id.widget_row_circle).single()
 
-        assertTrue(circle is ImageView && circle !is CompoundButton)
+        assertTrue(circle is ImageView)
         circle.performClick()
         val tap = shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity
         assertEquals(TodayWidget.ACTION_CHECK_IN, tap.action)

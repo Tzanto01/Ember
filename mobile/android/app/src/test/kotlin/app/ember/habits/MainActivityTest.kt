@@ -174,6 +174,7 @@ class NoServiceWorkers {
     companion object {
         @JvmStatic
         @Implementation
+        @Suppress("DEPRECATION")
         fun getInstance(): ServiceWorkerController = object : ServiceWorkerController() {
             override fun getServiceWorkerWebSettings(): ServiceWorkerWebSettings = throw UnsupportedOperationException()
             override fun setServiceWorkerClient(client: ServiceWorkerClient?) = Unit

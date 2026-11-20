@@ -127,6 +127,7 @@ class TodayWidgetTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun theWidgetRedrawsJustAfterMidnightInTheAccountsZone() {
         host.today(host.habit(1, "Water"))
         host.view(250f, 296f)
