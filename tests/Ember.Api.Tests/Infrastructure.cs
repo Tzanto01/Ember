@@ -225,6 +225,17 @@ public sealed class ApiHost : WebApplicationFactory<Program>
         return client;
     }
 
+    /// <summary>A confirmed user with the health-data consent, signed in with a bearer token only, like the native app.</summary>
+    public async Task<ApiClient> BearerAsync()
+    {
+        var user = await ConfirmedUserAsync();
+        var tokens = await (await user.Post("/api/auth/login", new Credentials(user.Email, ApiClient.Passphrase))).ExpectJson();
+        var bearer = NewClient();
+        bearer.Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokens.GetProperty("accessToken").GetString());
+        await bearer.GiveConsentAsync();
+        return bearer;
+    }
+
     /// <summary>Whether the session in <paramref name="client"/>'s cookie is live, as the API's cached lookup sees it.</summary>
     public async Task<bool> SessionIsLiveAsync(ApiClient client)
     {

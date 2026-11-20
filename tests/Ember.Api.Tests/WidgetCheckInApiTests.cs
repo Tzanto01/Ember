@@ -17,11 +17,7 @@ public class WidgetCheckInApiTests(PostgresFixture postgres) : ApiTestBase(postg
     /// <summary>A consenting user signed in with a bearer token only, like the native app.</summary>
     private async Task<(ApiClient Bearer, Guid UserId)> BearerAsync()
     {
-        var user = await Host.ConfirmedUserAsync();
-        var tokens = await (await user.Post("/api/auth/login", new Credentials(user.Email, ApiClient.Passphrase))).ExpectJson();
-        var bearer = Host.NewClient();
-        bearer.Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.GetProperty("accessToken").GetString());
-        await bearer.GiveConsentAsync();
+        var bearer = await Host.BearerAsync();
         return (bearer, await bearer.IdAsync());
     }
 
