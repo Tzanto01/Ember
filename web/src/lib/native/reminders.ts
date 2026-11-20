@@ -11,7 +11,7 @@ import { asApiError } from '../problem';
 import { notificationColor } from '../theme';
 import { reminderNames } from './reminder-names';
 import { cachedPhone, forgetPhone, installId, phoneLabel, type ReminderPhone, rememberPhone } from './phone';
-import { localDate, planReminders, type ReminderTarget } from './reminder-plan';
+import { localDate, type PlannedReminder, planReminders, type ReminderTarget, settled } from './reminder-plan';
 import { updaterAvailable } from './updater';
 import { capacitorWidget, type EmberWidgetPlugin, widgetSnapshot } from './widget';
 
@@ -78,6 +78,18 @@ export function checkInTarget(extra: unknown, userId: string): CheckInTarget | n
   return { habitId, date };
 }
 
+/** The habit ({@link checkInTarget}) or routine reminder of `userId` that `extra` names; null for anything else. */
+function remindedOf(extra: unknown, userId: string): Pick<PlannedReminder, 'habitId' | 'routineId' | 'date'> | null {
+  const habit = checkInTarget(extra, userId);
+  if (habit) return habit;
+  if (typeof extra !== 'object' || extra === null) return null;
+  const { userId: owner, routineId, date } = extra as Record<string, unknown>;
+  if (typeof owner !== 'string' || owner !== userId) return null;
+  if (typeof routineId !== 'number' || !Number.isSafeInteger(routineId) || routineId <= 0) return null;
+  if (typeof date !== 'string' || !isLocalDate(date)) return null;
+  return { routineId, date };
+}
+
 /**
  * Native build only: keeps the device's local reminder notifications in step with the habits and routines that
  * remind on this phone ({@link ReminderTarget}: in no-account mode the `mobile` channel; with an account this
@@ -101,8 +113,9 @@ export class Reminders {
   /**
    * Rebuilds the user's reminders from the current habit list (when offline: the cached list with the queued
    * day edits applied, so an offline check-in still cancels today's reminder), in `timeZone`, with a second
-   * reminder `secondMinutes` after each one when above 0, and pushes the widget's snapshot in the account's Today
-   * `order`. Rebuilds run one after another. Never throws.
+   * reminder `secondMinutes` after each one when above 0, pushes the widget's snapshot in the account's Today
+   * `order`, and removes the delivered reminders that have nothing left to remind of. Rebuilds run one after another.
+   * Never throws.
    */
   rebuild(userId: string, timeZone: string, secondMinutes = 0, order: string[] | null = null): Promise<void> {
     this.chain = this.chain.then(() => this.run(userId, timeZone, secondMinutes, order)).catch(() => undefined);
@@ -316,6 +329,7 @@ export class Reminders {
     );
     if (live && !localModeOn()) await this.handOffKey();
     const plugin = (await this.notifications()).LocalNotifications;
+    await this.clearSettled(plugin, userId, habits, routines);
     const target: ReminderTarget = localModeOn()
       ? { mode: 'local' }
       : {
@@ -465,6 +479,32 @@ export class Reminders {
       await widget.setKey({ key, apiBase: new URL(env.apiBase).origin });
       this.keyHandedOff = true;
     });
+  }
+
+  /**
+   * Removes the delivered reminders of `userId` that have nothing left to remind of ({@link settled}), so a check-in
+   * from anywhere clears that day's reminder. Android reports a delivered notification without its `extra`, so it is
+   * read from the plugin's record of it (`getByIds`). Never throws.
+   */
+  private async clearSettled(
+    plugin: LocalNotificationsPlugin,
+    userId: string,
+    habits: AnyHabit[],
+    routines: Routine[],
+  ): Promise<void> {
+    try {
+      const { notifications: delivered } = await plugin.getDeliveredNotifications();
+      if (!delivered.length) return;
+      const { notifications: records } = await plugin.getByIds({ ids: delivered.map(({ id }) => id) });
+      const done = new Set(
+        records.flatMap(({ id, extra }) => {
+          const reminder = remindedOf(extra, userId);
+          return reminder && settled(habits, routines, reminder) ? [id] : [];
+        }),
+      );
+      const notifications = delivered.filter(({ id }) => done.has(id));
+      if (notifications.length) await plugin.removeDeliveredNotifications({ notifications });
+    } catch {}
   }
 
   private toWidget(call: (widget: EmberWidgetPlugin) => Promise<void>): Promise<void> {

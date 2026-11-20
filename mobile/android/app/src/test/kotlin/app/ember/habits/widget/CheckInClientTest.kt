@@ -1,8 +1,14 @@
 package app.ember.habits.widget
 
+import android.app.Notification
+import android.app.NotificationManager
 import android.os.SystemClock
 import app.ember.habits.FakeAndroidKeyStore
 import app.ember.habits.TodayHost
+import com.capacitorjs.plugins.localnotifications.LocalNotification
+import com.capacitorjs.plugins.localnotifications.NotificationStorage
+import com.getcapacitor.JSObject
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -56,6 +62,19 @@ class CheckInClientTest {
         }
     }
 
+    private val notifications get() = host.context.getSystemService(NotificationManager::class.java)
+
+    /** Posts reminder [id] as the local-notifications plugin does: the notification, and the plugin's record with its `extra`. */
+    private fun deliver(id: Int, habitId: Long, date: String, userId: String = "user-1") {
+        val extra = JSObject().put("userId", userId).put("habitId", habitId).put("date", date)
+        val record = JSObject().put("id", id).put("title", "Ember").put("body", "A gentle nudge")
+            .put("schedule", JSObject().put("at", "2026-01-01T07:00:00.000Z")).put("extra", extra)
+        NotificationStorage(host.context).appendNotifications(listOf(LocalNotification.buildNotificationFromJSObject(record)))
+        notifications.notify(id, Notification.Builder(host.context, "reminders").setSmallIcon(android.R.drawable.ic_dialog_info).build())
+    }
+
+    private fun shown() = notifications.activeNotifications.map { it.id }.toSet()
+
     private fun row() = WidgetStore.current(host.context)!!.getJSONArray("habits").getJSONObject(0)
 
     private fun pendingCount(): Int? {
@@ -90,6 +109,32 @@ class CheckInClientTest {
         assertEquals("done", row().getString("state"))
         assertEquals(2, row().getInt("count"))
         assertNull(pendingCount())
+    }
+
+    @Test
+    fun aDoneAnswerRemovesThatHabitsDeliveredReminderForThatDayAndItsPluginRecord() {
+        deliver(11, 5, host.today)
+        deliver(12, 5, LocalDate.parse(host.today).minusDays(1).toString())
+        deliver(13, 6, host.today)
+        deliver(14, 5, host.today, userId = "user-2")
+        answer(200, confirmed)
+
+        send()
+
+        assertEquals(setOf(12, 13, 14), shown())
+        val records = NotificationStorage(host.context)
+        assertNull(records.getSavedNotificationAsJSObject("11"))
+        assertNotNull(records.getSavedNotificationAsJSObject("12"))
+    }
+
+    @Test
+    fun aPartialAnswerLeavesTheDeliveredReminder() {
+        deliver(11, 5, host.today)
+        answer(200, """{"state":"partial","count":2,"timesPerDay":3}""")
+
+        send()
+
+        assertEquals(setOf(11), shown())
     }
 
     @Test

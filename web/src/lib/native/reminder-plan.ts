@@ -166,6 +166,28 @@ function pendingOn(habit: Habit, date: LocalDateString): boolean {
 }
 
 /**
+ * True when a reminder for `reminder`'s habit or routine on its `date` has nothing left to remind of, by the plan's
+ * rules read from `habit.today` alone: the habit is done that day, or a weekly habit's target is met that week; every
+ * member of the routine is known for that day and none is still pending or partial. Unknown and let-go items, and
+ * days `habit.today` doesn't show, are never settled.
+ */
+export function settled(
+  all: AnyHabit[],
+  routines: Routine[],
+  reminder: Pick<PlannedReminder, 'habitId' | 'routineId' | 'date'>,
+): boolean {
+  const habits = buildHabits(all);
+  const { date } = reminder;
+  if (reminder.habitId !== undefined) {
+    const habit = habits.find(({ id }) => id === reminder.habitId);
+    return !!habit && (doneToday(habit, date) || weekMet(habit, date));
+  }
+  const routine = routines.find(({ id }) => id === reminder.routineId);
+  const members = routine ? habits.filter((habit) => routine.habitIds.includes(habit.id)) : [];
+  return members.length > 0 && members.every((habit) => habit.today.date === date && !pendingOn(habit, date));
+}
+
+/**
  * The local notifications for the next {@link planDays} local days in `timeZone` (the account's, never the
  * device's), with the bot dispatcher's rules, for the items that remind here by `target` ({@link ReminderTarget}).
  * Habits fire at each of their reminder times on scheduled days only (started, not paused, a listed weekday), not
