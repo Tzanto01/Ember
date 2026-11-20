@@ -23,20 +23,21 @@ internal static class FeedbackEndpoints
     /// text with the platform, version and the signed-in user unless <c>anonymous</c> is true. <c>images</c> (base64, signed-in
     /// callers only, anonymous or not) are checked cheaply before the rate limit, then decoded and stripped by
     /// <see cref="FeedbackImages.Sanitize"/> and counted against <see cref="RateLimits.FeedbackBytesKey"/>. Unknown body members
-    /// are ignored. A missing <c>title</c> (app versions before v1.15) is taken from the text's first line. 429 also when <see cref="HabitService.MaxFeedbackPerDay"/> were submitted or
-    /// <see cref="HabitService.MaxFeedbackImageBytesPerDay"/> stored in the last 24 hours on any platform.
+    /// are ignored. A missing <c>title</c> (app versions before v1.15) is taken from the text's first line. 429 also when <see cref="FeedbackService.MaxFeedbackPerDay"/> were submitted or
+    /// <see cref="FeedbackService.MaxFeedbackImageBytesPerDay"/> stored in the last 24 hours on any platform.
     /// </summary>
     public static RouteGroupBuilder MapFeedback(this RouteGroupBuilder api)
     {
-        api.MapPost("/feedback", async (FeedbackRequest request, HttpContext http, PartitionedRateLimiter<string> limiter, HabitService habits) =>
+        api.MapPost("/feedback", async (FeedbackRequest request, HttpContext http, PartitionedRateLimiter<string> limiter,
+            FeedbackService feedback) =>
         {
             var title = request.Title?.Trim();
             var text = request.Text?.Trim() ?? "";
             var images = request.Images ?? [];
             Guid? userId = http.User.Identity?.IsAuthenticated == true ? http.User.UserId() : null;
             var errors = new Dictionary<string, string[]>();
-            if (title is not null && HabitService.FeedbackTitleError(title) is { } titleError) errors["title"] = [titleError];
-            if (HabitService.FeedbackTextError(text) is { } textError) errors["text"] = [textError];
+            if (title is not null && FeedbackService.FeedbackTitleError(title) is { } titleError) errors["title"] = [titleError];
+            if (FeedbackService.FeedbackTextError(text) is { } textError) errors["text"] = [textError];
             if (request.Platform is not ("web" or "android")) errors["platform"] = ["Must be web or android."];
             if (request.Version is { } version && !IsVersion(version))
                 errors["version"] = [$"1 to {MaxVersionLength} letters, digits or . + _ -"];
@@ -65,7 +66,7 @@ internal static class FeedbackEndpoints
                 if (!lease.IsAcquired) return RateLimits.Reject(http, lease, TimeSpan.FromDays(1));
             }
 
-            if (!await habits.SaveFeedbackAsync(request.Anonymous == true ? null : userId, request.Platform!, request.Version, text,
+            if (!await feedback.SaveFeedbackAsync(request.Anonymous == true ? null : userId, request.Platform!, request.Version, text,
                     http.RequestAborted, title, stored))
             {
                 http.Response.Headers.RetryAfter = "3600";
