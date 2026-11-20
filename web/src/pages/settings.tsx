@@ -1,30 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Sparkles } from 'lucide-react';
-import {
-  type SubmitEvent,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
-import { flushSync } from 'react-dom';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { BusyButton, TapLink } from '@/components/auth/busy-button';
+import { TapLink } from '@/components/auth/busy-button';
 import { BackLink } from '@/components/back-link';
-import { useField, type Validator, validateAll } from '@/components/auth/use-field';
 import { FiresideSettings } from '@/components/fireside/fireside-settings';
-import { FormField, focusFirstInvalid } from '@/components/form-field';
 import { reminderDestinationsKey } from '@/components/habits/device-reminders';
 import { MoodManager } from '@/components/journal/mood-manager';
 import { CrisisLines } from '@/components/moment/crisis-lines';
-import { DeleteDeviceData, DeviceDataSettings } from '@/components/local/device-data-settings';
+import { DeviceDataSettings } from '@/components/local/device-data-settings';
 import { PageHeader } from '@/components/page-header';
 import { AccountCard } from '@/components/settings/account-card';
 import { AppearanceCard } from '@/components/settings/appearance-card';
 import { AppUpdatesSettings } from '@/components/settings/app-updates-settings';
+import { ConsentCard } from '@/components/settings/consent-card';
+import { DeleteCard } from '@/components/settings/delete-card';
 import { DiscordCard } from '@/components/settings/discord-card';
 import { DmRemindersCard } from '@/components/settings/dm-reminders-card';
+import { ExportCard } from '@/components/settings/export-card';
 import { FeedbackForm } from '@/components/settings/feedback-form';
 import { GraceCard } from '@/components/settings/grace-card';
 import { HabitNotesCard } from '@/components/settings/habit-notes-card';
@@ -44,17 +38,11 @@ import { StreaksCard } from '@/components/settings/streaks-card';
 import { TimezoneCard } from '@/components/settings/timezone-card';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
 import { Button } from '@/components/ui/button';
-import { Input, PasswordInput } from '@/components/ui/input';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMePatchField } from '@/hooks/use-me-patch';
-import { saveFile } from '@/lib/browser-download';
 import { env } from '@/lib/env';
-import { formatInstantDate } from '@/lib/local-date';
-import type { ExportFormat } from '@/lib/models';
-import { openOnWeb } from '@/lib/native/browser';
 import { updaterAvailable } from '@/lib/native/updater';
-import { asApiError } from '@/lib/problem';
 import { api, auth, localMode, push } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
@@ -73,17 +61,7 @@ function discordMessage(outcome: DiscordOutcome): SettingsMessage {
   return { tone: discordOutcomes[outcome], text: t(`settings.discord.outcome.${outcome}`) };
 }
 
-const exportFormats: ExportFormat[] = ['json', 'csv'];
 const wideQuery = '(min-width: 48rem)';
-
-const passwordRequired: Validator = (value) => (value ? null : t('settings.passwordRequired'));
-const noPassword: Validator = () => null;
-const deleteWord: Validator = (value) => {
-  const word = value.trim().normalize('NFC');
-  const expected = t('delete.word');
-  if (!word) return t('settings.delete.typeDelete', { word: expected });
-  return word === expected ? null : t('settings.delete.typeDeleteCaps', { word: expected });
-};
 
 function subscribeWide(change: () => void): () => void {
   const query = window.matchMedia(wideQuery);
@@ -120,25 +98,16 @@ export default function SettingsPage() {
   const local = useStore(localMode.mode) === 'local';
   const pushAvailable = useStore(push.available);
   const status = useSettingsStatusState();
-  const { busy, message, start, finish, fail, outcome, patch } = status;
+  const { message, fail, patch } = status;
 
   const scrolled = useRef<string | null>(null);
-  const deleteForm = useRef<HTMLFormElement>(null);
-  const withdrawButton = useRef<HTMLButtonElement>(null);
-  const withdrawText = useRef<HTMLParagraphElement>(null);
   const claimed = useRef<Promise<void> | null>(null);
 
-  const [exporting, setExporting] = useState<ExportFormat | null>(null);
-  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
-  const [deleteErrors, setDeleteErrors] = useState<{ password?: string; confirm?: string }>({});
   const [discordOutcome] = useState<DiscordOutcome | null>(() => {
     const outcome = new URLSearchParams(location.search).get('discord');
     return outcome && Object.hasOwn(discordOutcomes, outcome) ? (outcome as DiscordOutcome) : null;
   });
   const discordNotice = discordOutcome && discordMessage(discordOutcome);
-
-  const password = useField(me?.hasPassword ? passwordRequired : noPassword);
-  const confirm = useField(deleteWord);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -151,74 +120,6 @@ export default function SettingsPage() {
   const [streaks, changeStreaks] = useMePatchField((value: boolean) => patch('streaks', { showStreaks: value }), {
     onError: (error) => fail('streaks', error),
   });
-
-  async function exportAs(format: ExportFormat): Promise<void> {
-    if (status.isBusy()) return;
-    start('export');
-    setExporting(format);
-    try {
-      saveFile(await api.exportData(format));
-    } catch (error) {
-      fail('export', asApiError(error));
-    } finally {
-      setExporting(null);
-      finish();
-    }
-  }
-
-  function askWithdraw(open: boolean): void {
-    flushSync(() => setConfirmWithdraw(open));
-    (open ? withdrawText : withdrawButton).current?.focus();
-  }
-
-  async function withdrawConsent(): Promise<void> {
-    if (status.isBusy()) return;
-    start('consent');
-    try {
-      await api.withdrawConsent();
-      await auth.loadMe(true);
-    } catch (error) {
-      fail('consent', asApiError(error));
-      finish();
-      return;
-    }
-    finish();
-    await navigate('/consent');
-  }
-
-  async function deleteAccount(event: SubmitEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    if (status.isBusy() || !me) return;
-    if (!validateAll(deleteForm.current, me.hasPassword ? [password, confirm] : [confirm])) return;
-    start('delete');
-    setDeleteErrors({});
-    try {
-      await api.deleteAccount(
-        me.hasPassword ? { password: password.value, confirm: 'DELETE' } : { confirm: 'DELETE' },
-      );
-    } catch (error) {
-      const apiError = asApiError(error);
-      if (apiError.status === 400) {
-        flushSync(() =>
-          setDeleteErrors(
-            me.hasPassword
-              ? { password: t('settings.passwordMismatch') }
-              : { confirm: t('settings.delete.typeDeleteCaps', { word: t('delete.word') }) },
-          ),
-        );
-        focusFirstInvalid(deleteForm.current);
-      } else {
-        fail('delete', apiError);
-      }
-      finish();
-      return;
-    }
-    await push.forgetDevice();
-    await auth.wipeDevice();
-    auth.clearSession();
-    await auth.refreshAntiforgery();
-    await navigate('/login?reason=deleted');
-  }
 
   const showDm = !local && !!me && (me.dmReminders.paused || message?.section === 'dm');
   const showSecond = !local || env.native;
@@ -495,148 +396,11 @@ export default function SettingsPage() {
                 </SettingsCard>
               )}
 
-              {shown('consent') && me && (
-                <SettingsCard id="consent" title={title('consent')}>
-                  {me.consent.given ? (
-                    <>
-                      <p>{t('settings.privacy.given')}</p>
-                      {!confirmWithdraw && (
-                        <div>
-                          <Button ref={withdrawButton} type="button" variant="secondary" onClick={() => askWithdraw(true)}>
-                            {t('settings.privacy.withdraw')}
-                          </Button>
-                        </div>
-                      )}
-                      {confirmWithdraw && (
-                        <div className="flex flex-col gap-3 rounded-md border-[length:var(--border-width)] border-border p-3">
-                          <p ref={withdrawText} tabIndex={-1} className="focus:outline-none">
-                            {t('settings.privacy.withdrawConfirm')}
-                          </p>
-                          <div className="flex flex-wrap gap-3">
-                            <BusyButton
-                              type="button"
-                              variant="destructive"
-                              busy={busy === 'consent'}
-                              busyLabel={t('auth.saving')}
-                              onClick={() => void withdrawConsent()}
-                            >
-                              {t('settings.privacy.withdrawYes')}
-                            </BusyButton>
-                            <Button type="button" variant="ghost" onClick={() => askWithdraw(false)}>
-                              {t('settings.privacy.withdrawNo')}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p>
-                        {!me.consent.withdrawnAt
-                          ? t('settings.privacy.missing')
-                          : me.consent.deletesAt
-                            ? t('settings.privacy.withdrawn', { date: formatInstantDate(me.consent.deletesAt, me.timezone) })
-                            : t('settings.privacy.withdrawnNoData')}
-                      </p>
-                      <div>
-                        <TapLink to="/consent">{t('settings.privacy.give')}</TapLink>
-                      </div>
-                    </>
-                  )}
-                  {outcome('consent')}
-                </SettingsCard>
-              )}
+              {shown('consent') && <ConsentCard title={title('consent')} me={me} />}
 
-              {shown('export') && (
-                <SettingsCard id="export" title={title('export')}>
-                  <p>{t('export.intro')}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {env.native ? (
-                      <Button type="button" variant="secondary" onClick={() => void openOnWeb('/settings/privacy#export')}>
-                        {t('export.onWeb')}
-                      </Button>
-                    ) : (
-                      exportFormats.map((format) => (
-                        <BusyButton
-                          key={format}
-                          type="button"
-                          variant="secondary"
-                          busy={exporting === format}
-                          busyLabel={t('settings.preparing')}
-                          onClick={() => void exportAs(format)}
-                        >
-                          {t('export.download', { format: format.toUpperCase() })}
-                        </BusyButton>
-                      ))
-                    )}
-                  </div>
-                  {outcome('export')}
-                </SettingsCard>
-              )}
+              {shown('export') && <ExportCard title={title('export')} />}
 
-              {shown('delete') && (
-                <SettingsCard id="delete" title={title('delete')} farewell>
-                  {local ? (
-                    <DeleteDeviceData />
-                  ) : (
-                    <>
-                      <p>{t('settings.delete.intro')}</p>
-                      <form
-                        ref={deleteForm}
-                        noValidate
-                        onSubmit={(event) => void deleteAccount(event)}
-                        className="flex flex-col gap-3"
-                      >
-                        {me.hasPassword && (
-                          <>
-                            <input
-                              className="sr-only"
-                              type="email"
-                              name="username"
-                              autoComplete="username"
-                              value={me.email ?? ''}
-                              readOnly
-                              tabIndex={-1}
-                              aria-hidden="true"
-                            />
-                            <FormField label={t('settings.yourPassword')} error={password.error ?? deleteErrors.password ?? null}>
-                              {(field) => (
-                                <PasswordInput {...field} {...password.input} autoComplete="current-password" />
-                              )}
-                            </FormField>
-                          </>
-                        )}
-                        <FormField
-                          label={t('settings.delete.confirmLabel', { word: t('delete.word') })}
-                          error={confirm.error ?? deleteErrors.confirm ?? null}
-                        >
-                          {(field) => (
-                            <Input
-                              {...field}
-                              {...confirm.input}
-                              type="text"
-                              autoComplete="off"
-                              autoCapitalize="characters"
-                              spellCheck={false}
-                            />
-                          )}
-                        </FormField>
-                        {outcome('delete')}
-                        <div>
-                          <BusyButton
-                            type="submit"
-                            variant="destructive"
-                            busy={busy === 'delete'}
-                            busyLabel={t('settings.delete.deleting')}
-                          >
-                            {t('settings.delete.submit')}
-                          </BusyButton>
-                        </div>
-                      </form>
-                    </>
-                  )}
-                </SettingsCard>
-              )}
+              {shown('delete') && <DeleteCard title={title('delete')} me={me} local={local} />}
 
               {shown('feedback') && (
                 <SettingsCard id="feedback" title={title('feedback')}>
