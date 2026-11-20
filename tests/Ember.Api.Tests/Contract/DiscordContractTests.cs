@@ -9,7 +9,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>Discord sign-in (web and native), the second step for two-factor accounts, linking, unlinking and deleting a Discord-only account.</summary>
 [Collection("Postgres")]
-public class DiscordContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "discord")
+[ContractArea("discord")]
+public class DiscordContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Login = "/api/auth/discord/login";
     private const string Link = "/api/auth/discord/link";

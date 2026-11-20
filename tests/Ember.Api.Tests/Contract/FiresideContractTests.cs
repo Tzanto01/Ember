@@ -6,7 +6,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>Fireside: settings and consent, friend codes, joining, friends, warmth and asking for company.</summary>
 [Collection("Postgres")]
-public class FiresideContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "fireside")
+[ContractArea("fireside")]
+public class FiresideContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Fireside = "/api/fireside/";
     private const string Code = "/api/fireside/code";

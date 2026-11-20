@@ -8,7 +8,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>Sign-up, sign-in, tokens, sessions and the cross-cutting answers (401, antiforgery 403, unknown API paths, health).</summary>
 [Collection("Postgres")]
-public class AuthContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "auth")
+[ContractArea("auth")]
+public class AuthContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Register = "/api/auth/register";
     private const string Login = "/api/auth/login";

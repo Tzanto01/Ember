@@ -6,7 +6,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>Web push (with a VAPID key configured), the reminder "Done" action and the home screen widget check-in.</summary>
 [Collection("Postgres")]
-public class PushContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "push")
+[ContractArea("push")]
+public class PushContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Subscriptions = "/api/me/push-subscriptions";
     private const string Done = "/api/reminders/done";

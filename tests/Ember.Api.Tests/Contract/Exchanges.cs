@@ -32,8 +32,11 @@ internal sealed partial class Exchanges
     /// <summary>Where the test host's fake Discord stands in for discord.com/oauth2/authorize.</summary>
     private const string FakeAuthorize = "/test/discord/authorize";
 
-    /// <summary>Endpoints whose content is about to change or is deliberately not pinned: only method, route and status are recorded (the export also its content type and download filename).</summary>
-    private static readonly HashSet<string> StatusOnly = ["/api/me/export", "/api/me/delete", "/api/reminders/done"];
+    /// <summary>Endpoints whose successful answer is deliberately not pinned: only method, route and status are recorded (the export also its content type and download filename). Their errors are recorded in full.</summary>
+    private static readonly HashSet<string> StatusOnlyWhenOk = ["/api/me/export", "/api/reminders/done"];
+
+    [GeneratedRegex(@"\d{4}-\d{2}-\d{2}")]
+    private static partial Regex DateInText();
 
     private readonly SortedDictionary<string, JsonObject> _byName = new(StringComparer.Ordinal);
 
@@ -43,8 +46,13 @@ internal sealed partial class Exchanges
         var response = await call;
         _byName.ContainsKey(name).Should().BeFalse("exchange names are unique ({0})", name);
 
-        var exchange = new JsonObject { ["method"] = response.RequestMessage!.Method.Method, ["route"] = route };
-        if (StatusOnly.Contains(route))
+        var path = response.RequestMessage!.RequestUri!.AbsolutePath;
+        if (!RouteNames.Matches(route, path))
+            throw new Xunit.Sdk.XunitException($"Exchange {name} is labelled {route} but sent {response.RequestMessage.Method} {path}.");
+
+        route = RouteNames.Positional(route);
+        var exchange = new JsonObject { ["method"] = response.RequestMessage.Method.Method, ["route"] = route };
+        if (StatusOnlyWhenOk.Contains(route) && response.IsSuccessStatusCode)
         {
             exchange["status"] = (int)response.StatusCode;
             if (route == "/api/me/export")
@@ -114,7 +122,7 @@ internal sealed partial class Exchanges
         if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
             headers["Set-Cookie"] = new JsonArray(cookies.Select(c => AntiforgeryCookie().Replace(c.Split('=')[0], "$1<suffix>")).Distinct().Order(StringComparer.Ordinal)
                 .Select(name => (JsonNode)name).ToArray());
-        if (response.Content.Headers.ContentDisposition is { } disposition) headers["Content-Disposition"] = disposition.ToString();
+        if (response.Content.Headers.ContentDisposition is { } disposition) headers["Content-Disposition"] = DateInText().Replace(disposition.ToString(), "<date>");
         return headers;
     }
 

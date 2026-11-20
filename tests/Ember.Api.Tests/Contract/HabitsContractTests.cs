@@ -4,7 +4,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>Habits of both kinds, their days and slips, and the habit templates.</summary>
 [Collection("Postgres")]
-public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "habits")
+[ContractArea("habits")]
+public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Habits = "/api/habits";
     private const string One = "/api/habits/{id:int}";

@@ -8,7 +8,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>The account itself: settings, consent, export, import, two-factor sign-in, deletion and merging a bot-only account.</summary>
 [Collection("Postgres")]
-public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "account")
+[ContractArea("account")]
+public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Wrong = "wrong-long-passphrase";
 

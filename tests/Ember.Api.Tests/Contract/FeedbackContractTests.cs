@@ -4,7 +4,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>Feedback from signed-in and anonymous senders, and the push key of an app without Web Push configured.</summary>
 [Collection("Postgres")]
-public class FeedbackContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "feedback")
+[ContractArea("feedback")]
+public class FeedbackContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Feedback = "/api/feedback";
 

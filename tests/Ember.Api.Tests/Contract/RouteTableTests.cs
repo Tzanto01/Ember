@@ -22,6 +22,18 @@ public class RouteTableTests(PostgresFixture postgres) : ApiTestBase(postgres)
         Golden.Check("routes.txt", table);
     }
 
+    [Fact]
+    public void Every_golden_response_file_has_a_test_class_writing_it()
+    {
+        var written = typeof(ContractTestBase).Assembly.GetTypes()
+            .Where(t => t.IsSubclassOf(typeof(ContractTestBase)) && !t.IsAbstract)
+            .Select(t => $"{ContractAreaAttribute.Of(t)}.json")
+            .Order().ToList();
+        var files = Directory.GetFiles(Golden.Path("responses"), "*.json").Select(Path.GetFileName).Order().ToList();
+
+        files.Should().Equal(written, "a responses golden without a writing test class is an orphan, and a class needs its golden");
+    }
+
     [DockerFact]
     public void Every_route_has_a_recorded_exchange_and_every_exchange_a_route()
     {

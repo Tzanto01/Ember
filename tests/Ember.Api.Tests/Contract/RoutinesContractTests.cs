@@ -4,7 +4,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>Routines, reminder destinations (browsers, phones, Discord) and low days.</summary>
 [Collection("Postgres")]
-public class RoutinesContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "routines")
+[ContractArea("routines")]
+public class RoutinesContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Routines = "/api/routines";
     private const string Routine = "/api/routines/{id:int}";
@@ -41,7 +42,7 @@ public class RoutinesContractTests(PostgresFixture postgres) : ContractTestBase(
         await Rec("phones.ok", Phones, user.Post(Phones, new { installId = "contract-install-id-0001", label = "Pixel 8" }));
         await Rec("phones.no-label", Phones, user.Post(Phones, new { installId = "contract-install-id-0002" }));
         await Rec("phones.invalid", Phones, user.Post(Phones, new { installId = "short", label = new string('x', 61) }));
-        await Rec("phones.label-characters", Phones, user.Post(Phones, new { installId = "contract-install-id-0003", label = "Pixel‮" }));
+        await Rec("phones.label-characters", Phones, user.Post(Phones, new { installId = "contract-install-id-0003", label = "Pixel\u202E" }));
         var list = await Rec("destinations.get.ok", Destinations, user.Get(Destinations));
         var browser = (await list.ExpectJson()).EnumerateArray().First(d => d.GetProperty("kind").GetString() == "browser").GetProperty("id").GetString()!;
         var phone = (await list.ExpectJson()).EnumerateArray().First(d => d.GetProperty("kind").GetString() == "phone").GetProperty("id").GetString()!;

@@ -7,12 +7,26 @@ namespace Ember.Api.Tests.Contract;
 /// <summary>
 /// A JSON value as its contract shape: objects as sorted key to shape, arrays as one merged element shape, primitives as
 /// <c>string</c>, <c>integer</c>, <c>number</c>, <c>boolean</c>, <c>null</c> or a wire format (<c>date</c>, <c>time</c>,
-/// <c>datetime</c>, <c>guid</c>). Strings under <see cref="LiteralKeys"/> are kept as <c>enum(value)</c> since the values are part of the contract.
+/// <c>datetime</c>, <c>guid</c>). Short token-like strings are kept as <c>enum(value)</c> since the values are part of the contract, except under <see cref="FreeTextKeys"/>.
 /// A key missing from some array elements gets a <c>?</c> suffix; <c>a|b</c> joins the shapes of one position that differ.
 /// </summary>
 internal static partial class Shapes
 {
-    private static readonly HashSet<string> LiteralKeys = ["state", "frequency", "kind", "platform"];
+    /// <summary>Keys whose strings are free text, user-chosen or random, or change with releases: shown as <c>string</c>. Every other short token-like string is kept as its value.</summary>
+    private static readonly HashSet<string> FreeTextKeys =
+    [
+        "name", "label", "text", "title", "description", "headline", "footer", "renamedFrom", "habitNames", "email", "password",
+        "key", "code", "sharedKey", "authenticatorUri", "accessToken", "refreshToken", "recoveryCodes", "recoveryCode",
+        "twoFactorCode", "twoFactorRecoveryCode", "token", "verifier", "challenge", "signupKey", "userId", "installId", "endpoint",
+        "iv", "ct", "salt", "wrapped", "encrypted", "emoji", "policyVersion", "currentPolicyVersion", "consentVersion",
+        "timezone", "version", "confirm", "newPassword", "oldPassword", "resetCode", "p256dh", "auth", "refresh", "id",
+    ];
+
+    [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9_.:-]{0,23}$")]
+    private static partial Regex TokenPattern();
+
+    [GeneratedRegex(@"^custom:\d+$")]
+    private static partial Regex CustomMoodPattern();
 
     [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}$")]
     private static partial Regex DatePattern();
@@ -92,7 +106,8 @@ internal static partial class Shapes
         if (TimeWithSecondsPattern().IsMatch(value)) return "time-with-seconds";
         if (DateTimePattern().IsMatch(value)) return "datetime";
         if (UnzonedDateTimePattern().IsMatch(value)) return "datetime-without-Z";
-        return key is not null && LiteralKeys.Contains(key) ? $"enum({value})" : "string";
+        if (CustomMoodPattern().IsMatch(value)) return "enum(custom:{n})";
+        return key is not null && !FreeTextKeys.Contains(key) && TokenPattern().IsMatch(value) ? $"enum({value})" : "string";
     }
 
     private static JsonNode Merge(JsonNode a, JsonNode b)

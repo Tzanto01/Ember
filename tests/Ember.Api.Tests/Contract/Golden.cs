@@ -12,7 +12,7 @@ internal static class Golden
 
     public static string Path(string file) => System.IO.Path.Combine(RepoRoot(), "tests", "Ember.Api.Tests", "Contract", file);
 
-    public static string? Read(string file) => File.Exists(Path(file)) ? File.ReadAllText(Path(file)) : null;
+    public static string? Read(string file) => File.Exists(Path(file)) ? File.ReadAllText(Path(file)).Replace("\r\n", "\n") : null;
 
     public static void Write(string file, string content)
     {

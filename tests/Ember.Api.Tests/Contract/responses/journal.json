@@ -1,7 +1,7 @@
 {
   "day-note.delete.bad-date": {
     "method": "DELETE",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "status": 400,
     "contentType": "application/problem+json",
     "headers": {},
@@ -18,14 +18,14 @@
   },
   "day-note.delete.ok": {
     "method": "DELETE",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "status": 204,
     "contentType": null,
     "headers": {}
   },
   "day-note.put.bad-blob": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "encrypted": {
         "ct": "string",
@@ -55,7 +55,7 @@
   },
   "day-note.put.bad-date": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "text": "string"
     },
@@ -75,7 +75,7 @@
   },
   "day-note.put.before-start": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "text": "string"
     },
@@ -90,7 +90,7 @@
   },
   "day-note.put.consent-required": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "text": "string"
     },
@@ -105,22 +105,22 @@
   },
   "day-note.put.custom-mood": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
-      "mood": "string"
+      "mood": "enum(custom:{n})"
     },
     "status": 200,
     "contentType": "application/json",
     "headers": {},
     "body": {
       "date": "date",
-      "mood": "string",
+      "mood": "enum(custom:{n})",
       "text": "null"
     }
   },
   "day-note.put.empty": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {},
     "status": 200,
     "contentType": "application/json",
@@ -133,7 +133,7 @@
   },
   "day-note.put.encrypted": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "encrypted": {
         "ct": "string",
@@ -155,7 +155,7 @@
   },
   "day-note.put.encrypted-without-key": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "encrypted": {
         "ct": "string",
@@ -179,7 +179,7 @@
   },
   "day-note.put.in-future": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "text": "string"
     },
@@ -194,9 +194,9 @@
   },
   "day-note.put.invalid": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
-      "mood": "string",
+      "mood": "enum(ecstatic)",
       "text": "string"
     },
     "status": 400,
@@ -218,7 +218,7 @@
   },
   "day-note.put.mixed": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "encrypted": {
         "ct": "string",
@@ -243,7 +243,7 @@
   },
   "day-note.put.plaintext-while-on": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "text": "string"
     },
@@ -263,7 +263,7 @@
   },
   "day-note.put.plaintext-while-turning-off": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "text": "string"
     },
@@ -278,9 +278,9 @@
   },
   "day-note.put.text-and-mood": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
-      "mood": "string",
+      "mood": "enum(good)",
       "text": "string"
     },
     "status": 200,
@@ -288,13 +288,13 @@
     "headers": {},
     "body": {
       "date": "date",
-      "mood": "string",
+      "mood": "enum(good)",
       "text": "string"
     }
   },
   "day-note.put.today": {
     "method": "PUT",
-    "route": "/api/day-notes/{date}",
+    "route": "/api/day-notes/{p1}",
     "request": {
       "text": "string"
     },
@@ -363,7 +363,7 @@
           "iv": "string",
           "v": "integer"
         },
-        "mood?": "string",
+        "mood?": "enum(custom:{n},good)",
         "text?": "null|string"
       }
     ]
@@ -385,7 +385,7 @@
     "body": [
       {
         "date": "date",
-        "mood": "null|string",
+        "mood": "enum(custom:{n},good)|null",
         "text": "null|string"
       }
     ]
@@ -399,7 +399,7 @@
     "body": [
       {
         "date": "date",
-        "mood": "string",
+        "mood": "enum(good)",
         "text": "string"
       }
     ]
@@ -427,26 +427,26 @@
     "status": 200,
     "contentType": "application/json",
     "headers": {
-      "Content-Disposition": "attachment; filename=ember-export-2026-11-05.json; filename*=UTF-8''ember-export-2026-11-05.json"
+      "Content-Disposition": "attachment; filename=ember-export-<date>.json; filename*=UTF-8''ember-export-<date>.json"
     }
   },
   "habit-note.delete.again": {
     "method": "DELETE",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "status": 204,
     "contentType": null,
     "headers": {}
   },
   "habit-note.delete.ok": {
     "method": "DELETE",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "status": 204,
     "contentType": null,
     "headers": {}
   },
   "habit-note.put.again": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -461,7 +461,7 @@
   },
   "habit-note.put.bad-blob": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "encrypted": {
         "ct": "string",
@@ -485,7 +485,7 @@
   },
   "habit-note.put.bad-date": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -505,7 +505,7 @@
   },
   "habit-note.put.before-start": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -520,7 +520,7 @@
   },
   "habit-note.put.consent-required": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -535,7 +535,7 @@
   },
   "habit-note.put.encrypted": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "encrypted": {
         "ct": "string",
@@ -558,7 +558,7 @@
   },
   "habit-note.put.in-future": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -573,7 +573,7 @@
   },
   "habit-note.put.missing-text": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {},
     "status": 400,
     "contentType": "application/problem+json",
@@ -591,7 +591,7 @@
   },
   "habit-note.put.not-found": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -606,7 +606,7 @@
   },
   "habit-note.put.ok": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -621,7 +621,7 @@
   },
   "habit-note.put.plaintext-while-on": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -641,7 +641,7 @@
   },
   "habit-note.put.too-long": {
     "method": "PUT",
-    "route": "/api/habits/{id:int}/notes/{date}",
+    "route": "/api/habits/{p1:int}/notes/{p2}",
     "request": {
       "text": "string"
     },
@@ -1350,7 +1350,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(en)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -1395,7 +1395,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(en)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -1409,7 +1409,7 @@
   },
   "mood.patch.after-discard": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "label": "string"
     },
@@ -1425,7 +1425,7 @@
   },
   "mood.patch.archive": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "archived": "boolean"
     },
@@ -1441,7 +1441,7 @@
   },
   "mood.patch.clear-emoji": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "emoji": "null"
     },
@@ -1457,7 +1457,7 @@
   },
   "mood.patch.consent-required": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "label": "string"
     },
@@ -1472,7 +1472,7 @@
   },
   "mood.patch.encrypted": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "archived": "boolean",
       "encrypted": {
@@ -1496,7 +1496,7 @@
   },
   "mood.patch.invalid": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "emoji": "string",
       "label": "string"
@@ -1520,7 +1520,7 @@
   },
   "mood.patch.label": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "label": "string"
     },
@@ -1536,7 +1536,7 @@
   },
   "mood.patch.limit": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "archived": "boolean"
     },
@@ -1552,7 +1552,7 @@
   },
   "mood.patch.not-an-object": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": [
       "integer"
     ],
@@ -1572,7 +1572,7 @@
   },
   "mood.patch.not-found": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "label": "string"
     },
@@ -1587,7 +1587,7 @@
   },
   "mood.patch.plaintext-on-encrypted": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "label": "string"
     },
@@ -1607,7 +1607,7 @@
   },
   "mood.patch.restore": {
     "method": "PATCH",
-    "route": "/api/moods/{id:int}",
+    "route": "/api/moods/{p1:int}",
     "request": {
       "archived": "boolean"
     },

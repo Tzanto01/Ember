@@ -330,17 +330,61 @@
   "delete.missing-password": {
     "method": "POST",
     "route": "/api/me/delete",
-    "status": 400
+    "request": {
+      "confirm": "null",
+      "password": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
   },
   "delete.ok": {
     "method": "POST",
     "route": "/api/me/delete",
-    "status": 204
+    "request": {
+      "confirm": "null",
+      "password": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External",
+        "Identity.TwoFactorUserId"
+      ]
+    }
   },
   "delete.wrong-password": {
     "method": "POST",
     "route": "/api/me/delete",
-    "status": 400
+    "request": {
+      "confirm": "null",
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
   },
   "dm-reminders.resume.no-content": {
     "method": "POST",
@@ -354,7 +398,17 @@
     "route": "/api/me/export",
     "status": 400,
     "contentType": "application/problem+json",
-    "headers": {}
+    "headers": {},
+    "body": {
+      "errors": {
+        "format": [
+          "Must be json or csv."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
   },
   "export.csv.ok": {
     "method": "GET",
@@ -362,7 +416,7 @@
     "status": 200,
     "contentType": "text/csv",
     "headers": {
-      "Content-Disposition": "attachment; filename=ember-export-2026-11-01.csv; filename*=UTF-8''ember-export-2026-11-01.csv"
+      "Content-Disposition": "attachment; filename=ember-export-<date>.csv; filename*=UTF-8''ember-export-<date>.csv"
     }
   },
   "export.json.empty": {
@@ -371,7 +425,7 @@
     "status": 200,
     "contentType": "application/json",
     "headers": {
-      "Content-Disposition": "attachment; filename=ember-export-2026-11-01.json; filename*=UTF-8''ember-export-2026-11-01.json"
+      "Content-Disposition": "attachment; filename=ember-export-<date>.json; filename*=UTF-8''ember-export-<date>.json"
     }
   },
   "export.json.ok": {
@@ -380,7 +434,7 @@
     "status": 200,
     "contentType": "application/json",
     "headers": {
-      "Content-Disposition": "attachment; filename=ember-export-2026-11-01.json; filename*=UTF-8''ember-export-2026-11-01.json"
+      "Content-Disposition": "attachment; filename=ember-export-<date>.json; filename*=UTF-8''ember-export-<date>.json"
     }
   },
   "import.consent-required": {
@@ -446,7 +500,7 @@
         }
       ],
       "settings": {
-        "theme": "string"
+        "theme": "enum(neon)"
       }
     },
     "status": 400,
@@ -491,7 +545,7 @@
       "day_notes": [
         {
           "date": "date",
-          "mood": "string",
+          "mood": "enum(custom:{n},good)",
           "text?": "string"
         }
       ],
@@ -507,7 +561,7 @@
         {
           "created_at": "datetime",
           "days?": [
-            "string"
+            "enum(mon,wed)"
           ],
           "frequency": "enum(daily,weekdays,weekly)",
           "id": "integer",
@@ -550,13 +604,13 @@
       "settings": {
         "calm_mode": "boolean",
         "grace_days_per_week": "integer",
-        "language": "string",
+        "language": "enum(de)",
         "offer_habit_note": "boolean",
         "second_reminder_minutes": "integer",
         "show_streaks": "boolean",
-        "theme": "string",
+        "theme": "enum(tidepool)",
         "tips_seen": [
-          "string"
+          "enum(routines)"
         ]
       },
       "slips": [
@@ -565,7 +619,7 @@
           "date": "date",
           "habit_id": "integer",
           "reasons": [
-            "string"
+            "enum(other,tired)"
           ]
         }
       ]
@@ -593,7 +647,7 @@
       "day_notes": [
         {
           "date": "date",
-          "mood": "string",
+          "mood": "enum(custom:{n},good)",
           "text?": "string"
         }
       ],
@@ -609,7 +663,7 @@
         {
           "created_at": "datetime",
           "days?": [
-            "string"
+            "enum(mon,wed)"
           ],
           "frequency": "enum(daily,weekdays,weekly)",
           "id": "integer",
@@ -652,13 +706,13 @@
       "settings": {
         "calm_mode": "boolean",
         "grace_days_per_week": "integer",
-        "language": "string",
+        "language": "enum(de)",
         "offer_habit_note": "boolean",
         "second_reminder_minutes": "integer",
         "show_streaks": "boolean",
-        "theme": "string",
+        "theme": "enum(tidepool)",
         "tips_seen": [
-          "string"
+          "enum(routines)"
         ]
       },
       "slips": [
@@ -667,7 +721,7 @@
           "date": "date",
           "habit_id": "integer",
           "reasons": [
-            "string"
+            "enum(other,tired)"
           ]
         }
       ]
@@ -680,7 +734,7 @@
     "method": "POST",
     "route": "/api/me/import",
     "request": {
-      "format_version": "string"
+      "format_version": "enum(two)"
     },
     "status": 400,
     "contentType": "application/problem+json",
@@ -757,7 +811,7 @@
       "accessToken": "string",
       "expiresIn": "integer",
       "refreshToken": "string",
-      "tokenType": "string"
+      "tokenType": "enum(Bearer)"
     }
   },
   "login.2fa.code.ok": {
@@ -877,7 +931,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(en)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -922,7 +976,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(en)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -979,7 +1033,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(en)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -1024,7 +1078,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(en)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -1069,16 +1123,16 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(de)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
-      "theme": "string",
+      "theme": "enum(tidepool)",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [
-        "string"
+        "enum(routines,streaks)"
       ],
       "todayOrder": "null"
     }
@@ -1116,19 +1170,19 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(de)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
-      "theme": "string",
+      "theme": "enum(tidepool)",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [
-        "string"
+        "enum(streaks)"
       ],
       "todayOrder": [
-        "string"
+        "enum(h:1)"
       ]
     }
   },
@@ -1137,9 +1191,9 @@
     "route": "/api/me",
     "request": {
       "graceDaysPerWeek": "integer",
-      "language": "string",
+      "language": "enum(fr)",
       "secondReminderMinutes": "integer",
-      "theme": "string",
+      "theme": "enum(neon)",
       "timezone": "string"
     },
     "status": 400,
@@ -1194,11 +1248,11 @@
     "request": {
       "calmMode": "boolean",
       "graceDaysPerWeek": "integer",
-      "language": "string",
+      "language": "enum(de)",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
-      "theme": "string",
+      "theme": "enum(tidepool)",
       "timezone": "string"
     },
     "status": 200,
@@ -1231,16 +1285,16 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(de)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
-      "theme": "string",
+      "theme": "enum(tidepool)",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [
-        "string"
+        "enum(streaks)"
       ],
       "todayOrder": "null"
     }
@@ -1249,7 +1303,7 @@
     "method": "PATCH",
     "route": "/api/me",
     "request": {
-      "graceDaysPerWeek": "string"
+      "graceDaysPerWeek": "enum(many)"
     },
     "status": 400,
     "contentType": "application/problem+json",
@@ -1394,14 +1448,14 @@
   },
   "tips.ok": {
     "method": "PUT",
-    "route": "/api/me/tips/{id}",
+    "route": "/api/me/tips/{p1}",
     "status": 204,
     "contentType": null,
     "headers": {}
   },
   "tips.unknown": {
     "method": "PUT",
-    "route": "/api/me/tips/{id}",
+    "route": "/api/me/tips/{p1}",
     "status": 400,
     "contentType": "application/problem+json",
     "headers": {},
@@ -1434,7 +1488,7 @@
     "route": "/api/me/today-order",
     "request": {
       "order": [
-        "string"
+        "enum(h:1)"
       ]
     },
     "status": 200,
@@ -1442,7 +1496,7 @@
     "headers": {},
     "body": {
       "order": [
-        "string"
+        "enum(h:1)"
       ]
     }
   },
@@ -1451,7 +1505,7 @@
     "route": "/api/me/today-order",
     "request": {
       "order": [
-        "string"
+        "enum(habit:0,habit:1,habit:10,habit:100,habit:101,habit:102,habit:103,habit:104,habit:105,habit:106,habit:107,habit:108,habit:109,habit:11,habit:110,habit:111,habit:112,habit:113,habit:114,habit:115,habit:116,habit:117,habit:118,habit:119,habit:12,habit:120,habit:121,habit:122,habit:123,habit:124,habit:125,habit:126,habit:127,habit:128,habit:129,habit:13,habit:130,habit:131,habit:132,habit:133,habit:134,habit:135,habit:136,habit:137,habit:138,habit:139,habit:14,habit:140,habit:141,habit:142,habit:143,habit:144,habit:145,habit:146,habit:147,habit:148,habit:149,habit:15,habit:150,habit:151,habit:152,habit:153,habit:154,habit:155,habit:156,habit:157,habit:158,habit:159,habit:16,habit:160,habit:161,habit:162,habit:163,habit:164,habit:165,habit:166,habit:167,habit:168,habit:169,habit:17,habit:170,habit:171,habit:172,habit:173,habit:174,habit:175,habit:176,habit:177,habit:178,habit:179,habit:18,habit:180,habit:181,habit:182,habit:183,habit:184,habit:185,habit:186,habit:187,habit:188,habit:189,habit:19,habit:190,habit:191,habit:192,habit:193,habit:194,habit:195,habit:196,habit:197,habit:198,habit:199,habit:2,habit:20,habit:200,habit:201,habit:202,habit:203,habit:204,habit:205,habit:206,habit:207,habit:208,habit:209,habit:21,habit:210,habit:211,habit:212,habit:213,habit:214,habit:215,habit:216,habit:217,habit:218,habit:219,habit:22,habit:220,habit:221,habit:222,habit:223,habit:224,habit:225,habit:226,habit:227,habit:228,habit:229,habit:23,habit:230,habit:231,habit:232,habit:233,habit:234,habit:235,habit:236,habit:237,habit:238,habit:239,habit:24,habit:240,habit:241,habit:242,habit:243,habit:244,habit:245,habit:246,habit:247,habit:248,habit:249,habit:25,habit:250,habit:251,habit:252,habit:253,habit:254,habit:255,habit:256,habit:257,habit:258,habit:259,habit:26,habit:260,habit:261,habit:262,habit:263,habit:264,habit:265,habit:266,habit:267,habit:268,habit:269,habit:27,habit:270,habit:271,habit:272,habit:273,habit:274,habit:275,habit:276,habit:277,habit:278,habit:279,habit:28,habit:280,habit:281,habit:282,habit:283,habit:284,habit:285,habit:286,habit:287,habit:288,habit:289,habit:29,habit:290,habit:291,habit:292,habit:293,habit:294,habit:295,habit:296,habit:297,habit:298,habit:299,habit:3,habit:30,habit:300,habit:301,habit:302,habit:303,habit:304,habit:305,habit:306,habit:307,habit:308,habit:309,habit:31,habit:310,habit:311,habit:312,habit:313,habit:314,habit:315,habit:316,habit:317,habit:318,habit:319,habit:32,habit:320,habit:321,habit:322,habit:323,habit:324,habit:325,habit:326,habit:327,habit:328,habit:329,habit:33,habit:330,habit:331,habit:332,habit:333,habit:334,habit:335,habit:336,habit:337,habit:338,habit:339,habit:34,habit:340,habit:341,habit:342,habit:343,habit:344,habit:345,habit:346,habit:347,habit:348,habit:349,habit:35,habit:350,habit:351,habit:352,habit:353,habit:354,habit:355,habit:356,habit:357,habit:358,habit:359,habit:36,habit:360,habit:361,habit:362,habit:363,habit:364,habit:365,habit:366,habit:367,habit:368,habit:369,habit:37,habit:370,habit:371,habit:372,habit:373,habit:374,habit:375,habit:376,habit:377,habit:378,habit:379,habit:38,habit:380,habit:381,habit:382,habit:383,habit:384,habit:385,habit:386,habit:387,habit:388,habit:389,habit:39,habit:390,habit:391,habit:392,habit:393,habit:394,habit:395,habit:396,habit:397,habit:398,habit:399,habit:4,habit:40,habit:400,habit:401,habit:402,habit:403,habit:404,habit:405,habit:406,habit:407,habit:408,habit:409,habit:41,habit:410,habit:411,habit:412,habit:413,habit:414,habit:415,habit:416,habit:417,habit:418,habit:419,habit:42,habit:420,habit:421,habit:422,habit:423,habit:424,habit:425,habit:426,habit:427,habit:428,habit:429,habit:43,habit:430,habit:431,habit:432,habit:433,habit:434,habit:435,habit:436,habit:437,habit:438,habit:439,habit:44,habit:440,habit:441,habit:442,habit:443,habit:444,habit:445,habit:446,habit:447,habit:448,habit:449,habit:45,habit:450,habit:451,habit:452,habit:453,habit:454,habit:455,habit:456,habit:457,habit:458,habit:459,habit:46,habit:460,habit:461,habit:462,habit:463,habit:464,habit:465,habit:466,habit:467,habit:468,habit:469,habit:47,habit:470,habit:471,habit:472,habit:473,habit:474,habit:475,habit:476,habit:477,habit:478,habit:479,habit:48,habit:480,habit:481,habit:482,habit:483,habit:484,habit:485,habit:486,habit:487,habit:488,habit:489,habit:49,habit:490,habit:491,habit:492,habit:493,habit:494,habit:495,habit:496,habit:497,habit:498,habit:499,habit:5,habit:50,habit:500,habit:51,habit:52,habit:53,habit:54,habit:55,habit:56,habit:57,habit:58,habit:59,habit:6,habit:60,habit:61,habit:62,habit:63,habit:64,habit:65,habit:66,habit:67,habit:68,habit:69,habit:7,habit:70,habit:71,habit:72,habit:73,habit:74,habit:75,habit:76,habit:77,habit:78,habit:79,habit:8,habit:80,habit:81,habit:82,habit:83,habit:84,habit:85,habit:86,habit:87,habit:88,habit:89,habit:9,habit:90,habit:91,habit:92,habit:93,habit:94,habit:95,habit:96,habit:97,habit:98,habit:99)"
       ]
     },
     "status": 400,

@@ -52,7 +52,7 @@
       "accessToken": "string",
       "expiresIn": "integer",
       "refreshToken": "string",
-      "tokenType": "string"
+      "tokenType": "enum(Bearer)"
     }
   },
   "2fa.native-token.required": {
@@ -169,12 +169,40 @@
   "delete.discord-only.ok": {
     "method": "POST",
     "route": "/api/me/delete",
-    "status": 204
+    "request": {
+      "confirm": "string",
+      "password": "null"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External",
+        "Identity.TwoFactorUserId"
+      ]
+    }
   },
   "delete.discord-only.unconfirmed": {
     "method": "POST",
     "route": "/api/me/delete",
-    "status": 400
+    "request": {
+      "confirm": "null",
+      "password": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "confirm": [
+          "Type DELETE to confirm."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
   },
   "link-complete.direct": {
     "method": "GET",
@@ -337,7 +365,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(en)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -577,7 +605,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(de)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -660,7 +688,7 @@
         "plaintextLeft": "integer",
         "turningOff": "boolean"
       },
-      "language": "string",
+      "language": "enum(en)",
       "localToday": "date",
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
@@ -717,7 +745,7 @@
       "accessToken": "string",
       "expiresIn": "integer",
       "refreshToken": "string",
-      "tokenType": "string"
+      "tokenType": "enum(Bearer)"
     }
   },
   "native-token.used": {

@@ -4,7 +4,8 @@ namespace Ember.Api.Tests.Contract;
 
 /// <summary>Journal notes, habit notes, moods, the private-journal key (plaintext and encrypted forms), "What helps me" and stats.</summary>
 [Collection("Postgres")]
-public class JournalContractTests(PostgresFixture postgres) : ContractTestBase(postgres, "journal")
+[ContractArea("journal")]
+public class JournalContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string DayNotes = "/api/day-notes";
     private const string DayNote = "/api/day-notes/{date}";
