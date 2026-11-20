@@ -548,7 +548,6 @@ public partial class HabitService
             : _db.Users.Include(u => u.Logins).Include(u => u.Habits).ThenInclude(h => h.Logs);
         return users
             .Include(u => u.Habits).ThenInclude(h => h.Slips)
-            .Include(u => u.Habits).ThenInclude(h => h.MadeItDays)
             .Include(u => u.DayMarks)
             .AsSplitQuery()
             .Where(u => userIds.Contains(u.Id))
