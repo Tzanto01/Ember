@@ -74,7 +74,6 @@ export default defineConfig(
       '@typescript-eslint/no-deprecated': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-implied-eval': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/exhaustive-deps': 'off',
       'react-hooks/refs': 'off',

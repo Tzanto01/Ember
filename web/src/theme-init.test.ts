@@ -8,6 +8,7 @@ function runThemeInit(stored: string | null, dark = false) {
   if (stored === null) localStorage.removeItem('ember.theme');
   else localStorage.setItem('ember.theme', stored);
   vi.stubGlobal('matchMedia', () => ({ matches: dark, addEventListener: () => undefined }));
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- runs public/theme-init.js the way the page does
   new Function(source)();
   return document.documentElement;
 }
