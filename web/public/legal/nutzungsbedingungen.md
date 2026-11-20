@@ -4,7 +4,7 @@
 
 ---
 
-**Stand:** 14. November 2026
+**Stand:** 20. November 2026
 
 Schön, dass du Ember nutzt. Diese Bedingungen regeln, wie das zwischen dir und uns läuft. Wir haben sie kurz gehalten.
 
