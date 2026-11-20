@@ -3,9 +3,8 @@ import { FormField } from '@/components/form-field';
 import { SettingsCard } from '@/components/settings/settings-card';
 import { useSettingsStatus } from '@/components/settings/settings-status';
 import { NativeSelect } from '@/components/ui/select';
-import { useMePatchField } from '@/hooks/use-me-patch';
 import { t } from '@/lib/i18n';
-import { type Me, secondReminderChoices, type SecondReminderMinutes } from '@/lib/models';
+import { secondReminderChoices, type SecondReminderMinutes } from '@/lib/models';
 
 function secondReminderLabel(minutes: SecondReminderMinutes): string {
   if (minutes === 0) return t('settings.second.off');
@@ -15,14 +14,17 @@ function secondReminderLabel(minutes: SecondReminderMinutes): string {
 }
 
 /** How long after a reminder a second one follows when the habit is still open, or none. */
-export function SecondReminderCard({ title, me }: { title: string; me: Me }) {
+export function SecondReminderCard({
+  title,
+  value,
+  onChange,
+}: {
+  title: string;
+  value: SecondReminderMinutes;
+  onChange: (value: SecondReminderMinutes) => void;
+}) {
   const { t } = useTranslation();
-  const { fail, outcome, savedStatus, patch } = useSettingsStatus();
-  const [second, changeSecond] = useMePatchField(
-    (value: SecondReminderMinutes) => patch('second', { secondReminderMinutes: value }),
-    { onError: (error) => fail('second', error) },
-  );
-  const secondShown = second ?? me.secondReminderMinutes;
+  const { outcome, savedStatus } = useSettingsStatus();
 
   return (
     <SettingsCard id="second-reminder" title={title}>
@@ -30,8 +32,8 @@ export function SecondReminderCard({ title, me }: { title: string; me: Me }) {
         {(field) => (
           <NativeSelect
             {...field}
-            value={String(secondShown)}
-            onChange={(event) => changeSecond(Number(event.target.value) as SecondReminderMinutes)}
+            value={String(value)}
+            onChange={(event) => onChange(Number(event.target.value) as SecondReminderMinutes)}
           >
             {secondReminderChoices.map((n) => (
               <option key={n} value={n}>

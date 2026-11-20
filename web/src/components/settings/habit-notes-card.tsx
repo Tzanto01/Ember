@@ -3,17 +3,19 @@ import { SettingsCard } from '@/components/settings/settings-card';
 import { useSettingsStatus } from '@/components/settings/settings-status';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useMePatchField } from '@/hooks/use-me-patch';
-import type { Me } from '@/lib/models';
 
 /** Whether checking in on a habit offers a short note. */
-export function HabitNotesCard({ title, me }: { title: string; me: Me }) {
+export function HabitNotesCard({
+  title,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  checked: boolean;
+  onCheckedChange: (value: boolean) => void;
+}) {
   const { t } = useTranslation();
-  const { fail, outcome, savedStatus, patch } = useSettingsStatus();
-  const [offerNote, changeOfferNote] = useMePatchField(
-    (value: boolean) => patch('habitNotes', { offerHabitNote: value }),
-    { onError: (error) => fail('habitNotes', error) },
-  );
+  const { outcome, savedStatus } = useSettingsStatus();
 
   return (
     <SettingsCard id="habit-notes" title={title}>
@@ -24,8 +26,8 @@ export function HabitNotesCard({ title, me }: { title: string; me: Me }) {
         <Switch
           id="offer-habit-note"
           aria-describedby="offer-habit-note-hint"
-          checked={offerNote ?? me.offerHabitNote}
-          onCheckedChange={changeOfferNote}
+          checked={checked}
+          onCheckedChange={onCheckedChange}
         />
       </div>
       <p id="offer-habit-note-hint" className="text-[0.875rem] text-muted-foreground">

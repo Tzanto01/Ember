@@ -44,7 +44,9 @@ import { useMePatchField } from '@/hooks/use-me-patch';
 import { env } from '@/lib/env';
 import { updaterAvailable } from '@/lib/native/updater';
 import { api, auth, localMode, push } from '@/lib/services';
+import type { SecondReminderMinutes } from '@/lib/models';
 import { useStore } from '@/lib/store';
+import { applyCalm, calmMode } from '@/lib/theme';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -123,6 +125,25 @@ export default function SettingsPage() {
   const [streaks, changeStreaks] = useMePatchField((value: boolean) => patch('streaks', { showStreaks: value }), {
     onError: (error) => fail('streaks', error),
   });
+  const [calm, changeCalm] = useMePatchField((value: boolean) => patch('calm', { calmMode: value }), {
+    onError: (error) => fail('calm', error),
+    apply: (value) => {
+      const before = calmMode.get();
+      applyCalm(value);
+      return () => applyCalm(before);
+    },
+  });
+  const [offerNote, changeOfferNote] = useMePatchField(
+    (value: boolean) => patch('habitNotes', { offerHabitNote: value }),
+    { onError: (error) => fail('habitNotes', error) },
+  );
+  const [grace, changeGrace] = useMePatchField((value: number) => patch('grace', { graceDaysPerWeek: value }), {
+    onError: (error) => fail('grace', error),
+  });
+  const [second, changeSecond] = useMePatchField(
+    (value: SecondReminderMinutes) => patch('second', { secondReminderMinutes: value }),
+    { onError: (error) => fail('second', error) },
+  );
 
   const showDm = !local && !!me && (me.dmReminders.paused || message?.section === 'dm');
   const showSecond = !local || env.native;
@@ -320,7 +341,14 @@ export default function SettingsPage() {
 
               {shown('account') && <AccountCard title={title('account')} me={me} />}
 
-              {shown('appearance') && <AppearanceCard title={title('appearance')} me={me} local={local} />}
+              {shown('appearance') && (
+                <AppearanceCard
+                  title={title('appearance')}
+                  local={local}
+                  calm={calm ?? me.calmMode === true}
+                  onCalmChange={changeCalm}
+                />
+              )}
 
               {shown('push') && <PushCard title={title('push')} destinations={destinations} />}
 
@@ -328,7 +356,13 @@ export default function SettingsPage() {
 
               {shown('phone-reminders') && <PhoneRemindersCard title={title('phone-reminders')} local={local} />}
 
-              {shown('second-reminder') && <SecondReminderCard title={title('second-reminder')} me={me} />}
+              {shown('second-reminder') && (
+                <SecondReminderCard
+                  title={title('second-reminder')}
+                  value={second ?? me.secondReminderMinutes}
+                  onChange={changeSecond}
+                />
+              )}
 
               {shown('routines') && (
                 <SettingsCard id="routines" title={title('routines')}>
@@ -345,9 +379,17 @@ export default function SettingsPage() {
                 <StreaksCard title={title('streaks')} checked={streaksShown} onCheckedChange={changeStreaks} />
               )}
 
-              {shown('habit-notes') && <HabitNotesCard title={title('habit-notes')} me={me} />}
+              {shown('habit-notes') && (
+                <HabitNotesCard
+                  title={title('habit-notes')}
+                  checked={offerNote ?? me.offerHabitNote}
+                  onCheckedChange={changeOfferNote}
+                />
+              )}
 
-              {shown('grace') && <GraceCard title={title('grace')} me={me} />}
+              {shown('grace') && (
+                <GraceCard title={title('grace')} value={grace ?? me.graceDaysPerWeek} onChange={changeGrace} />
+              )}
 
               {shown('timezone') && <TimezoneCard title={title('timezone')} me={me} />}
 

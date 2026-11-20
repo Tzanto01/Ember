@@ -5,7 +5,7 @@ import { env } from '@/lib/env';
 import { applyGentleMotion, gentleMotion } from '@/lib/theme';
 import { auth } from '@/lib/services';
 import { me } from '@/test/test-support';
-import { openSettings, resetSettings, stubSettingsMedia } from '@/test/settings-page';
+import { openSettings, resetSettings, setWide, stubSettingsMedia } from '@/test/settings-page';
 
 vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));
 const exactAlarms = vi.hoisted(() => ({ beta: false, allowed: false, allowExact: vi.fn() }));
@@ -69,6 +69,22 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     sent.respond(200, { ...me, calmMode: true });
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
     expect(toggle).toBeChecked();
+  });
+
+  it('still shows calm mode being saved after leaving Appearance and coming back', async () => {
+    setWide(true);
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/appearance');
+
+    await user.click(screen.getByRole('switch', { name: 'Calm mode' }));
+    const sent = await fetch.next('PATCH', '/api/me');
+    await user.click(screen.getByRole('link', { name: 'Habits & days' }));
+    await user.click(screen.getByRole('link', { name: 'Appearance' }));
+
+    expect(screen.getByRole('switch', { name: 'Calm mode' })).toBeChecked();
+    sent.respond(200, { ...me, calmMode: true });
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Calm mode' })).toBeChecked();
   });
 
   it('calms this device at once and takes it back when saving calm mode fails', async () => {

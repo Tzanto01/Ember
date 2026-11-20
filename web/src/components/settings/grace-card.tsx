@@ -3,17 +3,20 @@ import { FormField } from '@/components/form-field';
 import { SettingsCard } from '@/components/settings/settings-card';
 import { useSettingsStatus } from '@/components/settings/settings-status';
 import { NativeSelect } from '@/components/ui/select';
-import { useMePatchField } from '@/hooks/use-me-patch';
-import { graceOptions, type Me } from '@/lib/models';
+import { graceOptions } from '@/lib/models';
 
 /** How many days without a check-in in any seven keep a streak going. */
-export function GraceCard({ title, me }: { title: string; me: Me }) {
+export function GraceCard({
+  title,
+  value,
+  onChange,
+}: {
+  title: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
   const { t } = useTranslation();
-  const { fail, outcome, savedStatus, patch } = useSettingsStatus();
-  const [grace, changeGrace] = useMePatchField((value: number) => patch('grace', { graceDaysPerWeek: value }), {
-    onError: (error) => fail('grace', error),
-  });
-  const graceShown = grace ?? me.graceDaysPerWeek;
+  const { outcome, savedStatus } = useSettingsStatus();
 
   return (
     <SettingsCard id="grace" title={title}>
@@ -24,8 +27,8 @@ export function GraceCard({ title, me }: { title: string; me: Me }) {
         {(field) => (
           <NativeSelect
             {...field}
-            value={String(graceShown)}
-            onChange={(event) => changeGrace(Number(event.target.value))}
+            value={String(value)}
+            onChange={(event) => onChange(Number(event.target.value))}
           >
             {graceOptions.map((n) => (
               <option key={n} value={n}>
