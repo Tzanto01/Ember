@@ -13,7 +13,8 @@ namespace Ember.Bot.Jobs;
 /// paused and not excluded; web push: each enabled push subscription not in <see cref="Habit.ReminderExclusions"/>, when the channel is
 /// registered), then advances it once to the next local
 /// occurrence of any of the habit's <see cref="Habit.ReminderTimes"/>, so a habit with several times sends at each of them while
-/// its day is still open. Only the Discord outcome counts towards the DM pause.
+/// its day is still open. Only the Discord outcome counts towards the DM pause. The advance applies only while the reminder is still
+/// the one that was due, so an edit or snooze saved while it was being sent (for example by the API) is kept.
 /// Phones are never sent to from here: the native app schedules their reminders as local notifications on the device.
 /// Reminders overdue by more than <see cref="StaleAfter"/> (e.g. after downtime) are advanced
 /// without sending, as are habits paused or already completed on the user's local day, weekly habits whose target is already
@@ -439,10 +440,16 @@ public class ReminderDispatchJob : IJob
                 habit.SecondReminderUtc = second;
         }
 
-        if (delivery != Delivery.Retry)
-            habit.NextReminderUtc = TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now);
-        await habits.SaveChangesAsync(send ? CancellationToken.None : cancellationToken);
-        if (delivery != Delivery.Retry) _retries.Forget(HabitKind, habitId, dueAt);
+        var saveToken = send ? CancellationToken.None : cancellationToken;
+        if (delivery == Delivery.Retry)
+        {
+            await habits.SaveChangesAsync(saveToken);
+            return;
+        }
+
+        if (!await habits.SaveAndAdvanceReminderAsync(habit.Id, dueAt, TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now), saveToken))
+            _logger.LogInformation("Reminder for habit {HabitId} changed while it was sent; keeping the change.", habitId);
+        _retries.Forget(HabitKind, habitId, dueAt);
     }
 
     private async Task ProcessRoutineAsync(int routineId, DateTime now, CancellationToken cancellationToken)
@@ -475,12 +482,17 @@ public class ReminderDispatchJob : IJob
             : Delivery.NotDelivered;
         routine.SecondReminderUtc = delivery == Delivery.Delivered ? SecondReminderAt(user, tz, today, now) : null;
 
-        if (delivery != Delivery.Retry)
-            routine.NextReminderUtc = routine.ReminderTime is { } reminderTime
-                ? TimezoneHelper.NextOccurrenceUtc(reminderTime, tz, now)
-                : null;
-        await habits.SaveChangesAsync(send ? CancellationToken.None : cancellationToken);
-        if (delivery != Delivery.Retry) _retries.Forget(RoutineKind, routineId, dueAt);
+        var saveToken = send ? CancellationToken.None : cancellationToken;
+        if (delivery == Delivery.Retry)
+        {
+            await habits.SaveChangesAsync(saveToken);
+            return;
+        }
+
+        var next = routine.ReminderTime is { } reminderTime ? TimezoneHelper.NextOccurrenceUtc(reminderTime, tz, now) : (DateTime?)null;
+        if (!await habits.SaveAndAdvanceRoutineReminderAsync(routine.Id, dueAt, next, saveToken))
+            _logger.LogInformation("Reminder for routine {RoutineId} changed while it was sent; keeping the change.", routineId);
+        _retries.Forget(RoutineKind, routineId, dueAt);
     }
 
     /// <summary>
