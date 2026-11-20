@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { BusyButton } from '@/components/auth/busy-button';
@@ -47,7 +47,7 @@ export default function ResetPasswordPage() {
   });
   useFocusHeadingOnChange(reset.isSuccess);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (reset.isPending || !link.email || !link.code) return;
     if (!validateAll(form.current, [newPassword])) return;

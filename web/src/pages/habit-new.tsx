@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Feather, Plus } from 'lucide-react';
-import { type FormEvent, useRef, useState } from 'react';
+import { type SubmitEvent, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
@@ -110,7 +110,7 @@ export default function HabitNewPage() {
     root.current?.querySelector<HTMLElement>('h1')?.focus();
   }
 
-  function submit(event: FormEvent<HTMLFormElement>): void {
+  function submit(event: SubmitEvent<HTMLFormElement>): void {
     event.preventDefault();
     if (submitting.current) return;
     flushSync(() => setTouched(true));

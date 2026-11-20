@@ -34,7 +34,7 @@ describe('createQueryClient', () => {
     const client = createQueryClient();
     const queryFn = vi.fn(() => Promise.reject(new Error('offline')));
 
-    await expect(client.fetchQuery({ queryKey: ['history'], queryFn, retry: false })).rejects.toThrow('offline');
+    await expect(client.query({ queryKey: ['history'], queryFn, retry: false })).rejects.toThrow('offline');
     expect(queryFn).toHaveBeenCalledTimes(1);
   });
 
@@ -43,8 +43,8 @@ describe('createQueryClient', () => {
     const unreachable = vi.fn(() => Promise.reject(new ApiError(0, null)));
     const failing = vi.fn(() => Promise.reject(new ApiError(500, null)));
 
-    await expect(client.fetchQuery({ queryKey: ['a'], queryFn: unreachable, retryDelay: 0 })).rejects.toBeInstanceOf(ApiError);
-    await expect(client.fetchQuery({ queryKey: ['b'], queryFn: failing, retryDelay: 0 })).rejects.toBeInstanceOf(ApiError);
+    await expect(client.query({ queryKey: ['a'], queryFn: unreachable, retryDelay: 0 })).rejects.toBeInstanceOf(ApiError);
+    await expect(client.query({ queryKey: ['b'], queryFn: failing, retryDelay: 0 })).rejects.toBeInstanceOf(ApiError);
 
     expect(unreachable).toHaveBeenCalledTimes(2);
     expect(failing).toHaveBeenCalledTimes(3);

@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp } from 'lucide-react';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type SubmitEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AccountButton } from '@/components/app-shell';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
@@ -46,7 +46,7 @@ function EditForm({
   const [busy, setBusy] = useState(false);
   const error = touched ? textError(text) : null;
 
-  async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy) return;
     if (textError(text)) {
@@ -155,7 +155,7 @@ export function HelpsSettings() {
     }
   }
 
-  async function add(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function add(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (textError(text)) {
       setTouched(true);

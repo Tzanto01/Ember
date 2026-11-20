@@ -1,5 +1,5 @@
 import { ImagePlus, Info, X } from 'lucide-react';
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
@@ -166,7 +166,7 @@ export function FeedbackForm() {
     addRef.current?.focus();
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || preparing) return;
     setSent(false);

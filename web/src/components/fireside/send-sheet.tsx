@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { Dialog } from 'radix-ui';
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ export function SendSheet({
     if (sent) sentRef.current?.focus();
   }, [sent]);
 
-  async function send(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function send(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!friend || busy) return;
     setBusy(true);

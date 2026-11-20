@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useId, useRef, useState } from 'react';
+import { type SubmitEvent, type ReactNode, useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
@@ -162,7 +162,7 @@ export function EnableForm({
   const [mismatch, setMismatch] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (
       busy ||
@@ -281,7 +281,7 @@ export function UnlockForm({ onUnlocked }: { onUnlocked: (needsNewPassphrase: bo
   const [problem, setProblem] = useState<string | null>(null);
   const field = useRecovery ? recovery : passphrase;
 
-  async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy || !validateAll(form.current, [field])) return;
     setBusy(true);
@@ -391,7 +391,7 @@ export function PassphraseForm({
   const [wrong, setWrong] = useState<'old' | 'password' | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
-  async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const fields = [
       ...(current ? [old] : []),
@@ -489,7 +489,7 @@ export function ConfirmJournalForm({
   const [mismatch, setMismatch] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy || !validateAll(form.current, [password, confirm])) return;
     setBusy(true);

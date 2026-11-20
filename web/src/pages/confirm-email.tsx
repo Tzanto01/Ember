@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { BusyButton } from '@/components/auth/busy-button';
@@ -34,7 +34,7 @@ function ResendForm() {
     onError: (error) => setProblem(problemToMessage(asApiError(error)).message),
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (resend.isPending) return;
     if (!validateAll(form.current, [email])) return;
@@ -146,7 +146,7 @@ export default function ConfirmEmailPage() {
     onError: (error) => setProblem(problemToMessage(asApiError(error), 'confirm-email').message),
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (confirm.isPending || !link.userId || !link.code) return;
     if (!validateAll(form.current, [password])) return;

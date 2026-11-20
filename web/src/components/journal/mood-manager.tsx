@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
@@ -67,7 +67,7 @@ function MoodForm({
   const labelError = labelRule(label);
   const emojiError = emojiRule(emoji);
 
-  async function submit(event: FormEvent) {
+  async function submit(event: SubmitEvent) {
     event.preventDefault();
     if (busy) return;
     if (labelError || emojiError) {

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { type ChangeEvent, type FormEvent, useId, useRef, useState } from 'react';
+import { type ChangeEvent, type SubmitEvent, useId, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -232,7 +232,7 @@ export function DeleteDeviceData() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  async function wipe(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function wipe(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy || !validateAll(form.current, [confirm])) return;
     setBusy(true);

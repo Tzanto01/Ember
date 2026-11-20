@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { Dialog } from 'radix-ui';
-import { type FormEvent, useState } from 'react';
+import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
 import { journalKey, JournalLocked } from '@/components/journal/day-journal';
@@ -85,7 +85,7 @@ export function NoteSheet({
     if (!busy) onOpenChange(next);
   }
 
-  async function save(event: FormEvent): Promise<void> {
+  async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     if (busy || !canSave) return;
     setBusy(true);

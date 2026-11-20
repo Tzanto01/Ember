@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { type FormEvent, useRef, useState } from 'react';
+import { type SubmitEvent, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
@@ -38,7 +38,7 @@ export default function SignupPage() {
     onError: (error) => setProblem(problemToMessage(asApiError(error), 'register')),
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (register.isPending) return;
     if (!validateAll(form.current, [email, password])) return;

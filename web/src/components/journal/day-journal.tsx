@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CloudOff, Lock } from 'lucide-react';
 import { RadioGroup as RadioGroupPrimitive } from 'radix-ui';
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useId, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
 import { FormField } from '@/components/form-field';
@@ -226,7 +226,7 @@ export function DayJournal({ date, className }: { date: LocalDateString; classNa
     }
   }
 
-  function save(event: FormEvent) {
+  function save(event: SubmitEvent) {
     event.preventDefault();
     if (busy) return;
     const trimmed = text.trim();

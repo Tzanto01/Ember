@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useId, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { BusyButton } from '@/components/auth/busy-button';
@@ -89,7 +89,7 @@ export default function KeepDataPage() {
   );
   const password = useField(needsPassword ? loginPasswordRule : noRule);
 
-  async function move(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function move(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy) return;
     if (privateJournal && !validateAll(form.current, [passphrase, confirm, password])) return;

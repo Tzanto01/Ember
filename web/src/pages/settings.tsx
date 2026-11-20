@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronRight, Sparkles } from 'lucide-react';
 import {
-  type FormEvent,
+  type SubmitEvent,
   type ReactNode,
   useEffect,
   useRef,
@@ -133,6 +133,7 @@ const deleteWord: Validator = (value) => {
 
 function isIos(): boolean {
   return (
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- iPadOS reports MacIntel here and Safari has no replacement API
     /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   );
 }
@@ -603,7 +604,7 @@ export default function SettingsPage() {
     await navigate('/consent');
   }
 
-  async function deleteAccount(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function deleteAccount(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busyRef.current || !me) return;
     if (!validateAll(deleteForm.current, me.hasPassword ? [password, confirm] : [confirm])) return;

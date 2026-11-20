@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -67,7 +67,7 @@ function TwoFactorStep({
 
   useEffect(() => input.current?.focus(), [useRecovery]);
 
-  async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy || !validateAll(form.current, [field])) return;
     setBusy(true);
@@ -231,7 +231,7 @@ export default function LoginPage() {
     onError: (error) => setProblem(problemToMessage(asApiError(error))),
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (login.isPending) return;
     if (!validateAll(form.current, [email, password])) return;

@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useId, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
@@ -125,7 +125,7 @@ export function Reflect({
     triggerRef.current?.focus();
   }, [unlocked, saveCase]);
 
-  async function save(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function save(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const me = auth.me.get();
     if (busy || saveCase !== 'unlocked' || !me) return;

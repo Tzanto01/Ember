@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, type KeyboardEvent, useRef, useState } from 'react';
+import { type SubmitEvent, type KeyboardEvent, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
@@ -93,7 +93,7 @@ export function RoutineDetails({ routine, habits, routines }: RoutineDetailsProp
     },
   });
 
-  function submit(event: FormEvent<HTMLFormElement>): void {
+  function submit(event: SubmitEvent<HTMLFormElement>): void {
     event.preventDefault();
     if (save.isPending) return;
     flushSync(() => {

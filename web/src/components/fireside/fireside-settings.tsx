@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
@@ -136,7 +136,7 @@ export function FiresideSettings() {
     switchRef.current?.focus();
   }
 
-  function rename(event: FormEvent<HTMLFormElement>): void {
+  function rename(event: SubmitEvent<HTMLFormElement>): void {
     event.preventDefault();
     const invalid = nameError(value);
     setError(invalid);

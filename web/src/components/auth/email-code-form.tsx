@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react';
+import { type ChangeEvent, type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { type NavigateFunction, useNavigate } from 'react-router';
@@ -107,7 +107,7 @@ export function EmailCodeForm({ email: knownEmail, userId = null, code: linkCode
     confirm.mutate(value);
   }
 
-  function submit(event: FormEvent<HTMLFormElement>): void {
+  function submit(event: SubmitEvent<HTMLFormElement>): void {
     event.preventDefault();
     if (confirm.isPending) return;
     const fields = [...(askEmail && !userId ? [email] : []), code, ...(needsPassword ? [password] : [])];

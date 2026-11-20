@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, type ReactNode, type Ref, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, type ReactNode, type Ref, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
@@ -105,7 +105,7 @@ export function ConfirmForm({
     if (focusOnMount) input.current?.focus();
   }, []);
 
-  async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy || !validateAll(form.current, withPassword ? [field, password] : [field])) return;
     setBusy(true);

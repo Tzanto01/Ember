@@ -88,7 +88,6 @@ export default defineConfig(
     rules: {
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
-      '@typescript-eslint/no-deprecated': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/exhaustive-deps': 'off',
       'react-hooks/refs': 'off',

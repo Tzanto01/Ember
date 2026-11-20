@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
 import { FormField } from '@/components/form-field';
@@ -80,7 +80,7 @@ export function AddFriend({ fireside, onAnnounce }: { fireside: Fireside; onAnno
     }
   }
 
-  async function join(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function join(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (joining) return;
     const value = normalizeCode(typed);

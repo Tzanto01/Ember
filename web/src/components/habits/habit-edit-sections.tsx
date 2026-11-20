@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check } from 'lucide-react';
-import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type SubmitEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
@@ -111,7 +111,7 @@ export function DetailsSection({ habit, onChange, routine = null }: SectionProps
     },
   });
 
-  function submit(event: FormEvent<HTMLFormElement>): void {
+  function submit(event: SubmitEvent<HTMLFormElement>): void {
     event.preventDefault();
     if (save.isPending) return;
     flushSync(() => {
@@ -562,7 +562,7 @@ export function PauseSection({ habit, onChange }: SectionProps) {
     },
   });
 
-  function pause(event: FormEvent<HTMLFormElement>): void {
+  function pause(event: SubmitEvent<HTMLFormElement>): void {
     event.preventDefault();
     if (run.isPending) return;
     flushSync(() => setTouched(true));
