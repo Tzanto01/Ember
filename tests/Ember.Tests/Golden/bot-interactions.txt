@@ -1,0 +1,97 @@
+slash /export
+  format: String choices=[CSV (spreadsheet)=Csv, JSON=Json]
+slash /feedback
+slash /fireside
+  code: SubCommand
+  join: SubCommand
+    code: String required
+  send: SubCommand
+slash /habit
+  add: SubCommand
+  template: SubCommand
+  list: SubCommand
+  checkin: SubCommand
+  history: SubCommand
+  streak: SubCommand
+  share: SubCommand
+  delete: SubCommand
+  edit: SubCommand
+  frequency: SubCommand
+  pause: SubCommand
+  grace: SubCommand
+  second-reminder: SubCommand
+    delay: String required choices=[Off=Off, 15 minutes=FifteenMinutes, 30 minutes=ThirtyMinutes, 1 hour=OneHour, 2 hours=TwoHours]
+slash /help
+slash /link
+slash /privacy
+  delete: SubCommand
+  withdraw: SubCommand
+slash /reminders
+  state: String required choices=[off=Off, on=On]
+slash /timezone
+  set: SubCommand
+    timezone: String required autocomplete
+  show: SubCommand
+component checkin:done:*:*
+component checkin:skip:*:*
+component checkin:snooze:*:*
+component consent:agree:*
+component consent:decline:*
+component discordreminders:no:*
+component discordreminders:stop:*
+component discordreminders:yes:*
+component dmretry:*
+component fireside:back:*
+component fireside:msg:*
+component fireside:ok:*
+component fireside:to
+component freq:days:*
+component freq:menu:*
+component freq:times:*
+component freq:tpd:*
+component freq:weekdays:*
+component freq:weekly:*:*
+component habit:grace:*
+component habit:select:checkin
+component habit:select:delete
+component habit:select:edit
+component habit:select:frequency
+component habit:select:history
+component habit:select:pause
+component habit:select:share
+component habit:streaks:*
+component habit:template:select
+component habitaction:checkin:done:*
+component habitaction:checkin:skip:*
+component habitaction:delete:cancel
+component habitaction:delete:confirm:*
+component habitaction:edit:rename:*
+component habitaction:freq:*:*
+component habitaction:pause:*:*
+component habitaction:slip:*
+component history:day:*:*:*
+component history:low:*:*
+component letgo:slip:*
+component onboard:region:*
+component onboard:timezone:*
+component onboard:tz:*
+component privacy:delete:cancel:*
+component privacy:delete:confirm:*
+component privacy:delete:start:*
+component privacy:withdraw:cancel:*
+component privacy:withdraw:confirm:*
+component reflect:dismiss:*
+component reflect:log:*:*
+component reflect:low:*:*
+component reflect:pick:*:*
+component reminder:cancel:*
+component reminder:clear:*
+component reminder:preset:*:*:*
+component reminder:set:*
+component reminder:skip:*
+component reminder:time:*
+component tip:streaks:*
+modal feedback:modal
+modal habit:add:modal
+modal habit:rename:modal:*:*
+modal reminder:modal:*:*
