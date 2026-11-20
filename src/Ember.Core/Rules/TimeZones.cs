@@ -1,6 +1,7 @@
-namespace Ember.Core.Services;
+namespace Ember.Core.Rules;
 
-public static class TimezoneHelper
+/// <summary>Time zone lookup, a user's local day and the UTC instants of local wall-clock times.</summary>
+public static class TimeZones
 {
     /// <summary>
     /// Tries to find a TimeZoneInfo from an IANA or Windows timezone id.

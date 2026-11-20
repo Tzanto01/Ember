@@ -17,7 +17,7 @@ namespace Ember.Bot.Jobs;
 /// Sunday <see cref="LocalSendHour"/>:00, unless their DMs are paused.
 /// Sends a DM recapping the 7-day window ending the user's local yesterday (the last complete day):
 /// per-habit check-in counts, current streaks (only with <see cref="User.ShowStreaks"/>), a tone-appropriate line and, with <c>Ember:WebOrigin</c> set, a link to the web app.
-/// Let-go habits add one "{name}: {n} days free" line each (<see cref="WeeklySummaryService.LetGoLine"/>), never slip counts.
+/// Let-go habits add one "{name}: {n} days free" line each (<see cref="WeeklySummary.LetGoLine"/>), never slip counts.
 ///
 /// Users with zero check-ins in the window still get a DM (only the soft headline and footer, no per-habit numbers) — a gentle nudge, not
 /// silence: Ember's philosophy is soft re-engagement, and going quiet at exactly the
@@ -58,7 +58,7 @@ public class WeeklySummaryJob : IJob
         var candidates = await habits.GetUserTimezonesWithHabitsAsync(context.CancellationToken);
 
         var dueIds = candidates
-            .Where(u => TimezoneHelper.LocalNow(u.Timezone, _time) is { DayOfWeek: DayOfWeek.Sunday, Hour: LocalSendHour, Minute: < 15 })
+            .Where(u => TimeZones.LocalNow(u.Timezone, _time) is { DayOfWeek: DayOfWeek.Sunday, Hour: LocalSendHour, Minute: < 15 })
             .Select(u => u.UserId)
             .ToList();
 
@@ -78,7 +78,7 @@ public class WeeklySummaryJob : IJob
                     || !await accounts.UserExistsAsync(user.Id, context.CancellationToken))
                     continue;
 
-                var weekEnd = TimezoneHelper.LocalToday(user.Timezone, _time).AddDays(-1);
+                var weekEnd = TimeZones.LocalToday(user.Timezone, _time).AddDays(-1);
                 await SendSummaryAsync(user, discordId, weekEnd);
             }
             catch (Exception ex)
@@ -90,7 +90,7 @@ public class WeeklySummaryJob : IJob
 
     private async Task SendSummaryAsync(User user, ulong discordId, DateOnly weekEnd)
     {
-        var summary = WeeklySummaryService.Build(user, weekEnd);
+        var summary = WeeklySummary.Build(user, weekEnd);
         if (!summary.HasSummarableWeek)
         {
             _logger.LogDebug("WeeklySummaryJob: nothing to summarise for user {UserId}, skipping.", user.Id);
@@ -98,13 +98,13 @@ public class WeeklySummaryJob : IJob
         }
 
         var t = BotTexts.For(user.Language);
-        var (headline, footer) = WeeklySummaryService.ToneLines(summary.TotalDone, summary.TotalPossible, t);
+        var (headline, footer) = WeeklySummary.ToneLines(summary.TotalDone, summary.TotalPossible, t);
 
         if (_config[LinkModule.WebOriginKey] is { Length: > 0 } origin)
             headline += "\n\n" + t.Format("weekly.link", $"{origin.TrimEnd('/')}/today");
 
         if (summary.LetGo.Count > 0)
-            headline += "\n\n" + string.Join("\n", summary.LetGo.Select(l => "🌿 " + WeeklySummaryService.LetGoLine(l.Habit.Name, l.DaysFree, t)));
+            headline += "\n\n" + string.Join("\n", summary.LetGo.Select(l => "🌿 " + WeeklySummary.LetGoLine(l.Habit.Name, l.DaysFree, t)));
 
         var embed = new EmbedBuilder()
             .WithColor(0xE8873A)
@@ -129,7 +129,7 @@ public class WeeklySummaryJob : IJob
         await _discord.SendMessageAsync(discordId, embed: embed.Build());
     }
 
-    private static string FormatHabitLine(Texts t, WeeklySummaryService.HabitSummary h, bool showStreaks)
+    private static string FormatHabitLine(Texts t, WeeklySummary.HabitSummary h, bool showStreaks)
     {
         if (h.Habit.FrequencyType == FrequencyType.Weekly)
             return t.Format("weekly.goal", h.DotString, h.Done, h.Possible, h.Habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget);

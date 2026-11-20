@@ -47,8 +47,8 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var userId = await user.IdAsync();
         var bot = await BotOnlyAsync([]);
         await (await user.Put("/api/me/tips/routines")).Expect(HttpStatusCode.NoContent);
-        await Host.Run(s => s.MarkTipSeenAsync(bot.UserId, "streaks"));
-        await Host.Run(s => s.MarkTipSeenAsync(bot.UserId, "routines"));
+        await Host.Run<UserSettingsService>(s => s.MarkTipSeenAsync(bot.UserId, "streaks"));
+        await Host.Run<UserSettingsService>(s => s.MarkTipSeenAsync(bot.UserId, "routines"));
         var askedAt = Host.Time.GetUtcNow().UtcDateTime.AddDays(-3);
         await BotAnsweredDiscordWithAPhoneAsync(bot.UserId, askedAt);
         await StartMergeAsync(user, bot.DiscordId);

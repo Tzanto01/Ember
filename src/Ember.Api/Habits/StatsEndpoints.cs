@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Ember.Api.Hosting;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Api.Habits;
@@ -19,17 +20,17 @@ internal static partial class StatsEndpoints
             var user = await accounts.GetUserForExportAsync(principal.UserId());
             if (user is null) return Problems.NotFound();
 
-            var summary = WeeklySummaryService.Build(user, TimezoneHelper.LocalToday(user.Timezone, time).AddDays(-1));
-            var (headline, footer) = summary.HasSummarableWeek ? WeeklySummaryService.ToneLines(summary.TotalDone, summary.TotalPossible, new Ember.Core.Localization.Texts(user.Language, Ember.Core.Localization.Texts.CoreResources)) : ("", "");
+            var summary = WeeklySummary.Build(user, TimeZones.LocalToday(user.Timezone, time).AddDays(-1));
+            var (headline, footer) = summary.HasSummarableWeek ? WeeklySummary.ToneLines(summary.TotalDone, summary.TotalPossible, new Ember.Core.Localization.Texts(user.Language, Ember.Core.Localization.Texts.CoreResources)) : ("", "");
             return Results.Ok(new WeeklyDto(summary.TotalDone, summary.TotalPossible, PlainText(headline), PlainText(footer),
                 summary.Habits.Select(h => new WeeklyHabitDto(h.Habit.Id, h.Habit.Name, h.Done, h.Possible,
                     h.Habit.FrequencyType != FrequencyType.Weekly ? (int?)h.CurrentStreak : null)).ToList()));
         });
 
-        api.MapGet("/stats/days", async (string? from, string? to, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapGet("/stats/days", async (string? from, string? to, ClaimsPrincipal principal, HabitService habits, UserSettingsService settings) =>
         {
             var userId = principal.UserId();
-            var today = await habits.GetLocalTodayAsync(userId);
+            var today = await settings.GetLocalTodayAsync(userId);
             var errors = new Dictionary<string, string[]>();
             var end = Formats.DateOr(to, today, "to", errors);
             var start = Formats.DateOr(from, Formats.DaysBefore(end, HabitEndpoints.MaxDaysPerRequest - 1), "from", errors);

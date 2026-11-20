@@ -36,7 +36,7 @@ internal static class ImportEndpoints
 
     public static RouteGroupBuilder MapImport(this RouteGroupBuilder api)
     {
-        api.MapPost("/me/import", async (JsonElement body, ClaimsPrincipal principal, HabitService habits, AccountService accounts,
+        api.MapPost("/me/import", async (JsonElement body, ClaimsPrincipal principal, UserSettingsService settings, AccountService accounts,
             ConsentService consent, JournalService journal, TimeProvider time, UserManager<User> users, SignInManager<User> signIn) =>
         {
             var userId = principal.UserId();
@@ -67,8 +67,8 @@ internal static class ImportEndpoints
                 return Problems.Conflict($"The file has more than {JournalService.MaxActiveMoodsPerUser} active moods, the most Ember can hold.");
 
             var errors = new Dictionary<string, string[]>();
-            var data = Validate(doc, await journal.GetJournalKeyAsync(userId), await habits.GetUserTzAsync(userId),
-                await habits.GetLocalTodayAsync(userId), time.GetUtcNow().UtcDateTime, errors);
+            var data = Validate(doc, await journal.GetJournalKeyAsync(userId), await settings.GetTimeZoneAsync(userId),
+                await settings.GetLocalTodayAsync(userId), time.GetUtcNow().UtcDateTime, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             return await accounts.ImportAsync(userId, data) switch

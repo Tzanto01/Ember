@@ -8,7 +8,7 @@ namespace Ember.Tests;
 /// Unit tests for the weekly-summary aggregation: the 7-day window ending yesterday
 /// (the last complete day — today is still in progress when the job fires Sunday 09:00).
 /// </summary>
-public class WeeklySummaryServiceTests
+public class WeeklySummaryTests
 {
     private static readonly DateOnly Today = HabitFactory.Today;
 
@@ -32,7 +32,7 @@ public class WeeklySummaryServiceTests
         // 8+ days back are excluded; both window edges are included.
         var habit = HabitFactory.Make((0, true), (1, true), (7, true), (8, true));
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.Habits.Single().Done.Should().Be(2); // daysAgo 1 and 7 only
         summary.TotalDone.Should().Be(2);
@@ -43,7 +43,7 @@ public class WeeklySummaryServiceTests
     {
         var habit = HabitFactory.Make((1, false), (2, true), (3, false));
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.Habits.Single().Done.Should().Be(1);
     }
@@ -54,7 +54,7 @@ public class WeeklySummaryServiceTests
         var h1 = HabitFactory.Make((1, true));
         var h2 = HabitFactory.Make((1, true), (2, true));
 
-        var summary = WeeklySummaryService.Build(UserWith(h1, h2), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(h1, h2), WeekEnd);
 
         summary.TotalDone.Should().Be(3);
         summary.TotalPossible.Should().Be(14); // two long-established daily habits × 7 days
@@ -79,17 +79,17 @@ public class WeeklySummaryServiceTests
         var paused = LetGo(pausedUntilDaysAgo: -2);
         var notStarted = LetGo(createdAtDaysAgo: -2);
 
-        var summary = WeeklySummaryService.Build(UserWith(build, slipped, paused, notStarted), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(build, slipped, paused, notStarted), WeekEnd);
 
         summary.Habits.Should().ContainSingle();
         summary.TotalDone.Should().Be(1);
         summary.TotalPossible.Should().Be(7);
-        summary.LetGo.Should().ContainSingle().Which.Should().Match<WeeklySummaryService.LetGoSummary>(l => l.Habit == slipped && l.DaysFree == 3);
+        summary.LetGo.Should().ContainSingle().Which.Should().Match<WeeklySummary.LetGoSummary>(l => l.Habit == slipped && l.DaysFree == 3);
     }
 
     [Fact]
     public void ALetGoOnlyUser_HasNothingToSummarise()
-        => WeeklySummaryService.Build(UserWith(LetGo(slipDaysAgo: 2)), WeekEnd).HasSummarableWeek.Should().BeFalse();
+        => WeeklySummary.Build(UserWith(LetGo(slipDaysAgo: 2)), WeekEnd).HasSummarableWeek.Should().BeFalse();
 
     // ---- Possible days: creation date, pauses, weekly targets ----
 
@@ -98,7 +98,7 @@ public class WeeklySummaryServiceTests
     {
         var habit = HabitFactory.Make((1, true));
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.Habits.Single().Possible.Should().Be(7);
     }
@@ -111,7 +111,7 @@ public class WeeklySummaryServiceTests
         var habit = HabitFactory.Make(createdAtDaysAgo: 3, pausedUntilDaysAgo: null,
             FrequencyType.Daily, weeklyTarget: null, (1, true), (2, true));
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         var h = summary.Habits.Single();
         h.Possible.Should().Be(2);
@@ -125,7 +125,7 @@ public class WeeklySummaryServiceTests
         // paused; only today-2 and today-1 count.
         var habit = HabitFactory.Make(pausedUntilDaysAgo: 3, FrequencyType.Daily, weeklyTarget: null);
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.Habits.Single().Possible.Should().Be(2);
     }
@@ -136,7 +136,7 @@ public class WeeklySummaryServiceTests
         var habit = HabitFactory.Make(pausedUntilDaysAgo: null, FrequencyType.Weekly, weeklyTarget: 3,
             (1, true), (2, true));
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         var h = summary.Habits.Single();
         h.Possible.Should().Be(3); // target, not 7
@@ -150,7 +150,7 @@ public class WeeklySummaryServiceTests
         var habit = HabitFactory.Make(createdAtDaysAgo: 2, pausedUntilDaysAgo: null,
             FrequencyType.Weekly, weeklyTarget: 3);
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.Habits.Single().Possible.Should().Be(1);
     }
@@ -163,7 +163,7 @@ public class WeeklySummaryServiceTests
         var habit = HabitFactory.Make(pausedUntilDaysAgo: -1, FrequencyType.Daily, weeklyTarget: null,
             (1, true));
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         var h = summary.Habits.Single();
         h.Done.Should().Be(1);
@@ -177,7 +177,7 @@ public class WeeklySummaryServiceTests
     {
         var habit = HabitFactory.Make((1, true), (2, true), (3, true));
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         var h = summary.Habits.Single();
         h.CurrentStreak.Should().Be(3);
@@ -191,7 +191,7 @@ public class WeeklySummaryServiceTests
         var user = UserWith(HabitFactory.Make((1, true), (3, true)));
         user.GraceDaysPerWeek = 2;
 
-        var summary = WeeklySummaryService.Build(user, WeekEnd);
+        var summary = WeeklySummary.Build(user, WeekEnd);
 
         var h = summary.Habits.Single();
         h.CurrentStreak.Should().Be(2);
@@ -205,7 +205,7 @@ public class WeeklySummaryServiceTests
         var habit = HabitFactory.Make(pausedUntilDaysAgo: null, FrequencyType.Weekly, weeklyTarget: 3,
             (1, true), (2, true), (3, true));
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.Habits.Single().CurrentStreak.Should().Be(0);
     }
@@ -218,7 +218,7 @@ public class WeeklySummaryServiceTests
         var habit = HabitFactory.Make(createdAtDaysAgo: 0, pausedUntilDaysAgo: null,
             FrequencyType.Daily, weeklyTarget: null);
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.HasSummarableWeek.Should().BeFalse();
     }
@@ -228,7 +228,7 @@ public class WeeklySummaryServiceTests
     {
         var habit = HabitFactory.Make(pausedUntilDaysAgo: -1, FrequencyType.Daily, weeklyTarget: null);
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.HasSummarableWeek.Should().BeFalse();
     }
@@ -239,7 +239,7 @@ public class WeeklySummaryServiceTests
         // Zero activity but an active habit → still summarable (the gentle nudge).
         var habit = HabitFactory.Make();
 
-        var summary = WeeklySummaryService.Build(UserWith(habit), WeekEnd);
+        var summary = WeeklySummary.Build(UserWith(habit), WeekEnd);
 
         summary.HasSummarableWeek.Should().BeTrue();
         summary.TotalDone.Should().Be(0);
@@ -250,7 +250,7 @@ public class WeeklySummaryServiceTests
     [Fact]
     public void ToneLines_ZeroDone_IsTheGentleNudge()
     {
-        var (headline, footer) = WeeklySummaryService.ToneLines(0, 7);
+        var (headline, footer) = WeeklySummary.ToneLines(0, 7);
 
         headline.Should().Be("It's been a quiet week, and that's okay. 💙\nWhenever you're ready, your habits are here waiting.");
         footer.Should().Be("No pressure. Progress happens at its own pace.");
@@ -259,7 +259,7 @@ public class WeeklySummaryServiceTests
     [Fact]
     public void ToneLines_EverythingDone_Celebrates()
     {
-        var (headline, footer) = WeeklySummaryService.ToneLines(7, 7);
+        var (headline, footer) = WeeklySummary.ToneLines(7, 7);
 
         headline.Should().Contain("nailed every single check-in");
         headline.Should().Contain("That's 7 check-ins").And.NotContain("7/7");
@@ -269,7 +269,7 @@ public class WeeklySummaryServiceTests
     [Fact]
     public void ToneLines_HalfOrMore_EncouragesTheWin()
     {
-        var (headline, footer) = WeeklySummaryService.ToneLines(4, 7); // 57%
+        var (headline, footer) = WeeklySummary.ToneLines(4, 7); // 57%
 
         headline.Should().Be("This week you showed up for **4 check-ins**. Every one of those counts. 💪");
         footer.Should().Be("More than half, that's a win. Keep it up.");
@@ -280,7 +280,7 @@ public class WeeklySummaryServiceTests
     {
         // ToneLines is a public helper; Build() always supplies possible >= done,
         // but a direct caller must not be able to trigger a DivideByZeroException.
-        var act = () => WeeklySummaryService.ToneLines(5, 0);
+        var act = () => WeeklySummary.ToneLines(5, 0);
 
         act.Should().NotThrow();
         act().Footer.Should().Be("You're on fire. Keep going.");
@@ -289,7 +289,7 @@ public class WeeklySummaryServiceTests
     [Fact]
     public void ToneLines_UnderHalf_StaysGentle()
     {
-        var (headline, footer) = WeeklySummaryService.ToneLines(2, 7); // 29%
+        var (headline, footer) = WeeklySummary.ToneLines(2, 7); // 29%
 
         headline.Should().NotContain("%").And.NotContain("/7").And.Contain("**2 check-ins**");
         footer.Should().Be("Small steps still move forward. You've got this.");
@@ -303,7 +303,7 @@ public class WeeklySummaryServiceTests
         var habit = HabitFactory.Make((1, true), (3, true));
         var from = WeekEnd.AddDays(-6);
 
-        var dots = WeeklySummaryService.BuildDotString(habit, from, WeekEnd);
+        var dots = WeeklySummary.BuildDotString(habit, from, WeekEnd);
 
         dots.Should().Be("⬜⬜⬜⬜✅⬜✅"); // today-3 at index 4, today-1 (newest) last
     }

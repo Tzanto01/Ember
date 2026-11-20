@@ -96,7 +96,7 @@ export function localDate(utc: number, timeZone: string): LocalDateString {
 
 /**
  * The UTC instant at which the wall clock in `timeZone` shows `time` on `date`, with Core's rules
- * (`TimezoneHelper.NextOccurrenceUtc`): a time inside a spring-forward gap moves to the first valid local
+ * (`TimeZones.NextOccurrenceUtc`): a time inside a spring-forward gap moves to the first valid local
  * time after the gap; an ambiguous fall-back time uses its first (earlier) occurrence.
  */
 export function zonedToUtc(date: LocalDateString, time: string, timeZone: string): number {

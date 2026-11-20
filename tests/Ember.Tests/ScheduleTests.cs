@@ -81,7 +81,7 @@ public class ScheduleTests
         var user = new User { Id = TestUsers.Id(1), Logins = TestUsers.Discord(1) };
         user.Habits.Add(habit);
 
-        var summary = WeeklySummaryService.Build(user, Today.AddDays(-1)).Habits.Single();
+        var summary = WeeklySummary.Build(user, Today.AddDays(-1)).Habits.Single();
 
         summary.Possible.Should().Be(3);
         summary.Done.Should().Be(1);

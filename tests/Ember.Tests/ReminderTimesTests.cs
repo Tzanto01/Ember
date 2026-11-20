@@ -2,6 +2,7 @@ using Ember.Bot.Jobs;
 using Ember.Bot.Modules;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,7 @@ namespace Ember.Tests;
 public class ReminderTimesTests
 {
     private const long DiscordUser = 10;
-    private static readonly TimeZoneInfo BerlinTz = TimezoneHelper.Find("Europe/Berlin")!;
+    private static readonly TimeZoneInfo BerlinTz = TimeZones.Find("Europe/Berlin")!;
 
     // Friday 2027-01-15, 08:00 in Berlin (UTC+1).
     private static readonly DateTimeOffset Now = new(2027, 1, 15, 7, 0, 0, TimeSpan.Zero);
@@ -30,21 +31,21 @@ public class ReminderTimesTests
     {
         var times = At("20:00", "08:00", "13:00");
 
-        TimezoneHelper.NextOccurrenceUtc(times, BerlinTz, Utc(1, 15, 9)).Should().Be(Utc(1, 15, 12));
-        TimezoneHelper.NextOccurrenceUtc(times, BerlinTz, Utc(1, 15, 12)).Should().Be(Utc(1, 15, 19), "a time that is due now is not next");
-        TimezoneHelper.NextOccurrenceUtc(times, BerlinTz, Utc(1, 15, 6, 59)).Should().Be(Utc(1, 15, 7));
-        TimezoneHelper.NextOccurrenceUtc(At(), BerlinTz, Utc(1, 15, 9)).Should().BeNull();
+        TimeZones.NextOccurrenceUtc(times, BerlinTz, Utc(1, 15, 9)).Should().Be(Utc(1, 15, 12));
+        TimeZones.NextOccurrenceUtc(times, BerlinTz, Utc(1, 15, 12)).Should().Be(Utc(1, 15, 19), "a time that is due now is not next");
+        TimeZones.NextOccurrenceUtc(times, BerlinTz, Utc(1, 15, 6, 59)).Should().Be(Utc(1, 15, 7));
+        TimeZones.NextOccurrenceUtc(At(), BerlinTz, Utc(1, 15, 9)).Should().BeNull();
     }
 
     [Fact]
     public void NextOccurrence_CrossesMidnight_AndDaylightSavingInTheUsersTimezone()
     {
-        TimezoneHelper.NextOccurrenceUtc(At("07:00", "23:30"), BerlinTz, Utc(1, 15, 22, 45)).Should().Be(Utc(1, 16, 6));
+        TimeZones.NextOccurrenceUtc(At("07:00", "23:30"), BerlinTz, Utc(1, 15, 22, 45)).Should().Be(Utc(1, 16, 6));
 
         var springForward = At("02:30", "22:00");
-        TimezoneHelper.NextOccurrenceUtc(springForward, BerlinTz, Utc(3, 27, 22)).Should().Be(Utc(3, 28, 1),
+        TimeZones.NextOccurrenceUtc(springForward, BerlinTz, Utc(3, 27, 22)).Should().Be(Utc(3, 28, 1),
             "02:30 doesn't exist on 2027-03-28 in Berlin and moves to 03:00 CEST");
-        TimezoneHelper.NextOccurrenceUtc(springForward, BerlinTz, Utc(3, 28, 1)).Should().Be(Utc(3, 28, 20), "22:00 CEST is 20:00 UTC");
+        TimeZones.NextOccurrenceUtc(springForward, BerlinTz, Utc(3, 28, 1)).Should().Be(Utc(3, 28, 20), "22:00 CEST is 20:00 UTC");
     }
 
     private static async Task<IntegrationTestHost> CreateHostAsync(FakeTimeProvider time, int secondReminderMinutes, params Habit[] habits)

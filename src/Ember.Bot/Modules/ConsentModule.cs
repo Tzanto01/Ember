@@ -104,7 +104,7 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var content = DeclinedText(t, withdrawn, await _habits.GetUserTzAsync(Context.User.Id));
+        var content = DeclinedText(t, withdrawn, await _habits.GetTimeZoneAsync(Context.User.Id));
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
             m.Content = content;

@@ -54,7 +54,7 @@ public class MissedDayReflectionJob : IJob
         var candidates = await habits.GetUserTimezonesWithHabitsAsync(context.CancellationToken);
 
         var dueIds = candidates
-            .Where(u => TimezoneHelper.LocalNow(u.Timezone, _time) is { Hour: LocalSendHour, Minute: < 15 })
+            .Where(u => TimeZones.LocalNow(u.Timezone, _time) is { Hour: LocalSendHour, Minute: < 15 })
             .Select(u => u.UserId)
             .ToList();
 
@@ -73,7 +73,7 @@ public class MissedDayReflectionJob : IJob
                     || !await accounts.UserExistsAsync(user.Id, context.CancellationToken))
                     continue;
 
-                var yesterday = TimezoneHelper.LocalToday(user.Timezone, _time).AddDays(-1);
+                var yesterday = TimeZones.LocalToday(user.Timezone, _time).AddDays(-1);
                 await ProcessUserAsync(user, discordId, yesterday, HabitRules.WeekStart(yesterday));
             }
             catch (Exception ex)
@@ -89,7 +89,7 @@ public class MissedDayReflectionJob : IJob
 
         var open = new List<string>();
         var weekly = new List<(string Name, string Progress)>();
-        var tz = TimezoneHelper.Find(user.Timezone) ?? TimeZoneInfo.Utc;
+        var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
 
         foreach (var habit in user.Habits)
         {

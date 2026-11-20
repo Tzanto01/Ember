@@ -27,7 +27,7 @@ public class MissedDayReflectionTests
     {
         // 07:30 UTC Jan 15 is 23:30 on Jan 14 in Los Angeles: the habit was created on Jan 14 locally.
         var habit = new Habit { Name = "Test", CreatedAt = new DateTime(2026, 1, 15, 7, 30, 0, DateTimeKind.Utc) };
-        var la = TimezoneHelper.Find("America/Los_Angeles")!;
+        var la = TimeZones.Find("America/Los_Angeles")!;
 
         HabitRules.IsAfterStartDay(habit, new DateOnly(2026, 1, 15), la).Should().BeTrue();
         HabitRules.IsAfterStartDay(habit, new DateOnly(2026, 1, 14), la).Should().BeFalse();

@@ -29,7 +29,8 @@ internal static class WidgetEndpoints
 
     public static RouteGroupBuilder MapWidget(this RouteGroupBuilder api)
     {
-        api.MapPost("/widget/check-in", async (CheckInRequest request, HttpContext http, EmberDbContext db, HabitService habits, TimeProvider time) =>
+        api.MapPost("/widget/check-in", async (CheckInRequest request, HttpContext http, EmberDbContext db, HabitService habits,
+            UserSettingsService settings, TimeProvider time) =>
         {
             if (!AuthenticationHeaderValue.TryParse(http.Request.Headers.Authorization.ToString(), out var header)
                 || !string.Equals(header.Scheme, Scheme, StringComparison.OrdinalIgnoreCase)
@@ -48,7 +49,7 @@ internal static class WidgetEndpoints
             var userId = session.UserId;
             if (request.HabitId is not { } habitId) return Problems.Validation("habitId", "Required.");
             if (!Formats.TryParseDate(request.Date, out var day)) return Problems.Validation("date", Formats.DateMessage);
-            if (day != await habits.GetLocalTodayAsync(userId)) return Problems.Validation("date", "Must be today.");
+            if (day != await settings.GetLocalTodayAsync(userId)) return Problems.Validation("date", "Must be today.");
 
             if (Problems.DayEdit(await habits.AddCheckInAsync(userId, habitId, day)) is { } problem) return problem;
 

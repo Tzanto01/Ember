@@ -34,7 +34,7 @@ public class DiscordReminderAskJob : IJob
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         using var scope = _services.CreateScope();
-        var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+        var settings = scope.ServiceProvider.GetRequiredService<UserSettingsService>();
         var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
         foreach (var (userId, discordUserId) in await reminders.GetDiscordAskUserIdsAsync(cancellationToken))
         {
@@ -42,7 +42,7 @@ public class DiscordReminderAskJob : IJob
             try
             {
                 await reminders.MarkDiscordRemindersAskedAsync(userId, cancellationToken);
-                var t = BotTexts.For(await habits.GetLanguageAsync(userId));
+                var t = BotTexts.For(await settings.GetLanguageAsync(userId));
                 var outcome = await _discord.SendMessageAsync(discordUserId, DiscordRemindersModule.AskText(t),
                     components: DiscordRemindersModule.AskButtons(t, discordUserId), cancellationToken: cancellationToken);
                 if (outcome != DeliveryOutcome.Delivered)

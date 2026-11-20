@@ -323,7 +323,7 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.habitsDays.timezone.q',
         answerKey: 'guide.habitsDays.timezone.a',
         target: 'timezone',
-        covers: ['src/Ember.Core/Services/TimezoneHelper.cs', plan],
+        covers: ['src/Ember.Core/Rules/TimeZones.cs', plan],
       },
       {
         id: 'habits-days-slip',

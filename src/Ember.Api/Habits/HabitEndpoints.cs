@@ -41,18 +41,20 @@ internal static class HabitEndpoints
 
     public static RouteGroupBuilder MapHabits(this RouteGroupBuilder api)
     {
-        api.MapGet("/habits", async (ClaimsPrincipal principal, HabitService habits, ReminderService reminders) =>
+        api.MapGet("/habits", async (ClaimsPrincipal principal, HabitService habits, UserSettingsService settings, ReminderService reminders) =>
         {
             var userId = principal.UserId();
             var list = await habits.GetHabitsAsync(userId);
-            var days = await LoadUserDays(habits, reminders, userId);
+            var days = await LoadUserDays(habits, settings, reminders, userId);
             return list.Select(h => ToDto(h, days)).ToList();
         });
 
-        api.MapGet("/habits/{id:int}", async (int id, ClaimsPrincipal principal, HabitService habits, ReminderService reminders) =>
-            await HabitResult(habits, reminders, principal.UserId(), id));
+        api.MapGet("/habits/{id:int}", async (int id, ClaimsPrincipal principal, HabitService habits, UserSettingsService settings,
+            ReminderService reminders) =>
+            await HabitResult(habits, settings, reminders, principal.UserId(), id));
 
-        api.MapPost("/habits", async (CreateHabitRequest request, ClaimsPrincipal principal, HabitService habits, ReminderService reminders) =>
+        api.MapPost("/habits", async (CreateHabitRequest request, ClaimsPrincipal principal, HabitService habits, UserSettingsService settings,
+            ReminderService reminders) =>
         {
             var errors = new Dictionary<string, string[]>();
             var name = ValidName(request.Name, errors);
@@ -76,11 +78,11 @@ internal static class HabitEndpoints
             if (result == HabitWriteResult.ConsentRequired) return Problems.ConsentRequired();
             if (result == HabitWriteResult.LimitReached) return Problems.HabitLimit();
 
-            return Results.Created($"/api/habits/{habit!.Id}", ToDto(habit, await LoadUserDays(habits, reminders, userId)));
+            return Results.Created($"/api/habits/{habit!.Id}", ToDto(habit, await LoadUserDays(habits, settings, reminders, userId)));
         });
 
         api.MapPatch("/habits/{id:int}", async (int id, UpdateHabitRequest request, ClaimsPrincipal principal, HabitService habits,
-            ReminderService reminders, ConsentService consent) =>
+            UserSettingsService settings, ReminderService reminders, ConsentService consent) =>
         {
             var userId = principal.UserId();
             var habit = await habits.GetHabitAsync(userId, id);
@@ -115,33 +117,34 @@ internal static class HabitEndpoints
                     == HabitWriteResult.ConsentRequired)
                 return Problems.ConsentRequired();
 
-            return await HabitResult(habits, reminders, userId, id);
+            return await HabitResult(habits, settings, reminders, userId, id);
         });
 
         api.MapDelete("/habits/{id:int}", async (int id, ClaimsPrincipal principal, HabitService habits) =>
             await habits.DeleteHabitAsync(principal.UserId(), id) ? Results.NoContent() : Problems.NotFound());
 
         api.MapPost("/habits/{id:int}/pause", async (int id, PauseRequest request, ClaimsPrincipal principal, HabitService habits,
-            ReminderService reminders) =>
+            UserSettingsService settings, ReminderService reminders) =>
         {
             var userId = principal.UserId();
             DateOnly? until = null;
             if (request.Until is not null)
             {
                 if (!Formats.TryParseDate(request.Until, out var date)) return Problems.Validation("until", Formats.DateMessage);
-                if (date < await habits.GetLocalTodayAsync(userId)) return Problems.Validation("until", "Can't be before today.");
+                if (date < await settings.GetLocalTodayAsync(userId)) return Problems.Validation("until", "Can't be before today.");
                 until = date;
             }
 
             return await habits.PauseHabitAsync(userId, id, until) is null
                 ? Problems.NotFound()
-                : await HabitResult(habits, reminders, userId, id);
+                : await HabitResult(habits, settings, reminders, userId, id);
         });
 
-        api.MapGet("/habits/{id:int}/days", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapGet("/habits/{id:int}/days", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits,
+            UserSettingsService settings) =>
         {
             var userId = principal.UserId();
-            var (start, end, errors) = DayRange(from, to, await habits.GetLocalTodayAsync(userId));
+            var (start, end, errors) = DayRange(from, to, await settings.GetLocalTodayAsync(userId));
             if (errors.Count > 0) return Problems.Validation(errors);
             if ((await habits.GetHabitKindsAsync(userId)).GetValueOrDefault(id) == HabitKind.LetGo)
                 return Problems.DayEdit(DayEditResult.LetGoHabit)!;
@@ -151,7 +154,7 @@ internal static class HabitEndpoints
         });
 
         api.MapPut("/habits/{id:int}/days/{date}", async (int id, string date, DayRequest request, ClaimsPrincipal principal, HabitService habits,
-            ReminderService reminders) =>
+            UserSettingsService settings, ReminderService reminders) =>
         {
             var errors = new Dictionary<string, string[]>();
             if (!Formats.TryParseDate(date, out var day)) errors["date"] = [Formats.DateMessage];
@@ -162,28 +165,29 @@ internal static class HabitEndpoints
             var userId = principal.UserId();
             if (request.Count is not { } count)
                 return Problems.DayEdit(await habits.CheckInAsync(userId, id, day, request.Completed!.Value))
-                    ?? await HabitResult(habits, reminders, userId, id);
+                    ?? await HabitResult(habits, settings, reminders, userId, id);
 
             if (await habits.GetHabitAsync(userId, id) is not { } habit) return Problems.NotFound();
             if (count < 0) return Problems.Validation("count", "Can't be negative.");
             return Problems.DayEdit(await habits.SetCountAsync(userId, id, day, Math.Min(count, habit.TimesPerDay)))
-                ?? await HabitResult(habits, reminders, userId, id);
+                ?? await HabitResult(habits, settings, reminders, userId, id);
         });
 
         api.MapDelete("/habits/{id:int}/days/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits,
-            ReminderService reminders) =>
+            UserSettingsService settings, ReminderService reminders) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
             var userId = principal.UserId();
             return Problems.DayEdit(await habits.ClearDayAsync(userId, id, day))
-                ?? await HabitResult(habits, reminders, userId, id);
+                ?? await HabitResult(habits, settings, reminders, userId, id);
         });
 
-        api.MapGet("/habits/{id:int}/slips", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapGet("/habits/{id:int}/slips", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits,
+            UserSettingsService settings) =>
         {
             var userId = principal.UserId();
-            var (start, end, errors) = DayRange(from, to, await habits.GetLocalTodayAsync(userId));
+            var (start, end, errors) = DayRange(from, to, await settings.GetLocalTodayAsync(userId));
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var slips = await habits.GetSlipsAsync(userId, id, start, end);
@@ -191,7 +195,7 @@ internal static class HabitEndpoints
         });
 
         api.MapPost("/habits/{id:int}/slips", async (int id, SlipRequest request, ClaimsPrincipal principal, HabitService habits,
-            ReminderService reminders) =>
+            UserSettingsService settings, ReminderService reminders) =>
         {
             var errors = new Dictionary<string, string[]>();
             if (!Formats.TryParseDate(request.Date, out var day)) errors["date"] = [Formats.DateMessage];
@@ -200,22 +204,24 @@ internal static class HabitEndpoints
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var userId = principal.UserId();
-            return SlipProblem(await habits.AddSlipAsync(userId, id, day, request.Reason)) ?? await HabitResult(habits, reminders, userId, id);
+            return SlipProblem(await habits.AddSlipAsync(userId, id, day, request.Reason))
+                ?? await HabitResult(habits, settings, reminders, userId, id);
         });
 
         api.MapDelete("/habits/{id:int}/slips/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits,
-            ReminderService reminders) =>
+            UserSettingsService settings, ReminderService reminders) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
             var userId = principal.UserId();
-            return SlipProblem(await habits.RemoveSlipsAsync(userId, id, day)) ?? await HabitResult(habits, reminders, userId, id);
+            return SlipProblem(await habits.RemoveSlipsAsync(userId, id, day)) ?? await HabitResult(habits, settings, reminders, userId, id);
         });
 
-        api.MapGet("/habits/{id:int}/made-it", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapGet("/habits/{id:int}/made-it", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits,
+            UserSettingsService settings) =>
         {
             var userId = principal.UserId();
-            var (start, end, errors) = DayRange(from, to, await habits.GetLocalTodayAsync(userId));
+            var (start, end, errors) = DayRange(from, to, await settings.GetLocalTodayAsync(userId));
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var days = await habits.GetMadeItDaysAsync(userId, id, start, end);
@@ -223,21 +229,21 @@ internal static class HabitEndpoints
         });
 
         api.MapPut("/habits/{id:int}/made-it/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits,
-            ReminderService reminders) =>
+            UserSettingsService settings, ReminderService reminders) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
             var userId = principal.UserId();
-            return MadeItProblem(await habits.MarkMadeItAsync(userId, id, day)) ?? await HabitResult(habits, reminders, userId, id);
+            return MadeItProblem(await habits.MarkMadeItAsync(userId, id, day)) ?? await HabitResult(habits, settings, reminders, userId, id);
         });
 
         api.MapDelete("/habits/{id:int}/made-it/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits,
-            ReminderService reminders) =>
+            UserSettingsService settings, ReminderService reminders) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
             var userId = principal.UserId();
-            return MadeItProblem(await habits.RemoveMadeItAsync(userId, id, day)) ?? await HabitResult(habits, reminders, userId, id);
+            return MadeItProblem(await habits.RemoveMadeItAsync(userId, id, day)) ?? await HabitResult(habits, settings, reminders, userId, id);
         });
 
         return api;
@@ -296,16 +302,16 @@ internal static class HabitEndpoints
         _ => throw new ArgumentOutOfRangeException(nameof(result), result, null),
     };
 
-    private static async Task<IResult> HabitResult(HabitService habits, ReminderService reminders, Guid userId, int id)
+    private static async Task<IResult> HabitResult(HabitService habits, UserSettingsService settings, ReminderService reminders, Guid userId, int id)
         => await habits.GetHabitAsync(userId, id) is { } habit
-            ? Results.Ok(ToDto(habit, await LoadUserDays(habits, reminders, userId)))
+            ? Results.Ok(ToDto(habit, await LoadUserDays(habits, settings, reminders, userId)))
             : Problems.NotFound();
 
-    private static async Task<UserDays> LoadUserDays(HabitService habits, ReminderService reminders, Guid userId)
+    private static async Task<UserDays> LoadUserDays(HabitService habits, UserSettingsService settings, ReminderService reminders, Guid userId)
     {
         var destinations = await reminders.GetUserWithDestinationsAsync(userId) ?? new User { Id = userId };
-        return new(await habits.GetUserTzAsync(userId), await habits.GetLocalTodayAsync(userId),
-            await habits.GetGraceDaysAsync(userId), await habits.GetLowDaysAsync(userId), destinations, ReminderDestinations.Ids(destinations));
+        return new(await settings.GetTimeZoneAsync(userId), await settings.GetLocalTodayAsync(userId),
+            await settings.GetGraceDaysAsync(userId), await habits.GetLowDaysAsync(userId), destinations, ReminderDestinations.Ids(destinations));
     }
 
     private static HabitDto ToDto(Habit habit, UserDays user)

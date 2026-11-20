@@ -7,7 +7,7 @@ public class HabitLog
 
     /// <summary>
     /// The user's local calendar date (in <see cref="User.Timezone"/>) this log entry is for.
-    /// Logs written before <see cref="Services.TimezoneHelper.SwitchoverDate"/> carry the UTC date.
+    /// Logs written before <see cref="Rules.TimeZones.SwitchoverDate"/> carry the UTC date.
     /// </summary>
     public DateOnly Date { get; set; }
 

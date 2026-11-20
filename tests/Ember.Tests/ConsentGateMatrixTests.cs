@@ -179,7 +179,7 @@ public class ConsentGateMatrixTests
             (await service.GetHabitAsync(UserId, buildId)).Should().NotBeNull();
             (await service.GetHabitDaysAsync(UserId, buildId, 7))!.Should().HaveCount(7);
             (await service.GetLowDaysAsync(UserId)).Should().BeEmpty();
-            (await service.GetGraceDaysAsync(UserId)).Should().Be(1);
+            (await sp.GetRequiredService<UserSettingsService>().GetGraceDaysAsync(UserId)).Should().Be(1);
             (await sp.GetRequiredService<AccountService>().GetUserForExportAsync(UserId)).Should().NotBeNull();
         });
     }

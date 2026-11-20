@@ -3,6 +3,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Core.Localization;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Bot.Modules;
@@ -214,7 +215,7 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
     public async Task OnTimezoneSelectAsync(string habitIdStr, string[] selected)
     {
         var tzId = selected[0];
-        var tz = TimezoneHelper.Find(tzId);
+        var tz = TimeZones.Find(tzId);
 
         if (tz is null)
         {

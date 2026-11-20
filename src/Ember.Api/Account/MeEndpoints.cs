@@ -9,6 +9,7 @@ using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -43,11 +44,11 @@ internal static class MeEndpoints
 
     public static RouteGroupBuilder MapMe(this RouteGroupBuilder api)
     {
-        api.MapGet("/me", async (ClaimsPrincipal principal, UserManager<User> users, HabitService habits, ConsentService consent,
+        api.MapGet("/me", async (ClaimsPrincipal principal, UserManager<User> users, UserSettingsService settings, ConsentService consent,
             JournalService journal, TimeProvider time) =>
-            await LoadMe(principal, users, habits, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
+            await LoadMe(principal, users, settings, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
 
-        api.MapPatch("/me", async (JsonElement body, ClaimsPrincipal principal, UserManager<User> users, HabitService habits,
+        api.MapPatch("/me", async (JsonElement body, ClaimsPrincipal principal, UserManager<User> users, UserSettingsService settings,
             ReminderService reminders, ConsentService consent, JournalService journal, EmberDbContext db, TimeProvider time) =>
         {
             MePatch? patch;
@@ -72,28 +73,28 @@ internal static class MeEndpoints
 
             var userId = principal.UserId();
             db.ChangeTracker.Clear();
-            if (patch.GraceDaysPerWeek is { } grace) await habits.SetGraceDaysAsync(userId, grace);
-            if (patch.Theme is { } theme) await habits.SetThemeAsync(userId, theme);
+            if (patch.GraceDaysPerWeek is { } grace) await settings.SetGraceDaysAsync(userId, grace);
+            if (patch.Theme is { } theme) await settings.SetThemeAsync(userId, theme);
             if (patch.SecondReminderMinutes is { } second) await reminders.SetSecondReminderMinutesAsync(userId, second);
-            if (patch.ShowStreaks is { } showStreaks) await habits.SetShowStreaksAsync(userId, showStreaks);
-            if (patch.Language is { } language) await habits.SetLanguageAsync(userId, language);
-            if (patch.CalmMode is { } calmMode) await habits.SetCalmModeAsync(userId, calmMode);
-            if (patch.OfferHabitNote is { } offer) await habits.SetOfferHabitNoteAsync(userId, offer);
+            if (patch.ShowStreaks is { } showStreaks) await settings.SetShowStreaksAsync(userId, showStreaks);
+            if (patch.Language is { } language) await settings.SetLanguageAsync(userId, language);
+            if (patch.CalmMode is { } calmMode) await settings.SetCalmModeAsync(userId, calmMode);
+            if (patch.OfferHabitNote is { } offer) await settings.SetOfferHabitNoteAsync(userId, offer);
             if (zone is not null)
             {
-                await habits.SetTimezoneAsync(userId, zone.Id);
+                await settings.SetTimezoneAsync(userId, zone.Id);
                 await reminders.RescheduleRemindersAsync(userId);
             }
 
-            return await LoadMe(principal, users, habits, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
+            return await LoadMe(principal, users, settings, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
         });
 
-        api.MapPut("/me/today-order", async (TodayOrderRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPut("/me/today-order", async (TodayOrderRequest request, ClaimsPrincipal principal, UserSettingsService settings) =>
         {
             if (request.Order?.Count > User.MaxTodayOrderEntries)
                 return Problems.Validation("order", $"At most {User.MaxTodayOrderEntries} entries.");
 
-            return Results.Ok(new TodayOrderDto(await habits.SetTodayOrderAsync(principal.UserId(), request.Order)));
+            return Results.Ok(new TodayOrderDto(await settings.SetTodayOrderAsync(principal.UserId(), request.Order)));
         });
 
         api.MapPost("/me/consent", async (ConsentRequest request, ClaimsPrincipal principal, ConsentService consent) =>
@@ -119,11 +120,11 @@ internal static class MeEndpoints
             return Results.NoContent();
         });
 
-        api.MapPut("/me/tips/{id}", async (string id, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPut("/me/tips/{id}", async (string id, ClaimsPrincipal principal, UserSettingsService settings) =>
         {
             if (!User.TipIds.Contains(id)) return Problems.Validation("id", "Unknown tip.");
 
-            await habits.MarkTipSeenAsync(principal.UserId(), id);
+            await settings.MarkTipSeenAsync(principal.UserId(), id);
             return Results.NoContent();
         });
 
@@ -205,7 +206,7 @@ internal static class MeEndpoints
             errors["language"] = ["Must be en or de."];
     }
 
-    private static async Task<MeDto?> LoadMe(ClaimsPrincipal principal, UserManager<User> users, HabitService habits,
+    private static async Task<MeDto?> LoadMe(ClaimsPrincipal principal, UserManager<User> users, UserSettingsService settings,
         ConsentService consent, JournalService journal, TimeProvider time)
     {
         var user = await users.GetUserAsync(principal);
@@ -215,7 +216,7 @@ internal static class MeEndpoints
         return new MeDto(
             user.Id, user.Email, user.EmailConfirmed, await users.HasPasswordAsync(user),
             new DiscordDto(discordId is not null, discordId),
-            user.Timezone, await habits.HasTimezoneSetAsync(user.Id), TimezoneHelper.LocalToday(user.Timezone, time),
+            user.Timezone, await settings.HasTimezoneSetAsync(user.Id), TimeZones.LocalToday(user.Timezone, time),
             user.GraceDaysPerWeek, user.Theme, user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode,
             new ConsentDto(await consent.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, ConsentService.CurrentConsentPolicyVersion,
                 user.ConsentWithdrawnAt,

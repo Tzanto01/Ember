@@ -196,7 +196,7 @@ public class ReminderDispatchJob : IJob
         foreach (var (reminder, timezone, habitDone) in open)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            var expired = IsExpired(reminder.Date, TimezoneHelper.LocalNow(timezone, _time).DateTime);
+            var expired = IsExpired(reminder.Date, TimeZones.LocalNow(timezone, _time).DateTime);
             if (reminder.HabitId is not null && !habitDone && !expired) continue;
             try
             {
@@ -247,7 +247,7 @@ public class ReminderDispatchJob : IJob
         foreach (var (message, timezone, habitDone, language) in open)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            var expired = IsExpired(message.Date, TimezoneHelper.LocalNow(timezone, _time).DateTime);
+            var expired = IsExpired(message.Date, TimeZones.LocalNow(timezone, _time).DateTime);
             if (message.HabitId is not null && !habitDone && !expired) continue;
             try
             {
@@ -296,8 +296,8 @@ public class ReminderDispatchJob : IJob
         if (habit?.SecondReminderUtc is not { } dueAt || dueAt > now || !_retries.CanAttempt(SecondHabitKind, habitId, dueAt, now)) return;
 
         var user = habit.User;
-        var tz = TimezoneHelper.Find(user.Timezone) ?? TimeZoneInfo.Utc;
-        var today = TimezoneHelper.LocalToday(user.Timezone, _time);
+        var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
+        var today = TimeZones.LocalToday(user.Timezone, _time);
         var discordId = user.DiscordId();
         var (targets, pushIds) = Targets(user, habit.ReminderExclusions);
         var send = targets.Count > 0
@@ -340,8 +340,8 @@ public class ReminderDispatchJob : IJob
         if (routine?.SecondReminderUtc is not { } dueAt || dueAt > now || !_retries.CanAttempt(SecondRoutineKind, routineId, dueAt, now)) return;
 
         var user = routine.User;
-        var tz = TimezoneHelper.Find(user.Timezone) ?? TimeZoneInfo.Utc;
-        var today = TimezoneHelper.LocalToday(user.Timezone, _time);
+        var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
+        var today = TimeZones.LocalToday(user.Timezone, _time);
         var discordId = user.DiscordId();
         var (targets, pushIds) = Targets(user, routine.ReminderExclusions);
 
@@ -408,8 +408,8 @@ public class ReminderDispatchJob : IJob
         var habit = await reminders.GetHabitWithUserAsync(habitId, cancellationToken);
         if (habit?.NextReminderUtc is not { } dueAt || dueAt > now) return;
 
-        var tz = TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
-        var today = TimezoneHelper.LocalToday(habit.User.Timezone, _time);
+        var tz = TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
+        var today = TimeZones.LocalToday(habit.User.Timezone, _time);
 
         var user = habit.User;
         var discordId = user.DiscordId();
@@ -436,12 +436,12 @@ public class ReminderDispatchJob : IJob
         {
             var weekAgo = today.AddDays(-7);
             var recent = await reminders.CountCompletedBetweenAsync(habit.Id, weekAgo, today, cancellationToken);
-            var snoozed = TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, dueAt.AddTicks(-1)) != dueAt;
+            var snoozed = TimeZones.NextOccurrenceUtc(habit.ReminderTimes, tz, dueAt.AddTicks(-1)) != dueAt;
             var reminder = new Reminder(user.Id, discordId, habit.Id, habit.Name, recent, snoozed, today, PushSubscriptionIds: pushIds,
                 Language: user.Language);
             delivery = await DeliverAsync(targets, reminder, user, now, (HabitKind, habit.Id, dueAt), cancellationToken);
             if (delivery == Delivery.Delivered && !snoozed && SecondReminderAt(user, tz, today, now) is { } second
-                && (TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now) is not { } next || next > second))
+                && (TimeZones.NextOccurrenceUtc(habit.ReminderTimes, tz, now) is not { } next || next > second))
                 secondUtc = second;
         }
 
@@ -453,7 +453,7 @@ public class ReminderDispatchJob : IJob
             return;
         }
 
-        if (!await reminders.SaveAndAdvanceReminderAsync(habit.Id, dueAt, TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now), secondUtc,
+        if (!await reminders.SaveAndAdvanceReminderAsync(habit.Id, dueAt, TimeZones.NextOccurrenceUtc(habit.ReminderTimes, tz, now), secondUtc,
                 saveToken))
             _logger.LogInformation("Reminder for habit {HabitId} changed while it was sent; keeping the change.", habitId);
         _retries.Forget(HabitKind, habitId, dueAt);
@@ -468,8 +468,8 @@ public class ReminderDispatchJob : IJob
         if (routine?.NextReminderUtc is not { } dueAt || dueAt > now) return;
 
         var user = routine.User;
-        var tz = TimezoneHelper.Find(user.Timezone) ?? TimeZoneInfo.Utc;
-        var today = TimezoneHelper.LocalToday(user.Timezone, _time);
+        var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
+        var today = TimeZones.LocalToday(user.Timezone, _time);
         var discordId = user.DiscordId();
         var (targets, pushIds) = Targets(user, routine.ReminderExclusions);
 
@@ -496,7 +496,7 @@ public class ReminderDispatchJob : IJob
             return;
         }
 
-        var next = routine.ReminderTime is { } reminderTime ? TimezoneHelper.NextOccurrenceUtc(reminderTime, tz, now) : (DateTime?)null;
+        var next = routine.ReminderTime is { } reminderTime ? TimeZones.NextOccurrenceUtc(reminderTime, tz, now) : (DateTime?)null;
         var secondUtc = delivery == Delivery.Delivered ? SecondReminderAt(user, tz, today, now) : null;
         if (!await reminders.SaveAndAdvanceRoutineReminderAsync(routine.Id, dueAt, next, secondUtc, saveToken))
             _logger.LogInformation("Reminder for routine {RoutineId} changed while it was sent; keeping the change.", routineId);

@@ -1,4 +1,4 @@
-using Ember.Core.Services;
+using Ember.Core.Rules;
 
 namespace Ember.Api;
 
@@ -19,7 +19,7 @@ internal sealed class FeedbackDigestService(
         while (!stoppingToken.IsCancellationRequested)
         {
             var now = time.GetUtcNow().UtcDateTime;
-            await Task.Delay(TimezoneHelper.NextOccurrenceUtc(RunAt, FeedbackDigest.Zone, now) - now, time, stoppingToken);
+            await Task.Delay(TimeZones.NextOccurrenceUtc(RunAt, FeedbackDigest.Zone, now) - now, time, stoppingToken);
             try
             {
                 using var scope = scopes.CreateScope();

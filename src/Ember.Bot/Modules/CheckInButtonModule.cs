@@ -38,7 +38,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
     /// <summary>The user's local day at <paramref name="timestampStr"/> (unix seconds), or null when the timestamp is malformed.</summary>
     private static async Task<DateOnly?> SentDayAsync(HabitService habits, ulong userId, string timestampStr)
         => long.TryParse(timestampStr, out var sentUnix) && sentUnix is >= 0 and <= 253402300799
-            ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(sentUnix), await habits.GetUserTzAsync(userId)).DateTime)
+            ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(sentUnix), await habits.GetTimeZoneAsync(userId)).DateTime)
             : null;
 
     /// <summary>
@@ -50,7 +50,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
         IEnumerable<IMessageComponent> components)
     {
         if (await SentDayAsync(habits, userId, timestampStr) is not { } day
-            || !ReminderDispatchJob.IsExpired(day, TimeZoneInfo.ConvertTime(time.GetUtcNow(), await habits.GetUserTzAsync(userId)).DateTime))
+            || !ReminderDispatchJob.IsExpired(day, TimeZoneInfo.ConvertTime(time.GetUtcNow(), await habits.GetTimeZoneAsync(userId)).DateTime))
             return null;
 
         var habitIds = components.OfType<ActionRowComponent>().SelectMany(r => r.Components).OfType<ButtonComponent>()
