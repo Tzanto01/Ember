@@ -8538,7 +8538,8 @@
       "noteText": 2000,
       "habitNoteText": 280,
       "todayOrder": 500,
-      "timesPerDay": 10
+      "timesPerDay": 10,
+      "weeklyTarget": 6
     },
     "fireside": {
       "name": 32,

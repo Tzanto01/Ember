@@ -182,7 +182,7 @@ function parse(text: string): ParsedBackup {
       id: index + 1,
       name: validName(field(h, 'name'), limits.habitName) ?? damaged(),
       frequency,
-      weeklyTarget: frequency === 'weekly' ? (weeklyTarget === null ? 3 : int(weeklyTarget, 1, 6)) : null,
+      weeklyTarget: frequency === 'weekly' ? (weeklyTarget === null ? 3 : int(weeklyTarget, 1, limits.weeklyTarget)) : null,
       days: frequency === 'weekdays' ? (parseWeekdays(field(h, 'days')) ?? damaged()) : null,
       timesPerDay,
       reminderTime: reminderTimes[0] ?? null,

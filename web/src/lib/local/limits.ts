@@ -10,5 +10,6 @@ export const limits = {
   habitNoteText: 280,
   todayOrder: 500,
   timesPerDay: 10,
+  weeklyTarget: 6,
   rangeDays: 366,
 } as const;

@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { NativeSelect } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
 import { formatTime, weekdayLabels } from '@/lib/local-date';
+import { limits } from '@/lib/local/limits';
 import {
   type AnyHabit,
   type Frequency,
@@ -175,7 +176,7 @@ const kinds = [
   { value: 'letGo', label: 'letgo.kind.letGo' },
 ] as const satisfies readonly { value: HabitKind; label: string }[];
 
-const targets = [1, 2, 3, 4, 5, 6];
+const targets = Array.from({ length: limits.weeklyTarget }, (_, i) => i + 1);
 const perDayOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 const optionClass =
