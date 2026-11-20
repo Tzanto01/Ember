@@ -22,18 +22,15 @@ import org.json.JSONObject
  */
 internal object WidgetStore {
 
-    @JvmField
     val LOCK = Any()
 
     const val MAX_HABITS = 25
     const val THEME = "theme"
     const val COLOR_SCHEME = "colorScheme"
 
-    @JvmField
     val ISO_DATE: Pattern = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$")
 
     /** Every row state a snapshot or a check-in answer may carry. */
-    @JvmField
     val STATES: List<String> = listOf("done", "partial", "open", "rest")
 
     private const val PREFS = "ember_widget"
@@ -43,7 +40,6 @@ internal object WidgetStore {
     private val STYLE = listOf(THEME, COLOR_SCHEME, WidgetPlan.MOTION)
     private val requests = HashMap<String, Int>()
 
-    @JvmStatic
     fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /**
@@ -52,7 +48,6 @@ internal object WidgetStore {
      * "x of y". [next] (optional, `date`, `habits`, `more`, `done`, `total`) is the following day, shown once the zone
      * reaches its date.
      */
-    @JvmStatic
     @Throws(JSONException::class)
     fun save(
         context: Context,
@@ -125,7 +120,6 @@ internal object WidgetStore {
     }
 
     /** The stored snapshot when it, or its `next` day, is for today in its zone, else null. */
-    @JvmStatic
     fun current(context: Context): JSONObject? {
         val stored = prefs(context).getString(SNAPSHOT, null) ?: return null
         try {
@@ -148,7 +142,6 @@ internal object WidgetStore {
     }
 
     /** Whether any snapshot is stored, even one for another day. */
-    @JvmStatic
     fun hasSnapshot(context: Context) = prefs(context).contains(SNAPSHOT)
 
     /** A change to one stored row; true when it changed the row. */
@@ -162,7 +155,6 @@ internal object WidgetStore {
      * still [token], keeping that day's `done` in step; true when [edit] changed it. Callers that pair it with other
      * store calls hold [LOCK] around them.
      */
-    @JvmStatic
     fun editRow(context: Context, token: String, date: String, habitId: Long, edit: RowEdit): Boolean {
         synchronized(LOCK) {
             val stored = prefs(context).getString(SNAPSHOT, null) ?: return false
@@ -208,7 +200,6 @@ internal object WidgetStore {
     private fun JSONObject.pendingKey() = pendingKey(optString("userId"), optLong("habitId"), optString("date"))
 
     /** Records a pending check-in, one per user, habit and date, keeping the highest count. */
-    @JvmStatic
     fun addPending(context: Context, userId: String, habitId: Long, date: String, count: Int) {
         synchronized(LOCK) {
             val entries = pending(context)
@@ -229,7 +220,6 @@ internal object WidgetStore {
     }
 
     /** Drops the pending entry once the server's [count] reached its target. */
-    @JvmStatic
     fun settlePending(context: Context, userId: String, habitId: Long, date: String, count: Int) {
         synchronized(LOCK) {
             val entries = pending(context)
@@ -248,7 +238,6 @@ internal object WidgetStore {
      * for). Entries with a request still in flight or queued stay stored, so the widget's own POST cannot land on top
      * of the count JS sets.
      */
-    @JvmStatic
     fun takePending(context: Context): JSArray {
         val result = JSArray()
         synchronized(LOCK) {
@@ -264,7 +253,6 @@ internal object WidgetStore {
     }
 
     /** [pendingKey]s of pending check-ins with no request in flight: a failed request or one a killed process lost. */
-    @JvmStatic
     fun unsaved(context: Context): Set<String> {
         val keys = HashSet<String>()
         synchronized(LOCK) {
@@ -278,11 +266,9 @@ internal object WidgetStore {
     }
 
     /** Identifies one user's check-in on a habit and date. */
-    @JvmStatic
     fun pendingKey(userId: String, habitId: Long, date: String) = "$userId\n$habitId\n$date"
 
     /** Adds [change] to the check-in requests in flight or queued for one check-in; the entry goes at 0. */
-    @JvmStatic
     fun inFlight(userId: String, habitId: Long, date: String, change: Int) {
         synchronized(LOCK) {
             requests.merge(pendingKey(userId, habitId, date), change) { a, b -> if (a + b > 0) a + b else null }
@@ -290,12 +276,10 @@ internal object WidgetStore {
     }
 
     /** The check-in requests in flight or queued for one check-in. */
-    @JvmStatic
     fun inFlightCount(userId: String, habitId: Long, date: String): Int =
         synchronized(LOCK) { requests.getOrDefault(pendingKey(userId, habitId, date), 0) }
 
     /** Forgets the snapshot, widget key, API origin and pending check-ins, keeping the style. */
-    @JvmStatic
     fun clear(context: Context) {
         synchronized(LOCK) {
             val prefs = prefs(context)
@@ -306,7 +290,6 @@ internal object WidgetStore {
     }
 
     /** Stores the app's widget style ([THEME], [COLOR_SCHEME], [WidgetPlan.MOTION]). */
-    @JvmStatic
     fun setStyle(context: Context, theme: String?, motion: Boolean, colorScheme: String?) {
         prefs(context)
             .edit()

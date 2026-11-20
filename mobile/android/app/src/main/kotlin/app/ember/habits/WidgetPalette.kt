@@ -26,7 +26,6 @@ internal object WidgetPalette {
     private fun argb(vararg colors: Long) = IntArray(colors.size) { colors[it].toInt() }
 
     /** The colors of [theme] (unknown or missing is Hearthlight), indexed by the constants above. */
-    @JvmStatic
     fun of(theme: String?, dark: Boolean): IntArray {
         val colors = when (theme) {
             "fieldnotes" -> if (dark) FIELDNOTES_DARK else FIELDNOTES
@@ -38,11 +37,9 @@ internal object WidgetPalette {
     }
 
     /** True for Hearthlight, the theme of the `ember_colors` resources (unknown or missing included). */
-    @JvmStatic
     fun hearthlight(theme: String?) = theme != "fieldnotes" && theme != "tidepool" && theme != "marigold"
 
     /** Dark for `"dark"`, light for `"light"`, else (system or missing) [systemDark]. */
-    @JvmStatic
     fun dark(colorScheme: String?, systemDark: Boolean) = when (colorScheme) {
         "dark" -> true
         "light" -> false

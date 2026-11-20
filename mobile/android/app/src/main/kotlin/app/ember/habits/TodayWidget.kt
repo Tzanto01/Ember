@@ -122,7 +122,6 @@ class TodayWidget : AppWidgetProvider() {
          * or an open-habit tap needs our component and a row [listed] in the current snapshot, so a stale row or an
          * intent from another app does nothing. An open-habit tap carries `open: true`.
          */
-        @JvmStatic
         fun validTap(context: Context, intent: Intent): JSObject? {
             if (!ours(context, intent, MainActivity::class.java)) return null
             if (intent.action == ACTION_OPEN_TODAY) return JSObject()
@@ -164,7 +163,6 @@ class TodayWidget : AppWidgetProvider() {
         }
 
         /** Redraws every Today widget from the stored snapshot. */
-        @JvmStatic
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context) ?: return
             render(context, manager, manager.getAppWidgetIds(ComponentName(context, TodayWidget::class.java)))

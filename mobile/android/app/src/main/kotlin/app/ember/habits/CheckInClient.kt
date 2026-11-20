@@ -32,7 +32,6 @@ internal object CheckInClient {
     private val CALLS: ExecutorService = Executors.newCachedThreadPool()
 
     /** Runs [task] on the network thread, after the check-ins queued before it. */
-    @JvmStatic
     fun queue(task: Runnable) = NETWORK.execute(task)
 
     /**
@@ -41,7 +40,6 @@ internal object CheckInClient {
      * entry and updates the row while the snapshot is unchanged and no other request for that row is in flight or
      * queued. Callers hold this request's in-flight mark.
      */
-    @JvmStatic
     fun send(
         context: Context,
         apiBase: String,

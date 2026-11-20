@@ -8,7 +8,6 @@ import android.content.Intent
 internal object WidgetIntents {
 
     /** Opens [intent]'s activity in a new task. */
-    @JvmStatic
     fun open(context: Context, requestCode: Int, intent: Intent): PendingIntent {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return PendingIntent.getActivity(
@@ -20,7 +19,6 @@ internal object WidgetIntents {
     }
 
     /** Sends [intent] as a broadcast. */
-    @JvmStatic
     fun broadcast(context: Context, requestCode: Int, intent: Intent): PendingIntent =
         PendingIntent.getBroadcast(
             context,

@@ -42,7 +42,6 @@ internal object TodayWidgetViews {
     )
 
     /** Draws [snapshot], today's or null when there is none, into the widgets [ids]. */
-    @JvmStatic
     fun update(context: Context, manager: AppWidgetManager, ids: IntArray, snapshot: JSONObject?) {
         val look = look(context, snapshot)
         for (id in ids) manager.updateAppWidget(id, views(context, look, snapshot, manager.getAppWidgetOptions(id)))

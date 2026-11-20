@@ -16,7 +16,6 @@ internal object AppLanguage {
     private const val LANGUAGE = "language"
 
     /** Stores `"de"` for `"de"`, else `"en"` (unknown or missing values included). */
-    @JvmStatic
     fun set(context: Context, language: String?) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
             putString(LANGUAGE, if (language == "de") "de" else "en")
@@ -24,7 +23,6 @@ internal object AppLanguage {
     }
 
     /** The stored language, or from the device's first locale (`de*` is German) when none is stored yet. */
-    @JvmStatic
     fun get(context: Context): String {
         val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(LANGUAGE, null)
         if (stored != null) return stored
@@ -34,7 +32,6 @@ internal object AppLanguage {
 
     /** A context whose resources resolve strings in [get]'s language (language splits are off in the bundle). */
     @SuppressLint("AppBundleLocaleChanges")
-    @JvmStatic
     fun localized(context: Context): Context {
         val config = Configuration(context.resources.configuration)
         config.setLocale(Locale.forLanguageTag(get(context)))
