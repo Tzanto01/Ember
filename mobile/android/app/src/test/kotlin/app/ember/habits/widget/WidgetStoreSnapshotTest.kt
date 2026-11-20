@@ -1,6 +1,7 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import android.content.Context
+import app.ember.habits.InMemoryContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset

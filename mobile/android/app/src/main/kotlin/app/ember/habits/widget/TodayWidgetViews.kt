@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import android.appwidget.AppWidgetManager
 import android.content.Context
@@ -12,6 +12,10 @@ import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.net.toUri
+import app.ember.habits.AppLanguage
+import app.ember.habits.MainActivity
+import app.ember.habits.R
+import app.ember.habits.TodayWidget
 import kotlin.math.max
 import kotlin.math.min
 import org.json.JSONArray

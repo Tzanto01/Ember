@@ -12,6 +12,8 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import android.widget.TextView
+import app.ember.habits.widget.WidgetKey
+import app.ember.habits.widget.WidgetStore
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.Key

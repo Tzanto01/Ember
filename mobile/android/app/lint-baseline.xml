@@ -7,8 +7,8 @@
         errorLine1="                    prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()"
         errorLine2="                                                                                   ~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="188"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="180"
             column="84"/>
     </issue>
 
@@ -18,8 +18,8 @@
         errorLine1="                    prefs(context).edit().putString(PENDING, entries.toString()).commit()"
         errorLine2="                                                                                 ~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="220"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="211"
             column="82"/>
     </issue>
 
@@ -29,8 +29,8 @@
         errorLine1="            .commit()"
         errorLine2="             ~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="316"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="299"
             column="14"/>
     </issue>
 
@@ -40,8 +40,8 @@
         errorLine1="            val name = habit.getString(&quot;name&quot;).trim { it &lt;= &apos; &apos; }"
         errorLine2="                                                    ~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="99"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="94"
             column="53"/>
     </issue>
 
@@ -335,8 +335,8 @@
         errorLine1="            WidgetStore.prefs(context)"
         errorLine2="            ^">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetKey.kt"
-            line="42"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetKey.kt"
+            line="41"
             column="13"/>
     </issue>
 
@@ -346,8 +346,8 @@
         errorLine1="            WidgetStore.prefs(context).edit().remove(SEALED).remove(IV).commit()"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetKey.kt"
-            line="84"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetKey.kt"
+            line="80"
             column="13"/>
     </issue>
 
@@ -357,8 +357,8 @@
         errorLine1="            prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="86"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="81"
             column="13"/>
     </issue>
 
@@ -368,8 +368,8 @@
         errorLine1="                    prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="188"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="180"
             column="21"/>
     </issue>
 
@@ -379,8 +379,8 @@
         errorLine1="                    prefs(context).edit().putString(PENDING, entries.toString()).commit()"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="220"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="211"
             column="21"/>
     </issue>
 
@@ -390,8 +390,8 @@
         errorLine1="            prefs(context).edit().putString(PENDING, entries.toString()).commit()"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="227"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="218"
             column="13"/>
     </issue>
 
@@ -401,8 +401,8 @@
         errorLine1="            prefs(context).edit().putString(PENDING, kept.toString()).commit()"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="242"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="232"
             column="13"/>
     </issue>
 
@@ -412,8 +412,8 @@
         errorLine1="            prefs(context).edit().putString(PENDING, kept.toString()).commit()"
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="261"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="250"
             column="13"/>
     </issue>
 
@@ -423,8 +423,8 @@
         errorLine1="            val edit = prefs.edit()"
         errorLine2="                       ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="302"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="286"
             column="24"/>
     </issue>
 
@@ -434,8 +434,8 @@
         errorLine1="        prefs(context)"
         errorLine2="        ^">
         <location
-            file="src/main/kotlin/app/ember/habits/WidgetStore.kt"
-            line="311"
+            file="src/main/kotlin/app/ember/habits/widget/WidgetStore.kt"
+            line="294"
             column="9"/>
     </issue>
 

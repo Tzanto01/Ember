@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.plugin
 
 import android.content.Context
 import android.content.Intent

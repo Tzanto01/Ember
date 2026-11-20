@@ -1,9 +1,18 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import android.content.Intent
 import android.view.View
 import android.widget.CompoundButton
 import android.widget.ImageView
+import app.ember.habits.AppLanguage
+import app.ember.habits.MainActivity
+import app.ember.habits.R
+import app.ember.habits.TodayHost
+import app.ember.habits.TodayWidget
+import app.ember.habits.all
+import app.ember.habits.names
+import app.ember.habits.shows
+import app.ember.habits.text
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

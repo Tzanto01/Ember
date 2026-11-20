@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import java.io.File
 import org.junit.Assert.assertArrayEquals

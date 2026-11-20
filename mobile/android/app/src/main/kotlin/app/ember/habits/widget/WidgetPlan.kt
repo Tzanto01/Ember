@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import kotlin.math.max
 import kotlin.math.min

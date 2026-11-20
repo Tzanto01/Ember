@@ -8,6 +8,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
+import app.ember.habits.widget.CheckInClient
+import app.ember.habits.widget.TodayWidgetViews
+import app.ember.habits.widget.WidgetIntents
+import app.ember.habits.widget.WidgetKey
+import app.ember.habits.widget.WidgetStore
 import com.getcapacitor.JSObject
 import java.util.Calendar
 import java.util.TimeZone

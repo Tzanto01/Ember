@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import android.app.PendingIntent
 import android.content.Context

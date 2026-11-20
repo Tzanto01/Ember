@@ -1,6 +1,8 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import android.os.SystemClock
+import app.ember.habits.FakeAndroidKeyStore
+import app.ember.habits.TodayHost
 import java.util.concurrent.TimeUnit
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

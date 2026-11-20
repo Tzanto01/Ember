@@ -3,6 +3,9 @@ package app.ember.habits
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
+import app.ember.habits.plugin.BackupFilePlugin
+import app.ember.habits.plugin.EmberWidgetPlugin
+import app.ember.habits.plugin.FlavorPlugins
 import com.getcapacitor.BridgeActivity
 
 /** The Capacitor activity hosting the web app, with Ember's plugins and the moment and widget launches routed to it. */

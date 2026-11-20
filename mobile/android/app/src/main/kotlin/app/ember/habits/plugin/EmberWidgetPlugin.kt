@@ -1,7 +1,12 @@
-package app.ember.habits
+package app.ember.habits.plugin
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import app.ember.habits.AppLanguage
+import app.ember.habits.MomentWidget
+import app.ember.habits.TodayWidget
+import app.ember.habits.widget.WidgetKey
+import app.ember.habits.widget.WidgetStore
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall

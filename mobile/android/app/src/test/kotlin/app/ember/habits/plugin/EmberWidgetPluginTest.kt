@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.plugin
 
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin

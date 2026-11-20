@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.plugin
 
 import java.security.MessageDigest
 import java.util.Locale

@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 /**
  * The widget's colors per Ember theme, light and dark, from the web theme tokens (card, foreground,

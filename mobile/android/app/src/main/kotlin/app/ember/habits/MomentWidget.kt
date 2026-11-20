@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import app.ember.habits.widget.WidgetIntents
 
 /**
  * The 1x1 "I need a moment" home-screen door. It holds no user data: it only shows the door label and opens

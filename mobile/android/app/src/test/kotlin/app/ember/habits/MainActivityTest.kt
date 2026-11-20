@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
 import android.webkit.ServiceWorkerWebSettings
+import app.ember.habits.plugin.EmberWidgetPlugin
+import app.ember.habits.widget.WidgetStore
 import com.getcapacitor.JSObject
 import com.getcapacitor.PluginCall
 import org.json.JSONArray
