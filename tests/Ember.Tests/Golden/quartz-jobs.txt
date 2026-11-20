@@ -1,0 +1,14 @@
+job accounts.health-data-deletion concurrent=disallowed
+  trigger accounts.health-data-deletion-trigger cron "0 0 9 * * ?" tz=UTC
+job accounts.unconfirmed-account-cleanup concurrent=disallowed
+  trigger accounts.unconfirmed-account-cleanup-trigger cron "0 30 3 * * ?" tz=UTC
+job asks.discord-reminder-ask concurrent=disallowed
+  trigger asks.discord-reminder-ask-trigger cron "30 * * * * ?" tz=UTC
+job fireside.fireside-notify concurrent=disallowed
+  trigger fireside.fireside-notify-trigger cron "15 * * * * ?" tz=UTC
+job reflections.missed-day-reflection concurrent=disallowed
+  trigger reflections.missed-day-reflection-trigger cron "0 0/15 * * * ?" tz=UTC
+job reminders.reminder-dispatch concurrent=disallowed
+  trigger reminders.reminder-dispatch-trigger cron "0 * * * * ?" tz=UTC
+job summaries.weekly-summary concurrent=disallowed
+  trigger summaries.weekly-summary-trigger cron "0 0/15 * * * ?" tz=UTC

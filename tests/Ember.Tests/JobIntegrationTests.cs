@@ -430,6 +430,39 @@ public class JobIntegrationTests
         message.Embed!.Description.Should().EndWith("\n\n[See your week in the Ember web app](https://ember.example/today)");
     }
 
+    private static async Task RunToCompletionAsync(IntegrationTestHost host, JobKey key)
+    {
+        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
+        await scheduler.TriggerJob(key);
+        await Task.Delay(100);
+        while ((await scheduler.GetCurrentlyExecutingJobs()).Count > 0) await Task.Delay(50);
+    }
+
+    [Fact]
+    public async Task WeeklySummaryJob_RunningAgainLaterOnTheSameSunday_SendsNoSecondRecap()
+    {
+        var time = new FakeTimeProvider(SundayMorningUtc);
+        await using var host = await IntegrationTestHost.CreateAsync(time: time);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var user = new User { Id = TestUsers.Id(95), Logins = TestUsers.Discord(95), Timezone = "UTC" };
+            user.Habits.Add(new Habit { Name = "Meditate", CreatedAt = SundayMorningUtc.UtcDateTime.AddDays(-10) });
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+        });
+
+        await RunToCompletionAsync(host, WeeklySummaryJob.Key);
+        host.Discord.Messages.Should().ContainSingle();
+        foreach (var later in new[] { TimeSpan.FromMinutes(15), TimeSpan.FromMinutes(45), TimeSpan.FromHours(3) })
+        {
+            time.Advance(later);
+            await RunToCompletionAsync(host, WeeklySummaryJob.Key);
+        }
+
+        host.Discord.Messages.Should().ContainSingle();
+    }
+
     [Fact]
     public async Task MissedDayReflectionJob_DoesNotNudgeAWeeklyHabitDoneYesterday()
     {
