@@ -46,6 +46,16 @@ export default defineConfig(
           allow: [{ from: 'file', name: 'Problem', path: 'src/lib/local/backend.ts' }],
         },
       ],
+      // Same conventions as tsc's noUnusedLocals/noUnusedParameters: a leading `_` marks a deliberately unused name, catch bindings may go unused.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          caughtErrors: 'none',
+        },
+      ],
       // Numbers in template strings (counts, ids, pixel sizes) format predictably.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       // Its remaining findings are `!` on indexed reads that noUncheckedIndexedAccess makes necessary; turn it back on with that option.
@@ -79,7 +89,6 @@ export default defineConfig(
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
       '@typescript-eslint/no-deprecated': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/exhaustive-deps': 'off',
       'react-hooks/refs': 'off',
