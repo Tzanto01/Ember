@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { formatDate } from '@/lib/local-date';
 import type { LetGoHabit } from '@/lib/models';
+import { habitQueryKey, historyKey, type TodayData, todayKey } from '@/lib/query-keys';
 import { daysFreeText } from './letgo-text';
 import { SlipSheet } from './slip-sheet';
 import { TryInstead } from './try-instead';
@@ -17,11 +18,11 @@ const shortDate: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
 export function useLetGoUpdate(): (habit: LetGoHabit) => void {
   const queryClient = useQueryClient();
   return (habit) => {
-    queryClient.setQueryData<{ letGo?: LetGoHabit[] }>(['today'], (data) =>
-      data?.letGo ? { ...data, letGo: data.letGo.map((h) => (h.id === habit.id ? habit : h)) } : data,
+    queryClient.setQueryData<TodayData>(todayKey, (data) =>
+      data && { ...data, letGo: data.letGo.map((h) => (h.id === habit.id ? habit : h)) },
     );
-    void queryClient.invalidateQueries({ queryKey: ['history'] });
-    void queryClient.invalidateQueries({ queryKey: ['habit', habit.id] });
+    void queryClient.invalidateQueries({ queryKey: historyKey });
+    void queryClient.invalidateQueries({ queryKey: habitQueryKey(habit.id) });
   };
 }
 

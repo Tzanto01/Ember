@@ -16,6 +16,7 @@ import { buildMonth, canGoNext, canGoPrevious, type CalendarDay, monthRange } fr
 import { t } from '@/lib/i18n';
 import { addMonths, formatDate, monthLabel, startOfMonth } from '@/lib/local-date';
 import type { LetGoDayState, LetGoHabit, LocalDateString } from '@/lib/models';
+import { historyKey } from '@/lib/query-keys';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { api, auth } from '@/lib/services';
 import { useStore } from '@/lib/store';
@@ -153,7 +154,7 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
   const range = monthRange(month, habit.startDate, today);
 
   const slipsQuery = useQuery({
-    queryKey: ['history', 'slips', habit.id, range?.from, range?.to],
+    queryKey: [...historyKey, 'slips', habit.id, range?.from, range?.to],
     queryFn: () => (range ? api.getSlips(habit.id, range.from, range.to) : Promise.resolve([])),
   });
   const slips = new Map((slipsQuery.data ?? []).map((slip) => [slip.date, slip.count]));

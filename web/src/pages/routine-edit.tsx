@@ -6,17 +6,13 @@ import { EmptyState } from '@/components/empty-state';
 import { DriftingSpark, RemindersSection } from '@/components/habits/habit-edit-sections';
 import { BackLink } from '@/components/back-link';
 import { PageHeader } from '@/components/page-header';
-import {
-  RoutineDelete,
-  RoutineDetails,
-  routineHabitsKey,
-  routinesKey,
-} from '@/components/routines/routine-sections';
+import { RoutineDelete, RoutineDetails } from '@/components/routines/routine-sections';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { buildHabits, type Routine } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
+import { routineHabitsKey, routinesKey } from '@/lib/query-keys';
 import { api } from '@/lib/services';
 
 /** `/routines/new` and `/routines/:id/edit`: the routine form; editing adds where reminders go and delete. */

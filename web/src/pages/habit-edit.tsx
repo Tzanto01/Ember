@@ -19,6 +19,7 @@ import { Card } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type AnyHabit, isLetGo } from '@/lib/models';
+import { habitQueryKey, routinesKey } from '@/lib/query-keys';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { api, auth } from '@/lib/services';
 import { useStore } from '@/lib/store';
@@ -49,7 +50,7 @@ export default function HabitEditPage() {
   const id = Number(useParams()['id']);
   const valid = Number.isInteger(id) && id > 0;
   const queryClient = useQueryClient();
-  const queryKey = ['habit', id];
+  const queryKey = habitQueryKey(id);
   const query = useQuery({
     queryKey,
     queryFn: async () => {
@@ -63,7 +64,7 @@ export default function HabitEditPage() {
   const onChange = (updated: AnyHabit) => queryClient.setQueryData(queryKey, updated);
   const routineId = habit?.routineId ?? null;
   const routines = useQuery({
-    queryKey: ['routines'],
+    queryKey: routinesKey,
     queryFn: () => api.listRoutines(),
     enabled: routineId !== null,
     retry: false,

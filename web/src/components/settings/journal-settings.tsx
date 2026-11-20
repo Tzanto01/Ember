@@ -3,12 +3,12 @@ import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
-import { journalKey } from '@/components/journal/day-journal';
 import { useJournal } from '@/components/journal/journal-context';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import type { Me } from '@/lib/models';
 import { saveExport } from '@/lib/native/save-file';
+import { journalKey } from '@/lib/query-keys';
 import { useStore } from '@/lib/store';
 import {
   ConfirmJournalForm,

@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { AccountButton } from '@/components/app-shell';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
 import { EmptyState } from '@/components/empty-state';
-import { journalKey } from '@/components/journal/day-journal';
 import { useJournal } from '@/components/journal/journal-context';
 import { LiveRegion } from '@/components/live-region';
 import { BackLink } from '@/components/back-link';
@@ -25,6 +24,7 @@ import {
   type SavedMoment,
 } from '@/lib/moment/moments';
 import { practices } from '@/lib/moment/practices';
+import { journalKey } from '@/lib/query-keys';
 import { auth, helps, localMode } from '@/lib/services';
 import { useStore } from '@/lib/store';
 

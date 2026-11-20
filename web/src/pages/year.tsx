@@ -26,6 +26,7 @@ import {
 import { YearHeatmap, YearLegend } from '@/components/year/year-heatmap';
 import { formatDate } from '@/lib/local-date';
 import { buildHabits, type DayEntry, type DayStat, type Habit, type LocalDateString } from '@/lib/models';
+import { journalKey, yearKey } from '@/lib/query-keys';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth } from '@/lib/services';
@@ -54,7 +55,7 @@ export default function YearPage() {
   const detailId = useId();
   const showMoods = journalState !== 'locked';
 
-  const habitsQuery = useQuery({ queryKey: ['year', 'habits'], queryFn: loadHabits });
+  const habitsQuery = useQuery({ queryKey: [...yearKey, 'habits'], queryFn: loadHabits });
   const habits = habitsQuery.data;
   const [habitId, setHabitId] = useState<number | null>(null);
   const habit = habitId === null ? null : (habits?.find((h) => h.id === habitId) ?? null);
@@ -64,7 +65,7 @@ export default function YearPage() {
   const ready = !!habits?.length && !!today && !!start && !!first;
 
   const daysQuery = useQuery({
-    queryKey: ['year', 'days', habit?.id ?? 'all', first, today],
+    queryKey: [...yearKey, 'days', habit?.id ?? 'all', first, today],
     queryFn: async (): Promise<{ stats: DayStat[] | null; entries: DayEntry[] }> => {
       if (!habit) return { stats: await api.dayStats(first!, today!), entries: [] };
       return { stats: null, entries: first! > today! ? [] : await api.getDays(habit.id, first!, today!) };
@@ -73,7 +74,7 @@ export default function YearPage() {
   });
 
   const moodsQuery = useQuery({
-    queryKey: ['journal', 'year', start, today],
+    queryKey: [...journalKey, 'year', start, today],
     queryFn: async () => {
       const [{ notes }, moods] = await Promise.all([journal.notes(start!, today!), journal.moods()]);
       return { notes, moods };
@@ -85,7 +86,7 @@ export default function YearPage() {
   useEffect(() => {
     if (seenChange.current === changed) return;
     seenChange.current = changed;
-    void queryClient.invalidateQueries({ queryKey: ['journal'] });
+    void queryClient.invalidateQueries({ queryKey: journalKey });
   }, [changed, queryClient]);
 
   const [selected, setSelected] = useState<LocalDateString | null>(null);

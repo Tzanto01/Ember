@@ -8,7 +8,6 @@ import { EmptyState } from '@/components/empty-state';
 import { BackLink } from '@/components/back-link';
 import { LiveRegion } from '@/components/live-region';
 import { PageHeader } from '@/components/page-header';
-import { routineHabitsKey, routinesKey } from '@/components/routines/routine-sections';
 import { routineTitle } from '@/components/routines/routine-title';
 import { HearthIllustration } from '@/components/today/hearth-illustration';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import { Card, cardVariants } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { buildHabits, type Routine } from '@/lib/models';
+import { routineHabitsKey, routinesKey, todayKey } from '@/lib/query-keys';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { api } from '@/lib/services';
 
@@ -35,7 +35,7 @@ export default function RoutinesPage() {
   const habits = useQuery({ queryKey: routineHabitsKey, queryFn: async () => buildHabits(await api.listHabits()) });
   const reorder = useMutation({
     mutationFn: (ids: number[]) => api.setRoutineOrder(ids),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['today'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: todayKey }),
   });
   const names = new Map((habits.data ?? []).map((h) => [h.id, h.name]));
   const list = routines.data;

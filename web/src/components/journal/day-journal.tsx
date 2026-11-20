@@ -16,6 +16,7 @@ import { formatDate } from '@/lib/local-date';
 import { hasMoments } from '@/lib/moment/moments';
 import type { DayNote, LocalDateString, MoodKey } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
+import { anyNoteKey, journalKey } from '@/lib/query-keys';
 import { auth, offlineQueue } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -26,11 +27,6 @@ import { moodChoices } from './moods';
 export const maxJournalText = 2000;
 const counterFrom = 1800;
 const longDate: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
-
-/** Query key prefix of every journal read, so writes elsewhere can refresh them. */
-export const journalKey = ['journal'] as const;
-/** Whether the account has any saved day note (the private-journal tip); a save here sets it. */
-export const anyNoteKey = [...journalKey, 'any'] as const;
 
 /** "Your private journal is locked on this device" with the way to Settings. Shows no journal data. */
 export function JournalLocked({ children }: { children?: string }) {

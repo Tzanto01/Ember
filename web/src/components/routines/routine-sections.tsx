@@ -14,14 +14,10 @@ import { env } from '@/lib/env';
 import { t } from '@/lib/i18n';
 import type { Habit, NewRoutine, Routine, RoutinePatch } from '@/lib/models';
 import { asApiError, type FriendlyProblem, problemToMessage } from '@/lib/problem';
+import { routinesKey, todayKey } from '@/lib/query-keys';
 import { api, localMode } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import { RoutineHabits } from './routine-habits';
-
-/** Query key of the routine list, shared by Routines, the routine form and habit edit. */
-export const routinesKey = ['routines'] as const;
-/** Query key of the habits the routine pages offer. */
-export const routineHabitsKey = ['routines', 'habits'] as const;
 
 /** Contract name rule: 1 to 50 characters after trimming. Null when valid. */
 export function routineNameError(name: string): string | null {
@@ -77,7 +73,7 @@ export function RoutineDetails({ routine, habits, routines }: RoutineDetailsProp
         list && (routine ? list.map((r) => (r.id === saved.id ? saved : r)) : [...list, saved]),
       );
       void queryClient.invalidateQueries({ queryKey: routinesKey });
-      void queryClient.invalidateQueries({ queryKey: ['today'] });
+      void queryClient.invalidateQueries({ queryKey: todayKey });
       if (!routine) {
         void navigate('/routines');
         return;
@@ -225,7 +221,7 @@ export function RoutineDelete({ routine }: { routine: Routine }) {
     mutationFn: () => api.deleteRoutine(routine.id),
     onSuccess: () => {
       queryClient.setQueryData<Routine[]>(routinesKey, (list) => list?.filter((r) => r.id !== routine.id));
-      void queryClient.invalidateQueries({ queryKey: ['today'] });
+      void queryClient.invalidateQueries({ queryKey: todayKey });
       void navigate('/routines');
     },
     onError: (error) => setProblem(failure(error)),

@@ -15,7 +15,6 @@ import { DeviceNotices } from '@/components/local/device-notices';
 import { LiveRegion } from '@/components/live-region';
 import { MomentDoor } from '@/components/moment/moment-door';
 import { PageHeader } from '@/components/page-header';
-import { routinesKey } from '@/components/routines/routine-sections';
 import { routineTitle } from '@/components/routines/routine-title';
 import { TipSlot } from '@/components/tips/tip-slot';
 import { checkButtonId } from '@/components/today/check-button';
@@ -41,12 +40,12 @@ import {
   buildHabits,
   type Habit,
   isLetGo,
-  type LetGoHabit,
   type LocalDateString,
   type Routine,
   type WeeklyStats,
 } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
+import { routinesKey, type TodayData, todayKey } from '@/lib/query-keys';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth, deviceSync } from '@/lib/services';
 import { useStore } from '@/lib/store';
@@ -62,17 +61,6 @@ import {
 } from '@/lib/today-plan';
 import { cn } from '@/lib/utils';
 
-interface TodayData {
-  /** The build habits; every count on Today reads these only. */
-  habits: Habit[];
-  letGo: LetGoHabit[];
-  /** Null when the low-day lookup failed; the low-day action is hidden then. */
-  lowDayToday: boolean | null;
-  weekly: WeeklyStats | null;
-  /** Null when routines didn't load; habits then show ungrouped. */
-  routines: Routine[] | null;
-}
-
 /** Today's body: one column, from `lg` the door, notices and habits left and the day's cards right. */
 const columns =
   'flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start 2xl:grid-cols-[minmax(0,1.8fr)_minmax(24rem,1fr)] 2xl:gap-8';
@@ -81,8 +69,6 @@ interface Problem {
   heading: string;
   message: string;
 }
-
-const todayKey = ['today'] as const;
 
 /** True when nothing was checked in yesterday and it wasn't a low day; ask only when a habit was due yesterday. */
 async function loadYesterdayOpen(yesterday: LocalDateString): Promise<boolean> {

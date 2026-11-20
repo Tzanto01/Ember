@@ -14,8 +14,9 @@ import { t } from '@/lib/i18n';
 import { JournalLockedError } from '@/lib/journal/types';
 import type { OwnMood } from '@/lib/models';
 import { asApiError, problemToMessage } from '@/lib/problem';
+import { journalKey } from '@/lib/query-keys';
 import { useStore } from '@/lib/store';
-import { JournalLocked, journalKey } from './day-journal';
+import { JournalLocked } from './day-journal';
 import { useJournal } from './journal-context';
 import { isSingleEmoji } from './moods';
 

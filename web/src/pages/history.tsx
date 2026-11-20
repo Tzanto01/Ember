@@ -27,12 +27,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { buildMonth, canGoNext, canGoPrevious, monthRange } from '@/lib/calendar';
 import { addMonths, formatDate, monthLabel, startOfMonth } from '@/lib/local-date';
 import { type AnyHabit, buildHabits, isLetGo, type LocalDateString } from '@/lib/models';
+import { historyKey } from '@/lib/query-keys';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth } from '@/lib/services';
 import { useStore } from '@/lib/store';
 
-const habitsKey = ['history', 'habits'] as const;
+const habitsKey = [...historyKey, 'habits'] as const;
 const longDate: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
 
 async function loadHabits(): Promise<AnyHabit[]> {
@@ -77,7 +78,7 @@ export default function HistoryPage() {
   const range = selected && month && today ? monthRange(month, selected.startDate, today) : null;
 
   const daysQuery = useQuery({
-    queryKey: ['history', 'days', selected?.id, month, range?.from, range?.to],
+    queryKey: [...historyKey, 'days', selected?.id, month, range?.from, range?.to],
     queryFn: async () => {
       if (!selected || !range) return { days: [], lowDays: [] };
       const [days, lowDays] = await Promise.all([
@@ -91,7 +92,7 @@ export default function HistoryPage() {
 
   const windowFrom = selected && today ? windowStart(selected, today, 30) : null;
   const windowQuery = useQuery({
-    queryKey: ['history', 'window', selected?.id, windowFrom, today],
+    queryKey: [...historyKey, 'window', selected?.id, windowFrom, today],
     queryFn: async () => {
       if (!selected || !windowFrom || !today) return { days: [], lowDays: [] };
       const [days, lowDays] = await Promise.all([
@@ -171,7 +172,7 @@ export default function HistoryPage() {
     setDayProblem(null);
     try {
       const message = await action();
-      void queryClient.invalidateQueries({ queryKey: ['history', 'window'] });
+      void queryClient.invalidateQueries({ queryKey: [...historyKey, 'window'] });
       await daysQuery.refetch();
       setAnnouncement(message);
       if (done) setReward(done);

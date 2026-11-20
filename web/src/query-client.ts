@@ -1,9 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
 import { asApiError } from './lib/problem';
+import { historyKey, todayKey, yearKey } from './lib/query-keys';
 import type { Store } from './lib/store';
 
 /** Screens whose data depends on the server's current day, so they refetch when the app is shown again. */
-const dayScreens = new Set<unknown>(['today', 'history', 'year']);
+const dayScreens = new Set<unknown>([todayKey[0], historyKey[0], yearKey[0]]);
 
 /**
  * The app's query client: no retry on 4xx, one retry when the server can't be reached, two on other failures; queries run while the browser reports offline (so a failure shows the
