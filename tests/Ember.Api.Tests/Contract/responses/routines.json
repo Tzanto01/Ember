@@ -1,0 +1,915 @@
+{
+  "create.duplicate-habits": {
+    "method": "POST",
+    "route": "/api/routines",
+    "request": {
+      "habitIds": [
+        "integer"
+      ],
+      "name": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "habitIds": [
+          "Each habit can be listed once."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "create.invalid": {
+    "method": "POST",
+    "route": "/api/routines",
+    "request": {
+      "name": "string",
+      "reminderExclusions": [
+        "string"
+      ],
+      "reminderTime": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "name": [
+          "Must be 1 to 50 characters."
+        ],
+        "reminderExclusions": [
+          "Each must be the id of one of your reminder destinations."
+        ],
+        "reminderTime": [
+          "Must be a time as HH:mm."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "create.let-go-habit": {
+    "method": "POST",
+    "route": "/api/routines",
+    "request": {
+      "habitIds": [
+        "integer"
+      ],
+      "name": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "habitIds": [
+          "Let-go habits can't be in a routine."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "create.limit": {
+    "method": "POST",
+    "route": "/api/routines",
+    "request": {
+      "name": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "You already have 10 routines, the most Ember can hold. Delete one to add another.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "create.minimal": {
+    "method": "POST",
+    "route": "/api/routines",
+    "request": {
+      "name": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/routines/{id}"
+    },
+    "body": {
+      "habitIds": [],
+      "id": "integer",
+      "name": "string",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "serverReminders": "boolean"
+    }
+  },
+  "create.name-too-long": {
+    "method": "POST",
+    "route": "/api/routines",
+    "request": {
+      "name": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "name": [
+          "Must be 1 to 50 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "create.ok": {
+    "method": "POST",
+    "route": "/api/routines",
+    "request": {
+      "habitIds": [
+        "integer"
+      ],
+      "name": "string",
+      "reminderExclusions": [
+        "string"
+      ],
+      "reminderTime": "time"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/routines/{id}"
+    },
+    "body": {
+      "habitIds": [
+        "integer"
+      ],
+      "id": "integer",
+      "name": "string",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [
+        "string"
+      ],
+      "reminderTime": "time",
+      "serverReminders": "boolean"
+    }
+  },
+  "create.unknown-habit": {
+    "method": "POST",
+    "route": "/api/routines",
+    "request": {
+      "habitIds": [
+        "integer"
+      ],
+      "name": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "delete.again": {
+    "method": "DELETE",
+    "route": "/api/routines/{id:int}",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "delete.ok": {
+    "method": "DELETE",
+    "route": "/api/routines/{id:int}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "destination.patch.disable": {
+    "method": "PATCH",
+    "route": "/api/me/reminder-destinations/{id}",
+    "request": {
+      "enabled": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "current": "boolean",
+      "enabled": "boolean",
+      "id": "string",
+      "kind": "enum(browser)",
+      "label": "string"
+    }
+  },
+  "destination.patch.discord": {
+    "method": "PATCH",
+    "route": "/api/me/reminder-destinations/{id}",
+    "request": {
+      "enabled": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "current": "boolean",
+      "enabled": "boolean",
+      "id": "string",
+      "kind": "enum(discord)",
+      "label": "string"
+    }
+  },
+  "destination.patch.discord-not-linked": {
+    "method": "PATCH",
+    "route": "/api/me/reminder-destinations/{id}",
+    "request": {
+      "enabled": "boolean"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "destination.patch.enable": {
+    "method": "PATCH",
+    "route": "/api/me/reminder-destinations/{id}",
+    "request": {
+      "enabled": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "current": "boolean",
+      "enabled": "boolean",
+      "id": "string",
+      "kind": "enum(phone)",
+      "label": "string"
+    }
+  },
+  "destination.patch.missing-enabled": {
+    "method": "PATCH",
+    "route": "/api/me/reminder-destinations/{id}",
+    "request": {},
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "enabled": [
+          "Required."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "destination.patch.not-found": {
+    "method": "PATCH",
+    "route": "/api/me/reminder-destinations/{id}",
+    "request": {
+      "enabled": "boolean"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "destinations.get.discord": {
+    "method": "GET",
+    "route": "/api/me/reminder-destinations",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "current": "boolean",
+        "enabled": "boolean",
+        "id": "string",
+        "kind": "enum(discord)",
+        "label": "string"
+      }
+    ]
+  },
+  "destinations.get.none": {
+    "method": "GET",
+    "route": "/api/me/reminder-destinations",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "destinations.get.ok": {
+    "method": "GET",
+    "route": "/api/me/reminder-destinations",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "current": "boolean",
+        "enabled": "boolean",
+        "id": "string",
+        "kind": "enum(browser,phone)",
+        "label": "string"
+      }
+    ]
+  },
+  "destinations.unauthenticated": {
+    "method": "GET",
+    "route": "/api/me/reminder-destinations",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "habit.in-routine": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "integer",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "list.empty": {
+    "method": "GET",
+    "route": "/api/routines",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "list.ok": {
+    "method": "GET",
+    "route": "/api/routines",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "habitIds": [
+          "integer"
+        ],
+        "id": "integer",
+        "name": "string",
+        "reminderChannels": [
+          "string"
+        ],
+        "reminderExclusions": [
+          "string"
+        ],
+        "reminderTime": "null|time",
+        "serverReminders": "boolean"
+      }
+    ]
+  },
+  "list.unauthenticated": {
+    "method": "GET",
+    "route": "/api/routines",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "low-day.delete.bad-date": {
+    "method": "DELETE",
+    "route": "/api/low-days/{date}",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "low-day.delete.nothing-there": {
+    "method": "DELETE",
+    "route": "/api/low-days/{date}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "low-day.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/low-days/{date}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "low-day.put.again": {
+    "method": "PUT",
+    "route": "/api/low-days/{date}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "low-day.put.bad-date": {
+    "method": "PUT",
+    "route": "/api/low-days/{date}",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "low-day.put.before-start": {
+    "method": "PUT",
+    "route": "/api/low-days/{date}",
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "before_habit_start"
+    }
+  },
+  "low-day.put.consent-required": {
+    "method": "PUT",
+    "route": "/api/low-days/{date}",
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "low-day.put.in-future": {
+    "method": "PUT",
+    "route": "/api/low-days/{date}",
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "in_future"
+    }
+  },
+  "low-day.put.ok": {
+    "method": "PUT",
+    "route": "/api/low-days/{date}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "low-day.unauthenticated": {
+    "method": "PUT",
+    "route": "/api/low-days/{date}",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "low-days.get.bad-date": {
+    "method": "GET",
+    "route": "/api/low-days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "low-days.get.empty": {
+    "method": "GET",
+    "route": "/api/low-days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    },
+    "body": []
+  },
+  "low-days.get.inverted": {
+    "method": "GET",
+    "route": "/api/low-days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "Can't be after to."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "low-days.get.no-consent": {
+    "method": "GET",
+    "route": "/api/low-days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "low-days.get.ok": {
+    "method": "GET",
+    "route": "/api/low-days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      "date"
+    ]
+  },
+  "low-days.get.range": {
+    "method": "GET",
+    "route": "/api/low-days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "order.duplicates": {
+    "method": "PUT",
+    "route": "/api/routines/order",
+    "request": {
+      "ids": [
+        "integer"
+      ]
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "ids": [
+          "Each routine can be listed once."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "order.mismatch": {
+    "method": "PUT",
+    "route": "/api/routines/order",
+    "request": {
+      "ids": [
+        "integer"
+      ]
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Your routines changed in the meantime. Reload and try again.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "order.missing-ids": {
+    "method": "PUT",
+    "route": "/api/routines/order",
+    "request": {},
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "ids": [
+          "List every routine."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "order.ok": {
+    "method": "PUT",
+    "route": "/api/routines/order",
+    "request": {
+      "ids": [
+        "integer"
+      ]
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "patch.clear-reminder": {
+    "method": "PATCH",
+    "route": "/api/routines/{id:int}",
+    "request": {
+      "clearReminder": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "habitIds": [
+        "integer"
+      ],
+      "id": "integer",
+      "name": "string",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [
+        "string"
+      ],
+      "reminderTime": "null",
+      "serverReminders": "boolean"
+    }
+  },
+  "patch.conflict": {
+    "method": "PATCH",
+    "route": "/api/routines/{id:int}",
+    "request": {
+      "clearReminder": "boolean",
+      "reminderTime": "time"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "reminderTime": [
+          "Can't be combined with clearReminder."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "patch.habits": {
+    "method": "PATCH",
+    "route": "/api/routines/{id:int}",
+    "request": {
+      "habitIds": [
+        "integer"
+      ]
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "habitIds": [
+        "integer"
+      ],
+      "id": "integer",
+      "name": "string",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "serverReminders": "boolean"
+    }
+  },
+  "patch.invalid": {
+    "method": "PATCH",
+    "route": "/api/routines/{id:int}",
+    "request": {
+      "habitIds": [
+        "integer"
+      ],
+      "name": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "habitIds": [
+          "Let-go habits can't be in a routine."
+        ],
+        "name": [
+          "Must be 1 to 50 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "patch.not-found": {
+    "method": "PATCH",
+    "route": "/api/routines/{id:int}",
+    "request": {
+      "name": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "patch.ok": {
+    "method": "PATCH",
+    "route": "/api/routines/{id:int}",
+    "request": {
+      "name": "string",
+      "reminderTime": "time"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "habitIds": [
+        "integer"
+      ],
+      "id": "integer",
+      "name": "string",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [
+        "string"
+      ],
+      "reminderTime": "time",
+      "serverReminders": "boolean"
+    }
+  },
+  "phones.invalid": {
+    "method": "POST",
+    "route": "/api/me/phones",
+    "request": {
+      "installId": "string",
+      "label": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "installId": [
+          "Must be 16 to 64 characters of A-Z, a-z, 0-9, _ and -."
+        ],
+        "label": [
+          "At most 60 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "phones.label-characters": {
+    "method": "POST",
+    "route": "/api/me/phones",
+    "request": {
+      "installId": "string",
+      "label": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "label": [
+          "Can't contain control or formatting characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "phones.no-label": {
+    "method": "POST",
+    "route": "/api/me/phones",
+    "request": {
+      "installId": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "current": "boolean",
+      "enabled": "boolean",
+      "id": "string",
+      "kind": "enum(phone)",
+      "label": "string"
+    }
+  },
+  "phones.ok": {
+    "method": "POST",
+    "route": "/api/me/phones",
+    "request": {
+      "installId": "string",
+      "label": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "current": "boolean",
+      "enabled": "boolean",
+      "id": "string",
+      "kind": "enum(phone)",
+      "label": "string"
+    }
+  }
+}

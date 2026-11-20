@@ -42,7 +42,9 @@ internal sealed partial class Exchanges
 
         var exchange = new JsonObject { ["method"] = response.RequestMessage!.Method.Method, ["route"] = route };
         if (response.RequestMessage.Content is { } content && await content.ReadAsStringAsync() is { Length: > 0 } sent)
-            exchange["request"] = Shapes.Of(JsonDocument.Parse(sent).RootElement);
+            exchange["request"] = content.Headers.ContentType?.MediaType == "application/json"
+                ? Shapes.Of(JsonDocument.Parse(sent).RootElement)
+                : JsonValue.Create(content.Headers.ContentType?.MediaType);
         exchange["status"] = (int)response.StatusCode;
         exchange["contentType"] = response.Content.Headers.ContentType?.MediaType;
         exchange["headers"] = Headers(response);

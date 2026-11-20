@@ -1,0 +1,2724 @@
+{
+  "consent.get.ok": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    },
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "create.build.minimal": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(daily)",
+      "name": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/habits/{id}"
+    },
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "create.build.times-per-day": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(daily)",
+      "kind": "enum(build)",
+      "name": "string",
+      "reminderTimes": [
+        "time"
+      ],
+      "timesPerDay": "integer"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/habits/{id}"
+    },
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "create.build.weekdays": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "days": [
+        "string"
+      ],
+      "frequency": "enum(weekdays)",
+      "name": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/habits/{id}"
+    },
+    "body": {
+      "createdAt": "datetime",
+      "days": [
+        "string"
+      ],
+      "frequency": "enum(weekdays)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(offday)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "create.build.weekly": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(weekly)",
+      "name": "string",
+      "reminderTime": "time",
+      "weeklyTarget": "integer"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/habits/{id}"
+    },
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(weekly)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "null",
+        "graceUsed": "null",
+        "last7": "integer",
+        "streak": "null",
+        "week": {
+          "done": "integer",
+          "target": "integer"
+        }
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "integer"
+    }
+  },
+  "create.consent-required": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(daily)",
+      "name": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "create.habit-limit": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(daily)",
+      "name": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 409,
+      "title": "Conflict",
+      "type": "habit_limit"
+    }
+  },
+  "create.invalid": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "days": [
+        "string"
+      ],
+      "frequency": "enum(hourly)",
+      "kind": "enum(other)",
+      "name": "string",
+      "reminderExclusions": [
+        "string"
+      ],
+      "reminderTime": "time",
+      "timesPerDay": "integer",
+      "weeklyTarget": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "frequency": [
+          "Must be daily, weekly or weekdays."
+        ],
+        "kind": [
+          "Must be build or letGo."
+        ],
+        "name": [
+          "Must be 1 to 100 characters."
+        ],
+        "reminderExclusions": [
+          "Each must be the id of one of your reminder destinations."
+        ],
+        "reminderTime": [
+          "Must be a time as HH:mm."
+        ],
+        "timesPerDay": [
+          "Must be between 1 and 10."
+        ],
+        "weeklyTarget": [
+          "Only for weekly habits."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "create.invalid.let-go": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "days": [
+        "string"
+      ],
+      "frequency": "enum(weekly)",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "reminderTimes": [
+        "time"
+      ],
+      "timesPerDay": "integer",
+      "weeklyTarget": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "days": [
+          "Not for let-go habits."
+        ],
+        "frequency": [
+          "Let-go habits are daily."
+        ],
+        "reminderTimes": [
+          "At most one for let-go habits."
+        ],
+        "timesPerDay": [
+          "Always 1 for let-go habits."
+        ],
+        "weeklyTarget": [
+          "Not for let-go habits."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "create.invalid.reminder-times": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(daily)",
+      "name": "string",
+      "reminderTimes": [
+        "time"
+      ],
+      "timesPerDay": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "reminderTimes": [
+          "At most 1, the habit's timesPerDay."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "create.invalid.weekdays": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(weekdays)",
+      "name": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "days": [
+          "Required for weekdays habits."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "create.let-go": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(daily)",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "reminderTime": "time"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/habits/{id}"
+    },
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(free)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "create.wrong-type": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "name": "string",
+      "timesPerDay": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 400,
+      "title": "Bad Request",
+      "type": "validation"
+    }
+  },
+  "day.delete.bad-date": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day.delete.before-start": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "before_habit_start"
+    }
+  },
+  "day.delete.in-future": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "in_future"
+    }
+  },
+  "day.delete.not-found": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "day.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "day.put.bad-date": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day.put.before-start": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "before_habit_start"
+    }
+  },
+  "day.put.both": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean",
+      "count": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "count": [
+          "Can't be combined with completed."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day.put.completed": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "day.put.consent-required": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "day.put.count": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "count": "integer"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "day.put.count-capped": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "count": "integer"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "day.put.count.not-found": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "count": "integer"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "day.put.in-future": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "in_future"
+    }
+  },
+  "day.put.let-go": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "kind": [
+          "Let-go habits record slips, not check-ins."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day.put.negative-count": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "count": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "count": [
+          "Can't be negative."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day.put.neither": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {},
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "completed": [
+          "Send completed or count."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day.put.not-completed": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "day.put.not-found": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "day.put.weekly": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/days/{date}",
+    "request": {
+      "completed": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(weekly)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "null",
+        "graceUsed": "null",
+        "last7": "integer",
+        "streak": "null",
+        "week": {
+          "done": "integer",
+          "target": "integer"
+        }
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "boolean",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(done)"
+      },
+      "weeklyTarget": "integer"
+    }
+  },
+  "days.get.after": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "completed": "boolean|null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(beforestart,done,notdone,partial,pending)"
+      }
+    ]
+  },
+  "days.get.bad-date": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "days.get.future": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "to": [
+          "Can't be after today."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "days.get.inverted": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "Can't be after to."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "days.get.let-go": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "kind": [
+          "Let-go habits record slips, not check-ins."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "days.get.not-found": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "days.get.off-days": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(beforestart,lowday,notdone,offday)"
+      }
+    ]
+  },
+  "days.get.ok": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(beforestart,notdone,pending)"
+      }
+    ]
+  },
+  "days.get.paused": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "completed": "boolean|null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(done,paused)"
+      }
+    ]
+  },
+  "days.get.range": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(notdone,pending)"
+      }
+    ]
+  },
+  "days.get.too-long": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "At most 366 days per request."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "delete.again": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "delete.ok": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}",
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    }
+  },
+  "delete.unauthenticated": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "get.build": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "get.build.after": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "get.build.low-day": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(weekly)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "null",
+        "graceUsed": "null",
+        "last7": "integer",
+        "streak": "null",
+        "week": {
+          "done": "integer",
+          "target": "integer"
+        }
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "boolean",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(lowday)"
+      },
+      "weeklyTarget": "integer"
+    }
+  },
+  "get.build.weekly": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(weekly)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "null",
+        "graceUsed": "null",
+        "last7": "integer",
+        "streak": "null",
+        "week": {
+          "done": "integer",
+          "target": "integer"
+        }
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "integer"
+    }
+  },
+  "get.let-go": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(free)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "get.let-go.after": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(slipped)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "get.not-found": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "get.unauthenticated": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "list.after-delete": {
+    "method": "GET",
+    "route": "/api/habits",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "createdAt": "datetime",
+        "days": {
+          "$nullable": [
+            "string"
+          ]
+        },
+        "frequency": "enum(daily,weekdays,weekly)",
+        "id": "integer",
+        "kind": "enum(build,letGo)",
+        "name": "string",
+        "pausedFrom": "date|null",
+        "pausedToday": "boolean",
+        "pausedUntil": "date|null",
+        "reminderChannels": [
+          "string"
+        ],
+        "reminderExclusions": [],
+        "reminderTime": "null|time",
+        "reminderTimes": [
+          "time"
+        ],
+        "routineId": "null",
+        "serverReminders": "boolean",
+        "startDate": "date",
+        "stats": {
+          "bestStreak?": "integer|null",
+          "daysFree?": "integer",
+          "freeDaysThisMonth?": "integer",
+          "graceUsed?": "integer|null",
+          "last7?": "integer",
+          "longestStretch?": "integer",
+          "slipDaysLast30?": "integer",
+          "streak?": "integer|null",
+          "week?": {
+            "$nullable": {
+              "done": "integer",
+              "target": "integer"
+            }
+          }
+        },
+        "timesPerDay": "integer",
+        "today": {
+          "completed?": "null",
+          "count?": "integer",
+          "date": "date",
+          "slips?": "integer",
+          "state": "enum(offday,paused,pending)"
+        },
+        "weeklyTarget": "integer|null"
+      }
+    ]
+  },
+  "list.empty": {
+    "method": "GET",
+    "route": "/api/habits",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "list.ok": {
+    "method": "GET",
+    "route": "/api/habits",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    },
+    "body": [
+      {
+        "createdAt": "datetime",
+        "days": {
+          "$nullable": [
+            "string"
+          ]
+        },
+        "frequency": "enum(daily,weekdays,weekly)",
+        "id": "integer",
+        "kind": "enum(build,letGo)",
+        "name": "string",
+        "pausedFrom": "null",
+        "pausedToday": "boolean",
+        "pausedUntil": "null",
+        "reminderChannels": [
+          "string"
+        ],
+        "reminderExclusions": [],
+        "reminderTime": "null|time",
+        "reminderTimes": [
+          "time"
+        ],
+        "routineId": "null",
+        "serverReminders": "boolean",
+        "startDate": "date",
+        "stats": {
+          "bestStreak?": "integer|null",
+          "daysFree?": "integer",
+          "freeDaysThisMonth?": "integer",
+          "graceUsed?": "integer|null",
+          "last7?": "integer",
+          "longestStretch?": "integer",
+          "slipDaysLast30?": "integer",
+          "streak?": "integer|null",
+          "week?": {
+            "$nullable": {
+              "done": "integer",
+              "target": "integer"
+            }
+          }
+        },
+        "timesPerDay": "integer",
+        "today": {
+          "completed?": "null",
+          "count?": "integer",
+          "date": "date",
+          "slips?": "integer",
+          "state": "enum(free,offday,pending)"
+        },
+        "weeklyTarget": "integer|null"
+      }
+    ]
+  },
+  "list.unauthenticated": {
+    "method": "GET",
+    "route": "/api/habits",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "low-day.protects-today": {
+    "method": "PUT",
+    "route": "/api/low-days/{date}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "patch.clear-conflict": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "clearReminder": "boolean",
+      "reminderTime": "time"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "reminderTime": [
+          "Can't be combined with clearReminder."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "patch.clear-reminder": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "clearReminder": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "patch.consent-required": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "name": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "patch.invalid": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "frequency": "enum(hourly)",
+      "name": "string",
+      "reminderExclusions": [
+        "string"
+      ],
+      "reminderTime": "string",
+      "weeklyTarget": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "frequency": [
+          "Must be daily, weekly or weekdays."
+        ],
+        "name": [
+          "Must be 1 to 100 characters."
+        ],
+        "reminderExclusions": [
+          "Each must be the id of one of your reminder destinations."
+        ],
+        "reminderTime": [
+          "Must be a time as HH:mm."
+        ],
+        "weeklyTarget": [
+          "Only for weekly habits."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "patch.invalid.let-go": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "frequency": "enum(weekly)",
+      "timesPerDay": "integer",
+      "weeklyTarget": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "frequency": [
+          "Let-go habits are daily."
+        ],
+        "timesPerDay": [
+          "Always 1 for let-go habits."
+        ],
+        "weeklyTarget": [
+          "Not for let-go habits."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "patch.kind-change": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "kind": "enum(letGo)"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "kind": [
+          "Can't be changed."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "patch.let-go": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "name": "string",
+      "reminderTime": "time"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(free)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "patch.not-found": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "name": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "patch.ok": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "name": "string",
+      "reminderTime": "time"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "patch.schedule": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "days": [
+        "string"
+      ]
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": [
+        "string"
+      ],
+      "frequency": "enum(weekdays)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(offday)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "patch.times-per-day": {
+    "method": "PATCH",
+    "route": "/api/habits/{id:int}",
+    "request": {
+      "reminderTimes": [
+        "time"
+      ],
+      "timesPerDay": "integer"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "pause.bad-date": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/pause",
+    "request": {
+      "until": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "until": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "pause.in-the-past": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/pause",
+    "request": {
+      "until": "date"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "until": [
+          "Can't be before today."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "pause.indefinite": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/pause",
+    "request": {},
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(weekly)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "null",
+        "graceUsed": "null",
+        "last7": "integer",
+        "streak": "null",
+        "week": {
+          "done": "integer",
+          "target": "integer"
+        }
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "boolean",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(lowday)"
+      },
+      "weeklyTarget": "integer"
+    }
+  },
+  "pause.let-go": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/pause",
+    "request": {
+      "until": "date"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "date",
+      "pausedToday": "boolean",
+      "pausedUntil": "date",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(slipped)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "pause.not-found": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/pause",
+    "request": {},
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "pause.resume": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/pause",
+    "request": {
+      "until": "date"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(weekly)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "date",
+      "pausedToday": "boolean",
+      "pausedUntil": "date",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "null",
+        "graceUsed": "null",
+        "last7": "integer",
+        "streak": "null",
+        "week": {
+          "done": "integer",
+          "target": "integer"
+        }
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "boolean",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(paused)"
+      },
+      "weeklyTarget": "integer"
+    }
+  },
+  "pause.until": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/pause",
+    "request": {
+      "until": "date"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "date",
+      "pausedToday": "boolean",
+      "pausedUntil": "date",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "null",
+      "reminderTimes": [],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "integer",
+        "graceUsed": "integer",
+        "last7": "integer",
+        "streak": "integer",
+        "week": "null"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(paused)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "slip.delete.bad-date": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/slips/{date}",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "slip.delete.build-habit": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/slips/{date}",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "kind": [
+          "Only for let-go habits."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "slip.delete.not-found": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/slips/{date}",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "slip.delete.nothing-there": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/slips/{date}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(slipped)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "slip.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/slips/{date}",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(slipped)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "slip.post.again": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "date",
+      "reason": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(free)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "slip.post.before-start": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "date"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Can't be before the habit's start."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "slip.post.build-habit": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "date"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "kind": [
+          "Only for let-go habits."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "slip.post.consent-required": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "date"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "slip.post.in-future": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "date"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Can't be after today."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "slip.post.invalid": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "string",
+      "reason": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ],
+        "reason": [
+          "Must be one of stressed, bored, tired, lonely, sad, aroundOthers, other."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "slip.post.not-found": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "date"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "slip.post.ok": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "date",
+      "reason": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(free)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "slip.post.without-reason": {
+    "method": "POST",
+    "route": "/api/habits/{id:int}/slips",
+    "request": {
+      "date": "date"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(daily)",
+      "id": "integer",
+      "kind": "enum(letGo)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "daysFree": "integer",
+        "freeDaysThisMonth": "integer",
+        "longestStretch": "integer",
+        "slipDaysLast30": "integer"
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "date": "date",
+        "slips": "integer",
+        "state": "enum(slipped)"
+      },
+      "weeklyTarget": "null"
+    }
+  },
+  "slips.get.bad-date": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/slips",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "to": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "slips.get.empty": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/slips",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "slips.get.not-found": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/slips",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "slips.get.ok": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/slips",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "count": "integer",
+        "date": "date",
+        "reasons": [
+          "string"
+        ]
+      }
+    ]
+  },
+  "slips.get.range": {
+    "method": "GET",
+    "route": "/api/habits/{id:int}/slips",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "count": "integer",
+        "date": "date",
+        "reasons": [
+          "string"
+        ]
+      }
+    ]
+  },
+  "templates.ok": {
+    "method": "GET",
+    "route": "/api/habit-templates",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "description": "string",
+        "frequency": "enum(daily,weekly)",
+        "key": "string",
+        "name": "string",
+        "suggestedReminderTime": "time",
+        "weeklyTarget": "integer|null"
+      }
+    ]
+  }
+}

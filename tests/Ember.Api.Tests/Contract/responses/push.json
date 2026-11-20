@@ -1,0 +1,531 @@
+{
+  "check-in.bad-date": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "string",
+      "habitId": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "check-in.cookie-session-is-not-a-key": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "check-in.done": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "count": "integer",
+      "state": "enum(done)",
+      "timesPerDay": "integer"
+    }
+  },
+  "check-in.ended-session": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "check-in.let-go": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "kind": [
+          "Let-go habits record slips, not check-ins."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "check-in.low-day": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "count": "integer",
+      "state": "enum(rest)",
+      "timesPerDay": "integer"
+    }
+  },
+  "check-in.missing-habit": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "habitId": [
+          "Required."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "check-in.no-header": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "check-in.not-found": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "check-in.not-today": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be today."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "check-in.partial": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "count": "integer",
+      "state": "enum(partial)",
+      "timesPerDay": "integer"
+    }
+  },
+  "check-in.unknown-key": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "check-in.wrong-scheme": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "destinations.with-browser": {
+    "method": "GET",
+    "route": "/api/me/reminder-destinations",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "current": "boolean",
+        "enabled": "boolean",
+        "id": "string",
+        "kind": "enum(browser)",
+        "label": "string"
+      }
+    ]
+  },
+  "done.again": {
+    "method": "POST",
+    "route": "/api/reminders/done",
+    "request": {
+      "token": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "done.consent-required": {
+    "method": "POST",
+    "route": "/api/reminders/done",
+    "request": {
+      "token": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "done.expired": {
+    "method": "POST",
+    "route": "/api/reminders/done",
+    "request": {
+      "token": "string"
+    },
+    "status": 410,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 410,
+      "title": "Gone",
+      "type": "expired"
+    }
+  },
+  "done.let-go": {
+    "method": "POST",
+    "route": "/api/reminders/done",
+    "request": {
+      "token": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "kind": [
+          "Let-go habits record slips, not check-ins."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "done.missing-token": {
+    "method": "POST",
+    "route": "/api/reminders/done",
+    "request": {},
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "done.ok": {
+    "method": "POST",
+    "route": "/api/reminders/done",
+    "request": {
+      "token": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "done.token-too-long": {
+    "method": "POST",
+    "route": "/api/reminders/done",
+    "request": {
+      "token": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "done.unknown-token": {
+    "method": "POST",
+    "route": "/api/reminders/done",
+    "request": {
+      "token": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "subscribe.invalid-endpoint": {
+    "method": "POST",
+    "route": "/api/me/push-subscriptions",
+    "request": {
+      "endpoint": "string",
+      "keys": {
+        "auth": "string",
+        "p256dh": "string"
+      },
+      "showNames": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "endpoint": [
+          "Must be an https URL of a known push service."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "subscribe.invalid-keys": {
+    "method": "POST",
+    "route": "/api/me/push-subscriptions",
+    "request": {
+      "endpoint": "string",
+      "keys": {
+        "auth": "string",
+        "p256dh": "string"
+      },
+      "showNames": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "keys.auth": [
+          "Must be base64url, at most 64 characters."
+        ],
+        "keys.p256dh": [
+          "Must be base64url, at most 256 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "subscribe.missing-body-fields": {
+    "method": "POST",
+    "route": "/api/me/push-subscriptions",
+    "request": {},
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "endpoint": [
+          "Must be an https URL of a known push service."
+        ],
+        "keys.auth": [
+          "Must be base64url, at most 64 characters."
+        ],
+        "keys.p256dh": [
+          "Must be base64url, at most 256 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "subscribe.ok": {
+    "method": "POST",
+    "route": "/api/me/push-subscriptions",
+    "request": {
+      "endpoint": "string",
+      "keys": {
+        "auth": "string",
+        "p256dh": "string"
+      },
+      "showNames": "null"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "subscribe.show-names": {
+    "method": "POST",
+    "route": "/api/me/push-subscriptions",
+    "request": {
+      "endpoint": "string",
+      "keys": {
+        "auth": "string",
+        "p256dh": "string"
+      },
+      "showNames": "boolean"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "subscribe.unauthenticated": {
+    "method": "POST",
+    "route": "/api/me/push-subscriptions",
+    "request": {
+      "endpoint": "string",
+      "keys": {
+        "auth": "string",
+        "p256dh": "string"
+      },
+      "showNames": "null"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "unsubscribe.missing-endpoint": {
+    "method": "DELETE",
+    "route": "/api/me/push-subscriptions",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "endpoint": [
+          "Required."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "unsubscribe.ok": {
+    "method": "DELETE",
+    "route": "/api/me/push-subscriptions",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "unsubscribe.unauthenticated": {
+    "method": "DELETE",
+    "route": "/api/me/push-subscriptions",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "vapid.ok": {
+    "method": "GET",
+    "route": "/api/push/vapid-public-key",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "key": "string"
+    }
+  }
+}

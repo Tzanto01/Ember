@@ -1,0 +1,832 @@
+{
+  "ask.delete.again": {
+    "method": "DELETE",
+    "route": "/api/fireside/ask",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "ask.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/fireside/ask",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "ask.off": {
+    "method": "PUT",
+    "route": "/api/fireside/ask",
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Turn on Fireside first.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "ask.put.ok": {
+    "method": "PUT",
+    "route": "/api/fireside/ask",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "datetime"
+    }
+  },
+  "code.delete.again": {
+    "method": "DELETE",
+    "route": "/api/fireside/code",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "code.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/fireside/code",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "code.off": {
+    "method": "POST",
+    "route": "/api/fireside/code",
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Turn on Fireside first.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "code.ok": {
+    "method": "POST",
+    "route": "/api/fireside/code",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "code": "string",
+      "expiresAt": "datetime"
+    }
+  },
+  "friend.acknowledge.joined": {
+    "method": "POST",
+    "route": "/api/fireside/friends/{id:int}/acknowledge",
+    "request": {
+      "joined": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "asking": "boolean",
+      "canSendWarmth": "boolean",
+      "checkedInToday": "boolean",
+      "id": "integer",
+      "joinedViaMyCode": "boolean",
+      "muted": "boolean",
+      "name": "string",
+      "renamedFrom": "null",
+      "shareFlame": "boolean"
+    }
+  },
+  "friend.acknowledge.not-found": {
+    "method": "POST",
+    "route": "/api/fireside/friends/{id:int}/acknowledge",
+    "request": {},
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "friend.acknowledge.rename": {
+    "method": "POST",
+    "route": "/api/fireside/friends/{id:int}/acknowledge",
+    "request": {
+      "rename": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "asking": "boolean",
+      "canSendWarmth": "boolean",
+      "checkedInToday": "boolean",
+      "id": "integer",
+      "joinedViaMyCode": "boolean",
+      "muted": "boolean",
+      "name": "string",
+      "renamedFrom": "null",
+      "shareFlame": "boolean"
+    }
+  },
+  "friend.delete.again": {
+    "method": "DELETE",
+    "route": "/api/fireside/friends/{id:int}",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "friend.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/fireside/friends/{id:int}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "friend.delete.revoke-code": {
+    "method": "DELETE",
+    "route": "/api/fireside/friends/{id:int}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "friend.patch.mute": {
+    "method": "PATCH",
+    "route": "/api/fireside/friends/{id:int}",
+    "request": {
+      "muted": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "asking": "boolean",
+      "canSendWarmth": "boolean",
+      "checkedInToday": "null",
+      "id": "integer",
+      "joinedViaMyCode": "boolean",
+      "muted": "boolean",
+      "name": "string",
+      "renamedFrom": "null",
+      "shareFlame": "boolean"
+    }
+  },
+  "friend.patch.not-found": {
+    "method": "PATCH",
+    "route": "/api/fireside/friends/{id:int}",
+    "request": {
+      "muted": "boolean"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "friend.patch.nothing": {
+    "method": "PATCH",
+    "route": "/api/fireside/friends/{id:int}",
+    "request": {},
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "asking": "boolean",
+      "canSendWarmth": "boolean",
+      "checkedInToday": "null",
+      "id": "integer",
+      "joinedViaMyCode": "boolean",
+      "muted": "boolean",
+      "name": "string",
+      "renamedFrom": "null",
+      "shareFlame": "boolean"
+    }
+  },
+  "friend.patch.share-flame": {
+    "method": "PATCH",
+    "route": "/api/fireside/friends/{id:int}",
+    "request": {
+      "muted": "boolean",
+      "shareFlame": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "asking": "boolean",
+      "canSendWarmth": "boolean",
+      "checkedInToday": "null",
+      "id": "integer",
+      "joinedViaMyCode": "boolean",
+      "muted": "boolean",
+      "name": "string",
+      "renamedFrom": "null",
+      "shareFlame": "boolean"
+    }
+  },
+  "get.asking": {
+    "method": "GET",
+    "route": "/api/fireside/",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [
+        {
+          "asking": "boolean",
+          "canSendWarmth": "boolean",
+          "checkedInToday": "boolean",
+          "id": "integer",
+          "joinedViaMyCode": "boolean",
+          "muted": "boolean",
+          "name": "string",
+          "renamedFrom": "null",
+          "shareFlame": "boolean"
+        }
+      ],
+      "name": "string",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "get.no-health-consent": {
+    "method": "GET",
+    "route": "/api/fireside/",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [],
+      "name": "null",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "get.off": {
+    "method": "GET",
+    "route": "/api/fireside/",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [],
+      "name": "null",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "get.on": {
+    "method": "GET",
+    "route": "/api/fireside/",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [],
+      "name": "string",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "get.unauthenticated": {
+    "method": "GET",
+    "route": "/api/fireside/",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "get.with-code": {
+    "method": "GET",
+    "route": "/api/fireside/",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": {
+        "code": "string",
+        "expiresAt": "datetime"
+      },
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [],
+      "name": "string",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "get.with-friend": {
+    "method": "GET",
+    "route": "/api/fireside/",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [
+        {
+          "asking": "boolean",
+          "canSendWarmth": "boolean",
+          "checkedInToday": "null",
+          "id": "integer",
+          "joinedViaMyCode": "boolean",
+          "muted": "boolean",
+          "name": "string",
+          "renamedFrom": "null",
+          "shareFlame": "boolean"
+        }
+      ],
+      "name": "string",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "get.with-warmth": {
+    "method": "GET",
+    "route": "/api/fireside/",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [
+        {
+          "asking": "boolean",
+          "canSendWarmth": "boolean",
+          "checkedInToday": "null",
+          "id": "integer",
+          "joinedViaMyCode": "boolean",
+          "muted": "boolean",
+          "name": "string",
+          "renamedFrom": "null",
+          "shareFlame": "boolean"
+        }
+      ],
+      "name": "string",
+      "notify": "boolean",
+      "warmth": [
+        {
+          "friendId": "integer",
+          "id": "integer",
+          "message": "string",
+          "name": "string",
+          "sentAt": "datetime"
+        }
+      ]
+    }
+  },
+  "join.full": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {
+      "code": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "One of you already has 20 friends at the fireside.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "join.invalid": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {
+      "code": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "code": [
+          "That code didn't work. Ask for a new one."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "join.missing-code": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {},
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "code": [
+          "That code didn't work. Ask for a new one."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "join.off": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {
+      "code": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Turn on Fireside first.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "join.ok": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {
+      "code": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "asking": "boolean",
+      "canSendWarmth": "boolean",
+      "checkedInToday": "null",
+      "id": "integer",
+      "joinedViaMyCode": "boolean",
+      "muted": "boolean",
+      "name": "string",
+      "renamedFrom": "null",
+      "shareFlame": "boolean"
+    }
+  },
+  "join.own-code": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {
+      "code": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "code": [
+          "That code didn't work. Ask for a new one."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "join.rate-limited": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {
+      "code": "string"
+    },
+    "status": 429,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Retry-After": "present"
+    },
+    "body": {
+      "status": 429,
+      "title": "Too Many Requests",
+      "type": "rate_limited"
+    }
+  },
+  "join.used-code": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {
+      "code": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "code": [
+          "That code didn't work. Ask for a new one."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "put.consent-required": {
+    "method": "PUT",
+    "route": "/api/fireside/",
+    "request": {
+      "consentVersion": "null",
+      "enabled": "boolean",
+      "name": "string",
+      "notify": "null"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "fireside_consent_required"
+    }
+  },
+  "put.invalid-name": {
+    "method": "PUT",
+    "route": "/api/fireside/",
+    "request": {
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "name": "string",
+      "notify": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "name": [
+          "Choose a name of 1 to 32 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "put.missing-enabled": {
+    "method": "PUT",
+    "route": "/api/fireside/",
+    "request": {
+      "consentVersion": "null",
+      "enabled": "null",
+      "name": "string",
+      "notify": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "enabled": [
+          "Say whether Fireside is on."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "put.name-required": {
+    "method": "PUT",
+    "route": "/api/fireside/",
+    "request": {
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "name": "null",
+      "notify": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "name": [
+          "Choose a name of 1 to 32 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "put.off": {
+    "method": "PUT",
+    "route": "/api/fireside/",
+    "request": {
+      "consentVersion": "null",
+      "enabled": "boolean",
+      "name": "null",
+      "notify": "null"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [],
+      "name": "string",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "put.ok": {
+    "method": "PUT",
+    "route": "/api/fireside/",
+    "request": {
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "name": "string",
+      "notify": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [],
+      "name": "string",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "put.old-consent": {
+    "method": "PUT",
+    "route": "/api/fireside/",
+    "request": {
+      "consentVersion": "date",
+      "enabled": "boolean",
+      "name": "string",
+      "notify": "null"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "fireside_consent_required"
+    }
+  },
+  "put.rename-and-notify": {
+    "method": "PUT",
+    "route": "/api/fireside/",
+    "request": {
+      "consentVersion": "null",
+      "enabled": "boolean",
+      "name": "string",
+      "notify": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "askingUntil": "null",
+      "code": "null",
+      "consentGiven": "boolean",
+      "consentVersion": "string",
+      "enabled": "boolean",
+      "friends": [],
+      "name": "string",
+      "notify": "boolean",
+      "warmth": []
+    }
+  },
+  "warmth.dismiss.again": {
+    "method": "POST",
+    "route": "/api/fireside/warmth/{id:int}/dismiss",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "warmth.dismiss.foreign": {
+    "method": "POST",
+    "route": "/api/fireside/warmth/{id:int}/dismiss",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "warmth.dismiss.ok": {
+    "method": "POST",
+    "route": "/api/fireside/warmth/{id:int}/dismiss",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "warmth.post.invalid-message": {
+    "method": "POST",
+    "route": "/api/fireside/friends/{id:int}/warmth",
+    "request": {
+      "message": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "message": [
+          "Pick one of the messages."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "warmth.post.limit": {
+    "method": "POST",
+    "route": "/api/fireside/friends/{id:int}/warmth",
+    "request": {
+      "message": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "You already sent them warmth today.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "warmth.post.not-found": {
+    "method": "POST",
+    "route": "/api/fireside/friends/{id:int}/warmth",
+    "request": {
+      "message": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "warmth.post.ok": {
+    "method": "POST",
+    "route": "/api/fireside/friends/{id:int}/warmth",
+    "request": {
+      "message": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  }
+}

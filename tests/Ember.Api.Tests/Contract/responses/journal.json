@@ -1,0 +1,2118 @@
+{
+  "day-note.delete.bad-date": {
+    "method": "DELETE",
+    "route": "/api/day-notes/{date}",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-note.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/day-notes/{date}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "day-note.put.bad-blob": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted.ct": [
+          "Must be base64 of at least 16 bytes and at most 16384 characters."
+        ],
+        "encrypted.iv": [
+          "Must be base64 of 12 bytes."
+        ],
+        "encrypted.v": [
+          "Must be 1."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-note.put.bad-date": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-note.put.before-start": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "before_habit_start"
+    }
+  },
+  "day-note.put.consent-required": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "day-note.put.custom-mood": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "mood": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "mood": "string",
+      "text": "null"
+    }
+  },
+  "day-note.put.empty": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {},
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "mood": "null",
+      "text": "null"
+    }
+  },
+  "day-note.put.encrypted": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    }
+  },
+  "day-note.put.encrypted-without-key": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "The private journal is off. Send this as plaintext."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-note.put.in-future": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "in_future"
+    }
+  },
+  "day-note.put.invalid": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "mood": "string",
+      "text": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "mood": [
+          "Must be low, meh, okay, good, great or one of your own active moods."
+        ],
+        "text": [
+          "Must be at most 2000 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-note.put.mixed": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      },
+      "text": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "Can't be combined with plaintext fields."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-note.put.plaintext-while-on": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "The private journal is on. Send this encrypted."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-note.put.plaintext-while-turning-off": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "mood": "null",
+      "text": "string"
+    }
+  },
+  "day-note.put.text-and-mood": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "mood": "string",
+      "text": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "mood": "string",
+      "text": "string"
+    }
+  },
+  "day-note.put.today": {
+    "method": "PUT",
+    "route": "/api/day-notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "mood": "null",
+      "text": "string"
+    }
+  },
+  "day-notes.get.bad-date": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-notes.get.empty": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "day-notes.get.inverted": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "Can't be after to."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "day-notes.get.mixed": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "date": "date",
+        "encrypted?": {
+          "ct": "string",
+          "iv": "string",
+          "v": "integer"
+        },
+        "mood?": "string",
+        "text?": "null|string"
+      }
+    ]
+  },
+  "day-notes.get.no-consent": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "day-notes.get.ok": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "date": "date",
+        "mood": "null|string",
+        "text": "null|string"
+      }
+    ]
+  },
+  "day-notes.get.range": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "date": "date",
+        "mood": "string",
+        "text": "string"
+      }
+    ]
+  },
+  "day-notes.get.too-long": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "At most 366 days."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "export.encrypted.ok": {
+    "method": "GET",
+    "route": "/api/me/export",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Content-Disposition": "attachment; filename=ember-export-2026-11-05.json; filename*=UTF-8''ember-export-2026-11-05.json"
+    },
+    "body": {
+      "account": {
+        "created_at": "datetime",
+        "discord_id": "null",
+        "email": "string"
+      },
+      "day_marks": [],
+      "day_notes": [
+        {
+          "date": "date",
+          "encrypted": {
+            "ct": "string",
+            "iv": "string",
+            "v": "integer"
+          },
+          "mood": "null",
+          "text": "null"
+        }
+      ],
+      "format_version": "integer",
+      "habit_notes": [
+        {
+          "date": "date",
+          "encrypted": {
+            "ct": "string",
+            "iv": "string",
+            "v": "integer"
+          },
+          "habit_id": "integer",
+          "text": "null"
+        }
+      ],
+      "habits": [
+        {
+          "created_at": "datetime",
+          "days": "null",
+          "frequency": "enum(daily)",
+          "id": "integer",
+          "kind": "enum(build)",
+          "name": "string",
+          "next_reminder_utc": "null",
+          "paused_from": "null",
+          "paused_until": "null",
+          "reminder_exclusions": [],
+          "reminder_time": "null",
+          "reminder_times": [],
+          "routine_id": "null",
+          "routine_position": "null",
+          "times_per_day": "integer",
+          "weekly_target": "null"
+        }
+      ],
+      "helps_encrypted": "null",
+      "journal_key": {
+        "passphrase": {
+          "iterations": "integer",
+          "iv": "string",
+          "salt": "string",
+          "wrapped": "string"
+        },
+        "recovery": {
+          "iv": "string",
+          "salt": "string",
+          "wrapped": "string"
+        },
+        "turning_off": "boolean",
+        "version": "integer"
+      },
+      "logs": [],
+      "moods": [
+        {
+          "archived": "boolean",
+          "created_at": "datetime",
+          "emoji": "null",
+          "encrypted": {
+            "ct": "string",
+            "iv": "string",
+            "v": "integer"
+          },
+          "id": "integer",
+          "label": "null"
+        }
+      ],
+      "phones": [],
+      "push_subscriptions": [],
+      "routines": [],
+      "settings": {
+        "calm_mode": "boolean",
+        "consent_policy_version": "string",
+        "consent_prompted_on": "null",
+        "consent_withdrawn_at": "null",
+        "dm_failure_count": "integer",
+        "dm_pause_notice_sent_at": "null",
+        "dm_reminders_paused_at": "null",
+        "fireside_enabled": "boolean",
+        "fireside_name": "null",
+        "fireside_notify": "boolean",
+        "grace_days_per_week": "integer",
+        "health_data_consent_at": "datetime",
+        "language": "string",
+        "offer_habit_note": "boolean",
+        "second_reminder_minutes": "integer",
+        "show_streaks": "boolean",
+        "theme": "null",
+        "timezone": "string",
+        "tips_seen": [],
+        "today_order": "null",
+        "two_factor_enabled": "boolean"
+      },
+      "slips": []
+    }
+  },
+  "habit-note.delete.again": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "habit-note.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "habit-note.put.again": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "habitId": "integer",
+      "text": "string"
+    }
+  },
+  "habit-note.put.bad-blob": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted.ct": [
+          "Must be base64 of at least 16 bytes and at most 4096 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "habit-note.put.bad-date": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "date": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "habit-note.put.before-start": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "before_habit_start"
+    }
+  },
+  "habit-note.put.consent-required": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "habit-note.put.encrypted": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      },
+      "habitId": "integer"
+    }
+  },
+  "habit-note.put.in-future": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 422,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 422,
+      "title": "Unprocessable Entity",
+      "type": "in_future"
+    }
+  },
+  "habit-note.put.missing-text": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {},
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "text": [
+          "Set text or encrypted. Delete the note to clear it."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "habit-note.put.not-found": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "habit-note.put.ok": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "habitId": "integer",
+      "text": "string"
+    }
+  },
+  "habit-note.put.plaintext-while-on": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "The private journal is on. Send this encrypted."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "habit-note.put.too-long": {
+    "method": "PUT",
+    "route": "/api/habits/{id:int}/notes/{date}",
+    "request": {
+      "text": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "text": [
+          "Must be at most 280 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "habit-notes.get.bad-date": {
+    "method": "GET",
+    "route": "/api/habit-notes",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "to": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "habit-notes.get.empty": {
+    "method": "GET",
+    "route": "/api/habit-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "habit-notes.get.filtered": {
+    "method": "GET",
+    "route": "/api/habit-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "date": "date",
+        "habitId": "integer",
+        "text": "string"
+      }
+    ]
+  },
+  "habit-notes.get.mixed": {
+    "method": "GET",
+    "route": "/api/habit-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "date": "date",
+        "encrypted?": {
+          "ct": "string",
+          "iv": "string",
+          "v": "integer"
+        },
+        "habitId": "integer",
+        "text?": "string"
+      }
+    ]
+  },
+  "habit-notes.get.ok": {
+    "method": "GET",
+    "route": "/api/habit-notes",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "date": "date",
+        "habitId": "integer",
+        "text": "string"
+      }
+    ]
+  },
+  "helps.delete.again": {
+    "method": "DELETE",
+    "route": "/api/me/helps",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "helps.delete.ok": {
+    "method": "DELETE",
+    "route": "/api/me/helps",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "helps.get.none": {
+    "method": "GET",
+    "route": "/api/me/helps",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "helps.get.ok": {
+    "method": "GET",
+    "route": "/api/me/helps",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "encrypted": "string",
+      "version": "integer"
+    }
+  },
+  "helps.put.consent-required": {
+    "method": "PUT",
+    "route": "/api/me/helps",
+    "request": {
+      "encrypted": "string",
+      "version": "integer"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "helps.put.invalid": {
+    "method": "PUT",
+    "route": "/api/me/helps",
+    "request": {
+      "encrypted": "string",
+      "version": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "Must be 1 to 16384 characters."
+        ],
+        "version": [
+          "Must be the version you last read, 0 when there was none."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "helps.put.journal-off": {
+    "method": "PUT",
+    "route": "/api/me/helps",
+    "request": {
+      "encrypted": "string",
+      "version": "integer"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "The private journal is off or turning off.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "helps.put.missing-fields": {
+    "method": "PUT",
+    "route": "/api/me/helps",
+    "request": {},
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "Must be 1 to 16384 characters."
+        ],
+        "version": [
+          "Must be the version you last read, 0 when there was none."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "helps.put.ok": {
+    "method": "PUT",
+    "route": "/api/me/helps",
+    "request": {
+      "encrypted": "string",
+      "version": "integer"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "version": "integer"
+    }
+  },
+  "helps.put.stale": {
+    "method": "PUT",
+    "route": "/api/me/helps",
+    "request": {
+      "encrypted": "string",
+      "version": "integer"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Another device saved this list meanwhile. Reload and try again.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "helps.unauthenticated": {
+    "method": "GET",
+    "route": "/api/me/helps",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "import.encrypted.ok": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": {
+      "day_notes": [
+        {
+          "date": "date",
+          "encrypted": {
+            "ct": "string",
+            "iv": "string",
+            "v": "integer"
+          }
+        }
+      ],
+      "format_version": "integer",
+      "habit_notes": [
+        {
+          "date": "date",
+          "encrypted": {
+            "ct": "string",
+            "iv": "string",
+            "v": "integer"
+          },
+          "habit_id": "integer"
+        }
+      ],
+      "habits": [
+        {
+          "created_at": "datetime",
+          "frequency": "enum(daily)",
+          "id": "integer",
+          "name": "string"
+        }
+      ],
+      "journal_key": {
+        "ifVersion": "null",
+        "passphrase": {
+          "iterations": "integer",
+          "iv": "string",
+          "salt": "string",
+          "wrapped": "string"
+        },
+        "password": "string",
+        "recovery": {
+          "iv": "string",
+          "salt": "string",
+          "wrapped": "string"
+        }
+      },
+      "moods": [
+        {
+          "encrypted": {
+            "ct": "string",
+            "iv": "string",
+            "v": "integer"
+          },
+          "id": "integer"
+        }
+      ]
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "journal-key.delete.discard": {
+    "method": "DELETE",
+    "route": "/api/me/journal-key",
+    "request": {
+      "discardEncrypted": "boolean",
+      "password": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "journal-key.delete.encrypted-left": {
+    "method": "DELETE",
+    "route": "/api/me/journal-key",
+    "request": {
+      "discardEncrypted": "boolean",
+      "password": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Some journal entries or moods are still encrypted. Finish turning the private journal off first.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "journal-key.delete.wrong-password": {
+    "method": "DELETE",
+    "route": "/api/me/journal-key",
+    "request": {
+      "discardEncrypted": "boolean",
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "journal-key.get.gone": {
+    "method": "GET",
+    "route": "/api/me/journal-key",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "journal-key.get.none": {
+    "method": "GET",
+    "route": "/api/me/journal-key",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    },
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "journal-key.get.ok": {
+    "method": "GET",
+    "route": "/api/me/journal-key",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "turningOff": "boolean",
+      "version": "integer"
+    }
+  },
+  "journal-key.put.invalid": {
+    "method": "PUT",
+    "route": "/api/me/journal-key",
+    "request": {
+      "ifVersion": "null",
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "password": "string",
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      }
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "passphrase.iterations": [
+          "Must be between 600000 and 10000000."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "journal-key.put.ok": {
+    "method": "PUT",
+    "route": "/api/me/journal-key",
+    "request": {
+      "ifVersion": "null",
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "password": "string",
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      }
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "turningOff": "boolean",
+      "version": "integer"
+    }
+  },
+  "journal-key.put.replace": {
+    "method": "PUT",
+    "route": "/api/me/journal-key",
+    "request": {
+      "ifVersion": "integer",
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "password": "string",
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      }
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "turningOff": "boolean",
+      "version": "integer"
+    }
+  },
+  "journal-key.put.stale": {
+    "method": "PUT",
+    "route": "/api/me/journal-key",
+    "request": {
+      "ifVersion": "integer",
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "password": "string",
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      }
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "The journal key was changed meanwhile. Reload and try again.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "journal-key.put.wrong-password": {
+    "method": "PUT",
+    "route": "/api/me/journal-key",
+    "request": {
+      "ifVersion": "null",
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "password": "string",
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      }
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "journal-key.turn-off.again": {
+    "method": "POST",
+    "route": "/api/me/journal-key/turn-off",
+    "request": {
+      "password": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "journal-key.turn-off.none": {
+    "method": "POST",
+    "route": "/api/me/journal-key/turn-off",
+    "request": {
+      "password": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "journal-key.turn-off.ok": {
+    "method": "POST",
+    "route": "/api/me/journal-key/turn-off",
+    "request": {
+      "password": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "passphrase": {
+        "iterations": "integer",
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "recovery": {
+        "iv": "string",
+        "salt": "string",
+        "wrapped": "string"
+      },
+      "turningOff": "boolean",
+      "version": "integer"
+    }
+  },
+  "journal-key.turn-off.wrong-password": {
+    "method": "POST",
+    "route": "/api/me/journal-key/turn-off",
+    "request": {
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "me.journal-on": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "string",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "me.journal-turning-off": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "string",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "mood.patch.after-discard": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "label": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "archived": "boolean",
+      "emoji": "null",
+      "id": "integer",
+      "label": "string"
+    }
+  },
+  "mood.patch.archive": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "archived": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "archived": "boolean",
+      "emoji": "null",
+      "id": "integer",
+      "label": "string"
+    }
+  },
+  "mood.patch.clear-emoji": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "emoji": "null"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "archived": "boolean",
+      "emoji": "null",
+      "id": "integer",
+      "label": "string"
+    }
+  },
+  "mood.patch.consent-required": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "label": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "mood.patch.encrypted": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "archived": "boolean",
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "archived": "boolean",
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      },
+      "id": "integer"
+    }
+  },
+  "mood.patch.invalid": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "emoji": "string",
+      "label": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "emoji": [
+          "Must be a single emoji."
+        ],
+        "label": [
+          "Must be 1 to 24 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "mood.patch.label": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "label": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "archived": "boolean",
+      "emoji": "string",
+      "id": "integer",
+      "label": "string"
+    }
+  },
+  "mood.patch.limit": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "archived": "boolean"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "You already have 20 active moods. Archive one to add another.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "mood.patch.not-an-object": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": [
+      "integer"
+    ],
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "body": [
+          "Must be a JSON object with label, emoji, archived or encrypted."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "mood.patch.not-found": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "label": "string"
+    },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "mood.patch.plaintext-on-encrypted": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "label": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "The private journal is on. Send this encrypted."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "mood.patch.restore": {
+    "method": "PATCH",
+    "route": "/api/moods/{id:int}",
+    "request": {
+      "archived": "boolean"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "archived": "boolean",
+      "emoji": "null",
+      "id": "integer",
+      "label": "string"
+    }
+  },
+  "mood.post.archived": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "archived": "boolean",
+      "label": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/moods/{id}"
+    },
+    "body": {
+      "archived": "boolean",
+      "emoji": "null",
+      "id": "integer",
+      "label": "string"
+    }
+  },
+  "mood.post.consent-required": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "label": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "mood.post.encrypted": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/moods/{id}"
+    },
+    "body": {
+      "archived": "boolean",
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      },
+      "id": "integer"
+    }
+  },
+  "mood.post.encrypted-without-key": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "encrypted": {
+        "ct": "string",
+        "iv": "string",
+        "v": "integer"
+      }
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "The private journal is off. Send this as plaintext."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "mood.post.invalid": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "emoji": "string",
+      "label": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "emoji": [
+          "Must be a single emoji."
+        ],
+        "label": [
+          "Must be 1 to 24 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "mood.post.label-only": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "label": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/moods/{id}"
+    },
+    "body": {
+      "archived": "boolean",
+      "emoji": "null",
+      "id": "integer",
+      "label": "string"
+    }
+  },
+  "mood.post.limit": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "label": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "You already have 20 active moods. Archive one to add another.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "mood.post.ok": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "emoji": "string",
+      "label": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/moods/{id}"
+    },
+    "body": {
+      "archived": "boolean",
+      "emoji": "string",
+      "id": "integer",
+      "label": "string"
+    }
+  },
+  "mood.post.plaintext-while-on": {
+    "method": "POST",
+    "route": "/api/moods",
+    "request": {
+      "label": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "encrypted": [
+          "The private journal is on. Send this encrypted."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "moods.get.empty": {
+    "method": "GET",
+    "route": "/api/moods",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": []
+  },
+  "moods.get.mixed": {
+    "method": "GET",
+    "route": "/api/moods",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "archived": "boolean",
+        "emoji?": "null",
+        "encrypted?": {
+          "ct": "string",
+          "iv": "string",
+          "v": "integer"
+        },
+        "id": "integer",
+        "label?": "string"
+      }
+    ]
+  },
+  "moods.get.ok": {
+    "method": "GET",
+    "route": "/api/moods",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "archived": "boolean",
+        "emoji": "null|string",
+        "id": "integer",
+        "label": "string"
+      }
+    ]
+  },
+  "stats.days.bad-date": {
+    "method": "GET",
+    "route": "/api/stats/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "Must be a date as yyyy-MM-dd."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "stats.days.future": {
+    "method": "GET",
+    "route": "/api/stats/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "to": [
+          "Can't be after today."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "stats.days.inverted": {
+    "method": "GET",
+    "route": "/api/stats/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "Can't be after to."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "stats.days.ok": {
+    "method": "GET",
+    "route": "/api/stats/days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "date": "date",
+        "done": "integer",
+        "partial": "integer",
+        "scheduled": "integer",
+        "showedUp": "boolean"
+      }
+    ]
+  },
+  "stats.days.range": {
+    "method": "GET",
+    "route": "/api/stats/days",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": [
+      {
+        "date": "date",
+        "done": "integer",
+        "partial": "integer",
+        "scheduled": "integer",
+        "showedUp": "boolean"
+      }
+    ]
+  },
+  "stats.days.too-long": {
+    "method": "GET",
+    "route": "/api/stats/days",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "from": [
+          "At most 366 days per request."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "stats.weekly.no-checkins": {
+    "method": "GET",
+    "route": "/api/stats/weekly",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    },
+    "body": {
+      "footer": "string",
+      "habits": [
+        {
+          "done": "integer",
+          "habitId": "integer",
+          "name": "string",
+          "possible": "integer",
+          "streak": "integer"
+        }
+      ],
+      "headline": "string",
+      "totalDone": "integer",
+      "totalPossible": "integer"
+    }
+  },
+  "stats.weekly.ok": {
+    "method": "GET",
+    "route": "/api/stats/weekly",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "footer": "string",
+      "habits": [
+        {
+          "done": "integer",
+          "habitId": "integer",
+          "name": "string",
+          "possible": "integer",
+          "streak": "integer"
+        }
+      ],
+      "headline": "string",
+      "totalDone": "integer",
+      "totalPossible": "integer"
+    }
+  },
+  "stats.weekly.unauthenticated": {
+    "method": "GET",
+    "route": "/api/stats/weekly",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "unauthenticated.day-notes": {
+    "method": "GET",
+    "route": "/api/day-notes",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "unauthenticated.moods": {
+    "method": "GET",
+    "route": "/api/moods",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  }
+}

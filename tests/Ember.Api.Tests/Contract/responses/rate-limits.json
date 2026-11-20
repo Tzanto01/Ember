@@ -1,0 +1,157 @@
+{
+  "auth-other.first": {
+    "method": "GET",
+    "route": "/api/auth/antiforgery",
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Antiforgery.<suffix>",
+        "XSRF-TOKEN"
+      ]
+    }
+  },
+  "auth-other.limited": {
+    "method": "GET",
+    "route": "/api/auth/antiforgery",
+    "status": 429,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Retry-After": "present"
+    },
+    "body": {
+      "status": 429,
+      "title": "Too Many Requests",
+      "type": "rate_limited"
+    }
+  },
+  "auth.first": {
+    "method": "POST",
+    "route": "/api/auth/login",
+    "request": {
+      "email": "string",
+      "password": "string"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "NotAllowed",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "auth.limited": {
+    "method": "POST",
+    "route": "/api/auth/login",
+    "request": {
+      "email": "string",
+      "password": "string"
+    },
+    "status": 429,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Retry-After": "present"
+    },
+    "body": {
+      "status": 429,
+      "title": "Too Many Requests",
+      "type": "rate_limited"
+    }
+  },
+  "feedback.first": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "feedback.limited": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string"
+    },
+    "status": 429,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Retry-After": "present"
+    },
+    "body": {
+      "status": 429,
+      "title": "Too Many Requests",
+      "type": "rate_limited"
+    }
+  },
+  "mail.first.ok": {
+    "method": "POST",
+    "route": "/api/auth/register",
+    "request": {
+      "email": "string",
+      "password": "string"
+    },
+    "status": 200,
+    "contentType": null,
+    "headers": {}
+  },
+  "mail.limited": {
+    "method": "POST",
+    "route": "/api/auth/register",
+    "request": {
+      "email": "string",
+      "password": "string"
+    },
+    "status": 429,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Retry-After": "present"
+    },
+    "body": {
+      "status": 429,
+      "title": "Too Many Requests",
+      "type": "rate_limited"
+    }
+  },
+  "widget.first": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "widget.limited": {
+    "method": "POST",
+    "route": "/api/widget/check-in",
+    "request": {
+      "date": "date",
+      "habitId": "integer"
+    },
+    "status": 429,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Retry-After": "present"
+    },
+    "body": {
+      "status": 429,
+      "title": "Too Many Requests",
+      "type": "rate_limited"
+    }
+  }
+}

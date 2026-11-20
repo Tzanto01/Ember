@@ -1,0 +1,358 @@
+{
+  "post.android.ok": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": "null",
+      "platform": "enum(android)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "post.anonymous.ok": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": "null",
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "post.anonymous.pictures": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": [
+        "string"
+      ],
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "images": [
+          "Sign in to add pictures."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.cookie-without-token": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": "null",
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "antiforgery"
+    }
+  },
+  "post.empty-picture": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": [
+        "string"
+      ],
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "images": [
+          "One of the pictures is empty."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.invalid": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": "null",
+      "platform": "enum(ios)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "platform": [
+          "Must be web or android."
+        ],
+        "text": [
+          "Required."
+        ],
+        "title": [
+          "At most 100 characters."
+        ],
+        "version": [
+          "1 to 32 letters, digits or . + _ -"
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.minimal": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "platform": "enum(web)",
+      "text": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "post.not-json": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": "application/x-www-form-urlencoded",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "post.signed-in.anonymously": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "boolean",
+      "images": "null",
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "post.signed-in.ok": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": "null",
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "post.text-too-long": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": "null",
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "text": [
+          "At most 2000 characters."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.title-two-lines": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": "null",
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "title": [
+          "Keep the title on one line."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.too-many-pictures": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": [
+        "string"
+      ],
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "images": [
+          "Up to 5 pictures."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.unreadable-picture": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": [
+        "string"
+      ],
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "images": [
+          "Ember can take JPEG, PNG or WebP pictures."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.with-pictures": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": [
+        "string"
+      ],
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "string",
+      "version": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "post.without-title": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "anonymous": "null",
+      "images": "null",
+      "platform": "enum(web)",
+      "text": "string",
+      "title": "null",
+      "version": "null"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "post.wrong-type": {
+    "method": "POST",
+    "route": "/api/feedback",
+    "request": {
+      "platform": "enum(web)",
+      "text": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 400,
+      "title": "Bad Request",
+      "type": "validation"
+    }
+  },
+  "vapid.unconfigured": {
+    "method": "GET",
+    "route": "/api/push/vapid-public-key",
+    "status": 501,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 501,
+      "title": "Not Implemented",
+      "type": "https://tools.ietf.org/html/rfc9110#section-15.6.2"
+    }
+  }
+}
