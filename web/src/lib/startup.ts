@@ -52,7 +52,9 @@ export function habitsCache(
       const today = deviceToday(cached.timeZone);
       if (!today || cached.habits.some((habit) => habit.today.date !== today)) return undefined;
       const queued = await store.edits(user.id).catch(() => []);
-      return cached.habits.map((habit) => (isLetGo(habit) ? habit : queued.reduce(withDayEdit, habit)));
+      return cached.habits.map((habit) =>
+        isLetGo(habit) ? habit : queued.reduce((current, edit) => withDayEdit(current, edit), habit),
+      );
     },
   };
 }

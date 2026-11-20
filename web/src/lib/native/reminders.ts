@@ -292,7 +292,9 @@ export class Reminders {
       if (!cached) return null;
       const queued = await this.store.edits(userId).catch(() => []);
       return {
-        habits: cached.habits.map((habit) => (isLetGo(habit) ? habit : queued.reduce(withDayEdit, habit))),
+        habits: cached.habits.map((habit) =>
+          isLetGo(habit) ? habit : queued.reduce((current, edit) => withDayEdit(current, edit), habit),
+        ),
         routines: cached.routines ?? [],
         live: false,
       };

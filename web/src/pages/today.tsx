@@ -32,13 +32,13 @@ import { Card, cardVariants } from '@/components/ui/card';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isOffday } from '@/lib/calendar';
+import { type DayEdit, withDayEdit } from '@/lib/device-store';
 import { highlightMs } from '@/lib/guide/highlight';
 import { t } from '@/lib/i18n';
 import { addDays, formatDate } from '@/lib/local-date';
 import { pulse } from '@/lib/moment/voice';
 import {
   buildHabits,
-  type DayState,
   type Habit,
   isLetGo,
   type LetGoHabit,
@@ -244,29 +244,11 @@ export default function TodayPage() {
           : current + 1;
     const checkIn = nextCount === null ? habit.today.state !== 'done' : nextCount > current;
     const reaches = nextCount === null ? checkIn : nextCount >= target;
-    const resting: DayState = habit.pausedToday
-      ? 'paused'
-      : isOffday(habit, habit.today.date)
-      ? 'offday'
-      : data.lowDayToday
-        ? 'lowday'
-        : 'pending';
-    const optimisticCount = nextCount ?? (checkIn ? target : 0);
-    const week = habit.stats.week;
-    const weekStep = (optimisticCount > 0 ? 1 : 0) - (habit.today.count > 0 ? 1 : 0);
-    const optimistic: Habit = {
-      ...habit,
-      today: {
-        ...habit.today,
-        state: reaches ? 'done' : nextCount ? 'partial' : resting,
-        completed: reaches ? true : null,
-        count: optimisticCount,
-      },
-      stats:
-        habit.frequency === 'weekly' && week && weekStep
-          ? { ...habit.stats, week: { ...week, done: week.done + weekStep } }
-          : habit.stats,
-    };
+    const edit: DayEdit =
+      nextCount === null
+        ? { habitId: habit.id, date: habit.today.date, completed: checkIn ? true : null }
+        : { habitId: habit.id, date: habit.today.date, completed: null, count: nextCount };
+    const optimistic = withDayEdit(habit, edit, data.lowDayToday === true);
     mark(habit.id, true);
     setProblem(null);
     setReward(habit.id, checkIn ? readReward(reduceMotion) : null);

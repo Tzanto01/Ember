@@ -1,4 +1,5 @@
-import type { AnyHabit, DayNoteBody, DayState, Habit, Routine } from './models';
+import { isOffday } from './calendar';
+import type { AnyHabit, DayEntry, DayNoteBody, DayState, Habit, Routine } from './models';
 
 /**
  * One day edit made while offline: `completed` null means "clear the day"; `count` (v1.6) sends the absolute
@@ -48,28 +49,39 @@ export interface CachedHabits {
 }
 
 /**
- * The habit with `edit` applied to its `today` entry when the edit is for that day (optimistic view). A weekly habit's
- * `stats.week.done` follows a day that becomes done or stops being done.
+ * The habit with `edit` applied to its `today` entry when the edit is for that day (optimistic view). A day left
+ * without check-ins rests the way the server shows it: paused, a low day (`lowDay`, by default when `today` shows
+ * one), off the habit's schedule (or shown as off), else pending. A weekly habit's `stats.week.done` follows a day
+ * that gains or loses its check-in.
  */
-export function withDayEdit(habit: Habit, edit: QueueEdit): Habit {
-  const next = withTodayEdit(habit, edit);
+export function withDayEdit(habit: Habit, edit: QueueEdit, lowDay = habit.today.state === 'lowday'): Habit {
+  const next = withTodayEdit(habit, edit, lowDay);
   const week = habit.stats.week;
-  const delta = Number(next.today.state === 'done') - Number(habit.today.state === 'done');
+  const delta = Number(checkedIn(next.today)) - Number(checkedIn(habit.today));
   if (habit.frequency !== 'weekly' || !week || !delta) return next;
   return { ...next, stats: { ...next.stats, week: { ...week, done: week.done + delta } } };
 }
 
-function withTodayEdit(habit: Habit, edit: QueueEdit): Habit {
+function checkedIn(day: DayEntry): boolean {
+  return day.count > 0 || day.state === 'done';
+}
+
+function withTodayEdit(habit: Habit, edit: QueueEdit, lowDay: boolean): Habit {
   if (!isDayEdit(edit) || edit.habitId !== habit.id || habit.today.date !== edit.date) return habit;
   const target = habit.timesPerDay ?? 1;
-  const resting = habit.today.state === 'offday' || habit.today.state === 'lowday' ? habit.today.state : null;
+  const resting: DayState = habit.pausedToday
+    ? 'paused'
+    : lowDay
+      ? 'lowday'
+      : isOffday(habit, edit.date) || habit.today.state === 'offday'
+        ? 'offday'
+        : 'pending';
   if (edit.count !== undefined) {
-    const state = edit.count === 0 && resting ? resting : stateForCount(edit.count, target);
+    const state = edit.count === 0 ? resting : stateForCount(edit.count, target);
     const completed = state === 'done' ? true : null;
     return { ...habit, today: { date: edit.date, state, completed, count: edit.count } };
   }
-  const state =
-    edit.completed === true ? 'done' : edit.completed === false ? 'notdone' : (resting ?? 'pending');
+  const state = edit.completed === true ? 'done' : edit.completed === false ? 'notdone' : resting;
   const count = edit.completed === true ? target : 0;
   return { ...habit, today: { date: edit.date, state, completed: edit.completed, count } };
 }
