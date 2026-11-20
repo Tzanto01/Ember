@@ -20,9 +20,11 @@ import { MoodManager } from '@/components/journal/mood-manager';
 import { CrisisLines } from '@/components/moment/crisis-lines';
 import { DeleteDeviceData, DeviceDataSettings } from '@/components/local/device-data-settings';
 import { PageHeader } from '@/components/page-header';
+import { AccountCard } from '@/components/settings/account-card';
 import { AppUpdatesSettings } from '@/components/settings/app-updates-settings';
 import { ColorSchemePicker } from '@/components/settings/color-scheme-picker';
 import { LanguagePicker } from '@/components/settings/language-picker';
+import { DiscordCard } from '@/components/settings/discord-card';
 import { FeedbackForm } from '@/components/settings/feedback-form';
 import { HelpsSettings } from '@/components/settings/helps-settings';
 import { JournalSettings } from '@/components/settings/journal-settings';
@@ -34,7 +36,7 @@ import {
   useSettingsStatusState,
 } from '@/components/settings/settings-status';
 import { settingsGroupOf, settingsGroups } from '@/components/settings/settings-groups';
-import { ConfirmForm, TwoFactorSettings } from '@/components/settings/two-factor-settings';
+import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
 import { ThemePicker } from '@/components/theme-picker';
 import { Button } from '@/components/ui/button';
 import { Input, PasswordInput } from '@/components/ui/input';
@@ -56,7 +58,6 @@ import {
 } from '@/lib/models';
 import { openOnWeb } from '@/lib/native/browser';
 import { updaterAvailable } from '@/lib/native/updater';
-import { loadPage } from '@/lib/navigation';
 import { ApiError, asApiError, problemToMessage } from '@/lib/problem';
 import { api, auth, deviceSync, localMode, push, reminders } from '@/lib/services';
 import { useStore } from '@/lib/store';
@@ -167,9 +168,6 @@ export default function SettingsPage() {
   const scrolled = useRef<string | null>(null);
   const tzForm = useRef<HTMLFormElement>(null);
   const deleteForm = useRef<HTMLFormElement>(null);
-  const everywhereButton = useRef<HTMLButtonElement>(null);
-  const everywhereText = useRef<HTMLParagraphElement>(null);
-  const linkDiscordButton = useRef<HTMLButtonElement>(null);
   const withdrawButton = useRef<HTMLButtonElement>(null);
   const withdrawText = useRef<HTMLParagraphElement>(null);
   const claimed = useRef<Promise<void> | null>(null);
@@ -179,9 +177,7 @@ export default function SettingsPage() {
   const [zone, setZone] = useState<string | null>(null);
   const [zoneTouched, setZoneTouched] = useState(false);
   const [zoneServerError, setZoneServerError] = useState<string | null>(null);
-  const [confirmEverywhere, setConfirmEverywhere] = useState(false);
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
-  const [linkingDiscord, setLinkingDiscord] = useState(false);
   const [deleteErrors, setDeleteErrors] = useState<{ password?: string; confirm?: string }>({});
   const [notificationsOff, setNotificationsOff] = useState(false);
   const [remindersLate, setRemindersLate] = useState(false);
@@ -283,24 +279,6 @@ export default function SettingsPage() {
     }
   }
 
-  const unlinkDiscord = () =>
-    act('discord', async () => {
-      await api.unlinkDiscord();
-      await auth.refreshAntiforgery();
-      await auth.loadMe(true);
-      return { tone: 'success', text: t('settings.discord.unlinked') };
-    });
-
-  async function linkDiscord(password: string): Promise<void> {
-    await api.startDiscordLink(password);
-    loadPage(api.discordLinkUrl());
-  }
-
-  function cancelLinkDiscord(): void {
-    flushSync(() => setLinkingDiscord(false));
-    linkDiscordButton.current?.focus();
-  }
-
   const resumeDms = () =>
     act('dm', async () => {
       await api.resumeDmReminders();
@@ -386,39 +364,6 @@ export default function SettingsPage() {
       setExporting(null);
       finish();
     }
-  }
-
-  const changePassword = (email: string) =>
-    act('password', async () => {
-      await api.forgotPassword(email);
-      return {
-        tone: 'success',
-        text: t('settings.account.passwordSent', { email }),
-      };
-    });
-
-  async function signOut(): Promise<void> {
-    if (status.isBusy()) return;
-    start('signout');
-    if (await auth.logout()) return;
-    finish();
-    show('signout', { tone: 'notice', text: t('settings.account.signOutFailed') });
-  }
-
-  function askEverywhere(open: boolean): void {
-    flushSync(() => setConfirmEverywhere(open));
-    (open ? everywhereText : everywhereButton).current?.focus();
-  }
-
-  async function signOutEverywhere(): Promise<void> {
-    if (status.isBusy()) return;
-    start('everywhere');
-    if (await auth.logout(true)) return;
-    finish();
-    show('everywhere', {
-      tone: 'notice',
-      text: t('settings.account.everywhereFailed'),
-    });
   }
 
   function askWithdraw(open: boolean): void {
@@ -676,77 +621,7 @@ export default function SettingsPage() {
                 </SettingsCard>
               )}
 
-              {shown('account') && (
-                <SettingsCard id="account" title={title('account')}>
-                  <p>
-                    {me.email ? (
-                      <Trans
-                        i18nKey="settings.account.signedInAs"
-                        values={{ email: me.email }}
-                        components={{ strong: <strong className="[overflow-wrap:anywhere]" /> }}
-                      />
-                    ) : (
-                      t('settings.account.signedInDiscord')
-                    )}
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    {me.email && me.hasPassword && (
-                      <BusyButton
-                        type="button"
-                        variant="secondary"
-                        busy={busy === 'password'}
-                        busyLabel={t('settings.account.sending')}
-                        onClick={() => void changePassword(me.email ?? '')}
-                      >
-                        {t('settings.account.changePassword')}
-                      </BusyButton>
-                    )}
-                    <BusyButton
-                      type="button"
-                      variant="secondary"
-                      busy={busy === 'signout'}
-                      busyLabel={t('nav.signingOut')}
-                      onClick={() => void signOut()}
-                    >
-                      {t('nav.signOut')}
-                    </BusyButton>
-                    {!confirmEverywhere && (
-                      <Button
-                        ref={everywhereButton}
-                        type="button"
-                        variant="ghost"
-                        onClick={() => askEverywhere(true)}
-                      >
-                        {t('settings.account.everywhere')}
-                      </Button>
-                    )}
-                  </div>
-                  {confirmEverywhere && (
-                    <div className="flex flex-col gap-3 rounded-md border-[length:var(--border-width)] border-border p-3">
-                      <p ref={everywhereText} tabIndex={-1} className="focus:outline-none">
-                        {t('settings.account.everywhereConfirm')}
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        <BusyButton
-                          type="button"
-                          variant="secondary"
-                          busy={busy === 'everywhere'}
-                          busyLabel={t('nav.signingOut')}
-                          onClick={() => void signOutEverywhere()}
-                        >
-                          {t('settings.account.everywhereYes')}
-                        </BusyButton>
-                        <Button type="button" variant="ghost" onClick={() => askEverywhere(false)}>
-                          {t('settings.cancel')}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  {outcome('password')}
-                  {outcome('signout')}
-                  {outcome('everywhere')}
-                </SettingsCard>
-              )}
+              {shown('account') && <AccountCard title={title('account')} me={me} />}
 
               {shown('appearance') && (
                 <SettingsCard id="appearance" title={title('appearance')}>
@@ -1170,66 +1045,7 @@ export default function SettingsPage() {
                 </SettingsCard>
               )}
 
-              {shown('discord') && (
-                <SettingsCard id="discord" title={title('discord')}>
-                  {me.discord.linked ? (
-                    <>
-                      <p>{t('settings.discord.linkedText')}</p>
-                      <div>
-                        <BusyButton
-                          type="button"
-                          variant="secondary"
-                          busy={busy === 'discord'}
-                          busyLabel={t('settings.discord.unlinking')}
-                          onClick={() => void unlinkDiscord()}
-                        >
-                          {t('settings.discord.unlink')}
-                        </BusyButton>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p>{t('settings.discord.intro')}</p>
-                      {linkingDiscord ? (
-                        <ConfirmForm
-                          kind="password"
-                          email={me.email}
-                          hint={t('settings.discord.passwordHint')}
-                          submitLabel={t('settings.discord.continue')}
-                          busyLabel={t('settings.checking')}
-                          onSubmit={linkDiscord}
-                          onCancel={cancelLinkDiscord}
-                        />
-                      ) : (
-                        <div>
-                          {env.native ? (
-                            <Button type="button" variant="secondary" onClick={() => void openOnWeb('/settings/account#discord')}>
-                              {t('settings.discord.linkOnWeb')}
-                            </Button>
-                          ) : me.hasPassword ? (
-                            <Button
-                              ref={linkDiscordButton}
-                              type="button"
-                              variant="secondary"
-                              onClick={() => setLinkingDiscord(true)}
-                            >
-                              {t('settings.discord.link')}
-                            </Button>
-                          ) : (
-                            <Button asChild variant="secondary">
-                              <a href={api.discordLinkUrl()}>{t('settings.discord.link')}</a>
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                      {env.native && (
-                        <p className="text-[0.875rem] text-muted-foreground">{t('settings.discord.nativeHint')}</p>
-                      )}
-                    </>
-                  )}
-                  {outcome('discord')}
-                </SettingsCard>
-              )}
+              {shown('discord') && <DiscordCard title={title('discord')} me={me} />}
 
               {shown('app-updates') && (
                 <SettingsCard id="app-updates" title={title('app-updates')}>
