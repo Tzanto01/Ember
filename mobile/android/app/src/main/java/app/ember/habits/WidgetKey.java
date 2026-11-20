@@ -42,8 +42,8 @@ final class WidgetKey {
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(Cipher.ENCRYPT_MODE, secret());
         byte[] sealed = cipher.doFinal(key.getBytes(StandardCharsets.UTF_8));
-        synchronized (TodayWidget.class) {
-            TodayWidget.prefs(context)
+        synchronized (WidgetStore.LOCK) {
+            WidgetStore.prefs(context)
                 .edit()
                 .putString(SEALED, Base64.encodeToString(sealed, Base64.NO_WRAP))
                 .putString(IV, Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
@@ -54,7 +54,7 @@ final class WidgetKey {
 
     /** The stored key, or null when there is none or it does not decrypt. */
     static String get(Context context) {
-        SharedPreferences prefs = TodayWidget.prefs(context);
+        SharedPreferences prefs = WidgetStore.prefs(context);
         String sealed = prefs.getString(SEALED, null);
         String iv = prefs.getString(IV, null);
         if (sealed == null || iv == null) return null;
@@ -74,14 +74,14 @@ final class WidgetKey {
 
     /** The stored API origin, or null. */
     static String apiBase(Context context) {
-        return origin(TodayWidget.prefs(context).getString(API_BASE, null));
+        return origin(WidgetStore.prefs(context).getString(API_BASE, null));
     }
 
     /** Erases the key if it is still {@code rejected}, so a key the app set meanwhile survives. */
     static void erase(Context context, String rejected) {
-        synchronized (TodayWidget.class) {
+        synchronized (WidgetStore.LOCK) {
             if (!rejected.equals(get(context))) return;
-            TodayWidget.prefs(context).edit().remove(SEALED).remove(IV).commit();
+            WidgetStore.prefs(context).edit().remove(SEALED).remove(IV).commit();
         }
     }
 

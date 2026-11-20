@@ -27,13 +27,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,7 +42,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Pattern;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -68,24 +62,12 @@ public class TodayWidget extends AppWidgetProvider {
     static final String ACTION_OPEN_TODAY = "app.ember.habits.WIDGET_OPEN_TODAY";
     static final String ACTION_OPEN_HABIT = "app.ember.habits.WIDGET_OPEN_HABIT";
     private static final String ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT";
-    static final int MAX_HABITS = 25;
-
-    private static final String PREFS = "ember_widget";
-    private static final String SNAPSHOT = "snapshot";
-    private static final String PENDING = "pending";
     private static final int TIMEOUT_MS = 4000;
     private static final long BUDGET_MS = 8000;
     private static final long MIN_REQUEST_MS = 1000;
     private static final int MAX_ANSWER = 4096;
     private static final ExecutorService NETWORK = Executors.newSingleThreadExecutor();
     private static final ExecutorService CALLS = Executors.newCachedThreadPool();
-    private static final Map<String, Integer> IN_FLIGHT = new HashMap<>();
-    private static final Pattern ISO_DATE = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
-    private static final List<String> STATES = Arrays.asList("done", "partial", "open", "rest");
-    private static final int MAX_NAME = 100;
-    private static final String THEME = "theme";
-    private static final String COLOR_SCHEME = "colorScheme";
-    private static final List<String> STYLE = Arrays.asList(THEME, COLOR_SCHEME, WidgetPlan.MOTION);
     private static final float DEFAULT_WIDTH = 250;
     private static final float DEFAULT_HEIGHT = 392;
 
@@ -118,7 +100,7 @@ public class TodayWidget extends AppWidgetProvider {
      */
     private void checkIn(Context context, Intent intent) {
         long deadline = SystemClock.elapsedRealtime() + BUDGET_MS;
-        JSONObject snapshot = current(context);
+        JSONObject snapshot = WidgetStore.current(context);
         String key = WidgetKey.get(context);
         String apiBase = WidgetKey.apiBase(context);
         JSONObject habit = ours(context, intent, TodayWidget.class) ? listed(snapshot, intent) : null;
@@ -132,8 +114,8 @@ public class TodayWidget extends AppWidgetProvider {
         long habitId = habit.optLong("id");
         int[] target = { 0 };
         boolean tapped;
-        synchronized (TodayWidget.class) {
-            tapped = editRow(context, token, date, habitId, row -> {
+        synchronized (WidgetStore.LOCK) {
+            tapped = WidgetStore.editRow(context, token, date, habitId, row -> {
                 String state = row.optString("state");
                 if (!"open".equals(state) && !"partial".equals(state)) return false;
                 int timesPerDay = row.optInt("timesPerDay");
@@ -142,8 +124,8 @@ public class TodayWidget extends AppWidgetProvider {
                 return true;
             });
             if (tapped) {
-                addPending(context, userId, habitId, date, target[0]);
-                inFlight(userId, habitId, date, 1);
+                WidgetStore.addPending(context, userId, habitId, date, target[0]);
+                WidgetStore.inFlight(userId, habitId, date, 1);
             }
         }
         if (!tapped) {
@@ -161,7 +143,7 @@ public class TodayWidget extends AppWidgetProvider {
                     try {
                         send(app, apiBase, key, token, userId, habitId, date, deadline);
                     } finally {
-                        inFlight(userId, habitId, date, -1);
+                        WidgetStore.inFlight(userId, habitId, date, -1);
                     }
                     refresh(app);
                 } finally {
@@ -169,7 +151,7 @@ public class TodayWidget extends AppWidgetProvider {
                 }
             });
         } catch (RuntimeException e) {
-            inFlight(userId, habitId, date, -1);
+            WidgetStore.inFlight(userId, habitId, date, -1);
             if (result != null) result.finish();
             throw e;
         }
@@ -209,14 +191,14 @@ public class TodayWidget extends AppWidgetProvider {
         String state = answer.optString("state");
         int count = answer.optInt("count");
         int timesPerDay = answer.optInt("timesPerDay");
-        synchronized (TodayWidget.class) {
-            if (IN_FLIGHT.getOrDefault(pendingKey(userId, habitId, date), 0) <= 1) {
-                editRow(context, token, date, habitId, row -> {
+        synchronized (WidgetStore.LOCK) {
+            if (WidgetStore.inFlightCount(userId, habitId, date) <= 1) {
+                WidgetStore.editRow(context, token, date, habitId, row -> {
                     row.put("state", state).put("count", Math.min(count, timesPerDay)).put("timesPerDay", timesPerDay);
                     return true;
                 });
             }
-            settlePending(context, userId, habitId, date, count);
+            WidgetStore.settlePending(context, userId, habitId, date, count);
         }
     }
 
@@ -260,7 +242,7 @@ public class TodayWidget extends AppWidgetProvider {
             String state = answer.getString("state");
             int count = answer.getInt("count");
             int timesPerDay = answer.getInt("timesPerDay");
-            if (!STATES.contains(state) || count < 0 || timesPerDay < 1) return null;
+            if (!WidgetStore.STATES.contains(state) || count < 0 || timesPerDay < 1) return null;
             return answer;
         } catch (IOException | JSONException | RuntimeException e) {
             return null;
@@ -282,148 +264,8 @@ public class TodayWidget extends AppWidgetProvider {
         }
     }
 
-    private interface RowEdit {
-        boolean apply(JSONObject row) throws JSONException;
-    }
-
     /**
-     * Edits the stored row of {@code habitId} on {@code date} (the snapshot's day or its {@code next} day) while the
-     * stored token is still {@code token}, keeping that day's {@code done} in step; true when {@code edit} changed
-     * it. Callers hold the class lock.
-     */
-    private static boolean editRow(Context context, String token, String date, long habitId, RowEdit edit) {
-        String stored = prefs(context).getString(SNAPSHOT, null);
-        if (stored == null) return false;
-        try {
-            JSONObject snapshot = new JSONObject(stored);
-            if (!snapshot.optString("token").equals(token)) return false;
-            JSONObject next = snapshot.optJSONObject("next");
-            JSONObject day = date.equals(snapshot.optString("date"))
-                ? snapshot
-                : next != null && date.equals(next.optString("date")) ? next : null;
-            JSONArray habits = day == null ? null : day.optJSONArray("habits");
-            for (int i = 0; habits != null && i < habits.length(); i++) {
-                JSONObject row = habits.optJSONObject(i);
-                if (row == null || row.optLong("id") != habitId) continue;
-                String before = row.optString("state");
-                if (!edit.apply(row)) return false;
-                if (day.has("done")) {
-                    int done = WidgetPlan.done(day.optInt("done"), day.optInt("total"), before, row.optString("state"));
-                    day.put("done", done);
-                }
-                prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit();
-                return true;
-            }
-            return false;
-        } catch (JSONException e) {
-            return false;
-        }
-    }
-
-    private static JSONArray pending(Context context) {
-        try {
-            return new JSONArray(prefs(context).getString(PENDING, "[]"));
-        } catch (JSONException e) {
-            return new JSONArray();
-        }
-    }
-
-    private static boolean samePending(JSONObject entry, String userId, long habitId, String date) {
-        return entry != null
-            && userId.equals(entry.optString("userId"))
-            && entry.optLong("habitId") == habitId
-            && date.equals(entry.optString("date"));
-    }
-
-    /** Records a pending check-in, one per user, habit and date, keeping the highest count. */
-    static void addPending(Context context, String userId, long habitId, String date, int count) {
-        synchronized (TodayWidget.class) {
-            JSONArray entries = pending(context);
-            try {
-                for (int i = 0; i < entries.length(); i++) {
-                    JSONObject entry = entries.optJSONObject(i);
-                    if (!samePending(entry, userId, habitId, date)) continue;
-                    entry.put("count", Math.max(count, entry.optInt("count")));
-                    prefs(context).edit().putString(PENDING, entries.toString()).commit();
-                    return;
-                }
-                entries.put(
-                    new JSONObject().put("userId", userId).put("habitId", habitId).put("date", date).put("count", count)
-                );
-            } catch (JSONException e) {
-                return;
-            }
-            prefs(context).edit().putString(PENDING, entries.toString()).commit();
-        }
-    }
-
-    /** Drops the pending entry once the server's {@code count} reached its target. */
-    static void settlePending(Context context, String userId, long habitId, String date, int count) {
-        synchronized (TodayWidget.class) {
-            JSONArray entries = pending(context);
-            JSONArray kept = new JSONArray();
-            for (int i = 0; i < entries.length(); i++) {
-                JSONObject entry = entries.optJSONObject(i);
-                if (samePending(entry, userId, habitId, date) && count >= entry.optInt("count")) continue;
-                if (entry != null) kept.put(entry);
-            }
-            prefs(context).edit().putString(PENDING, kept.toString()).commit();
-        }
-    }
-
-    /**
-     * Returns and removes the pending widget check-ins ({@code userId}, {@code habitId}, {@code date} and the
-     * absolute {@code count} the tap aimed for), then redraws. Entries with a request still in flight or queued stay
-     * stored, so the widget's own POST cannot land on top of the count JS sets.
-     */
-    static JSArray takePending(Context context) {
-        JSArray result = new JSArray();
-        synchronized (TodayWidget.class) {
-            JSONArray entries = pending(context);
-            JSONArray kept = new JSONArray();
-            for (int i = 0; i < entries.length(); i++) {
-                JSONObject entry = entries.optJSONObject(i);
-                if (entry == null) continue;
-                String key = pendingKey(entry.optString("userId"), entry.optLong("habitId"), entry.optString("date"));
-                if (IN_FLIGHT.containsKey(key)) kept.put(entry);
-                else result.put(entry);
-            }
-            prefs(context).edit().putString(PENDING, kept.toString()).commit();
-        }
-        refresh(context);
-        return result;
-    }
-
-    private static String pendingKey(String userId, long habitId, String date) {
-        return userId + "\n" + habitId + "\n" + date;
-    }
-
-    static void inFlight(String userId, long habitId, String date, int change) {
-        synchronized (TodayWidget.class) {
-            IN_FLIGHT.merge(pendingKey(userId, habitId, date), change, (a, b) -> a + b > 0 ? a + b : null);
-        }
-    }
-
-    /** Keys of pending check-ins with no request in flight: a failed request or one a killed process lost. */
-    private static Set<String> unsaved(Context context) {
-        Set<String> keys = new HashSet<>();
-        synchronized (TodayWidget.class) {
-            JSONArray entries = pending(context);
-            for (int i = 0; i < entries.length(); i++) {
-                JSONObject entry = entries.optJSONObject(i);
-                if (entry == null) continue;
-                String key = pendingKey(entry.optString("userId"), entry.optLong("habitId"), entry.optString("date"));
-                if (!IN_FLIGHT.containsKey(key)) keys.add(key);
-            }
-        }
-        return keys;
-    }
-
-    /**
-     * Validates and stores a snapshot with a fresh tap token, then redraws every widget. {@code done} and
-     * {@code total} (counted from the rows when missing) are the day's "x of y". {@code next} (optional, {@code date},
-     * {@code habits}, {@code more}, {@code done}, {@code total}) is the following day, shown once the zone reaches its
-     * date.
+     * Validates and stores a snapshot with a fresh tap token ({@link WidgetStore#save}), then redraws every widget.
      */
     static void save(
         Context context,
@@ -436,64 +278,15 @@ public class TodayWidget extends AppWidgetProvider {
         Integer total,
         JSONObject next
     ) throws JSONException {
-        if (userId == null || userId.isEmpty() || userId.length() > 100) throw new IllegalArgumentException("userId");
-        if (timeZone == null || timeZone.isEmpty()) throw new IllegalArgumentException("timeZone");
-        byte[] random = new byte[16];
-        new SecureRandom().nextBytes(random);
-        StringBuilder token = new StringBuilder();
-        for (byte b : random) token.append(String.format(Locale.US, "%02x", b));
-        JSONObject snapshot = day(date, habits, more, done, total)
-            .put("userId", userId)
-            .put("timeZone", timeZone)
-            .put("token", token.toString());
-        if (next != null) {
-            String nextDate = next.optString("date");
-            if (nextDate.compareTo(date) <= 0) throw new IllegalArgumentException("next");
-            Integer nextDone = next.has("done") ? Integer.valueOf(next.getInt("done")) : null;
-            Integer nextTotal = next.has("total") ? Integer.valueOf(next.getInt("total")) : null;
-            snapshot.put("next", day(nextDate, next.getJSONArray("habits"), next.getInt("more"), nextDone, nextTotal));
-        }
-        synchronized (TodayWidget.class) {
-            prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit();
-        }
+        WidgetStore.save(context, userId, date, timeZone, habits, more, done, total, next);
         refresh(context);
     }
 
-    private static JSONObject day(String date, JSONArray habits, int more, Integer done, Integer total)
-        throws JSONException {
-        if (date == null || !ISO_DATE.matcher(date).matches()) throw new IllegalArgumentException("date");
-        if (habits == null || habits.length() > MAX_HABITS || more < 0) throw new IllegalArgumentException("habits");
-        JSONArray rows = new JSONArray();
-        int doneRows = 0;
-        for (int i = 0; i < habits.length(); i++) {
-            JSONObject habit = habits.getJSONObject(i);
-            long id = habit.getLong("id");
-            String name = habit.getString("name").trim();
-            String state = habit.getString("state");
-            int count = habit.getInt("count");
-            int timesPerDay = habit.getInt("timesPerDay");
-            if (id <= 0 || name.isEmpty() || !STATES.contains(state) || timesPerDay < 1 || count < 0) {
-                throw new IllegalArgumentException("habit");
-            }
-            if ("done".equals(state)) doneRows++;
-            rows.put(
-                new JSONObject()
-                    .put("id", id)
-                    .put("name", name.length() > MAX_NAME ? name.substring(0, MAX_NAME) : name)
-                    .put("state", state)
-                    .put("count", Math.min(count, timesPerDay))
-                    .put("timesPerDay", timesPerDay)
-            );
-        }
-        int dayTotal = total == null ? habits.length() + more : total;
-        int dayDone = done == null ? doneRows : done;
-        if (!WidgetPlan.counts(dayDone, dayTotal, doneRows, habits.length(), more)) throw new IllegalArgumentException("done");
-        return new JSONObject()
-            .put("date", date)
-            .put("habits", rows)
-            .put("more", more)
-            .put("done", dayDone)
-            .put("total", dayTotal);
+    /** Returns and removes the pending widget check-ins JS may replay ({@link WidgetStore#takePending}), then redraws. */
+    static JSArray takePending(Context context) {
+        JSArray result = WidgetStore.takePending(context);
+        refresh(context);
+        return result;
     }
 
     /**
@@ -501,12 +294,7 @@ public class TodayWidget extends AppWidgetProvider {
      * keeping the style, and redraws the signed-out state.
      */
     static void clear(Context context) {
-        synchronized (TodayWidget.class) {
-            SharedPreferences prefs = prefs(context);
-            SharedPreferences.Editor edit = prefs.edit();
-            for (String key : prefs.getAll().keySet()) if (!STYLE.contains(key)) edit.remove(key);
-            edit.commit();
-        }
+        WidgetStore.clear(context);
         refresh(context);
     }
 
@@ -520,7 +308,7 @@ public class TodayWidget extends AppWidgetProvider {
         if (ACTION_OPEN_TODAY.equals(intent.getAction())) return new JSObject();
         boolean open = ACTION_OPEN_HABIT.equals(intent.getAction());
         if (!open && !ACTION_CHECK_IN.equals(intent.getAction())) return null;
-        JSONObject habit = listed(current(context), intent);
+        JSONObject habit = listed(WidgetStore.current(context), intent);
         if (habit == null) return null;
         JSObject tap = new JSObject();
         tap.put("habitId", habit.optLong("id"));
@@ -546,7 +334,7 @@ public class TodayWidget extends AppWidgetProvider {
         String date = intent.getStringExtra("date");
         String userId = intent.getStringExtra("userId");
         String token = intent.getStringExtra("token");
-        if (habitId <= 0 || date == null || !ISO_DATE.matcher(date).matches()) return null;
+        if (habitId <= 0 || date == null || !WidgetStore.ISO_DATE.matcher(date).matches()) return null;
         if (!snapshot.optString("date").equals(date) || !snapshot.optString("userId").equals(userId)) return null;
         if (token == null || !snapshot.optString("token").equals(token)) return null;
         JSONArray habits = snapshot.optJSONArray("habits");
@@ -563,44 +351,12 @@ public class TodayWidget extends AppWidgetProvider {
         render(context, manager, manager.getAppWidgetIds(new ComponentName(context, TodayWidget.class)));
     }
 
-    static SharedPreferences prefs(Context context) {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-    }
-
-    /** The stored snapshot when it, or its {@code next} day, is for today in its zone, else null. */
-    static JSONObject current(Context context) {
-        String stored = prefs(context).getString(SNAPSHOT, null);
-        if (stored == null) return null;
-        try {
-            JSONObject snapshot = new JSONObject(stored);
-            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-            format.setTimeZone(TimeZone.getTimeZone(snapshot.getString("timeZone")));
-            String today = format.format(new Date());
-            if (today.equals(snapshot.getString("date"))) return snapshot;
-            JSONObject next = snapshot.optJSONObject("next");
-            if (next == null || !today.equals(next.optString("date"))) return null;
-            return snapshot
-                .put("date", today)
-                .put("habits", next.getJSONArray("habits"))
-                .put("more", next.getInt("more"))
-                .put("done", next.optInt("done"))
-                .put("total", next.optInt("total", next.getJSONArray("habits").length() + next.getInt("more")));
-        } catch (JSONException e) {
-            return null;
-        }
-    }
-
     /**
      * Stores the app's widget style ({@code theme}, {@code colorScheme}, {@code motion}) and redraws. Until the first
      * call the widget is Hearthlight, follows the system scheme and stands still.
      */
     static void setStyle(Context context, String theme, boolean motion, String colorScheme) {
-        prefs(context)
-            .edit()
-            .putString(THEME, theme)
-            .putString(COLOR_SCHEME, colorScheme)
-            .putBoolean(WidgetPlan.MOTION, motion)
-            .commit();
+        WidgetStore.setStyle(context, theme, motion, colorScheme);
         refresh(context);
     }
 
@@ -622,10 +378,10 @@ public class TodayWidget extends AppWidgetProvider {
         Look look = new Look();
         look.text = AppLanguage.localized(context);
         look.keyed = snapshot != null && WidgetKey.get(context) != null && WidgetKey.apiBase(context) != null;
-        look.unsaved = snapshot == null ? new HashSet<>() : unsaved(context);
-        SharedPreferences prefs = prefs(context);
-        String theme = prefs.getString(THEME, null);
-        String scheme = prefs.getString(COLOR_SCHEME, null);
+        look.unsaved = snapshot == null ? new HashSet<>() : WidgetStore.unsaved(context);
+        SharedPreferences prefs = WidgetStore.prefs(context);
+        String theme = prefs.getString(WidgetStore.THEME, null);
+        String scheme = prefs.getString(WidgetStore.COLOR_SCHEME, null);
         int uiMode = context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         boolean system = !"light".equals(scheme) && !"dark".equals(scheme);
         look.resources = Build.VERSION.SDK_INT < 31 && system && WidgetPalette.hearthlight(theme);
@@ -642,7 +398,7 @@ public class TodayWidget extends AppWidgetProvider {
 
     private static void render(Context context, AppWidgetManager manager, int[] ids) {
         if (ids == null || ids.length == 0) return;
-        JSONObject snapshot = current(context);
+        JSONObject snapshot = WidgetStore.current(context);
         if (snapshot != null) scheduleMidnight(context, snapshot.optString("timeZone"));
         Look look = look(context, snapshot);
         for (int id : ids) manager.updateAppWidget(id, views(context, look, snapshot, manager.getAppWidgetOptions(id)));
@@ -722,7 +478,7 @@ public class TodayWidget extends AppWidgetProvider {
             text.getString(
                 snapshot != null
                     ? R.string.widget_nothing_today
-                    : prefs(context).contains(SNAPSHOT) ? R.string.widget_stale : R.string.widget_signed_out
+                    : WidgetStore.hasSnapshot(context) ? R.string.widget_stale : R.string.widget_signed_out
             )
         );
         views.setViewVisibility(R.id.widget_empty, empty ? View.VISIBLE : View.GONE);
@@ -777,7 +533,7 @@ public class TodayWidget extends AppWidgetProvider {
         String userId = snapshot.optString("userId");
         String date = snapshot.optString("date");
         String label = stateLabel(text, habit);
-        boolean unsaved = look.unsaved.contains(pendingKey(userId, habitId, date));
+        boolean unsaved = look.unsaved.contains(WidgetStore.pendingKey(userId, habitId, date));
         if (unsaved) label = text.getString(R.string.widget_not_saved, label);
         if (!big) {
             row.setTextViewText(R.id.widget_row_name, name);

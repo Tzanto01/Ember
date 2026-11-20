@@ -17,7 +17,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /** The widget shows the snapshot the app pushes only when it is valid and for today in the account's zone. */
-class TodayWidgetSnapshotTest {
+class WidgetStoreSnapshotTest {
 
     private val context = InMemoryContext()
 
@@ -45,7 +45,7 @@ class TodayWidgetSnapshotTest {
         done: Int? = null,
         total: Int? = null,
         next: JSONObject? = null
-    ) = TodayWidget.save(context, userId, date, timeZone, habits, more, done, total, next)
+    ) = WidgetStore.save(context, userId, date, timeZone, habits, more, done, total, next)
 
     private fun dayBefore(date: String) = LocalDate.parse(date).minusDays(1).toString()
 
@@ -56,7 +56,7 @@ class TodayWidgetSnapshotTest {
             more = 2
         )
 
-        val current = TodayWidget.current(context)
+        val current = WidgetStore.current(context)
         assertNotNull(current)
         assertEquals(zone.today, current!!.getString("date"))
         val habits = current.getJSONArray("habits")
@@ -71,7 +71,7 @@ class TodayWidgetSnapshotTest {
     fun snapshotForAnEarlierDayIsNotShown() {
         save(date = dayBefore(zone.today))
 
-        assertNull(TodayWidget.current(context))
+        assertNull(WidgetStore.current(context))
     }
 
     @Test
@@ -80,7 +80,7 @@ class TodayWidgetSnapshotTest {
 
         save(timeZone = elsewhere.id)
 
-        assertNull(TodayWidget.current(context))
+        assertNull(WidgetStore.current(context))
     }
 
     @Test
@@ -94,7 +94,7 @@ class TodayWidgetSnapshotTest {
 
         save(date = dayBefore(zone.today), habits = rows(habit(1)), next = next)
 
-        val current = TodayWidget.current(context)
+        val current = WidgetStore.current(context)
         assertNotNull(current)
         assertEquals(zone.today, current!!.getString("date"))
         val habits = current.getJSONArray("habits")
@@ -112,7 +112,7 @@ class TodayWidgetSnapshotTest {
             "long user" to { save(userId = "u".repeat(101)) },
             "no zone" to { save(timeZone = null) },
             "non-ISO date" to { save(date = "2026-3-14") },
-            "too many rows" to { save(habits = rows(*Array(TodayWidget.MAX_HABITS + 1) { habit(it + 1L) })) },
+            "too many rows" to { save(habits = rows(*Array(WidgetStore.MAX_HABITS + 1) { habit(it + 1L) })) },
             "negative more" to { save(more = -1) },
             "habit id 0" to { save(habits = rows(habit(0))) },
             "blank name" to { save(habits = rows(habit(1, name = "   "))) },
@@ -137,7 +137,7 @@ class TodayWidgetSnapshotTest {
                 fail("accepted: $case")
             } catch (e: IllegalArgumentException) {
             } catch (e: JSONException) {}
-            val current = TodayWidget.current(context)
+            val current = WidgetStore.current(context)
             assertNotNull(case, current)
             assertEquals(case, "Kept", current!!.getJSONArray("habits").getJSONObject(0).getString("name"))
         }
@@ -158,7 +158,7 @@ class TodayWidgetSnapshotTest {
             .put("token", "0".repeat(32))
         prefs.edit().putString("snapshot", stored.toString()).commit()
 
-        val current = TodayWidget.current(context)
+        val current = WidgetStore.current(context)
         assertNotNull(current)
         assertEquals("Walk", current!!.getJSONArray("habits").getJSONObject(0).getString("name"))
         assertEquals("0".repeat(32), current.getString("token"))
@@ -167,9 +167,9 @@ class TodayWidgetSnapshotTest {
     @Test
     fun everySavedSnapshotGetsAFreshTapToken() {
         save()
-        val first = TodayWidget.current(context)!!.getString("token")
+        val first = WidgetStore.current(context)!!.getString("token")
         save()
-        val second = TodayWidget.current(context)!!.getString("token")
+        val second = WidgetStore.current(context)!!.getString("token")
 
         assertTrue(first, Regex("[0-9a-f]{32}").matches(first))
         assertTrue(second, Regex("[0-9a-f]{32}").matches(second))
@@ -178,14 +178,14 @@ class TodayWidgetSnapshotTest {
 
     @Test
     fun signingOutKeepsOnlyTheStyle() {
-        TodayWidget.setStyle(context, "ember", true, "dark")
+        WidgetStore.setStyle(context, "ember", true, "dark")
         save()
-        TodayWidget.addPending(context, "user-1", 1, zone.today, 1)
+        WidgetStore.addPending(context, "user-1", 1, zone.today, 1)
         prefs.edit().putString("widgetKey", "sealed").putString("widgetKeyIv", "iv").putString("apiBase", "https://api.example.test").commit()
 
-        TodayWidget.clear(context)
+        WidgetStore.clear(context)
 
         assertEquals(mapOf("theme" to "ember", "colorScheme" to "dark", "motion" to true), prefs.all)
-        assertNull(TodayWidget.current(context))
+        assertNull(WidgetStore.current(context))
     }
 }
