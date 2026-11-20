@@ -498,8 +498,8 @@ public class ReminderDispatchTests
             var db = sp.GetRequiredService<EmberDbContext>();
             db.Users.Add(new User { Id = TestUsers.Id(10), DiscordReminders = true, Logins = TestUsers.Discord(10), Timezone = Berlin });
             await db.SaveChangesAsync();
-            await sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(10);
-            return (await sp.GetRequiredService<HabitService>().AddHabitAsync(10, "Stretch", new TimeOnly(10, 0))).Habit!;
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 10));
+            return (await sp.GetRequiredService<HabitService>().AddHabitAsync(await TestUsers.UserIdAsync(sp, 10), "Stretch", new TimeOnly(10, 0))).Habit!;
         });
         (await NextReminderAsync(host, habit.Id)).Should().Be(new DateTime(2027, 1, 15, 9, 0, 0));
 
@@ -513,7 +513,7 @@ public class ReminderDispatchTests
         (await NextReminderAsync(host, habit.Id)).Should().Be(new DateTime(2027, 1, 16, 1, 0, 0));
 
         await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
-            .EditHabitAsync(10, habit.Id, newName: null, newReminderTime: null, clearReminder: true));
+            .EditHabitAsync(TestUsers.Id(10), habit.Id, newName: null, newReminderTime: null, clearReminder: true));
         (await NextReminderAsync(host, habit.Id)).Should().BeNull();
     }
 }

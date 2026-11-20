@@ -17,10 +17,12 @@ namespace Ember.Bot.Modules;
 public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly UserSettingsService _settings;
 
-    public HabitSelectModule(HabitService habits)
+    public HabitSelectModule(HabitService habits, UserSettingsService settings)
     {
         _habits = habits;
+        _settings = settings;
     }
 
     // ── habit:select:checkin ──────────────────────────────────────────────────
@@ -28,16 +30,17 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitIds.SelectCheckIn)]
     public async Task OnSelectCheckinAsync(string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(values[0], out var habitId)) { await BadIdAsync(t); return; }
 
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
 
         if (habit.Kind == HabitKind.LetGo)
         {
-            var daysFree = LetGoRules.StatsOn(habit, await _habits.GetLocalTodayAsync(Context.User.Id),
-                await _habits.GetTimeZoneAsync(Context.User.Id)).DaysFree;
+            var daysFree = LetGoRules.StatsOn(habit, await _settings.GetLocalTodayAsync(userId),
+                await _settings.GetTimeZoneAsync(userId)).DaysFree;
             await ((SocketMessageComponent)Context.Interaction)
                 .UpdateAsync(m =>
                 {
@@ -55,7 +58,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             .Build();
 
         var progress = habit.TimesPerDay > 1
-            ? " " + t.Format("habit.checkin.so-far", HabitModule.DayMark(habit, await _habits.GetLocalTodayAsync(Context.User.Id)))
+            ? " " + t.Format("habit.checkin.so-far", HabitModule.DayMark(habit, await _settings.GetLocalTodayAsync(userId)))
             : "";
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
@@ -70,17 +73,18 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitIds.SelectShare)]
     public async Task OnSelectShareAsync(string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(values[0], out var habitId)) { await BadIdAsync(t); return; }
 
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
-        var grace = await _habits.GetGraceDaysAsync(Context.User.Id);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
+        var grace = await _settings.GetGraceDaysAsync(userId);
 
         if (habit is null) { await NotFoundAsync(t); return; }
 
-        var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-        var embed = BuildShareEmbed(t, habit, grace, Context.User.Username, today, await _habits.GetLowDaysAsync(Context.User.Id),
-            await _habits.GetShowStreaksAsync(Context.User.Id), await _habits.GetTimeZoneAsync(Context.User.Id));
+        var today = await _settings.GetLocalTodayAsync(userId);
+        var embed = BuildShareEmbed(t, habit, grace, Context.User.Username, today, await _habits.GetLowDaysAsync(userId),
+            await _settings.GetShowStreaksAsync(userId), await _settings.GetTimeZoneAsync(userId));
         var component = (SocketMessageComponent)Context.Interaction;
 
         await component.DeferAsync();
@@ -107,10 +111,11 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitIds.SelectDelete)]
     public async Task OnSelectDeleteAsync(string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(values[0], out var habitId)) { await BadIdAsync(t); return; }
 
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
 
         var components = new ComponentBuilder()
@@ -131,10 +136,11 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitIds.SelectEdit)]
     public async Task OnSelectEditAsync(string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(values[0], out var habitId)) { await BadIdAsync(t); return; }
 
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
         if (habit.Kind == HabitKind.LetGo) { await LetGoWebOnlyAsync(t); return; }
 
@@ -158,14 +164,15 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitIds.SelectPause)]
     public async Task OnSelectPauseAsync(string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(values[0], out var habitId)) { await BadIdAsync(t); return; }
 
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
 
         var isPaused = habit.PausedUntil.HasValue &&
-                       habit.PausedUntil >= await _habits.GetLocalTodayAsync(Context.User.Id);
+                       habit.PausedUntil >= await _settings.GetLocalTodayAsync(userId);
 
         var builder = new ComponentBuilder()
             .WithButton(t.Get("habit.pause.today"), HabitActionIds.Pause(habitId, "today"), ButtonStyle.Secondary)
@@ -188,10 +195,11 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitIds.SelectFrequency)]
     public async Task OnSelectFrequencyAsync(string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(values[0], out var habitId)) { await BadIdAsync(t); return; }
 
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
         if (habit.Kind == HabitKind.LetGo) { await LetGoWebOnlyAsync(t); return; }
 

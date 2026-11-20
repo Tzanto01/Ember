@@ -38,16 +38,16 @@ public class PauseServiceTests
         var habitId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
+            return (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, UserId), "Stretch", null)).Habit!.Id;
         });
 
         time.Advance(TimeSpan.FromDays(5));
-        var paused = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(UserId, habitId, new DateOnly(2027, 1, 21)));
+        var paused = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().PauseHabitAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, new DateOnly(2027, 1, 21)));
         paused!.PausedFrom.Should().Be(new DateOnly(2027, 1, 15));
 
         time.Advance(TimeSpan.FromDays(3));
-        var resumed = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(UserId, habitId, null));
+        var resumed = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().PauseHabitAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, null));
 
         resumed!.PausedFrom.Should().Be(new DateOnly(2027, 1, 15));
         resumed.PausedUntil.Should().Be(new DateOnly(2027, 1, 17));
@@ -62,10 +62,10 @@ public class PauseServiceTests
         var resumed = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(UserId);
-            var habit = (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!;
-            await service.PauseHabitAsync(UserId, habit.Id, new DateOnly(2027, 1, 10));
-            return await service.PauseHabitAsync(UserId, habit.Id, null);
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
+            var habit = (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, UserId), "Stretch", null)).Habit!;
+            await service.PauseHabitAsync(await TestUsers.UserIdAsync(sp, UserId), habit.Id, new DateOnly(2027, 1, 10));
+            return await service.PauseHabitAsync(await TestUsers.UserIdAsync(sp, UserId), habit.Id, null);
         });
 
         resumed!.PausedFrom.Should().BeNull();
@@ -79,14 +79,14 @@ public class PauseServiceTests
         var habitId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
+            return (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, UserId), "Stretch", null)).Habit!.Id;
         });
         return (host, time, habitId);
     }
 
     private static Task<Habit?> PauseAsync(IntegrationTestHost host, int habitId, DateOnly? until)
-        => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(UserId, habitId, until));
+        => host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().PauseHabitAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, until));
 
     [Fact]
     public async Task PausingAgainWhilePaused_KeepsTheOriginalStart_AndMovesTheEnd()
@@ -144,7 +144,7 @@ public class PauseServiceTests
         var (host, _, habitId) = await HostWithHabitAsync(new DateTimeOffset(2027, 1, 10, 12, 0, 0, TimeSpan.Zero));
         await using var _ = host;
 
-        var paused = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(UserId + 1, habitId, new DateOnly(2027, 1, 12)));
+        var paused = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().PauseHabitAsync(await TestUsers.UserIdAsync(sp, UserId + 1), habitId, new DateOnly(2027, 1, 12)));
 
         paused.Should().BeNull();
     }
@@ -155,16 +155,16 @@ public class PauseServiceTests
         var (host, time, habitId) = await HostWithHabitAsync(new DateTimeOffset(2027, 1, 10, 12, 0, 0, TimeSpan.Zero));
         await using var _ = host;
         time.Advance(TimeSpan.FromDays(1));
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().CheckInAsync(UserId, habitId, new DateOnly(2027, 1, 11), true));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().CheckInAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, new DateOnly(2027, 1, 11), true));
         time.Advance(TimeSpan.FromDays(1));
         await PauseAsync(host, habitId, new DateOnly(2027, 1, 14));
         time.Advance(TimeSpan.FromDays(4));
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().CheckInAsync(UserId, habitId, new DateOnly(2027, 1, 16), true));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().CheckInAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, new DateOnly(2027, 1, 16), true));
         var today = new DateOnly(2027, 1, 16);
 
         async Task<(int Streak, int GraceUsed)> StreakAsync() => await host.WithScopeAsync(async sp =>
         {
-            var habit = (await sp.GetRequiredService<HabitService>().GetHabitAsync(UserId, habitId))!;
+            var habit = (await sp.GetRequiredService<HabitService>().GetHabitAsync(await TestUsers.UserIdAsync(sp, UserId), habitId))!;
             return HabitRules.ConsecutiveStreak(habit, today, graceDays: 0, null);
         });
 

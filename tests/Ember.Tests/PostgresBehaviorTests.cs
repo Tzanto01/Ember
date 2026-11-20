@@ -172,7 +172,7 @@ public class PostgresBehaviorTests(PostgresFixture postgres)
         var habitId = await SeedConsentedHabitAsync(host, 701);
         race.Competitor = _ => InsertFromOtherRequestAsync(cs, db => db.HabitLogs.Add(new HabitLog { HabitId = habitId, Date = Day, Completed = false }));
 
-        var result = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().CheckInAsync(701, habitId, Day, completed: true));
+        var result = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().CheckInAsync(await TestUsers.UserIdAsync(sp, 701), habitId, Day, completed: true));
 
         result.Should().Be(DayEditResult.Saved);
         var logs = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.Where(l => l.HabitId == habitId).ToListAsync());
@@ -187,7 +187,7 @@ public class PostgresBehaviorTests(PostgresFixture postgres)
         await SeedConsentedHabitAsync(host, 702);
         race.Competitor = _ => InsertFromOtherRequestAsync(cs, db => db.DayMarks.Add(new DayMark { UserId = TestUsers.Id(702), Date = Day, Kind = DayMarkKind.LowDay }));
 
-        var result = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetLowDayAsync(702, Day));
+        var result = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().SetLowDayAsync(await TestUsers.UserIdAsync(sp, 702), Day));
 
         result.Should().Be(DayEditResult.Saved);
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().DayMarks.CountAsync(m => m.Date == Day))).Should().Be(1);

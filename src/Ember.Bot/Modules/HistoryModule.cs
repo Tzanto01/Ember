@@ -21,11 +21,15 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
     private const string DateFormat = HistoryIds.DateFormat;
 
     private readonly HabitService _habits;
+    private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly IConfiguration _config;
 
-    public HistoryModule(HabitService habits, IConfiguration config)
+    public HistoryModule(HabitService habits, ConsentService consent, UserSettingsService settings, IConfiguration config)
     {
         _habits = habits;
+        _consent = consent;
+        _settings = settings;
         _config = config;
     }
 
@@ -34,7 +38,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(values[0], out var habitId)) { await BadIdAsync(t); return; }
-        await RenderAsync(t, habitId);
+        await RenderAsync(t, await _habits.FindDiscordUserAsync(Context.User.Id), habitId);
     }
 
     [ComponentInteraction(HistoryIds.DayPattern)]
@@ -44,10 +48,11 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         if (!IsOwner(ownerIdStr)) { await NotYoursAsync(t); return; }
         if (!int.TryParse(habitIdStr, out var habitId) || !TryParseDate(dateStr, out var date)) { await BadIdAsync(t); return; }
 
-        switch (await CycleDayAsync(_habits, Context.User.Id, habitId, date, Context.Guild?.Id))
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        switch (await CycleDayAsync(_habits, _settings, userId, habitId, date, Context.Guild?.Id))
         {
             case DayEditResult.ConsentRequired:
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
                 return;
             case DayEditResult.HabitNotFound:
                 await RespondAsync(t.Get("common.not-found"), ephemeral: true);
@@ -60,7 +65,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
                 return;
         }
 
-        await RenderAsync(t, habitId);
+        await RenderAsync(t, userId, habitId);
     }
 
     [ComponentInteraction(HistoryIds.LowPattern)]
@@ -70,26 +75,27 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         if (!IsOwner(ownerIdStr)) { await NotYoursAsync(t); return; }
         if (!int.TryParse(habitIdStr, out var habitId) || !TryParseDate(values[0], out var date)) { await BadIdAsync(t); return; }
 
-        switch (await ToggleLowDayAsync(_habits, Context.User.Id, date))
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        switch (await ToggleLowDayAsync(_habits, userId, date))
         {
             case DayEditResult.ConsentRequired:
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
                 return;
             case DayEditResult.InFuture:
                 await RespondAsync(t.Get("history.in-future"), ephemeral: true);
                 return;
         }
 
-        await RenderAsync(t, habitId);
+        await RenderAsync(t, userId, habitId);
     }
 
-    private async Task RenderAsync(Texts t, int habitId)
+    private async Task RenderAsync(Texts t, Guid userId, int habitId)
     {
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit?.Kind == Ember.Core.Models.HabitKind.LetGo)
         {
-            var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-            var tz = await _habits.GetTimeZoneAsync(Context.User.Id);
+            var today = await _settings.GetLocalTodayAsync(userId);
+            var tz = await _settings.GetTimeZoneAsync(userId);
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
                 m.Content = t.Format("history.letgo.grid", habit.Name, Days,
@@ -98,14 +104,14 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
             });
             return;
         }
-        var days = await _habits.GetHabitDaysAsync(Context.User.Id, habitId, Days);
+        var days = await _habits.GetHabitDaysAsync(userId, habitId, Days);
         if (habit is null || days is null)
         {
             await RespondAsync(t.Get("common.not-found"), ephemeral: true);
             return;
         }
 
-        var lowDays = await _habits.GetLowDaysAsync(Context.User.Id);
+        var lowDays = await _habits.GetLowDaysAsync(userId);
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
             m.Content = t.Format("history.grid", habit.Name, Days);
@@ -114,9 +120,10 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     /// <summary>Moves the day's log one step along not logged → one more check-in (until done) → not done → not logged.</summary>
-    internal static async Task<DayEditResult> CycleDayAsync(HabitService habits, ulong userId, int habitId, DateOnly date, ulong? guildId)
+    internal static async Task<DayEditResult> CycleDayAsync(HabitService habits, UserSettingsService settings, Guid userId, int habitId, DateOnly date,
+        ulong? guildId)
     {
-        var today = await habits.GetLocalTodayAsync(userId);
+        var today = await settings.GetLocalTodayAsync(userId);
         if (date > today) return DayEditResult.InFuture;
 
         var days = await habits.GetHabitDaysAsync(userId, habitId, today.DayNumber - date.DayNumber + 1);
@@ -131,7 +138,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     /// <summary>Sets a low day on <paramref name="date"/>, or removes it when it is already one.</summary>
-    internal static async Task<DayEditResult> ToggleLowDayAsync(HabitService habits, ulong userId, DateOnly date)
+    internal static async Task<DayEditResult> ToggleLowDayAsync(HabitService habits, Guid userId, DateOnly date)
     {
         if (!(await habits.GetLowDaysAsync(userId)).Contains(date))
             return await habits.SetLowDayAsync(userId, date);

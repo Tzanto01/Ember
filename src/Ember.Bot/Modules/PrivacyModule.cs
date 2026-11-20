@@ -12,12 +12,16 @@ namespace Ember.Bot.Modules;
 public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly AccountService _accounts;
     private readonly IConfiguration _config;
 
-    public PrivacyModule(HabitService habits, AccountService accounts, IConfiguration config)
+    public PrivacyModule(HabitService habits, ConsentService consent, UserSettingsService settings, AccountService accounts, IConfiguration config)
     {
         _habits = habits;
+        _consent = consent;
+        _settings = settings;
         _accounts = accounts;
         _config = config;
     }
@@ -129,8 +133,8 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var userId = Context.User.Id;
-        if (!await _habits.WithdrawHealthDataConsentAsync(userId))
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        if (!await _consent.WithdrawHealthDataConsentAsync(userId))
         {
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
@@ -140,12 +144,12 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var deletesOn = (await _habits.GetLocalTodayAsync(userId)).AddDays(ConsentService.WithdrawnDataLifetime.Days);
+        var deletesOn = (await _settings.GetLocalTodayAsync(userId)).AddDays(ConsentService.WithdrawnDataLifetime.Days);
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
             m.Content = t.Format("privacy.withdraw.done", deletesOn.ToString(t.Get("date.full"), t.Culture));
             m.Components = new ComponentBuilder()
-                .WithButton(t.Get("consent.delete-button"), PrivacyIds.DeleteStart(userId), ButtonStyle.Secondary)
+                .WithButton(t.Get("consent.delete-button"), PrivacyIds.DeleteStart(Context.User.Id), ButtonStyle.Secondary)
                 .Build();
         });
     }

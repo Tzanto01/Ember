@@ -99,7 +99,8 @@ public class BotLanguageTests
         var interaction = FakeInteraction.Create(8, locale);
 
         await host.WithScopeAsync(sp =>
-            ConsentModule.RespondWithPromptAsync(FakeContext.Create(interaction), NoConfig, sp.GetRequiredService<HabitService>()));
+            ConsentModule.RespondWithPromptAsync(FakeContext.Create(interaction), NoConfig, sp.GetRequiredService<HabitService>(),
+                sp.GetRequiredService<ConsentService>()));
 
         var reply = ((FakeInteraction)(object)interaction).Responses.Single();
         ((Embed)reply["embed"]!).Title.Should().Be(title);
@@ -110,19 +111,29 @@ public class BotLanguageTests
 
     public static TheoryData<string> Creators => ["consent", "grace", "timezone", "second-reminder", "streaks"];
 
-    private static Task CreateThroughBotAsync(HabitService habits, ReminderService reminders, string creator, ulong discordId, string locale)
+    private static async Task CreateThroughBotAsync(IServiceProvider sp, string creator, ulong discordId, string locale)
     {
         var language = Languages.FromLocale(locale);
-        return creator switch
+        var habits = sp.GetRequiredService<HabitService>();
+        var settings = sp.GetRequiredService<UserSettingsService>();
+        switch (creator)
         {
-            "consent" => ConsentModule.TryAnswerAsync(habits, discordId.ToString(), discordId, agreed: true, language),
-            "grace" => habits.SetGraceDaysAsync(discordId, 2, language),
-            "timezone" => habits.SetTimezoneAsync(discordId, "Europe/Berlin", language),
-            "second-reminder" => SecondReminderAsync(),
-            _ => habits.SetShowStreaksAsync(discordId, true, language),
-        };
-
-        async Task SecondReminderAsync() => await reminders.SetSecondReminderMinutesAsync(await habits.ResolveOrCreateDiscordUserAsync(discordId, language), 30);
+            case "consent":
+                await ConsentModule.TryAnswerAsync(habits, sp.GetRequiredService<ConsentService>(), discordId.ToString(), discordId, agreed: true, language);
+                break;
+            case "grace":
+                await settings.SetGraceDaysAsync(await habits.ResolveOrCreateDiscordUserAsync(discordId, language), 2);
+                break;
+            case "timezone":
+                await settings.SetTimezoneAsync(await habits.ResolveOrCreateDiscordUserAsync(discordId, language), "Europe/Berlin");
+                break;
+            case "second-reminder":
+                await sp.GetRequiredService<ReminderService>().SetSecondReminderMinutesAsync(await habits.ResolveOrCreateDiscordUserAsync(discordId, language), 30);
+                break;
+            default:
+                await settings.SetShowStreaksAsync(await habits.ResolveOrCreateDiscordUserAsync(discordId, language), true);
+                break;
+        }
     }
 
     [Theory]
@@ -131,9 +142,9 @@ public class BotLanguageTests
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false);
 
-        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), creator, 21, "de"));
-        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), creator, 22, "en-US"));
-        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), creator, 21, "en-US"));
+        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp, creator, 21, "de"));
+        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp, creator, 22, "en-US"));
+        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp, creator, 21, "en-US"));
 
         var languages = await host.WithScopeAsync(async sp =>
         {

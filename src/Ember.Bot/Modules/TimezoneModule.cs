@@ -11,11 +11,13 @@ namespace Ember.Bot.Modules;
 public class TimezoneModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly UserSettingsService _settings;
     private readonly ReminderService _reminders;
 
-    public TimezoneModule(HabitService habits, ReminderService reminders)
+    public TimezoneModule(HabitService habits, UserSettingsService settings, ReminderService reminders)
     {
         _habits = habits;
+        _settings = settings;
         _reminders = reminders;
     }
 
@@ -52,9 +54,10 @@ public class TimezoneModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        await _habits.SetTimezoneAsync(Context.User.Id, tz.Id, Languages.FromLocale(Context.Interaction.UserLocale));
+        var userId = await _habits.ResolveOrCreateDiscordUserAsync(Context.User.Id, Languages.FromLocale(Context.Interaction.UserLocale));
+        await _settings.SetTimezoneAsync(userId, tz.Id);
 
-        var rescheduled = await _reminders.RescheduleRemindersAsync(await _habits.FindDiscordUserAsync(Context.User.Id));
+        var rescheduled = await _reminders.RescheduleRemindersAsync(userId);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         await RespondAsync(
@@ -68,7 +71,8 @@ public class TimezoneModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("show", "Show your current timezone setting")]
     public async Task ShowAsync()
     {
-        var tz = await _habits.GetTimeZoneAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var tz = await _settings.GetTimeZoneAsync(userId);
 
         await RespondAsync(
             (await BotTexts.ForAsync(_habits, Context.Interaction)).Format("timezone.show", tz.Id),

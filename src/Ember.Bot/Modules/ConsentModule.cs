@@ -17,10 +17,14 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
     internal const string PolicyUrlKey = "Ember:PrivacyPolicyUrl";
 
     private readonly HabitService _habits;
+    private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
 
-    public ConsentModule(HabitService habits)
+    public ConsentModule(HabitService habits, ConsentService consent, UserSettingsService settings)
     {
         _habits = habits;
+        _consent = consent;
+        _settings = settings;
     }
 
     internal static Embed PromptEmbed(Texts t, IConfiguration config)
@@ -43,11 +47,11 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
         .Build();
 
     /// <summary>Answers the interaction with the consent prompt and notes that it was shown today.</summary>
-    internal static async Task RespondWithPromptAsync(IInteractionContext context, IConfiguration config, HabitService habits)
+    internal static async Task RespondWithPromptAsync(IInteractionContext context, IConfiguration config, HabitService habits, ConsentService consent)
     {
         var t = await BotTexts.ForAsync(habits, context.Interaction);
         await context.Interaction.RespondAsync(embed: PromptEmbed(t, config), components: PromptButtons(t, context.User.Id), ephemeral: true);
-        await habits.MarkConsentPromptedAsync(context.User.Id);
+        await consent.MarkConsentPromptedAsync(await habits.FindDiscordUserAsync(context.User.Id));
     }
 
     /// <summary>
@@ -56,18 +60,19 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
     /// <see cref="ConsentService.WithdrawnDataLifetime"/>. Returns whether the clicker is the owner.
     /// An account created by agreeing gets <paramref name="language"/>.
     /// </summary>
-    internal static async Task<bool> TryAnswerAsync(HabitService habits, string ownerIdStr, ulong clickerId, bool agreed, string? language = null)
+    internal static async Task<bool> TryAnswerAsync(HabitService habits, ConsentService consent, string ownerIdStr, ulong clickerId, bool agreed,
+        string? language = null)
     {
         if (!ulong.TryParse(ownerIdStr, out var ownerId) || ownerId != clickerId) return false;
-        if (agreed) await habits.GiveHealthDataConsentAsync(clickerId, language);
-        else await habits.DeclineConsentPromptAsync(clickerId);
+        if (agreed) await consent.GiveHealthDataConsentAsync(await habits.ResolveOrCreateDiscordUserAsync(clickerId, language));
+        else await consent.DeclineConsentPromptAsync(await habits.FindDiscordUserAsync(clickerId));
         return true;
     }
 
     [ComponentInteraction(ConsentIds.AgreePattern)]
     public async Task OnAgreeAsync(string ownerIdStr)
     {
-        if (!await TryAnswerAsync(_habits, ownerIdStr, Context.User.Id, agreed: true, Languages.FromLocale(Context.Interaction.UserLocale)))
+        if (!await TryAnswerAsync(_habits, _consent, ownerIdStr, Context.User.Id, agreed: true, Languages.FromLocale(Context.Interaction.UserLocale)))
         {
             await RespondAsync((await BotTexts.ForAsync(_habits, Context.Interaction)).Get("common.not-yours"), ephemeral: true);
             return;
@@ -97,14 +102,15 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
     public async Task OnDeclineAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        var withdrawn = await _habits.GetConsentWithdrawalAsync(Context.User.Id);
-        if (!await TryAnswerAsync(_habits, ownerIdStr, Context.User.Id, agreed: false))
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var withdrawn = await _consent.GetConsentWithdrawalAsync(userId);
+        if (!await TryAnswerAsync(_habits, _consent, ownerIdStr, Context.User.Id, agreed: false))
         {
             await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
             return;
         }
 
-        var content = DeclinedText(t, withdrawn, await _habits.GetTimeZoneAsync(Context.User.Id));
+        var content = DeclinedText(t, withdrawn, await _settings.GetTimeZoneAsync(userId));
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
             m.Content = content;

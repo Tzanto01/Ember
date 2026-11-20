@@ -33,14 +33,14 @@ public class ConsentTests
     }
 
     private static Task<bool> ClaimAsync(IntegrationTestHost host, ulong userId)
-        => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ClaimConsentPromptAsync(userId));
+        => host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().ClaimConsentPromptAsync(await TestUsers.UserIdAsync(sp, userId)));
 
     [Fact]
     public async Task AddHabit_WithoutConsent_IsRefusedAndStoresNothing()
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
 
-        var (added, _) = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().AddHabitAsync(1, "Take meds", null));
+        var (added, _) = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().AddHabitAsync(await TestUsers.UserIdAsync(sp, 1), "Take meds", null));
 
         added.Should().Be(HabitWriteResult.ConsentRequired);
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.CountAsync())).Should().Be(0);
@@ -52,8 +52,8 @@ public class ConsentTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
 
         var answered = await host.WithScopeAsync(sp =>
-            ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: true));
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().AddHabitAsync(1, "Take meds", null));
+            ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "1", clickerId: 1, agreed: true));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().AddHabitAsync(await TestUsers.UserIdAsync(sp, 1), "Take meds", null));
 
         answered.Should().BeTrue();
         var user = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.Include(u => u.Habits).SingleAsync());
@@ -68,9 +68,9 @@ public class ConsentTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
 
         var declined = await host.WithScopeAsync(sp =>
-            ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
+            ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "1", clickerId: 1, agreed: false));
         var stranger = await host.WithScopeAsync(sp =>
-            ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 2, agreed: true));
+            ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "1", clickerId: 2, agreed: true));
 
         declined.Should().BeTrue();
         stranger.Should().BeFalse();
@@ -91,7 +91,7 @@ public class ConsentTests
         time.Advance(TimeSpan.FromHours(12));
         (await ClaimAsync(host, 1)).Should().BeTrue("Auckland has reached the next local day");
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(1));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 1)));
         time.Advance(TimeSpan.FromDays(1));
         (await ClaimAsync(host, 1)).Should().BeFalse();
     }
@@ -102,7 +102,7 @@ public class ConsentTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
         await SeedExistingUserAsync(host, 1, policyVersion: "2020-01");
 
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().HasHealthDataConsentAsync(1))).Should().BeFalse();
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().HasHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, 1)))).Should().BeFalse();
         (await ClaimAsync(host, 1)).Should().BeTrue();
     }
 
@@ -113,7 +113,7 @@ public class ConsentTests
         await SeedExistingUserAsync(host, 1);
 
         (await ClaimAsync(host, 1)).Should().BeTrue();
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ReleaseConsentPromptAsync(1));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().ReleaseConsentPromptAsync(await TestUsers.UserIdAsync(sp, 1)));
 
         (await ClaimAsync(host, 1)).Should().BeTrue();
     }
@@ -122,7 +122,7 @@ public class ConsentTests
     public async Task UserWithoutHabits_IsNotPromptedAfterInteractions()
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetGraceDaysAsync(1, 2));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().SetGraceDaysAsync(await TestUsers.ResolveOrCreateAsync(sp, 1), 2));
 
         (await ClaimAsync(host, 1)).Should().BeFalse();
     }
@@ -135,7 +135,7 @@ public class ConsentTests
         await SeedExistingUserAsync(host, 1);
         (await ClaimAsync(host, 1)).Should().BeTrue();
 
-        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "1", clickerId: 1, agreed: false));
 
         time.Advance(TimeSpan.FromDays(1));
         (await ClaimAsync(host, 1)).Should().BeFalse();
@@ -173,15 +173,15 @@ public class ConsentTests
         await SeedConsentedUserWithDueRemindersAsync(host, 1);
         await SeedConsentedUserWithDueRemindersAsync(host, 2);
 
-        var withdrawn = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
-        var again = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+        var withdrawn = await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, 1UL)));
+        var again = await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, 1UL)));
 
         withdrawn.Should().BeTrue();
         again.Should().BeFalse("it was already withdrawn");
         (await UserAsync(host, 1)).ConsentWithdrawnAt.Should().Be(Now.UtcDateTime);
-        var (added, _) = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().AddHabitAsync(1, "Take meds", null));
+        var (added, _) = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().AddHabitAsync(await TestUsers.UserIdAsync(sp, 1), "Take meds", null));
         added.Should().Be(HabitWriteResult.ConsentRequired);
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetLowDayAsync(1, new DateOnly(2027, 1, 15))))
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().SetLowDayAsync(await TestUsers.UserIdAsync(sp, 1), new DateOnly(2027, 1, 15))))
             .Should().Be(DayEditResult.ConsentRequired);
 
         var (habits, routines, secondHabits, secondRoutines, owners) = await host.WithScopeAsync(async sp =>
@@ -223,13 +223,13 @@ public class ConsentTests
             await db.SaveChangesAsync();
             return (build.Id, letGo.Id);
         });
-        if (withdrawn) await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+        if (withdrawn) await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, 1UL)));
 
         var results = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            return (await service.AddCheckInAsync(1, buildId, day), await service.CheckInAsync(1, buildId, day, true),
-                await service.AddSlipAsync(1, letGoId, day), await service.ClearDayAsync(1, buildId, day.AddDays(-1)));
+            return (await service.AddCheckInAsync(await TestUsers.UserIdAsync(sp, 1), buildId, day), await service.CheckInAsync(await TestUsers.UserIdAsync(sp, 1), buildId, day, true),
+                await service.AddSlipAsync(await TestUsers.UserIdAsync(sp, 1), letGoId, day), await service.ClearDayAsync(await TestUsers.UserIdAsync(sp, 1), buildId, day.AddDays(-1)));
         });
 
         results.Should().Be((DayEditResult.ConsentRequired, DayEditResult.ConsentRequired, SlipResult.ConsentRequired, DayEditResult.Saved));
@@ -242,12 +242,12 @@ public class ConsentTests
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
         await SeedConsentedUserWithDueRemindersAsync(host, 1);
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, 1UL)));
         var habitId = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Select(h => h.Id).SingleAsync());
 
-        var (renamed, _) = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(1UL, habitId, "Take meds", null, false));
+        var (renamed, _) = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().EditHabitAsync(await TestUsers.UserIdAsync(sp, 1UL), habitId, "Take meds", null, false));
         renamed.Should().Be(HabitWriteResult.ConsentRequired);
-        var (_, edited) = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(1UL, habitId, null, new TimeOnly(7, 0), false));
+        var (_, edited) = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().EditHabitAsync(await TestUsers.UserIdAsync(sp, 1UL), habitId, null, new TimeOnly(7, 0), false));
 
         edited!.Name.Should().Be("Walk");
         edited.ReminderTime.Should().Be(new TimeOnly(7, 0));
@@ -259,12 +259,12 @@ public class ConsentTests
         var time = new FakeTimeProvider(Now);
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         await SeedExistingUserAsync(host, 1);
-        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "1", clickerId: 1, agreed: false));
         var before = await UserAsync(host, 1);
         time.Advance(TimeSpan.FromDays(28));
 
-        var withdrawal = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetConsentWithdrawalAsync(1UL));
-        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
+        var withdrawal = await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().GetConsentWithdrawalAsync(await TestUsers.UserIdAsync(sp, 1UL)));
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "1", clickerId: 1, agreed: false));
 
         var after = await UserAsync(host, 1);
         (after.ConsentWithdrawnAt, after.ConsentPromptedOn).Should().Be((before.ConsentWithdrawnAt, before.ConsentPromptedOn));
@@ -278,10 +278,10 @@ public class ConsentTests
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
         await SeedExistingUserAsync(host, 1);
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetGraceDaysAsync(2, 2));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().SetGraceDaysAsync(await TestUsers.ResolveOrCreateAsync(sp, 2), 2));
 
-        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
-        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "2", clickerId: 2, agreed: false));
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "1", clickerId: 1, agreed: false));
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "2", clickerId: 2, agreed: false));
 
         var withData = await UserAsync(host, 1);
         withData.ConsentWithdrawnAt.Should().Be(Now.UtcDateTime);
@@ -297,15 +297,15 @@ public class ConsentTests
         var time = new FakeTimeProvider(Now);
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         await SeedConsentedUserWithDueRemindersAsync(host, 1);
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, 1UL)));
         time.Advance(TimeSpan.FromDays(27));
         (await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().ClaimDeletionReminderAsync(TestUsers.Id(1)))).Should().NotBeNull();
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(1UL));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 1UL)));
 
         var user = await UserAsync(host, 1);
         (user.ConsentWithdrawnAt, user.DeletionReminderSentAt).Should().Be(((DateTime?)null, (DateTime?)null));
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().HasHealthDataConsentAsync(1UL))).Should().BeTrue();
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().HasHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, 1UL)))).Should().BeTrue();
         (await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().GetDueReminderHabitsAsync(time.GetUtcNow().UtcDateTime)))
             .Should().ContainSingle();
     }
@@ -325,9 +325,9 @@ public class ConsentTests
         var time = new FakeTimeProvider(Now);
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         await SeedExistingUserAsync(host, 1);
-        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1, agreed: false));
+        await host.WithScopeAsync(sp => ConsentModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), "1", clickerId: 1, agreed: false));
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().MarkConsentPromptedAsync(1));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().MarkConsentPromptedAsync(await TestUsers.UserIdAsync(sp, 1)));
         time.Advance(TimeSpan.FromDays(1));
 
         (await ClaimAsync(host, 1)).Should().BeFalse();

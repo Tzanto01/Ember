@@ -104,7 +104,7 @@ public class LowDayServiceTests
     public async Task LowDays_CanBeSetForTodayAndPastDays_OnlyOnce_AndRemovedAgain_ButNotForTheFuture()
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(UserId));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId)));
         var today = new DateOnly(2027, 1, 15);
 
         var results = await host.WithScopeAsync(async sp =>
@@ -112,19 +112,19 @@ public class LowDayServiceTests
             var service = sp.GetRequiredService<HabitService>();
             return new[]
             {
-                await service.SetLowDayAsync(UserId, today),
-                await service.SetLowDayAsync(UserId, today.AddDays(-30)),
-                await service.SetLowDayAsync(UserId, today),
-                await service.SetLowDayAsync(UserId, today.AddDays(1)),
+                await service.SetLowDayAsync(await TestUsers.UserIdAsync(sp, UserId), today),
+                await service.SetLowDayAsync(await TestUsers.UserIdAsync(sp, UserId), today.AddDays(-30)),
+                await service.SetLowDayAsync(await TestUsers.UserIdAsync(sp, UserId), today),
+                await service.SetLowDayAsync(await TestUsers.UserIdAsync(sp, UserId), today.AddDays(1)),
             };
         });
 
         results.Should().Equal(DayEditResult.Saved, DayEditResult.Saved, DayEditResult.Saved, DayEditResult.InFuture);
         (await StoredLowDaysAsync(host)).Should().Equal(today.AddDays(-30), today);
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetLowDaysAsync(UserId)))
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetLowDaysAsync(await TestUsers.UserIdAsync(sp, UserId))))
             .Should().BeEquivalentTo([today.AddDays(-30), today]);
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ClearLowDayAsync(UserId, today));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().ClearLowDayAsync(await TestUsers.UserIdAsync(sp, UserId), today));
         (await StoredLowDaysAsync(host)).Should().Equal(today.AddDays(-30));
     }
 
@@ -133,7 +133,7 @@ public class LowDayServiceTests
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
 
-        var result = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetLowDayAsync(UserId, new DateOnly(2027, 1, 15)));
+        var result = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().SetLowDayAsync(await TestUsers.UserIdAsync(sp, UserId), new DateOnly(2027, 1, 15)));
 
         result.Should().Be(DayEditResult.ConsentRequired);
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.CountAsync())).Should().Be(0);
@@ -146,8 +146,8 @@ public class LowDayServiceTests
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(UserId);
-            await service.SetLowDayAsync(UserId, new DateOnly(2027, 1, 14));
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
+            await service.SetLowDayAsync(await TestUsers.UserIdAsync(sp, UserId), new DateOnly(2027, 1, 14));
             await sp.GetRequiredService<AccountService>().DeleteUserDataAsync(await service.FindDiscordUserAsync(UserId));
         });
 

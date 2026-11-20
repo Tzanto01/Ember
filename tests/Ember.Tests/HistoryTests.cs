@@ -76,9 +76,10 @@ public class HistoryTests
         var seen = new List<bool?>();
         for (var tap = 0; tap < 3; tap++)
         {
-            await host.WithScopeAsync(sp => HistoryModule.CycleDayAsync(sp.GetRequiredService<HabitService>(), UserId, habitId, day, null));
+            await host.WithScopeAsync(async sp => await HistoryModule.CycleDayAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<UserSettingsService>(),
+                await TestUsers.UserIdAsync(sp, UserId), habitId, day, null));
             seen.Add(await host.WithScopeAsync(async sp =>
-                (await sp.GetRequiredService<HabitService>().GetHabitDaysAsync(UserId, habitId, 4))![0].Completed));
+                (await sp.GetRequiredService<HabitService>().GetHabitDaysAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, 4))![0].Completed));
         }
 
         seen.Should().Equal(true, false, null);
@@ -91,8 +92,8 @@ public class HistoryTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         var habitId = await AddHabitAsync(host);
 
-        var result = await host.WithScopeAsync(sp =>
-            HistoryModule.CycleDayAsync(sp.GetRequiredService<HabitService>(), UserId, habitId, new DateOnly(2027, 1, 9), null));
+        var result = await host.WithScopeAsync(async sp =>
+            await HistoryModule.CycleDayAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<UserSettingsService>(), await TestUsers.UserIdAsync(sp, UserId), habitId, new DateOnly(2027, 1, 9), null));
 
         result.Should().Be(DayEditResult.BeforeHabitStart);
     }
@@ -104,12 +105,12 @@ public class HistoryTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         var day = new DateOnly(2027, 1, 8);
 
-        var withoutConsent = await host.WithScopeAsync(sp => HistoryModule.ToggleLowDayAsync(sp.GetRequiredService<HabitService>(), UserId, day));
+        var withoutConsent = await host.WithScopeAsync(async sp => await HistoryModule.ToggleLowDayAsync(sp.GetRequiredService<HabitService>(), await TestUsers.UserIdAsync(sp, UserId), day));
         await AddHabitAsync(host);
-        await host.WithScopeAsync(sp => HistoryModule.ToggleLowDayAsync(sp.GetRequiredService<HabitService>(), UserId, day));
-        var afterSet = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetLowDaysAsync(UserId));
-        await host.WithScopeAsync(sp => HistoryModule.ToggleLowDayAsync(sp.GetRequiredService<HabitService>(), UserId, day));
-        var afterClear = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetLowDaysAsync(UserId));
+        await host.WithScopeAsync(async sp => await HistoryModule.ToggleLowDayAsync(sp.GetRequiredService<HabitService>(), await TestUsers.UserIdAsync(sp, UserId), day));
+        var afterSet = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetLowDaysAsync(await TestUsers.UserIdAsync(sp, UserId)));
+        await host.WithScopeAsync(async sp => await HistoryModule.ToggleLowDayAsync(sp.GetRequiredService<HabitService>(), await TestUsers.UserIdAsync(sp, UserId), day));
+        var afterClear = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetLowDaysAsync(await TestUsers.UserIdAsync(sp, UserId)));
 
         withoutConsent.Should().Be(DayEditResult.ConsentRequired);
         afterSet.Should().Equal(day);
@@ -127,20 +128,22 @@ public class HistoryTests
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
+            var settings = sp.GetRequiredService<UserSettingsService>();
+            var userId = await TestUsers.UserIdAsync(sp, UserId);
             foreach (var d in new[] { 13, 14, 15, 17, 18, 19 })
-                await HistoryModule.CycleDayAsync(service, UserId, habitId, new DateOnly(2027, 1, d), null);
+                await HistoryModule.CycleDayAsync(service, settings, userId, habitId, new DateOnly(2027, 1, d), null);
             for (var tap = 0; tap < 3; tap++)
-                await HistoryModule.CycleDayAsync(service, UserId, habitId, new DateOnly(2027, 1, 12), null);
-            await HistoryModule.ToggleLowDayAsync(service, UserId, new DateOnly(2027, 1, 16));
+                await HistoryModule.CycleDayAsync(service, settings, userId, habitId, new DateOnly(2027, 1, 12), null);
+            await HistoryModule.ToggleLowDayAsync(service, userId, new DateOnly(2027, 1, 16));
         });
 
         var (streak, graceUsed, last7) = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            var habit = (await service.GetHabitAsync(UserId, habitId))!;
-            var today = await service.GetLocalTodayAsync(UserId);
-            var lowDays = await service.GetLowDaysAsync(UserId);
-            var (s, g) = HabitRules.ConsecutiveStreak(habit, today, await service.GetGraceDaysAsync(UserId), lowDays);
+            var habit = (await service.GetHabitAsync(await TestUsers.UserIdAsync(sp, UserId), habitId))!;
+            var today = await sp.GetRequiredService<UserSettingsService>().GetLocalTodayAsync(await TestUsers.UserIdAsync(sp, UserId));
+            var lowDays = await service.GetLowDaysAsync(await TestUsers.UserIdAsync(sp, UserId));
+            var (s, g) = HabitRules.ConsecutiveStreak(habit, today, await sp.GetRequiredService<UserSettingsService>().GetGraceDaysAsync(await TestUsers.UserIdAsync(sp, UserId)), lowDays);
             return (s, g, HabitRules.FlexibleStreak(habit, today, 7, lowDays, TimeZoneInfo.Utc));
         });
 
@@ -152,7 +155,7 @@ public class HistoryTests
     private static Task<int> AddHabitAsync(IntegrationTestHost host) => host.WithScopeAsync(async sp =>
     {
         var service = sp.GetRequiredService<HabitService>();
-        await service.GiveHealthDataConsentAsync(UserId);
-        return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
+        await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
+        return (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, UserId), "Stretch", null)).Habit!.Id;
     });
 }

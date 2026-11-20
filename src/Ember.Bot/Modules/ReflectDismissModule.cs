@@ -20,11 +20,15 @@ namespace Ember.Bot.Modules;
 public class ReflectDismissModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly IConfiguration _config;
 
-    public ReflectDismissModule(HabitService habits, IConfiguration config)
+    public ReflectDismissModule(HabitService habits, ConsentService consent, UserSettingsService settings, IConfiguration config)
     {
         _habits = habits;
+        _consent = consent;
+        _settings = settings;
         _config = config;
     }
 
@@ -46,11 +50,12 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     [ComponentInteraction(ReflectIds.LogPattern)]
     public async Task LogAsync(string ownerIdStr, string dateStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!IsOwner(ownerIdStr)) { await NotYoursAsync(t); return; }
         if (!TryParseDate(dateStr, out var date)) { await BadIdAsync(t); return; }
 
-        var open = await OpenHabitsAsync(_habits, Context.User.Id, date);
+        var open = await OpenHabitsAsync(_habits, _settings, userId, date);
         if (open.Count == 0)
         {
             await CloseAsync(t.Get("reflect.already-logged"));
@@ -59,10 +64,10 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
 
         if (open.Count == 1)
         {
-            var result = await _habits.AddCheckInAsync(Context.User.Id, open[0].Id, date);
+            var result = await _habits.AddCheckInAsync(userId, open[0].Id, date);
             if (result == DayEditResult.ConsentRequired)
             {
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
                 return;
             }
             if (result != DayEditResult.Saved)
@@ -98,6 +103,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     [ComponentInteraction(ReflectIds.PickPattern)]
     public async Task PickAsync(string ownerIdStr, string dateStr, string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!IsOwner(ownerIdStr)) { await NotYoursAsync(t); return; }
         if (!TryParseDate(dateStr, out var date)) { await BadIdAsync(t); return; }
@@ -106,10 +112,10 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
         foreach (var value in values)
         {
             if (!int.TryParse(value, out var habitId)) continue;
-            var result = await _habits.AddCheckInAsync(Context.User.Id, habitId, date);
+            var result = await _habits.AddCheckInAsync(userId, habitId, date);
             if (result == DayEditResult.ConsentRequired)
             {
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
                 return;
             }
             if (result == DayEditResult.Saved) logged++;
@@ -121,13 +127,14 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     [ComponentInteraction(ReflectIds.LowPattern)]
     public async Task LowDayAsync(string ownerIdStr, string dateStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!IsOwner(ownerIdStr)) { await NotYoursAsync(t); return; }
         if (!TryParseDate(dateStr, out var date)) { await BadIdAsync(t); return; }
 
-        if (await _habits.SetLowDayAsync(Context.User.Id, date) == DayEditResult.ConsentRequired)
+        if (await _habits.SetLowDayAsync(userId, date) == DayEditResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
 
@@ -135,9 +142,9 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     }
 
     /// <summary>The user's daily and weekdays habits that are still open to log as done on <paramref name="date"/>, in creation order.</summary>
-    internal static async Task<List<Habit>> OpenHabitsAsync(HabitService habits, ulong userId, DateOnly date)
+    internal static async Task<List<Habit>> OpenHabitsAsync(HabitService habits, UserSettingsService settings, Guid userId, DateOnly date)
     {
-        var tz = await habits.GetTimeZoneAsync(userId);
+        var tz = await settings.GetTimeZoneAsync(userId);
         return (await habits.GetHabitsAsync(userId)).Where(h => MissedDayReflectionJob.IsOpenDaily(h, date, tz)).ToList();
     }
 

@@ -113,7 +113,7 @@ public partial class RulesFixtureTests
         await Run<PauseCase>("pause", async (user, c) =>
         {
             var habitId = await EditHabitAsync(host, user, timesPerDay: 1, h => (h.PausedFrom, h.PausedUntil) = (c.PausedFrom, c.PausedUntil));
-            var habit = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(user, habitId, c.Until));
+            var habit = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().PauseHabitAsync(await TestUsers.UserIdAsync(sp, user), habitId, c.Until));
             return new PauseOut(habit!.PausedFrom, habit.PausedUntil);
         });
 
@@ -126,8 +126,8 @@ public partial class RulesFixtureTests
                 return c.Edit switch
                 {
                     { Count: { } count } => await service.SetCountAsync(await service.FindDiscordUserAsync(user), habitId, c.Date, count),
-                    { Completed: { } completed } => await service.CheckInAsync(user, habitId, c.Date, completed),
-                    _ => await service.ClearDayAsync(user, habitId, c.Date),
+                    { Completed: { } completed } => await service.CheckInAsync(await TestUsers.UserIdAsync(sp, user), habitId, c.Date, completed),
+                    _ => await service.ClearDayAsync(await TestUsers.UserIdAsync(sp, user), habitId, c.Date),
                 };
             });
             result.Should().Be(DayEditResult.Saved, $"writeDay \"{c.Name}\" edits an editable day");
@@ -137,8 +137,8 @@ public partial class RulesFixtureTests
         await Run<RetargetCase>("retarget", async (user, c) =>
         {
             var habitId = await EditHabitAsync(host, user, c.TimesPerDay, logs: c.Logs);
-            var habit = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
-                .SetScheduleAsync(user, habitId, FrequencyType.Daily, null, null, c.NewTimesPerDay));
+            var habit = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>()
+                .SetScheduleAsync(await TestUsers.UserIdAsync(sp, user), habitId, FrequencyType.Daily, null, null, c.NewTimesPerDay));
             habit.Should().NotBeNull();
             return await LogsAsync(host, habitId);
         });
@@ -210,8 +210,8 @@ public partial class RulesFixtureTests
         return await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(user);
-            var habitId = (await service.AddHabitAsync(user, "Edit", null)).Habit!.Id;
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, user));
+            var habitId = (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, user), "Edit", null)).Habit!.Id;
             var db = sp.GetRequiredService<EmberDbContext>();
             var habit = await db.Habits.SingleAsync(h => h.Id == habitId);
             habit.CreatedAt = EditStart.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc);

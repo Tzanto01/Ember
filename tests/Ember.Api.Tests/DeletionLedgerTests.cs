@@ -89,14 +89,14 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
         var discordId = ApiHost.NewDiscordId();
         ApiClient? client = path.StartsWith("web") ? await Host.SignedInAsync() : null;
         var id = client is not null ? await client.IdAsync() : await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
-        if (client is null) await Host.Run(s => s.GiveHealthDataConsentAsync(discordId));
+        if (client is null) await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(id));
 
         switch (path)
         {
             case "web withdraw": await (await client!.Post("/api/me/consent/withdraw")).Expect(System.Net.HttpStatusCode.NoContent); break;
             case "web no thanks": await (await client!.Post("/api/me/consent/decline")).Expect(System.Net.HttpStatusCode.NoContent); break;
-            case "discord withdraw": (await Host.Service(s => s.WithdrawHealthDataConsentAsync(discordId))).Should().BeTrue(); break;
-            default: await Host.Run(s => s.DeclineConsentPromptAsync(discordId)); break;
+            case "discord withdraw": (await Host.Service<ConsentService, bool>(s => s.WithdrawHealthDataConsentAsync(id))).Should().BeTrue(); break;
+            default: await Host.Run<ConsentService>(s => s.DeclineConsentPromptAsync(id)); break;
         }
         await Host.Run<ConsentService>(s => s.WithdrawHealthDataConsentAsync(id));
 

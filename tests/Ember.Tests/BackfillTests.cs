@@ -17,9 +17,9 @@ public class BackfillTests
         => await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(UserId);
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
             await SetTimezoneAsync(sp, timezone);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
+            return (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, UserId), "Stretch", null)).Habit!.Id;
         });
 
     private static async Task SetTimezoneAsync(IServiceProvider sp, string timezone)
@@ -30,7 +30,7 @@ public class BackfillTests
     }
 
     private static Task<DayEditResult> CheckInAsync(IntegrationTestHost host, int habitId, DateOnly date, bool completed = true)
-        => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().CheckInAsync(UserId, habitId, date, completed));
+        => host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().CheckInAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, date, completed));
 
     private static Task<List<(DateOnly Date, bool Completed)>> LogsAsync(IntegrationTestHost host, int habitId)
         => host.WithScopeAsync(async sp => (await sp.GetRequiredService<EmberDbContext>().HabitLogs
@@ -49,7 +49,7 @@ public class BackfillTests
         foreach (var day in new[] { today, today.AddDays(-1), today.AddDays(-4), today.AddDays(-2), today.AddDays(-3) })
             (await CheckInAsync(host, habitId, day)).Should().Be(DayEditResult.Saved);
 
-        var habit = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitAsync(UserId, habitId));
+        var habit = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitAsync(await TestUsers.UserIdAsync(sp, UserId), habitId));
         HabitRules.ConsecutiveStreak(habit!, today, graceDays: 0, null).streak.Should().Be(5);
     }
 
@@ -81,8 +81,8 @@ public class BackfillTests
         await CheckInAsync(host, habitId, day, completed: false);
         (await LogsAsync(host, habitId)).Should().Equal((day, false));
 
-        var byStranger = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ClearDayAsync(UserId + 1, habitId, day));
-        var byOwner = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ClearDayAsync(UserId, habitId, day));
+        var byStranger = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().ClearDayAsync(await TestUsers.UserIdAsync(sp, UserId + 1), habitId, day));
+        var byOwner = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().ClearDayAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, day));
 
         byStranger.Should().Be(DayEditResult.HabitNotFound);
         byOwner.Should().Be(DayEditResult.Saved);

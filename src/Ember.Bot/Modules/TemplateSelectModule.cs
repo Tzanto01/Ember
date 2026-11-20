@@ -16,11 +16,15 @@ namespace Ember.Bot.Modules;
 public class TemplateSelectModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly IConfiguration _config;
 
-    public TemplateSelectModule(HabitService habits, IConfiguration config)
+    public TemplateSelectModule(HabitService habits, ConsentService consent, UserSettingsService settings, IConfiguration config)
     {
         _habits = habits;
+        _consent = consent;
+        _settings = settings;
         _config = config;
     }
 
@@ -33,6 +37,7 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
     [ComponentInteraction(HabitIds.TemplateSelect)]
     public async Task HandleTemplateSelectAsync(string[] selected)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var key = selected[0];
         var template = HabitTemplates.Find(key);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
@@ -54,14 +59,14 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
             : FrequencyType.Daily;
 
         var (result, added) = await _habits.AddHabitAsync(
-            Context.User.Id,
+            userId,
             cleanName,
             reminderTime: null,
             frequency,
             template.WeeklyTarget);
         if (result == HabitWriteResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result == HabitWriteResult.LimitReached)
@@ -71,7 +76,7 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
         }
         var habit = added!;
 
-        var hasTimezone = await _habits.HasTimezoneSetAsync(Context.User.Id);
+        var hasTimezone = await _settings.HasTimezoneSetAsync(userId);
 
         var freqLabel = frequency == FrequencyType.Weekly
             ? t.Format("template.per-week", template.WeeklyTarget)
@@ -103,6 +108,6 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
 
         components.WithButton(t.Get("common.days-and-times"), FrequencyIds.Menu(habit.Id), ButtonStyle.Secondary, new Emoji("📅"), row: 1);
         await RespondAsync(embed: embed, components: components.Build(), ephemeral: true);
-        await HabitActionModule.AskStreaksOnceAsync(Context.Interaction, _habits, t);
+        await HabitActionModule.AskStreaksOnceAsync(Context.Interaction, _settings, userId, t);
     }
 }

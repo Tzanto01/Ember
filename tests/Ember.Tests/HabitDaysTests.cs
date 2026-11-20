@@ -21,23 +21,23 @@ public class HabitDaysTests
         var habitId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
+            return (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, UserId), "Stretch", null)).Habit!.Id;
         });
         time.SetUtcNow(new DateTimeOffset(2027, 1, 18, 12, 0, 0, TimeSpan.Zero));
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.CheckInAsync(UserId, habitId, new DateOnly(2027, 1, 10), completed: true);
-            await service.CheckInAsync(UserId, habitId, new DateOnly(2027, 1, 11), completed: false);
-            await service.SetLowDayAsync(UserId, new DateOnly(2027, 1, 13));
-            await service.CheckInAsync(UserId, habitId, new DateOnly(2027, 1, 17), completed: false);
+            await service.CheckInAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, new DateOnly(2027, 1, 10), completed: true);
+            await service.CheckInAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, new DateOnly(2027, 1, 11), completed: false);
+            await service.SetLowDayAsync(await TestUsers.UserIdAsync(sp, UserId), new DateOnly(2027, 1, 13));
+            await service.CheckInAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, new DateOnly(2027, 1, 17), completed: false);
             await sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).ExecuteUpdateAsync(s => s
                 .SetProperty(h => h.PausedFrom, new DateOnly(2027, 1, 14))
                 .SetProperty(h => h.PausedUntil, new DateOnly(2027, 1, 15)));
         });
 
-        var days = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitDaysAsync(UserId, habitId, 10));
+        var days = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitDaysAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, 10));
 
         days.Should().Equal(
             new HabitDay(new DateOnly(2027, 1, 9), DayState.BeforeStart, null, 0),
@@ -59,10 +59,10 @@ public class HabitDaysTests
         var habitId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
+            return (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, UserId), "Stretch", null)).Habit!.Id;
         });
 
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitDaysAsync(UserId + 1, habitId, 14))).Should().BeNull();
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitDaysAsync(await TestUsers.UserIdAsync(sp, UserId + 1), habitId, 14))).Should().BeNull();
     }
 }

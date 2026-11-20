@@ -6,6 +6,7 @@ using Discord.WebSocket;
 using Ember.Bot.Modules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ember.Tests;
 
@@ -85,7 +86,8 @@ internal static class BotHandlers
     }
 }
 
-internal sealed class RecordingHabitActionModule(HabitService habits, BotReplies replies) : HabitActionModule(habits, BotHandlers.NoConfig)
+internal sealed class RecordingHabitActionModule(IServiceProvider services, BotReplies replies)
+    : HabitActionModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<ConsentService>(), services.GetRequiredService<UserSettingsService>(), BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -107,7 +109,8 @@ internal sealed class RecordingFrequencyModule(HabitService habits, BotReplies r
     }
 }
 
-internal sealed class RecordingPrivacyModule(HabitService habits, AccountService accounts, BotReplies replies) : PrivacyModule(habits, accounts, BotHandlers.NoConfig)
+internal sealed class RecordingPrivacyModule(IServiceProvider services, BotReplies replies)
+    : PrivacyModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<ConsentService>(), services.GetRequiredService<UserSettingsService>(), services.GetRequiredService<AccountService>(), BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -118,7 +121,8 @@ internal sealed class RecordingPrivacyModule(HabitService habits, AccountService
     }
 }
 
-internal sealed class RecordingTimezoneModule(HabitService habits, ReminderService reminders, BotReplies replies) : TimezoneModule(habits, reminders)
+internal sealed class RecordingTimezoneModule(IServiceProvider services, BotReplies replies)
+    : TimezoneModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<UserSettingsService>(), services.GetRequiredService<ReminderService>())
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -129,7 +133,8 @@ internal sealed class RecordingTimezoneModule(HabitService habits, ReminderServi
     }
 }
 
-internal sealed class RecordingOnboardingModule(HabitService habits, ReminderService reminders, BotReplies replies) : OnboardingModule(habits, reminders)
+internal sealed class RecordingOnboardingModule(IServiceProvider services, BotReplies replies)
+    : OnboardingModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<UserSettingsService>(), services.GetRequiredService<ReminderService>())
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -163,7 +168,8 @@ internal sealed class RecordingExportModule(HabitService habits, AccountService 
     }
 }
 
-internal sealed class RecordingHabitModule(HabitService habits, ReminderService reminders, BotReplies replies) : HabitModule(habits, reminders, BotHandlers.NoConfig)
+internal sealed class RecordingHabitModule(IServiceProvider services, BotReplies replies)
+    : HabitModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<ConsentService>(), services.GetRequiredService<UserSettingsService>(), services.GetRequiredService<ReminderService>(), BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -182,7 +188,8 @@ internal sealed class RecordingHabitModule(HabitService habits, ReminderService 
     }
 }
 
-internal sealed class RecordingReflectModule(HabitService habits, BotReplies replies) : ReflectDismissModule(habits, BotHandlers.NoConfig)
+internal sealed class RecordingReflectModule(IServiceProvider services, BotReplies replies)
+    : ReflectDismissModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<ConsentService>(), services.GetRequiredService<UserSettingsService>(), BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -193,7 +200,8 @@ internal sealed class RecordingReflectModule(HabitService habits, BotReplies rep
     }
 }
 
-internal sealed class RecordingHistoryModule(HabitService habits, BotReplies replies) : HistoryModule(habits, BotHandlers.NoConfig)
+internal sealed class RecordingHistoryModule(IServiceProvider services, BotReplies replies)
+    : HistoryModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<ConsentService>(), services.GetRequiredService<UserSettingsService>(), BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -215,7 +223,8 @@ internal sealed class RecordingDiscordRemindersModule(HabitService habits, Remin
     }
 }
 
-internal sealed class RecordingReminderSetupModule(HabitService habits, ReminderService reminders, BotReplies replies) : ReminderSetupModule(habits, reminders)
+internal sealed class RecordingReminderSetupModule(IServiceProvider services, BotReplies replies)
+    : ReminderSetupModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<UserSettingsService>(), services.GetRequiredService<ReminderService>())
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -226,7 +235,9 @@ internal sealed class RecordingReminderSetupModule(HabitService habits, Reminder
     }
 }
 
-internal sealed class RecordingCheckInModule(HabitService habits, ReminderService reminders, BotReplies replies) : CheckInButtonModule(habits, reminders, TimeProvider.System, BotHandlers.NoConfig)
+internal sealed class RecordingCheckInModule(IServiceProvider services, BotReplies replies)
+    : CheckInButtonModule(services.GetRequiredService<HabitService>(), services.GetRequiredService<ConsentService>(), services.GetRequiredService<UserSettingsService>(), services.GetRequiredService<ReminderService>(), TimeProvider.System,
+        BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,

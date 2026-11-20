@@ -143,9 +143,9 @@ public class UserSettingsBaselineTests
             var service = sp.GetRequiredService<HabitService>();
             var settings = sp.GetRequiredService<UserSettingsService>();
             (await settings.GetShowStreaksAsync(UserId)).Should().BeFalse();
-            (await service.GetShowStreaksAsync(77UL)).Should().BeFalse();
+            (await sp.GetRequiredService<UserSettingsService>().GetShowStreaksAsync(await TestUsers.UserIdAsync(sp, 77UL))).Should().BeFalse();
             (await settings.NeedsStreaksQuestionAsync(UserId)).Should().BeFalse();
-            (await service.NeedsStreaksQuestionAsync(77UL)).Should().BeFalse();
+            (await sp.GetRequiredService<UserSettingsService>().NeedsStreaksQuestionAsync(await TestUsers.UserIdAsync(sp, 77UL))).Should().BeFalse();
         });
     }
 
@@ -156,15 +156,15 @@ public class UserSettingsBaselineTests
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false);
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetShowStreaksAsync(78UL, show));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().SetShowStreaksAsync(await TestUsers.ResolveOrCreateAsync(sp, 78UL), show));
 
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
             var id = await service.FindDiscordUserAsync(78);
             id.Should().NotBe(Guid.Empty);
-            (await service.GetShowStreaksAsync(78UL)).Should().Be(show);
-            (await service.NeedsStreaksQuestionAsync(78UL)).Should().BeFalse();
+            (await sp.GetRequiredService<UserSettingsService>().GetShowStreaksAsync(await TestUsers.UserIdAsync(sp, 78UL))).Should().Be(show);
+            (await sp.GetRequiredService<UserSettingsService>().NeedsStreaksQuestionAsync(await TestUsers.UserIdAsync(sp, 78UL))).Should().BeFalse();
             (await sp.GetRequiredService<EmberDbContext>().Users.Where(u => u.Id == id).Select(u => u.TipsSeen).SingleAsync())
                 .Should().Contain(User.StreaksTip);
         });
@@ -206,15 +206,15 @@ public class UserSettingsBaselineTests
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.SetTimezoneAsync(79UL, "Asia/Tokyo");
-            await service.SetGraceDaysAsync(80UL, 3);
+            await sp.GetRequiredService<UserSettingsService>().SetTimezoneAsync(await TestUsers.ResolveOrCreateAsync(sp, 79UL), "Asia/Tokyo");
+            await sp.GetRequiredService<UserSettingsService>().SetGraceDaysAsync(await TestUsers.ResolveOrCreateAsync(sp, 80UL), 3);
         });
 
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            (await service.HasTimezoneSetAsync(79UL)).Should().BeTrue();
-            (await service.GetGraceDaysAsync(80UL)).Should().Be(3);
+            (await sp.GetRequiredService<UserSettingsService>().HasTimezoneSetAsync(await TestUsers.UserIdAsync(sp, 79UL))).Should().BeTrue();
+            (await sp.GetRequiredService<UserSettingsService>().GetGraceDaysAsync(await TestUsers.UserIdAsync(sp, 80UL))).Should().Be(3);
         });
     }
 }

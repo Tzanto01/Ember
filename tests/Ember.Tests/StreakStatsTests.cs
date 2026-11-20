@@ -23,17 +23,18 @@ public class StreakStatsTests
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(UserId);
-            var habit = (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!;
-            await service.CheckInAsync(UserId, habit.Id, new DateOnly(2027, 1, 10), completed: true, guildId: null);
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId));
+            var habit = (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, UserId), "Stretch", null)).Habit!;
+            await service.CheckInAsync(await TestUsers.UserIdAsync(sp, UserId), habit.Id, new DateOnly(2027, 1, 10), completed: true, guildId: null);
         });
 
         async Task<(Embed Page, ButtonComponent Button, bool Stored)> ClickAsync(string? customId) => await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            if (customId is not null) await service.SetShowStreaksAsync(UserId, customId == "habit:streaks:on");
-            var (pages, toggle) = await HabitModule.RenderStatsAsync(Ember.Bot.BotTexts.English, service, UserId);
-            return (pages.Single(), Button(toggle), await service.GetShowStreaksAsync(UserId));
+            if (customId is not null) await sp.GetRequiredService<UserSettingsService>().SetShowStreaksAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId), customId == "habit:streaks:on");
+            var (pages, toggle) = await HabitModule.RenderStatsAsync(Ember.Bot.BotTexts.English, service, sp.GetRequiredService<UserSettingsService>(),
+                await TestUsers.UserIdAsync(sp, UserId));
+            return (pages.Single(), Button(toggle), await sp.GetRequiredService<UserSettingsService>().GetShowStreaksAsync(await TestUsers.UserIdAsync(sp, UserId)));
         });
 
         var off = await ClickAsync(null);

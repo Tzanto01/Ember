@@ -14,11 +14,13 @@ namespace Ember.Bot.Modules;
 public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly UserSettingsService _settings;
     private readonly ReminderService _reminders;
 
-    public ReminderSetupModule(HabitService habits, ReminderService reminders)
+    public ReminderSetupModule(HabitService habits, UserSettingsService settings, ReminderService reminders)
     {
         _habits = habits;
+        _settings = settings;
         _reminders = reminders;
     }
 
@@ -27,9 +29,10 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     [ComponentInteraction(ReminderIds.SetPattern)]
     public async Task OnSetReminderAsync(string habitIdStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (int.TryParse(habitIdStr, out var habitId)
-            && (await _habits.GetHabitAsync(Context.User.Id, habitId))?.Kind == HabitKind.LetGo)
+            && (await _habits.GetHabitAsync(userId, habitId))?.Kind == HabitKind.LetGo)
         {
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
@@ -39,7 +42,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
             });
             return;
         }
-        if (!await _habits.HasTimezoneSetAsync(Context.User.Id))
+        if (!await _settings.HasTimezoneSetAsync(userId))
         {
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
@@ -87,16 +90,17 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     [ComponentInteraction(ReminderIds.PresetPattern)]
     public async Task OnPresetReminderAsync(string habitIdStr, string hour, string minute)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        var replaced = int.TryParse(habitIdStr, out var id) ? (await _habits.GetHabitAsync(Context.User.Id, id))?.ReminderTimes.ToList() ?? [] : [];
-        var habit = await SetPresetReminderAsync(_habits, Context.User.Id, habitIdStr, $"{hour}:{minute}");
+        var replaced = int.TryParse(habitIdStr, out var id) ? (await _habits.GetHabitAsync(userId, id))?.ReminderTimes.ToList() ?? [] : [];
+        var habit = await SetPresetReminderAsync(_habits, userId, habitIdStr, $"{hour}:{minute}");
         if (habit is null)
         {
             await RespondAsync(t.Get("reminder.not-found"), ephemeral: true);
             return;
         }
 
-        var discordNote = await DiscordRemindersNoteAsync(t, _reminders, await _habits.FindDiscordUserAsync(Context.User.Id));
+        var discordNote = await DiscordRemindersNoteAsync(t, _reminders, userId);
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
@@ -141,7 +145,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
             CultureInfo.InvariantCulture, DateTimeStyles.None, out time);
 
     /// <summary>Sets a preset reminder time on one of the clicking user's own habits; null if the habit isn't theirs or the input is malformed.</summary>
-    internal static async Task<Ember.Core.Models.Habit?> SetPresetReminderAsync(HabitService habits, ulong userId, string habitIdStr, string time)
+    internal static async Task<Ember.Core.Models.Habit?> SetPresetReminderAsync(HabitService habits, Guid userId, string habitIdStr, string time)
     {
         if (!int.TryParse(habitIdStr, out var habitId) || !TimeOnly.TryParseExact(time, "HH:mm", out var reminderTime))
             return null;
@@ -169,6 +173,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     [ComponentInteraction(ReminderIds.ClearPattern)]
     public async Task OnClearReminderAsync(string habitIdStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId))
         {
@@ -176,7 +181,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        var (_, habit) = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: null, newReminderTime: null, clearReminder: true);
+        var (_, habit) = await _habits.EditHabitAsync(userId, habitId, newName: null, newReminderTime: null, clearReminder: true);
 
         if (habit is null)
         {
@@ -211,6 +216,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     [ModalInteraction(ReminderIds.ModalPattern)]
     public async Task OnReminderModalAsync(string habitIdStr, string sourceMessageIdStr, ReminderModal modal)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId))
         {
@@ -226,8 +232,8 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        var replaced = (await _habits.GetHabitAsync(Context.User.Id, habitId))?.ReminderTimes.ToList() ?? [];
-        var (_, habit) = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: null, parsed, clearReminder: false);
+        var replaced = (await _habits.GetHabitAsync(userId, habitId))?.ReminderTimes.ToList() ?? [];
+        var (_, habit) = await _habits.EditHabitAsync(userId, habitId, newName: null, parsed, clearReminder: false);
 
         if (habit is null)
         {
@@ -235,7 +241,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        var discordNote = await DiscordRemindersNoteAsync(t, _reminders, await _habits.FindDiscordUserAsync(Context.User.Id));
+        var discordNote = await DiscordRemindersNoteAsync(t, _reminders, userId);
         var embed = new EmbedBuilder()
             .WithColor(0xE8873A)
             .WithTitle(t.Get("reminder.set.title"))

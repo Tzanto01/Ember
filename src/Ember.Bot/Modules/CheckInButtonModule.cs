@@ -23,22 +23,27 @@ namespace Ember.Bot.Modules;
 public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly ReminderService _reminders;
     private readonly TimeProvider _time;
     private readonly IConfiguration _config;
 
-    public CheckInButtonModule(HabitService habits, ReminderService reminders, TimeProvider time, IConfiguration config)
+    public CheckInButtonModule(HabitService habits, ConsentService consent, UserSettingsService settings, ReminderService reminders, TimeProvider time,
+        IConfiguration config)
     {
         _habits = habits;
+        _consent = consent;
+        _settings = settings;
         _reminders = reminders;
         _time = time;
         _config = config;
     }
 
     /// <summary>The user's local day at <paramref name="timestampStr"/> (unix seconds), or null when the timestamp is malformed.</summary>
-    private static async Task<DateOnly?> SentDayAsync(HabitService habits, ulong userId, string timestampStr)
+    private static async Task<DateOnly?> SentDayAsync(UserSettingsService settings, Guid userId, string timestampStr)
         => long.TryParse(timestampStr, out var sentUnix) && sentUnix is >= 0 and <= 253402300799
-            ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(sentUnix), await habits.GetTimeZoneAsync(userId)).DateTime)
+            ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(sentUnix), await settings.GetTimeZoneAsync(userId)).DateTime)
             : null;
 
     /// <summary>
@@ -46,11 +51,11 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
     /// subtext its message closes with: <see cref="DiscordDmReminderChannel.LoggedLine"/> when every habit with a Done button in
     /// <paramref name="components"/> is done for that day, <see cref="DiscordDmReminderChannel.ClosedLine"/> otherwise.
     /// </summary>
-    internal static async Task<string?> ExpiredLineAsync(Texts t, HabitService habits, TimeProvider time, ulong userId, string timestampStr,
-        IEnumerable<IMessageComponent> components)
+    internal static async Task<string?> ExpiredLineAsync(Texts t, HabitService habits, UserSettingsService settings, TimeProvider time, Guid userId,
+        string timestampStr, IEnumerable<IMessageComponent> components)
     {
-        if (await SentDayAsync(habits, userId, timestampStr) is not { } day
-            || !ReminderDispatchJob.IsExpired(day, TimeZoneInfo.ConvertTime(time.GetUtcNow(), await habits.GetTimeZoneAsync(userId)).DateTime))
+        if (await SentDayAsync(settings, userId, timestampStr) is not { } day
+            || !ReminderDispatchJob.IsExpired(day, TimeZoneInfo.ConvertTime(time.GetUtcNow(), await settings.GetTimeZoneAsync(userId)).DateTime))
             return null;
 
         var habitIds = components.OfType<ActionRowComponent>().SelectMany(r => r.Components).OfType<ButtonComponent>()
@@ -70,15 +75,16 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
     /// second reminder. Returns the edit result and the day it applied to.
     /// </summary>
     internal static async Task<(DayEditResult Result, DateOnly Day, bool KeptDone)> LogReminderDayAsync(
-        HabitService habits, ReminderService reminders, ulong userId, int habitId, string timestampStr, bool completed, ulong? guildId)
+        HabitService habits, UserSettingsService settings, ReminderService reminders, Guid userId, int habitId, string timestampStr, bool completed,
+        ulong? guildId)
     {
-        var day = await SentDayAsync(habits, userId, timestampStr) ?? await habits.GetLocalTodayAsync(userId);
+        var day = await SentDayAsync(settings, userId, timestampStr) ?? await settings.GetLocalTodayAsync(userId);
 
         if (completed) return (await habits.AddCheckInAsync(userId, habitId, day, guildId), day, false);
 
         var keptDone = (await habits.GetHabitAsync(userId, habitId))?.Logs.Any(l => l.Date == day && (l.Completed || l.Count > 0)) == true;
         var result = keptDone ? DayEditResult.Saved : await habits.CheckInAsync(userId, habitId, day, completed: false, guildId);
-        if (result == DayEditResult.Saved && day == await habits.GetLocalTodayAsync(userId))
+        if (result == DayEditResult.Saved && day == await settings.GetLocalTodayAsync(userId))
             await reminders.ClearSecondReminderAsync(habitId);
         return (result, day, keptDone);
     }
@@ -92,8 +98,9 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var component = (SocketMessageComponent)Context.Interaction;
-        if (await ExpiredLineAsync(t, _habits, _time, Context.User.Id, timestampStr, component.Message.Components) is { } line)
+        if (await ExpiredLineAsync(t, _habits, _settings, _time, userId, timestampStr, component.Message.Components) is { } line)
         {
             await component.UpdateAsync(msg =>
             {
@@ -105,13 +112,13 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        var (result, day, keptDone) = await LogReminderDayAsync(_habits, _reminders, Context.User.Id, habitId, timestampStr, completed, Context.Guild?.Id);
+        var (result, day, keptDone) = await LogReminderDayAsync(_habits, _settings, _reminders, userId, habitId, timestampStr, completed, Context.Guild?.Id);
         switch (result)
         {
             case DayEditResult.Saved:
                 break;
             case DayEditResult.ConsentRequired:
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
                 return;
             case DayEditResult.BeforeHabitStart:
                 await RespondAsync(t.Get("checkin.before-start"), ephemeral: true);
@@ -130,12 +137,12 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
                 return;
         }
 
-        var isToday = day == await _habits.GetLocalTodayAsync(Context.User.Id);
+        var isToday = day == await _settings.GetLocalTodayAsync(userId);
         var dayLabel = day.ToString(t.Get("date.long"), t.Culture);
         var text = keptDone
             ? t.Get("checkin.kept-done")
             : isToday ? t.Get(todayKey) : t.Format(earlierKey, dayLabel);
-        var habit = completed ? await _habits.GetHabitAsync(Context.User.Id, habitId) : null;
+        var habit = completed ? await _habits.GetHabitAsync(userId, habitId) : null;
         if (completed)
             text = HabitModule.CheckInText(t, habit, day, text, isToday ? null : dayLabel);
 

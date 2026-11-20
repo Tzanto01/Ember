@@ -31,11 +31,15 @@ namespace Ember.Bot.Modules;
 public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly IConfiguration _config;
 
-    public HabitActionModule(HabitService habits, IConfiguration config)
+    public HabitActionModule(HabitService habits, ConsentService consent, UserSettingsService settings, IConfiguration config)
     {
         _habits = habits;
+        _consent = consent;
+        _settings = settings;
         _config = config;
     }
 
@@ -44,6 +48,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     [ModalInteraction(HabitIds.AddModal)]
     public async Task OnAddModalAsync(HabitAddModal modal)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var name = modal.HabitName.Trim();
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -53,10 +58,10 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var (result, added) = await _habits.AddHabitAsync(Context.User.Id, name, reminderTime: null);
+        var (result, added) = await _habits.AddHabitAsync(userId, name, reminderTime: null);
         if (result == HabitWriteResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result == HabitWriteResult.LimitReached)
@@ -65,7 +70,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
         var habit = added!;
-        var hasTimezone = await _habits.HasTimezoneSetAsync(Context.User.Id);
+        var hasTimezone = await _settings.HasTimezoneSetAsync(userId);
 
         var embed = new EmbedBuilder()
             .WithColor(0xE8873A)
@@ -93,7 +98,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await RespondAsync(embed: embed, components: components.Build(), ephemeral: true);
 
         // DM confirmation / onboarding
-        var allHabits = await _habits.GetHabitsAsync(Context.User.Id);
+        var allHabits = await _habits.GetHabitsAsync(userId);
         if (allHabits.Count == 1)
         {
             try
@@ -110,7 +115,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             catch { /* DMs disabled */ }
         }
 
-        await AskStreaksOnceAsync(Context.Interaction, _habits, t);
+        await AskStreaksOnceAsync(Context.Interaction, _settings, userId, t);
     }
 
     // ── habitaction:checkin:done:{habitId} ────────────────────────────────────
@@ -118,15 +123,16 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitActionIds.CheckInDonePattern)]
     public async Task OnCheckinDoneAsync(string habitIdStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
 
         var guildId = Context.Guild?.Id;
-        var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-        var result = await _habits.AddCheckInAsync(Context.User.Id, habitId, today, guildId);
+        var today = await _settings.GetLocalTodayAsync(userId);
+        var result = await _habits.AddCheckInAsync(userId, habitId, today, guildId);
         if (result == DayEditResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result != DayEditResult.Saved)
@@ -135,7 +141,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var text = HabitModule.CheckInText(t, await _habits.GetHabitAsync(Context.User.Id, habitId), today, t.Get("common.logged-today"));
+        var text = HabitModule.CheckInText(t, await _habits.GetHabitAsync(userId, habitId), today, t.Get("common.logged-today"));
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
@@ -149,15 +155,16 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitActionIds.CheckInSkipPattern)]
     public async Task OnCheckinSkipAsync(string habitIdStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
 
         var guildId = Context.Guild?.Id;
-        var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-        var result = await _habits.CheckInAsync(Context.User.Id, habitId, today, completed: false, guildId);
+        var today = await _settings.GetLocalTodayAsync(userId);
+        var result = await _habits.CheckInAsync(userId, habitId, today, completed: false, guildId);
         if (result == DayEditResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result != DayEditResult.Saved)
@@ -185,24 +192,25 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     /// <summary>Records one slip without a reason on the user's local today and answers with <see cref="HabitModule.SlipNotedText"/>.</summary>
     private async Task SlipAsync(string habitIdStr, bool inPlace)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
 
-        var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-        var result = await _habits.AddSlipAsync(Context.User.Id, habitId, today);
+        var today = await _settings.GetLocalTodayAsync(userId);
+        var result = await _habits.AddSlipAsync(userId, habitId, today);
         if (result == SlipResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
-        if (result != SlipResult.Saved || await _habits.GetHabitAsync(Context.User.Id, habitId) is not { } habit)
+        if (result != SlipResult.Saved || await _habits.GetHabitAsync(userId, habitId) is not { } habit)
         {
             await NotFoundAsync(t);
             return;
         }
 
         var text = HabitModule.SlipNotedText(t,
-            LetGoRules.StatsOn(habit, today, await _habits.GetTimeZoneAsync(Context.User.Id)).LongestStretch);
+            LetGoRules.StatsOn(habit, today, await _settings.GetTimeZoneAsync(userId)).LongestStretch);
         if (!inPlace)
         {
             await RespondAsync(text, ephemeral: true);
@@ -222,10 +230,11 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitActionIds.DeleteConfirmPattern)]
     public async Task OnDeleteConfirmAsync(string habitIdStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
 
-        var deleted = await _habits.DeleteHabitAsync(Context.User.Id, habitId);
+        var deleted = await _habits.DeleteHabitAsync(userId, habitId);
 
         if (!deleted) { await NotFoundAsync(t); return; }
 
@@ -275,6 +284,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     [ModalInteraction(HabitIds.RenameModalPattern)]
     public async Task OnRenameModalAsync(string habitIdStr, string _, HabitRenameModal modal)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
 
@@ -285,10 +295,10 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var (result, habit) = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: name, newReminderTime: null, clearReminder: false);
+        var (result, habit) = await _habits.EditHabitAsync(userId, habitId, newName: name, newReminderTime: null, clearReminder: false);
         if (result == HabitWriteResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
 
@@ -308,10 +318,11 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitActionIds.PausePattern)]
     public async Task OnPauseAsync(string habitIdStr, string duration)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
 
-        var today = await _habits.GetLocalTodayAsync(Context.User.Id);
+        var today = await _settings.GetLocalTodayAsync(userId);
         DateOnly? pausedUntil = duration switch
         {
             "today" => (DateOnly?)today,
@@ -321,7 +332,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             _ => today.AddDays(6)
         };
 
-        var habit = await _habits.PauseHabitAsync(Context.User.Id, habitId, pausedUntil);
+        var habit = await _habits.PauseHabitAsync(userId, habitId, pausedUntil);
 
         if (habit is null) { await NotFoundAsync(t); return; }
 
@@ -342,13 +353,14 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(HabitActionIds.FrequencyPattern)]
     public async Task OnFreqDailyAsync(string habitIdStr, string freqType)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
         if (freqType != "daily") { await BadIdAsync(t); return; }
 
-        var current = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var current = await _habits.GetHabitAsync(userId, habitId);
         var habit = current is null ? null
-            : await _habits.SetScheduleAsync(Context.User.Id, habitId, FrequencyType.Daily, null, null, current.TimesPerDay);
+            : await _habits.SetScheduleAsync(userId, habitId, FrequencyType.Daily, null, null, current.TimesPerDay);
 
         if (habit is null) { await NotFoundAsync(t); return; }
 
@@ -371,7 +383,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        await _habits.SetGraceDaysAsync(Context.User.Id, days, Languages.FromLocale(Context.Interaction.UserLocale));
+        await _settings.SetGraceDaysAsync(await _habits.ResolveOrCreateDiscordUserAsync(Context.User.Id, Languages.FromLocale(Context.Interaction.UserLocale)), days);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         await ((SocketMessageComponent)Context.Interaction)
@@ -389,9 +401,10 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     {
         if (state is not ("on" or "off")) { await BadIdAsync(await BotTexts.ForAsync(_habits, Context.Interaction)); return; }
 
-        await _habits.SetShowStreaksAsync(Context.User.Id, state == "on", Languages.FromLocale(Context.Interaction.UserLocale));
+        var userId = await _habits.ResolveOrCreateDiscordUserAsync(Context.User.Id, Languages.FromLocale(Context.Interaction.UserLocale));
+        await _settings.SetShowStreaksAsync(userId, state == "on");
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        var (pages, toggle) = await HabitModule.RenderStatsAsync(t, _habits, Context.User.Id);
+        var (pages, toggle) = await HabitModule.RenderStatsAsync(t, _habits, _settings, userId);
 
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
@@ -412,7 +425,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (state is not ("on" or "off")) { await BadIdAsync(t); return; }
 
-        await _habits.SetShowStreaksAsync(Context.User.Id, state == "on", Languages.FromLocale(Context.Interaction.UserLocale));
+        await _settings.SetShowStreaksAsync(await _habits.ResolveOrCreateDiscordUserAsync(Context.User.Id, Languages.FromLocale(Context.Interaction.UserLocale)), state == "on");
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
@@ -422,12 +435,12 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     /// <summary>
-    /// Asks the one-time streaks question as an ephemeral follow-up when <see cref="HabitService.NeedsStreaksQuestionAsync(ulong)"/>
+    /// Asks the one-time streaks question as an ephemeral follow-up when <see cref="UserSettingsService.NeedsStreaksQuestionAsync"/>
     /// says the account needs it; the answer comes back as <c>tip:streaks:{on|off}</c>.
     /// </summary>
-    internal static async Task AskStreaksOnceAsync(IDiscordInteraction interaction, HabitService habits, Texts t)
+    internal static async Task AskStreaksOnceAsync(IDiscordInteraction interaction, UserSettingsService settings, Guid userId, Texts t)
     {
-        if (!await habits.NeedsStreaksQuestionAsync(interaction.User.Id)) return;
+        if (!await settings.NeedsStreaksQuestionAsync(userId)) return;
 
         var buttons = new ComponentBuilder()
             .WithButton(t.Get("habit.streaks-tip.show"), TipIds.Streaks(show: true), ButtonStyle.Primary)

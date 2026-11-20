@@ -33,10 +33,10 @@ public class BotHandlerFlowTests
         => await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(User);
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, User));
             var userId = await service.FindDiscordUserAsync(User);
             var habit = (await service.AddHabitAsync(userId, name, null, kind: kind)).Habit!;
-            if (!consent) await service.WithdrawHealthDataConsentAsync(User);
+            if (!consent) await sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, User));
             return habit.Id;
         });
 
@@ -51,23 +51,27 @@ public class BotHandlerFlowTests
     private static Task<BotReplies> DriveAsync<TModule>(IntegrationTestHost host,
         Func<HabitService, ReminderService, AccountService, BotReplies, TModule> create, Func<TModule, Task> call, ulong user = User,
         bool slash = false) where TModule : IInteractionModuleBase
+        => DriveAsync(host, (sp, r) => create(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(),
+            sp.GetRequiredService<AccountService>(), r), call, user, slash);
+
+    private static Task<BotReplies> DriveAsync<TModule>(IntegrationTestHost host, Func<IServiceProvider, BotReplies, TModule> create,
+        Func<TModule, Task> call, ulong user = User, bool slash = false) where TModule : IInteractionModuleBase
         => host.WithScopeAsync(async sp =>
         {
             var replies = new BotReplies();
-            var module = BotHandlers.Attach(create(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(),
-                sp.GetRequiredService<AccountService>(), replies), user, slash: slash);
+            var module = BotHandlers.Attach(create(sp, replies), user, slash: slash);
             await BotHandlers.RunAsync(() => call(module));
             return replies;
         });
 
     private static Task<BotReplies> HabitActionAsync(IntegrationTestHost host, Func<RecordingHabitActionModule, Task> call, ulong user = User)
-        => DriveAsync(host, (h, r) => new RecordingHabitActionModule(h, r), call, user);
+        => DriveAsync(host, (sp, r) => new RecordingHabitActionModule(sp, r), call, user);
 
     private static Task<BotReplies> FrequencyAsync(IntegrationTestHost host, Func<RecordingFrequencyModule, Task> call)
         => DriveAsync(host, (h, r) => new RecordingFrequencyModule(h, r), call);
 
     private static Task<BotReplies> PrivacyAsync(IntegrationTestHost host, Func<RecordingPrivacyModule, Task> call, ulong user = User, bool slash = false)
-        => DriveAsync(host, (h, a, r) => new RecordingPrivacyModule(h, a, r), call, user, slash);
+        => DriveAsync(host, (sp, r) => new RecordingPrivacyModule(sp, r), call, user, slash);
 
     private static Task<Habit> HabitAsync(IntegrationTestHost host, int habitId)
         => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.AsNoTracking().SingleAsync(h => h.Id == habitId));
@@ -164,7 +168,7 @@ public class BotHandlerFlowTests
 
         await HabitActionAsync(host, m => m.OnGraceAsync(days));
 
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetGraceDaysAsync(User))).Should().Be(expected);
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().GetGraceDaysAsync(await TestUsers.UserIdAsync(sp, User)))).Should().Be(expected);
     }
 
     [Theory]
@@ -179,7 +183,7 @@ public class BotHandlerFlowTests
         var replies = await HabitActionAsync(host, m => m.OnGraceAsync(days));
 
         replies.Sent.Should().ContainSingle().Which.Text.Should().Be(English.Get("habit.grace.invalid"));
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetGraceDaysAsync(User))).Should().Be(1);
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().GetGraceDaysAsync(await TestUsers.UserIdAsync(sp, User)))).Should().Be(1);
     }
 
     [Fact]
@@ -346,7 +350,7 @@ public class BotHandlerFlowTests
     public async Task Withdraw_confirm_for_an_account_without_consent_or_data_withdraws_nothing()
     {
         await using var host = await HostAsync();
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetGraceDaysAsync(User, 2));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().SetGraceDaysAsync(await TestUsers.ResolveOrCreateAsync(sp, User), 2));
 
         await PrivacyAsync(host, m => m.OnConfirmWithdrawAsync(User.ToString()));
 
@@ -419,11 +423,11 @@ public class BotHandlerFlowTests
     {
         await using var host = await HostAsync();
         var habitId = await SeedHabitAsync(host);
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(User, habitId, null, new TimeOnly(18, 0), false));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().EditHabitAsync(await TestUsers.UserIdAsync(sp, User), habitId, null, new TimeOnly(18, 0), false));
 
-        var unknown = await DriveAsync(host, (h, rem, _, r) => new RecordingTimezoneModule(h, rem, r), m => m.SetAsync("Mars/Olympus"), slash: true);
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().HasTimezoneSetAsync(User))).Should().BeFalse();
-        var set = await DriveAsync(host, (h, rem, _, r) => new RecordingTimezoneModule(h, rem, r), m => m.SetAsync("Europe/Berlin"), slash: true);
+        var unknown = await DriveAsync(host, (sp, r) => new RecordingTimezoneModule(sp, r), m => m.SetAsync("Mars/Olympus"), slash: true);
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().HasTimezoneSetAsync(await TestUsers.UserIdAsync(sp, User)))).Should().BeFalse();
+        var set = await DriveAsync(host, (sp, r) => new RecordingTimezoneModule(sp, r), m => m.SetAsync("Europe/Berlin"), slash: true);
 
         unknown.Sent.Should().ContainSingle().Which.Text.Should().Be(English.Format("timezone.not-found", "Mars/Olympus"));
         set.Sent.Should().ContainSingle().Which.Text.Should().Be(English.Format("timezone.set", "Europe/Berlin") + "\n" + English.Format("timezone.rescheduled", 1));
@@ -435,9 +439,9 @@ public class BotHandlerFlowTests
     public async Task Timezone_show_names_the_stored_zone()
     {
         await using var host = await HostAsync();
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetTimezoneAsync(User, "Asia/Tokyo"));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().SetTimezoneAsync(await TestUsers.ResolveOrCreateAsync(sp, User), "Asia/Tokyo"));
 
-        var replies = await DriveAsync(host, (h, rem, _, r) => new RecordingTimezoneModule(h, rem, r), m => m.ShowAsync(), slash: true);
+        var replies = await DriveAsync(host, (sp, r) => new RecordingTimezoneModule(sp, r), m => m.ShowAsync(), slash: true);
 
         replies.Sent.Should().ContainSingle().Which.Text.Should().Be(English.Format("timezone.show", "Asia/Tokyo"));
     }
@@ -448,10 +452,10 @@ public class BotHandlerFlowTests
         await using var host = await HostAsync();
         var habitId = await SeedHabitAsync(host);
 
-        var unknownZone = await DriveAsync(host, (h, rem, _, r) => new RecordingOnboardingModule(h, rem, r), m => m.OnTimezoneSelectAsync(habitId.ToString(), ["Mars/Olympus"]));
-        var unknownRegion = await DriveAsync(host, (h, rem, _, r) => new RecordingOnboardingModule(h, rem, r), m => m.OnRegionSelectAsync(habitId.ToString(), ["moon"]));
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().HasTimezoneSetAsync(User))).Should().BeFalse();
-        await DriveAsync(host, (h, rem, _, r) => new RecordingOnboardingModule(h, rem, r), m => m.OnTimezoneSelectAsync(habitId.ToString(), ["Pacific/Auckland"]));
+        var unknownZone = await DriveAsync(host, (sp, r) => new RecordingOnboardingModule(sp, r), m => m.OnTimezoneSelectAsync(habitId.ToString(), ["Mars/Olympus"]));
+        var unknownRegion = await DriveAsync(host, (sp, r) => new RecordingOnboardingModule(sp, r), m => m.OnRegionSelectAsync(habitId.ToString(), ["moon"]));
+        (await host.WithScopeAsync(async sp => await sp.GetRequiredService<UserSettingsService>().HasTimezoneSetAsync(await TestUsers.UserIdAsync(sp, User)))).Should().BeFalse();
+        await DriveAsync(host, (sp, r) => new RecordingOnboardingModule(sp, r), m => m.OnTimezoneSelectAsync(habitId.ToString(), ["Pacific/Auckland"]));
 
         unknownZone.Sent.Should().ContainSingle().Which.Text.Should().Be(English.Get("onboard.tz.unknown"));
         unknownRegion.Sent.Should().ContainSingle().Which.Text.Should().Be(English.Get("onboard.region.unknown"));

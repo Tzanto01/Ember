@@ -20,11 +20,13 @@ namespace Ember.Bot.Modules;
 public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly UserSettingsService _settings;
     private readonly ReminderService _reminders;
 
-    public OnboardingModule(HabitService habits, ReminderService reminders)
+    public OnboardingModule(HabitService habits, UserSettingsService settings, ReminderService reminders)
     {
         _habits = habits;
+        _settings = settings;
         _reminders = reminders;
     }
 
@@ -223,8 +225,9 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        await _habits.SetTimezoneAsync(Context.User.Id, tz.Id, Languages.FromLocale(Context.Interaction.UserLocale));
-        await _reminders.RescheduleRemindersAsync(await _habits.FindDiscordUserAsync(Context.User.Id));
+        var userId = await _habits.ResolveOrCreateDiscordUserAsync(Context.User.Id, Languages.FromLocale(Context.Interaction.UserLocale));
+        await _settings.SetTimezoneAsync(userId, tz.Id);
+        await _reminders.RescheduleRemindersAsync(userId);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         var embed = new EmbedBuilder()

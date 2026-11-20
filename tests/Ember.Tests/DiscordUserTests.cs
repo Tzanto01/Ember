@@ -40,31 +40,14 @@ public class DiscordUserTests
         {
             var service = sp.GetRequiredService<HabitService>();
             (await service.FindDiscordUserAsync(55)).Should().Be(Guid.Empty);
-            (await service.GetHabitsAsync(55)).Should().BeEmpty();
-            (await service.HasHealthDataConsentAsync(55)).Should().BeFalse();
-            (await service.GetGraceDaysAsync(55)).Should().Be(1);
+            (await service.GetHabitsAsync(await TestUsers.UserIdAsync(sp, 55))).Should().BeEmpty();
+            (await sp.GetRequiredService<ConsentService>().HasHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, 55))).Should().BeFalse();
+            (await sp.GetRequiredService<UserSettingsService>().GetGraceDaysAsync(await TestUsers.UserIdAsync(sp, 55))).Should().Be(1);
             var accounts = sp.GetRequiredService<AccountService>();
             (await accounts.GetUserForExportAsync(await service.FindDiscordUserAsync(55))).Should().BeNull();
             await accounts.DeleteUserDataAsync(await service.FindDiscordUserAsync(55));
         });
 
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.CountAsync())).Should().Be(0);
-    }
-
-    [Fact]
-    public async Task DiscordOverloads_ResolveToTheSameUserAsTheGuidOverloads()
-    {
-        await using var host = await IntegrationTestHost.CreateAsync(start: false);
-
-        await host.WithScopeAsync(async sp =>
-        {
-            var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(77);
-            await service.AddHabitAsync(77, "Stretch", null);
-
-            var userId = await service.FindDiscordUserAsync(77);
-            (await service.GetHabitsAsync(userId)).Select(h => h.Name).Should().Equal("Stretch");
-            (await service.GetHabitsAsync(78)).Should().BeEmpty();
-        });
     }
 }

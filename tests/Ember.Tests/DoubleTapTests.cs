@@ -81,7 +81,7 @@ public class DoubleTapTests
         race.Competitor = c => InsertFromOtherRequestAsync(c, db =>
             db.HabitLogs.Add(new HabitLog { HabitId = habitId, Date = new DateOnly(2026, 1, 14), Completed = false }));
 
-        var result = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().CheckInAsync(701, habitId, new DateOnly(2026, 1, 14), completed: true));
+        var result = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().CheckInAsync(await TestUsers.UserIdAsync(sp, 701), habitId, new DateOnly(2026, 1, 14), completed: true));
 
         result.Should().Be(DayEditResult.Saved);
         var logs = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.Where(l => l.HabitId == habitId).ToListAsync());

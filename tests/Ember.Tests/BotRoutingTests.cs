@@ -43,8 +43,8 @@ public class BotRoutingTests
         => await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(Owner);
-            if (timezone) await service.SetTimezoneAsync(Owner, "Europe/Berlin");
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, Owner));
+            if (timezone) await sp.GetRequiredService<UserSettingsService>().SetTimezoneAsync(await TestUsers.ResolveOrCreateAsync(sp, Owner), "Europe/Berlin");
             var userId = await service.FindDiscordUserAsync(Owner);
             var build = (await service.AddHabitAsync(userId, "Walk", new TimeOnly(9, 0))).Habit!;
             var letGo = (await service.AddHabitAsync(userId, "Smoking", null, kind: HabitKind.LetGo)).Habit!;
@@ -62,11 +62,15 @@ public class BotRoutingTests
     private static Task<BotReplies> DriveAsync<TModule>(IntegrationTestHost host,
         Func<HabitService, ReminderService, AccountService, BotReplies, TModule> create, Func<TModule, Task> call, ulong user = Owner,
         bool slash = false) where TModule : IInteractionModuleBase
+        => DriveAsync(host, (sp, r) => create(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(),
+            sp.GetRequiredService<AccountService>(), r), call, user, slash);
+
+    private static Task<BotReplies> DriveAsync<TModule>(IntegrationTestHost host, Func<IServiceProvider, BotReplies, TModule> create,
+        Func<TModule, Task> call, ulong user = Owner, bool slash = false) where TModule : IInteractionModuleBase
         => host.WithScopeAsync(async sp =>
         {
             var replies = new BotReplies();
-            var module = BotHandlers.Attach(create(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(),
-                sp.GetRequiredService<AccountService>(), replies), user, slash: slash);
+            var module = BotHandlers.Attach(create(sp, replies), user, slash: slash);
             await BotHandlers.RunAsync(() => call(module));
             return replies;
         });
@@ -76,7 +80,7 @@ public class BotRoutingTests
         var ids = new List<string>();
         void Add(BotReplies replies) => ids.AddRange(replies.Sent.SelectMany(r => Ids(r.Components)));
 
-        async Task Habit(Func<RecordingHabitModule, Task> call) => Add(await DriveAsync(host, (h, rem, _, r) => new RecordingHabitModule(h, rem, r), call, slash: true));
+        async Task Habit(Func<RecordingHabitModule, Task> call) => Add(await DriveAsync(host, (sp, r) => new RecordingHabitModule(sp, r), call, slash: true));
         await Habit(m => m.ListAsync());
         await Habit(m => m.CheckInAsync());
         await Habit(m => m.HistoryAsync());
@@ -89,17 +93,17 @@ public class BotRoutingTests
         await Habit(m => m.GraceAsync());
         await Habit(m => m.TemplateAsync());
 
-        Add(await DriveAsync(host, (h, r) => new RecordingHabitActionModule(h, r), m => m.OnAddModalAsync(new HabitAddModal { HabitName = "Read" })));
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(79UL));
-        Add(await DriveAsync(host, (h, r) => new RecordingHabitActionModule(h, r), m => m.OnAddModalAsync(new HabitAddModal { HabitName = "Stretch" }), user: 79));
+        Add(await DriveAsync(host, (sp, r) => new RecordingHabitActionModule(sp, r), m => m.OnAddModalAsync(new HabitAddModal { HabitName = "Read" })));
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 79UL)));
+        Add(await DriveAsync(host, (sp, r) => new RecordingHabitActionModule(sp, r), m => m.OnAddModalAsync(new HabitAddModal { HabitName = "Stretch" }), user: 79));
         Add(await DriveAsync(host, (h, r) => new RecordingFrequencyModule(h, r), m => m.ShowMenuAsync(buildId.ToString())));
-        Add(await DriveAsync(host, (h, a, r) => new RecordingPrivacyModule(h, a, r), m => m.WithdrawAsync(), slash: true));
-        Add(await DriveAsync(host, (h, a, r) => new RecordingPrivacyModule(h, a, r), m => m.DeleteAsync(), slash: true));
-        Add(await DriveAsync(host, (h, rem, _, r) => new RecordingOnboardingModule(h, rem, r), m => m.OnRegionSelectAsync("1", ["moon"])));
+        Add(await DriveAsync(host, (sp, r) => new RecordingPrivacyModule(sp, r), m => m.WithdrawAsync(), slash: true));
+        Add(await DriveAsync(host, (sp, r) => new RecordingPrivacyModule(sp, r), m => m.DeleteAsync(), slash: true));
+        Add(await DriveAsync(host, (sp, r) => new RecordingOnboardingModule(sp, r), m => m.OnRegionSelectAsync("1", ["moon"])));
 
         var t = English;
         var days = Enumerable.Range(0, 3).Select(i => new HabitDay(Today.AddDays(-i), DayState.NotDone, null, 0)).ToList();
-        var habit = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitAsync(Owner, letGoId));
+        var habit = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitAsync(await TestUsers.UserIdAsync(sp, Owner), letGoId));
         var statics = new[]
         {
             ConsentModule.PromptButtons(t, Owner), HabitSelectModule.FrequencyComponents(t, buildId), DmRetryModule.RetryButton(t, Owner),
@@ -185,7 +189,7 @@ public class BotRoutingTests
         var before = await StateAsync(host);
         var b = buildId.ToString();
 
-        await DriveAsync(host, (h, r) => new RecordingHabitActionModule(h, r), async m =>
+        await DriveAsync(host, (sp, r) => new RecordingHabitActionModule(sp, r), async m =>
         {
             await m.OnCheckinDoneAsync(b);
             await m.OnCheckinSkipAsync(b);
@@ -201,7 +205,7 @@ public class BotRoutingTests
             await m.SetWeekdaysAsync(b, ["mon"]);
             await m.SetTimesAsync(b, ["4"]);
         }, user: Stranger);
-        await DriveAsync(host, (h, rem, _, r) => new RecordingReminderSetupModule(h, rem, r), async m =>
+        await DriveAsync(host, (sp, r) => new RecordingReminderSetupModule(sp, r), async m =>
         {
             await m.OnClearReminderAsync(b);
         }, user: Stranger);
@@ -216,7 +220,7 @@ public class BotRoutingTests
         await SeedAsync(host);
         var before = await StateAsync(host);
 
-        var action = await DriveAsync(host, (h, r) => new RecordingHabitActionModule(h, r), async m =>
+        var action = await DriveAsync(host, (sp, r) => new RecordingHabitActionModule(sp, r), async m =>
         {
             await m.OnCheckinDoneAsync("abc");
             await m.OnCheckinSkipAsync("abc");
@@ -236,7 +240,7 @@ public class BotRoutingTests
             await m.SetTimesAsync("1", ["abc"]);
             await m.ShowMenuAsync("abc");
         });
-        var checkIn = await DriveAsync(host, (h, rem, _, r) => new RecordingCheckInModule(h, rem, r), async m =>
+        var checkIn = await DriveAsync(host, (sp, r) => new RecordingCheckInModule(sp, r), async m =>
         {
             await m.OnDoneAsync("abc", "100");
             await m.OnSkipAsync("abc", "100");
@@ -261,7 +265,7 @@ public class BotRoutingTests
         foreach (var user in new[] { Stranger, Owner })
         {
             var id = user == Stranger ? owner : "abc";
-            refused.AddRange((await DriveAsync(host, (h, a, r) => new RecordingPrivacyModule(h, a, r), async m =>
+            refused.AddRange((await DriveAsync(host, (sp, r) => new RecordingPrivacyModule(sp, r), async m =>
             {
                 await m.OnConfirmWithdrawAsync(id);
                 await m.OnCancelWithdrawAsync(id);
@@ -275,13 +279,13 @@ public class BotRoutingTests
                 await m.OnNoAsync(id);
                 await m.OnStopAsync(id);
             }, user: user)).Sent.Select(r => r.Text));
-            refused.AddRange((await DriveAsync(host, (h, r) => new RecordingReflectModule(h, r), async m =>
+            refused.AddRange((await DriveAsync(host, (sp, r) => new RecordingReflectModule(sp, r), async m =>
             {
                 await m.LogAsync(id, date);
                 await m.LowDayAsync(id, date);
                 await m.PickAsync(id, date, [buildId.ToString()]);
             }, user: user)).Sent.Select(r => r.Text));
-            refused.AddRange((await DriveAsync(host, (h, r) => new RecordingHistoryModule(h, r), async m =>
+            refused.AddRange((await DriveAsync(host, (sp, r) => new RecordingHistoryModule(sp, r), async m =>
             {
                 await m.OnDayAsync(id, buildId.ToString(), date);
                 await m.OnLowDayAsync(id, buildId.ToString(), [date]);
@@ -301,11 +305,12 @@ public class BotRoutingTests
         var answers = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
+            var consent = sp.GetRequiredService<ConsentService>();
             return new[]
             {
-                await ConsentModule.TryAnswerAsync(service, Owner.ToString(), Stranger, agreed: true),
-                await ConsentModule.TryAnswerAsync(service, "abc", Owner, agreed: true),
-                await ConsentModule.TryAnswerAsync(service, "", Owner, agreed: false),
+                await ConsentModule.TryAnswerAsync(service, consent, Owner.ToString(), Stranger, agreed: true),
+                await ConsentModule.TryAnswerAsync(service, consent, "abc", Owner, agreed: true),
+                await ConsentModule.TryAnswerAsync(service, consent, "", Owner, agreed: false),
             };
         });
 

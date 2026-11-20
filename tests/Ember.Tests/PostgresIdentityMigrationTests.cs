@@ -106,13 +106,14 @@ public class PostgresIdentityMigrationTests(PostgresFixture postgres)
         await AppHost.InitializeAsync(host);
 
         await using var scope = host.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<HabitService>();
+        var sp = scope.ServiceProvider;
+        var service = sp.GetRequiredService<HabitService>();
 
-        (await service.GetHabitsAsync((ulong)Alice)).Select(h => h.Name).Should().Equal("Stretch", "Read");
-        (await service.HasHealthDataConsentAsync((ulong)Alice)).Should().BeTrue();
-        await service.GiveHealthDataConsentAsync((ulong)Bob);
-        (await service.CheckInAsync((ulong)Bob, 3, new DateOnly(2026, 10, 4), completed: true)).Should().Be(DayEditResult.Saved);
-        (await service.CheckInAsync((ulong)Bob, 1, new DateOnly(2026, 10, 4), completed: true)).Should().Be(DayEditResult.HabitNotFound, "habit 1 is Alice's");
+        (await service.GetHabitsAsync(await TestUsers.UserIdAsync(sp, (ulong)Alice))).Select(h => h.Name).Should().Equal("Stretch", "Read");
+        (await sp.GetRequiredService<ConsentService>().HasHealthDataConsentAsync(await TestUsers.UserIdAsync(sp, (ulong)Alice))).Should().BeTrue();
+        await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, (ulong)Bob));
+        (await service.CheckInAsync(await TestUsers.UserIdAsync(sp, (ulong)Bob), 3, new DateOnly(2026, 10, 4), completed: true)).Should().Be(DayEditResult.Saved);
+        (await service.CheckInAsync(await TestUsers.UserIdAsync(sp, (ulong)Bob), 1, new DateOnly(2026, 10, 4), completed: true)).Should().Be(DayEditResult.HabitNotFound, "habit 1 is Alice's");
 
         var dave = await service.ResolveOrCreateDiscordUserAsync(1);
         dave.Should().NotBe(Guid.Empty);

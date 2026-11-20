@@ -31,9 +31,12 @@ public class ConsentPromptNotifier
 
         using var scope = _services.CreateScope();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+        var consent = scope.ServiceProvider.GetRequiredService<ConsentService>();
+        Guid userId;
         try
         {
-            if (!await habits.ClaimConsentPromptAsync(context.User.Id))
+            userId = await habits.FindDiscordUserAsync(context.User.Id);
+            if (!await consent.ClaimConsentPromptAsync(userId))
                 return;
         }
         catch (Exception ex)
@@ -53,7 +56,7 @@ public class ConsentPromptNotifier
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not show the consent prompt to user {UserId}.", context.User.Id);
-            try { await habits.ReleaseConsentPromptAsync(context.User.Id); }
+            try { await consent.ReleaseConsentPromptAsync(userId); }
             catch (Exception releaseEx) { _logger.LogWarning(releaseEx, "Could not re-arm the consent prompt for user {UserId}.", context.User.Id); }
         }
     }

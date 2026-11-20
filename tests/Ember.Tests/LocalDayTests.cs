@@ -40,8 +40,8 @@ public class LocalDayTests
         return host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            var today = await service.GetLocalTodayAsync((ulong)userId);
-            (await service.CheckInAsync((ulong)userId, habitId, today, completed: true)).Should().Be(DayEditResult.Saved);
+            var today = await sp.GetRequiredService<UserSettingsService>().GetLocalTodayAsync(await TestUsers.UserIdAsync(sp, (ulong)userId));
+            (await service.CheckInAsync(await TestUsers.UserIdAsync(sp, (ulong)userId), habitId, today, completed: true)).Should().Be(DayEditResult.Saved);
             return await sp.GetRequiredService<EmberDbContext>().HabitLogs
                 .Where(l => l.HabitId == habitId).OrderByDescending(l => l.Id).Select(l => l.Date).FirstAsync();
         });
@@ -86,7 +86,7 @@ public class LocalDayTests
         await CheckInAtAsync(host, time, new DateTimeOffset(2026, 1, 14, 5, 0, 0, TimeSpan.Zero), 503, habitId);
         await CheckInAtAsync(host, time, new DateTimeOffset(2026, 1, 14, 23, 0, 0, TimeSpan.Zero), 503, habitId);
 
-        var habit = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitAsync(503, habitId));
+        var habit = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitAsync(await TestUsers.UserIdAsync(sp, 503), habitId));
         habit!.Logs.Select(l => l.Date).Should().BeEquivalentTo([new DateOnly(2026, 1, 13), new DateOnly(2026, 1, 14)]);
         HabitRules.ConsecutiveStreak(habit, new DateOnly(2026, 1, 14), graceDays: 0, null).streak.Should().Be(2);
     }

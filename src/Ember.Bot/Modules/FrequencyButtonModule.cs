@@ -31,6 +31,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     [ComponentInteraction(FrequencyIds.WeeklyPattern)]
     public async Task SetWeeklyTargetAsync(string habitIdStr, string targetStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId) || !int.TryParse(targetStr, out var target))
         {
@@ -38,7 +39,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
             return;
         }
 
-        var habit = await _habits.SetScheduleAsync(Context.User.Id, habitId, FrequencyType.Weekly, target, null, 1);
+        var habit = await _habits.SetScheduleAsync(userId, habitId, FrequencyType.Weekly, target, null, 1);
 
         if (habit is null)
         {
@@ -57,9 +58,10 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     [ComponentInteraction(FrequencyIds.MenuPattern)]
     public async Task ShowMenuAsync(string habitIdStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
         if (habit.Kind == HabitKind.LetGo) { await RespondAsync(HabitModule.LetGoWebOnlyText(t), ephemeral: true); return; }
 
@@ -70,9 +72,10 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     [ComponentInteraction(FrequencyIds.WeekdaysPattern)]
     public async Task ShowWeekdaysAsync(string habitIdStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
         if (habit.Kind == HabitKind.LetGo) { await DoneAsync(HabitModule.LetGoWebOnlyText(t)); return; }
 
@@ -94,6 +97,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     [ComponentInteraction(FrequencyIds.DaysPattern)]
     public async Task SetWeekdaysAsync(string habitIdStr, string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId) || values.Length is < 1 or > 6
             || !ScheduleDayNames.TryParse(values, out var days))
@@ -102,9 +106,9 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
             return;
         }
 
-        var current = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var current = await _habits.GetHabitAsync(userId, habitId);
         var habit = current is null ? null
-            : await _habits.SetScheduleAsync(Context.User.Id, habitId, FrequencyType.Weekdays, null, days, current.TimesPerDay);
+            : await _habits.SetScheduleAsync(userId, habitId, FrequencyType.Weekdays, null, days, current.TimesPerDay);
         if (habit is null) { await NotFoundAsync(t); return; }
 
         await DoneAsync(t.Format("freq.days.set", habit.Name, HabitModule.FrequencyLabel(t, habit)));
@@ -113,9 +117,10 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     [ComponentInteraction(FrequencyIds.TimesPattern)]
     public async Task ShowTimesAsync(string habitIdStr)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
-        var habit = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
         if (habit.Kind == HabitKind.LetGo) { await DoneAsync(HabitModule.LetGoWebOnlyText(t)); return; }
         if (habit.FrequencyType == FrequencyType.Weekly) { await WeeklyOnlyOnceAsync(t); return; }
@@ -138,6 +143,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     [ComponentInteraction(FrequencyIds.TimesPerDayPattern)]
     public async Task SetTimesAsync(string habitIdStr, string[] values)
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!int.TryParse(habitIdStr, out var habitId) || !int.TryParse(values[0], out var times)
             || times is < 1 or > Limits.TimesPerDay)
@@ -146,11 +152,11 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
             return;
         }
 
-        var current = await _habits.GetHabitAsync(Context.User.Id, habitId);
+        var current = await _habits.GetHabitAsync(userId, habitId);
         if (current is null) { await NotFoundAsync(t); return; }
         if (current.FrequencyType == FrequencyType.Weekly) { await WeeklyOnlyOnceAsync(t); return; }
 
-        var habit = await _habits.SetScheduleAsync(Context.User.Id, habitId, current.FrequencyType, null, current.Days, times);
+        var habit = await _habits.SetScheduleAsync(userId, habitId, current.FrequencyType, null, current.Days, times);
         if (habit is null) { await NotFoundAsync(t); return; }
 
         await DoneAsync(times == 1

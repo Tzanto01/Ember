@@ -38,8 +38,8 @@ public class ReflectionInviteTests
             await db.SaveChangesAsync();
         });
 
-        var open = await host.WithScopeAsync(sp =>
-            ReflectDismissModule.OpenHabitsAsync(sp.GetRequiredService<HabitService>(), UserId, yesterday));
+        var open = await host.WithScopeAsync(async sp =>
+            await ReflectDismissModule.OpenHabitsAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<UserSettingsService>(), await TestUsers.UserIdAsync(sp, UserId), yesterday));
 
         open.Select(h => h.Name).Should().Equal("Walk", "Stretch");
     }

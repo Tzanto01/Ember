@@ -34,11 +34,12 @@ public class PostgresMigrationTests(PostgresFixture postgres)
             (await db.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
             db.Database.HasPendingModelChanges().Should().BeFalse();
 
-            var service = scope.ServiceProvider.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(4242);
-            var habit = (await service.AddHabitAsync(4242, "Stretch", new TimeOnly(7, 30))).Habit!;
+            var sp = scope.ServiceProvider;
+            var service = sp.GetRequiredService<HabitService>();
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 4242));
+            var habit = (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, 4242), "Stretch", new TimeOnly(7, 30))).Habit!;
             habitId = habit.Id;
-            (await service.CheckInAsync(4242, habitId, await service.GetLocalTodayAsync(4242), completed: true, guildId: 99))
+            (await service.CheckInAsync(await TestUsers.UserIdAsync(sp, 4242), habitId, await sp.GetRequiredService<UserSettingsService>().GetLocalTodayAsync(await TestUsers.UserIdAsync(sp, 4242)), completed: true, guildId: 99))
                 .Should().Be(DayEditResult.Saved);
         }
 

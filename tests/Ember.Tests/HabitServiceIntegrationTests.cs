@@ -22,8 +22,8 @@ public class HabitServiceIntegrationTests
         var habitId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(123);
-            var habit = (await service.AddHabitAsync(123, "Drink Water", new TimeOnly(9, 0))).Habit!;
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 123));
+            var habit = (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, 123), "Drink Water", new TimeOnly(9, 0))).Habit!;
             return habit.Id;
         });
 
@@ -49,9 +49,9 @@ public class HabitServiceIntegrationTests
         var habitId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.GiveHealthDataConsentAsync(123);
-            var habit = (await service.AddHabitAsync(123, "Journal", new TimeOnly(21, 30))).Habit!;
-            await service.EditHabitAsync(123, habit.Id, null, null, clearReminder: true);
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 123));
+            var habit = (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, 123), "Journal", new TimeOnly(21, 30))).Habit!;
+            await service.EditHabitAsync(await TestUsers.UserIdAsync(sp, 123), habit.Id, null, null, clearReminder: true);
             return habit.Id;
         });
 
@@ -73,22 +73,22 @@ public class HabitServiceIntegrationTests
 
         var habitId = await host.WithScopeAsync(async sp =>
         {
-            await sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(123);
-            return (await sp.GetRequiredService<HabitService>().AddHabitAsync(123, "Journal", null)).Habit!.Id;
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 123));
+            return (await sp.GetRequiredService<HabitService>().AddHabitAsync(await TestUsers.UserIdAsync(sp, 123), "Journal", null)).Habit!.Id;
         });
 
-        var byStranger = await host.WithScopeAsync(sp =>
-            ReminderSetupModule.SetPresetReminderAsync(sp.GetRequiredService<HabitService>(), 456, habitId.ToString(), "07:30"));
-        var malformed = await host.WithScopeAsync(sp =>
-            ReminderSetupModule.SetPresetReminderAsync(sp.GetRequiredService<HabitService>(), 123, habitId.ToString(), "7h30"));
+        var byStranger = await host.WithScopeAsync(async sp =>
+            await ReminderSetupModule.SetPresetReminderAsync(sp.GetRequiredService<HabitService>(), await TestUsers.UserIdAsync(sp, 456), habitId.ToString(), "07:30"));
+        var malformed = await host.WithScopeAsync(async sp =>
+            await ReminderSetupModule.SetPresetReminderAsync(sp.GetRequiredService<HabitService>(), await TestUsers.UserIdAsync(sp, 123), habitId.ToString(), "7h30"));
 
         byStranger.Should().BeNull();
         malformed.Should().BeNull();
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.FindAsync(habitId).AsTask()))!
             .ReminderTime.Should().BeNull();
 
-        var byOwner = await host.WithScopeAsync(sp =>
-            ReminderSetupModule.SetPresetReminderAsync(sp.GetRequiredService<HabitService>(), 123, habitId.ToString(), "07:30"));
+        var byOwner = await host.WithScopeAsync(async sp =>
+            await ReminderSetupModule.SetPresetReminderAsync(sp.GetRequiredService<HabitService>(), await TestUsers.UserIdAsync(sp, 123), habitId.ToString(), "07:30"));
 
         byOwner!.ReminderTime.Should().Be(new TimeOnly(7, 30));
         byOwner.NextReminderUtc.Should().Be(new DateTime(2027, 1, 15, 7, 30, 0, DateTimeKind.Utc));
@@ -104,11 +104,11 @@ public class HabitServiceIntegrationTests
             var service = sp.GetRequiredService<HabitService>();
             var db = sp.GetRequiredService<EmberDbContext>();
 
-            await service.GiveHealthDataConsentAsync(456);
-            var habit = (await service.AddHabitAsync(456, "Read", reminderTime: null)).Habit!;
-            var today = await service.GetLocalTodayAsync(456);
-            await service.CheckInAsync(456, habit.Id, today, completed: true, guildId: 100);
-            await service.CheckInAsync(456, habit.Id, today, completed: false, guildId: 200);
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 456));
+            var habit = (await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, 456), "Read", reminderTime: null)).Habit!;
+            var today = await sp.GetRequiredService<UserSettingsService>().GetLocalTodayAsync(await TestUsers.UserIdAsync(sp, 456));
+            await service.CheckInAsync(await TestUsers.UserIdAsync(sp, 456), habit.Id, today, completed: true, guildId: 100);
+            await service.CheckInAsync(await TestUsers.UserIdAsync(sp, 456), habit.Id, today, completed: false, guildId: 200);
 
             var logs = db.HabitLogs.Where(l => l.HabitId == habit.Id).ToList();
             logs.Should().HaveCount(1);
@@ -127,11 +127,11 @@ public class HabitServiceIntegrationTests
             var service = sp.GetRequiredService<HabitService>();
             var db = sp.GetRequiredService<EmberDbContext>();
 
-            await service.GiveHealthDataConsentAsync(789);
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, 789));
             for (var i = 1; i <= Limits.HabitsPerUser; i++)
-                await service.AddHabitAsync(789, $"Habit {i}", reminderTime: null);
+                await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, 789), $"Habit {i}", reminderTime: null);
 
-            var (result, _) = await service.AddHabitAsync(789, "One more", reminderTime: null, FrequencyType.Weekly, 2);
+            var (result, _) = await service.AddHabitAsync(await TestUsers.UserIdAsync(sp, 789), "One more", reminderTime: null, FrequencyType.Weekly, 2);
 
             result.Should().Be(HabitWriteResult.LimitReached);
             var userId = await TestUsers.UserIdAsync(sp, 789);

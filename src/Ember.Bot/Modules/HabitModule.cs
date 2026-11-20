@@ -14,12 +14,16 @@ namespace Ember.Bot.Modules;
 public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly ReminderService _reminders;
     private readonly IConfiguration _config;
 
-    public HabitModule(HabitService habits, ReminderService reminders, IConfiguration config)
+    public HabitModule(HabitService habits, ConsentService consent, UserSettingsService settings, ReminderService reminders, IConfiguration config)
     {
         _habits = habits;
+        _consent = consent;
+        _settings = settings;
         _reminders = reminders;
         _config = config;
     }
@@ -128,19 +132,20 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     /// <summary><see cref="BuildHabitSelectMenu"/> for the user of this interaction, with days free on let-go habits.</summary>
-    private async Task<SelectMenuBuilder> HabitMenuAsync(Texts t, IReadOnlyList<Habit> habits, string customId, string placeholder)
+    private async Task<SelectMenuBuilder> HabitMenuAsync(Texts t, Guid userId, IReadOnlyList<Habit> habits, string customId, string placeholder)
         => BuildHabitSelectMenu(t, habits, customId, placeholder,
-            await _habits.GetLocalTodayAsync(Context.User.Id), await _habits.GetTimeZoneAsync(Context.User.Id));
+            await _settings.GetLocalTodayAsync(userId), await _settings.GetTimeZoneAsync(userId));
 
     // ── /habit add ────────────────────────────────────────────────────────────
 
     [SlashCommand("add", "Add a new habit to track")]
     public async Task AddAsync()
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        if (!await _habits.HasHealthDataConsentAsync(Context.User.Id))
+        if (!await _consent.HasHealthDataConsentAsync(userId))
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
 
@@ -160,10 +165,11 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("template", "Start a habit from a pre-built template")]
     public async Task TemplateAsync()
     {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        if (!await _habits.HasHealthDataConsentAsync(Context.User.Id))
+        if (!await _consent.HasHealthDataConsentAsync(userId))
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
+            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
             return;
         }
 
@@ -197,12 +203,13 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("list", "See all your habits and their recent progress")]
     public async Task ListAsync()
     {
-        var habits = await _habits.GetHabitsAsync(Context.User.Id);
-        var grace = await _habits.GetGraceDaysAsync(Context.User.Id);
-        var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-        var lowDays = await _habits.GetLowDaysAsync(Context.User.Id);
-        var tz = await _habits.GetTimeZoneAsync(Context.User.Id);
-        var showStreaks = await _habits.GetShowStreaksAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var habits = await _habits.GetHabitsAsync(userId);
+        var grace = await _settings.GetGraceDaysAsync(userId);
+        var today = await _settings.GetLocalTodayAsync(userId);
+        var lowDays = await _habits.GetLowDaysAsync(userId);
+        var tz = await _settings.GetTimeZoneAsync(userId);
+        var showStreaks = await _settings.GetShowStreaksAsync(userId);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         if (habits.Count == 0)
@@ -267,7 +274,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("checkin", "Log today's check-in for a habit")]
     public async Task CheckInAsync()
     {
-        var habits = await _habits.GetHabitsAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var habits = await _habits.GetHabitsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -277,7 +285,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectCheckIn, t.Get("habit.checkin.placeholder"));
+        var menu = await HabitMenuAsync(t, userId, habits, HabitIds.SelectCheckIn, t.Get("habit.checkin.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.checkin.prompt"), components: components, ephemeral: true);
     }
@@ -287,7 +295,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("history", "See and fill in the last two weeks of a habit, and mark low days")]
     public async Task HistoryAsync()
     {
-        var habits = await _habits.GetHabitsAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var habits = await _habits.GetHabitsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -297,7 +306,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectHistory, t.Get("habit.history.placeholder"));
+        var menu = await HabitMenuAsync(t, userId, habits, HabitIds.SelectHistory, t.Get("habit.history.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.history.prompt"), components: components, ephemeral: true);
     }
@@ -308,7 +317,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task StreakAsync()
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        var (pages, toggle) = await RenderStatsAsync(t, _habits, Context.User.Id);
+        var (pages, toggle) = await RenderStatsAsync(t, _habits, _settings, await _habits.FindDiscordUserAsync(Context.User.Id));
 
         if (pages.Count == 0)
         {
@@ -325,14 +334,15 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     /// The <c>/habit streak</c> reply: one stats embed per page of habits (none without habits) and the button that flips
     /// <see cref="User.ShowStreaks"/> ("habit:streaks:on" / "habit:streaks:off"). With streaks off the stats have no streak lines.
     /// </summary>
-    internal static async Task<(List<Embed> Pages, MessageComponent Toggle)> RenderStatsAsync(Texts t, HabitService service, ulong userId)
+    internal static async Task<(List<Embed> Pages, MessageComponent Toggle)> RenderStatsAsync(Texts t, HabitService service, UserSettingsService settings,
+        Guid userId)
     {
         var habits = await service.GetHabitsAsync(userId);
-        var grace = await service.GetGraceDaysAsync(userId);
-        var today = await service.GetLocalTodayAsync(userId);
+        var grace = await settings.GetGraceDaysAsync(userId);
+        var today = await settings.GetLocalTodayAsync(userId);
         var lowDays = await service.GetLowDaysAsync(userId);
-        var tz = await service.GetTimeZoneAsync(userId);
-        var showStreaks = await service.GetShowStreaksAsync(userId);
+        var tz = await settings.GetTimeZoneAsync(userId);
+        var showStreaks = await settings.GetShowStreaksAsync(userId);
 
         var toggle = new ComponentBuilder()
             .WithButton(t.Get(showStreaks ? "habit.stats.hide-streaks" : "habit.stats.show-streaks"), HabitIds.Streaks(show: !showStreaks), ButtonStyle.Secondary)
@@ -417,7 +427,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("share", "Share a habit card publicly in this channel")]
     public async Task ShareAsync()
     {
-        var habits = await _habits.GetHabitsAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var habits = await _habits.GetHabitsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -427,7 +438,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectShare, t.Get("habit.share.prompt"));
+        var menu = await HabitMenuAsync(t, userId, habits, HabitIds.SelectShare, t.Get("habit.share.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.share.prompt"), components: components, ephemeral: true);
     }
@@ -437,7 +448,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("delete", "Remove a habit and stop tracking it")]
     public async Task DeleteAsync()
     {
-        var habits = await _habits.GetHabitsAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var habits = await _habits.GetHabitsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -447,7 +459,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectDelete, t.Get("habit.delete.placeholder"));
+        var menu = await HabitMenuAsync(t, userId, habits, HabitIds.SelectDelete, t.Get("habit.delete.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.delete.prompt"), components: components, ephemeral: true);
     }
@@ -457,7 +469,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("edit", "Edit a habit's name or reminder time")]
     public async Task EditAsync()
     {
-        var habits = await _habits.GetHabitsAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var habits = await _habits.GetHabitsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -467,7 +480,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectEdit, t.Get("habit.edit.prompt"));
+        var menu = await HabitMenuAsync(t, userId, habits, HabitIds.SelectEdit, t.Get("habit.edit.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.edit.prompt"), components: components, ephemeral: true);
     }
@@ -477,7 +490,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("frequency", "Change how often a habit needs to be done")]
     public async Task FrequencyAsync()
     {
-        var habits = await _habits.GetHabitsAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var habits = await _habits.GetHabitsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -487,7 +501,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectFrequency, t.Get("habit.frequency.placeholder"));
+        var menu = await HabitMenuAsync(t, userId, habits, HabitIds.SelectFrequency, t.Get("habit.frequency.placeholder"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.frequency.prompt"), components: components, ephemeral: true);
     }
@@ -497,7 +511,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("pause", "Pause a habit temporarily — reminders stop while it's paused")]
     public async Task PauseAsync()
     {
-        var habits = await _habits.GetHabitsAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var habits = await _habits.GetHabitsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -507,7 +522,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var menu = await HabitMenuAsync(t, habits, HabitIds.SelectPause, t.Get("habit.pause.prompt"));
+        var menu = await HabitMenuAsync(t, userId, habits, HabitIds.SelectPause, t.Get("habit.pause.prompt"));
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();
         await RespondAsync(t.Get("habit.pause.prompt"), components: components, ephemeral: true);
     }
@@ -517,7 +532,8 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("grace", "Set how many flex days per week you get before a streak breaks")]
     public async Task GraceAsync()
     {
-        var current = await _habits.GetGraceDaysAsync(Context.User.Id);
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var current = await _settings.GetGraceDaysAsync(userId);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         var components = new ComponentBuilder()

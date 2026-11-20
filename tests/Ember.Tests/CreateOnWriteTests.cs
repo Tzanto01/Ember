@@ -47,7 +47,7 @@ public class CreateOnWriteTests
     {
         await using var host = await HostAsync();
 
-        await RunAsync(host, (sp, r) => new RecordingHabitActionModule(sp.GetRequiredService<HabitService>(), r), m => m.OnGraceAsync("3"), NothingAsync);
+        await RunAsync(host, (sp, r) => new RecordingHabitActionModule(sp, r), m => m.OnGraceAsync("3"), NothingAsync);
 
         (await OnlyUserAsync(host)).GraceDaysPerWeek.Should().Be(3);
     }
@@ -57,7 +57,7 @@ public class CreateOnWriteTests
     {
         await using var host = await HostAsync();
 
-        await RunAsync(host, (sp, r) => new RecordingHabitActionModule(sp.GetRequiredService<HabitService>(), r), m => m.OnStreaksAsync("on"), NothingAsync);
+        await RunAsync(host, (sp, r) => new RecordingHabitActionModule(sp, r), m => m.OnStreaksAsync("on"), NothingAsync);
 
         (await OnlyUserAsync(host)).ShowStreaks.Should().BeTrue();
     }
@@ -67,7 +67,7 @@ public class CreateOnWriteTests
     {
         await using var host = await HostAsync();
 
-        await RunAsync(host, (sp, r) => new RecordingHabitActionModule(sp.GetRequiredService<HabitService>(), r), m => m.OnStreaksTipAsync("on"), NothingAsync);
+        await RunAsync(host, (sp, r) => new RecordingHabitActionModule(sp, r), m => m.OnStreaksTipAsync("on"), NothingAsync);
 
         (await OnlyUserAsync(host)).ShowStreaks.Should().BeTrue();
     }
@@ -77,7 +77,7 @@ public class CreateOnWriteTests
     {
         await using var host = await HostAsync();
 
-        await RunAsync(host, (sp, r) => new RecordingTimezoneModule(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), r),
+        await RunAsync(host, (sp, r) => new RecordingTimezoneModule(sp, r),
             m => m.SetAsync("Europe/Berlin"), NothingAsync, slash: true);
 
         (await OnlyUserAsync(host)).Timezone.Should().Be("Europe/Berlin");
@@ -88,7 +88,7 @@ public class CreateOnWriteTests
     {
         await using var host = await HostAsync();
 
-        await RunAsync(host, (sp, r) => new RecordingOnboardingModule(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), r),
+        await RunAsync(host, (sp, r) => new RecordingOnboardingModule(sp, r),
             m => m.OnTimezoneSelectAsync("1", ["Pacific/Auckland"]), NothingAsync);
 
         (await OnlyUserAsync(host)).Timezone.Should().Be("Pacific/Auckland");
@@ -99,7 +99,7 @@ public class CreateOnWriteTests
     {
         await using var host = await HostAsync();
 
-        await RunAsync(host, (sp, _) => new ConsentModule(sp.GetRequiredService<HabitService>()), m => m.OnAgreeAsync(Stranger.ToString()), NothingAsync);
+        await RunAsync(host, (sp, _) => new ConsentModule(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ConsentService>(), sp.GetRequiredService<UserSettingsService>()), m => m.OnAgreeAsync(Stranger.ToString()), NothingAsync);
 
         var user = await OnlyUserAsync(host);
         user.HealthDataConsentAt.Should().Be(Now.UtcDateTime);
@@ -111,7 +111,7 @@ public class CreateOnWriteTests
     {
         await using var host = await HostAsync();
 
-        await RunAsync(host, (sp, r) => new RecordingHabitModule(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), r),
+        await RunAsync(host, (sp, r) => new RecordingHabitModule(sp, r),
             m => m.SecondReminderAsync(SecondReminderDelay.OneHour), NothingAsync, slash: true);
 
         (await OnlyUserAsync(host)).SecondReminderMinutes.Should().Be(60);

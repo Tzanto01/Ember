@@ -1,18 +1,15 @@
 using Ember.Core.Localization;
 using Ember.Core.Models;
-using Ember.Core.Rules;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
 
 /// <summary>
-/// The Discord side of <see cref="HabitService"/>: every user-scoped method keyed on a Discord user ID instead of
-/// the Ember user ID. Each one resolves the Discord ID through <see cref="FindDiscordUserAsync"/> (reads, and
-/// writes that need an existing user) or <see cref="ResolveOrCreateDiscordUserAsync"/> (writes that may create
-/// the user), then calls the <see cref="Guid"/> overload (for consent, on <see cref="ConsentService"/>; for settings, on
-/// <see cref="UserSettingsService"/>). The lookup is never cached:
-/// the API can merge or delete accounts while the bot runs. The API uses the <see cref="Guid"/> overloads only.
+/// The Discord identity lookup of <see cref="HabitService"/>: the Ember user ID linked to a Discord user, finding it
+/// (<see cref="FindDiscordUserAsync"/>) or creating a bot-only user (<see cref="ResolveOrCreateDiscordUserAsync"/>), and the
+/// language to speak to a Discord user in. The bot resolves the user once per interaction and calls the owning service with
+/// the <see cref="Guid"/>. The lookup is never cached: the API can merge or delete accounts while the bot runs.
 /// </summary>
 public partial class HabitService
 {
@@ -87,100 +84,4 @@ public partial class HabitService
             .Join(_db.Users, l => l.UserId, u => u.Id, (_, u) => u.Language)
             .FirstOrDefaultAsync() ?? Languages.FromLocale(discordLocale);
     }
-
-    public async Task<bool> HasHealthDataConsentAsync(ulong discordUserId)
-        => await _consent.HasHealthDataConsentAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task GiveHealthDataConsentAsync(ulong discordUserId, string? language = null)
-        => await _consent.GiveHealthDataConsentAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language));
-
-    public async Task<bool> ClaimConsentPromptAsync(ulong discordUserId)
-        => await _consent.ClaimConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task ReleaseConsentPromptAsync(ulong discordUserId)
-        => await _consent.ReleaseConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<bool> WithdrawHealthDataConsentAsync(ulong discordUserId)
-        => await _consent.WithdrawHealthDataConsentAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<(DateTime WithdrawnAt, DateTime? ReminderSentAt)?> GetConsentWithdrawalAsync(ulong discordUserId)
-        => await _consent.GetConsentWithdrawalAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task DeclineConsentPromptAsync(ulong discordUserId)
-        => await _consent.DeclineConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task MarkConsentPromptedAsync(ulong discordUserId)
-        => await _consent.MarkConsentPromptedAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<(HabitWriteResult Result, Habit? Habit)> AddHabitAsync(ulong discordUserId, string name, TimeOnly? reminderTime, FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null)
-        => await AddHabitAsync(await FindDiscordUserAsync(discordUserId), name, reminderTime, frequency, weeklyTarget);
-
-    public async Task<Habit?> GetHabitAsync(ulong discordUserId, int habitId)
-        => await GetHabitAsync(await FindDiscordUserAsync(discordUserId), habitId);
-
-    public async Task<List<Habit>> GetHabitsAsync(ulong discordUserId)
-        => await GetHabitsAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<DayEditResult> CheckInAsync(ulong discordUserId, int habitId, DateOnly date, bool completed, ulong? guildId = null)
-        => await CheckInAsync(await FindDiscordUserAsync(discordUserId), habitId, date, completed, guildId);
-
-    public async Task<DayEditResult> AddCheckInAsync(ulong discordUserId, int habitId, DateOnly date, ulong? guildId = null)
-        => await AddCheckInAsync(await FindDiscordUserAsync(discordUserId), habitId, date, guildId);
-
-    public async Task<DayEditResult> ClearDayAsync(ulong discordUserId, int habitId, DateOnly date)
-        => await ClearDayAsync(await FindDiscordUserAsync(discordUserId), habitId, date);
-
-    public async Task<SlipResult> AddSlipAsync(ulong discordUserId, int habitId, DateOnly date, string? reason = null)
-        => await AddSlipAsync(await FindDiscordUserAsync(discordUserId), habitId, date, reason);
-
-    public async Task<DayEditResult> SetLowDayAsync(ulong discordUserId, DateOnly date)
-        => await SetLowDayAsync(await FindDiscordUserAsync(discordUserId), date);
-
-    public async Task ClearLowDayAsync(ulong discordUserId, DateOnly date)
-        => await ClearLowDayAsync(await FindDiscordUserAsync(discordUserId), date);
-
-    public async Task<HashSet<DateOnly>> GetLowDaysAsync(ulong discordUserId)
-        => await GetLowDaysAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<IReadOnlyList<HabitDay>?> GetHabitDaysAsync(ulong discordUserId, int habitId, int days)
-        => await GetHabitDaysAsync(await FindDiscordUserAsync(discordUserId), habitId, days);
-
-    public async Task<Habit?> SetScheduleAsync(ulong discordUserId, int habitId, FrequencyType type, int? weeklyTarget, ScheduleDays? days, int timesPerDay)
-        => await SetScheduleAsync(await FindDiscordUserAsync(discordUserId), habitId, type, weeklyTarget, days, timesPerDay);
-
-    public async Task<bool> DeleteHabitAsync(ulong discordUserId, int habitId)
-        => await DeleteHabitAsync(await FindDiscordUserAsync(discordUserId), habitId);
-
-    public async Task<(HabitWriteResult Result, Habit? Habit)> EditHabitAsync(ulong discordUserId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder)
-        => await EditHabitAsync(await FindDiscordUserAsync(discordUserId), habitId, newName, newReminderTime, clearReminder);
-
-    public async Task<Habit?> PauseHabitAsync(ulong discordUserId, int habitId, DateOnly? pausedUntil)
-        => await PauseHabitAsync(await FindDiscordUserAsync(discordUserId), habitId, pausedUntil);
-
-    public async Task<int> GetGraceDaysAsync(ulong discordUserId)
-        => await _settings.GetGraceDaysAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task SetGraceDaysAsync(ulong discordUserId, int graceDays, string? language = null)
-        => await _settings.SetGraceDaysAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), graceDays);
-
-    public async Task<TimeZoneInfo> GetTimeZoneAsync(ulong discordUserId)
-        => await _settings.GetTimeZoneAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<DateOnly> GetLocalTodayAsync(ulong discordUserId)
-        => await _settings.GetLocalTodayAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<bool> HasTimezoneSetAsync(ulong discordUserId)
-        => await _settings.HasTimezoneSetAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task SetTimezoneAsync(ulong discordUserId, string timezoneId, string? language = null)
-        => await _settings.SetTimezoneAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), timezoneId);
-
-    public async Task<bool> GetShowStreaksAsync(ulong discordUserId)
-        => await _settings.GetShowStreaksAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task SetShowStreaksAsync(ulong discordUserId, bool show, string? language = null)
-        => await _settings.SetShowStreaksAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), show);
-
-    public async Task<bool> NeedsStreaksQuestionAsync(ulong discordUserId)
-        => await _settings.NeedsStreaksQuestionAsync(await FindDiscordUserAsync(discordUserId));
 }

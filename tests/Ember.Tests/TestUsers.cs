@@ -17,6 +17,10 @@ internal static class TestUsers
     public static Task<Guid> UserIdAsync(IServiceProvider sp, ulong discordUserId)
         => sp.GetRequiredService<HabitService>().FindDiscordUserAsync(discordUserId);
 
+    /// <summary>The Ember user ID for this Discord user, creating the bot-only user the way a bot write does when there is none.</summary>
+    public static Task<Guid> ResolveOrCreateAsync(IServiceProvider sp, ulong discordUserId, string? language = null)
+        => sp.GetRequiredService<HabitService>().ResolveOrCreateDiscordUserAsync(discordUserId, language);
+
     /// <summary>The Discord ID a seeded <see cref="Id(long)"/> was derived from.</summary>
     public static long DiscordIdOf(Guid id) => Convert.ToInt64(id.ToString("N")[^12..], 16);
 
