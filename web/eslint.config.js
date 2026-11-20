@@ -55,6 +55,8 @@ export default defineConfig(
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
+      // Tests spread localStorage, navigator and ASCII literals into plain fixtures on purpose.
+      '@typescript-eslint/no-misused-spread': 'off',
     },
   },
   {
@@ -70,7 +72,6 @@ export default defineConfig(
       '@typescript-eslint/no-deprecated': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-misused-spread': 'off',
       '@typescript-eslint/no-unnecessary-type-conversion': 'off',
       '@typescript-eslint/no-extraneous-class': 'off',
       '@typescript-eslint/no-base-to-string': 'off',

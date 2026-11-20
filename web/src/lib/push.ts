@@ -29,7 +29,7 @@ function serverKey(base64Url: string): Uint8Array<ArrayBuffer> {
   const base64 = (base64Url + '='.repeat((4 - (base64Url.length % 4)) % 4))
     .replace(/-/g, '+')
     .replace(/_/g, '/');
-  return new Uint8Array([...atob(base64)].map((char) => char.charCodeAt(0)));
+  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
 }
 
 /**
