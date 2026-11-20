@@ -405,6 +405,43 @@ public class JobIntegrationTests
     }
 
     [Fact]
+    public async Task WeeklySummaryJob_RendersTheWholeRecap_TitleHeadlineLinkLetGoLinesHabitLinesAndFooter()
+    {
+        await using var host = await IntegrationTestHost.CreateAsync(time: new FakeTimeProvider(SundayMorningUtc),
+            args: ["--Ember:WebOrigin=https://ember.example/"]);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var today = DateOnly.FromDateTime(SundayMorningUtc.UtcDateTime);
+            var created = SundayMorningUtc.UtcDateTime.AddDays(-20);
+            var user = new User { Id = TestUsers.Id(91), Logins = TestUsers.Discord(91), Timezone = "UTC", ShowStreaks = true };
+            var daily = new Habit { UserId = user.Id, Name = "Stretch", CreatedAt = created };
+            foreach (var daysAgo in new[] { 1, 2, 3, 4 }) daily.Logs.Add(new HabitLog { Date = today.AddDays(-daysAgo), Completed = true });
+            var weekly = new Habit { UserId = user.Id, Name = "Run", CreatedAt = created, FrequencyType = FrequencyType.Weekly, WeeklyTarget = 3 };
+            weekly.Logs.Add(new HabitLog { Date = today.AddDays(-2), Completed = true });
+            var letGo = new Habit { UserId = user.Id, Name = "Coffee", Kind = HabitKind.LetGo, CreatedAt = created };
+            letGo.Slips.Add(new HabitSlip { Date = today.AddDays(-3), Count = 1 });
+            user.Habits.Add(daily);
+            user.Habits.Add(weekly);
+            user.Habits.Add(letGo);
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+        });
+
+        await host.RunJobAsync(WeeklySummaryJob.Key);
+
+        var embed = host.Discord.Messages.Should().ContainSingle().Subject.Embed!;
+        embed.Title.Should().Be("🗓️ Your weekly habit summary");
+        embed.Description.Should().Be("This week you showed up for **5 check-ins**. Every one of those counts. 💪"
+            + "\n\n[See your week in the Ember web app](https://ember.example/today)"
+            + "\n\n🌿 Coffee: 3 days without");
+        embed.Fields.Select(f => (f.Name, f.Value)).Should().Equal(
+            ("Stretch", "⬜⬜⬜✅✅✅✅ **4/7** · Streak: **4** days"),
+            ("Run", "⬜⬜⬜⬜⬜✅⬜ **1/3** · Weekly goal: **3**/wk"));
+        embed.Footer!.Value.Text.Should().Be("More than half, that's a win. Keep it up.");
+    }
+
+    [Fact]
     public async Task WeeklySummaryJob_RunningAgainLaterOnTheSameSunday_SendsNoSecondRecap()
     {
         var time = new FakeTimeProvider(SundayMorningUtc);
