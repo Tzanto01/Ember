@@ -126,7 +126,7 @@ export default function KeepDataPage() {
     setBusy(true);
     setProblem(null);
     try {
-      await localMode.finishUpgrade();
+      localMode.finishUpgrade();
       await navigate('/today');
     } catch {
       setProblem(t('keepData.finishFailed'));

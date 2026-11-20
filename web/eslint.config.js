@@ -6,7 +6,11 @@ const reactHooksRecommended = reactHooks.configs.flat['recommended-latest'];
 
 export default defineConfig(
   {
-    ignores: ['dist/**', 'e2e/**', 'scripts/**', 'playwright-report/**', 'test-results/**'],
+    ignores: ['dist/**', 'playwright-report/**', 'test-results/**'],
+  },
+  {
+    // Playwright specs and bun scripts are outside tsconfig.json, which type-aware lint needs.
+    ignores: ['e2e/**', 'scripts/**'],
   },
   {
     // Owned by a parallel slice in this wave; lint after merge.
@@ -27,11 +31,18 @@ export default defineConfig(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    rules: {
+      // Arrow shorthand like `onClick={() => setOpen(true)}` and `return respond()` in void callbacks are idiomatic here; the rule still flags void values used inside expressions.
+      '@typescript-eslint/no-confusing-void-expression': [
+        'error',
+        { ignoreArrowShorthand: true, ignoreVoidReturningFunctions: true },
+      ],
+    },
   },
   {
     // TEMPORARY: rules with findings left to fix; this block must be empty when the lint pass is done.
+    name: 'temporary-todo',
     rules: {
-      '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/restrict-template-expressions': 'off',
@@ -58,7 +69,6 @@ export default defineConfig(
       '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/no-redundant-type-constituents': 'off',
       '@typescript-eslint/no-unnecessary-type-parameters': 'off',
-      '@typescript-eslint/await-thenable': 'off',
       '@typescript-eslint/no-implied-eval': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/exhaustive-deps': 'off',
