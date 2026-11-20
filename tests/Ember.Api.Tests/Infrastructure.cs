@@ -356,12 +356,18 @@ public abstract class ApiTestBase(PostgresFixture postgres) : IClassFixture<Post
 
     public async Task DisposeAsync()
     {
-        if (_host is not null)
-            await _host.DisposeAsync();
-        if (_connectionString is not null)
+        try
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
-            NpgsqlConnection.ClearPool(connection);
+            if (_host is not null)
+                await _host.DisposeAsync();
+        }
+        finally
+        {
+            if (_connectionString is not null)
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                NpgsqlConnection.ClearPool(connection);
+            }
         }
     }
 }
