@@ -594,10 +594,10 @@ public class FiresideService
     }
 
     /// <summary>
-    /// The Fireside part of <see cref="AccountService.MergeBotOnlyAccountAsync"/>, inside its transaction: the target keeps all its own
-    /// links; links between the two accounts are dropped; the source's friendships from <see cref="FiresideMovesAsync"/> move to the
-    /// target in both directions with the warmth between them; the rest of the source's links, warmth and its code go with the source's
-    /// deletion. The source's Fireside settings (on, name, notifications,
+    /// The Fireside part of <see cref="AccountService.MergeBotOnlyAccountAsync"/>, inside its transaction and under its locks on both
+    /// user rows (this method takes none): the target keeps all its own links; links between the two accounts are dropped; the source's
+    /// friendships from <see cref="FiresideMovesAsync"/> move to the target in both directions with the warmth between them; the rest of
+    /// the source's links, warmth and its code go with the source's deletion. The source's Fireside settings (on, name, notifications,
     /// asking) apply only when the target has Fireside off.
     /// </summary>
     internal async Task MergeFiresideAsync(Guid targetUserId, Guid sourceUserId, CancellationToken cancellationToken)
