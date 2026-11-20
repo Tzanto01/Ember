@@ -16,9 +16,9 @@ namespace Ember.Tests;
 
 public sealed class IntegrationTestHost : IAsyncDisposable
 {
-    private readonly SqliteConnection _connection;
+    private readonly SqliteConnection? _connection;
 
-    private IntegrationTestHost(IHost host, SqliteConnection connection, TestDiscordDmSender discord)
+    private IntegrationTestHost(IHost host, SqliteConnection? connection, TestDiscordDmSender discord)
     {
         Host = host;
         _connection = connection;
@@ -34,10 +34,15 @@ public sealed class IntegrationTestHost : IAsyncDisposable
         TimeProvider? time = null,
         Action<DbContextOptionsBuilder>? configureDb = null,
         string[]? args = null,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        string? postgresConnectionString = null)
     {
-        var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
+        SqliteConnection? connection = null;
+        if (postgresConnectionString is null)
+        {
+            connection = new SqliteConnection("Data Source=:memory:");
+            await connection.OpenAsync();
+        }
 
         var discord = new TestDiscordDmSender();
         var host = AppHost.CreateHostBuilder(args ?? [], new EmberHostOptions
@@ -45,7 +50,8 @@ public sealed class IntegrationTestHost : IAsyncDisposable
             IncludeDiscordGateway = false,
             ConfigureDbContext = (options, _) =>
             {
-                options.UseSqlite(connection);
+                if (postgresConnectionString is null) options.UseSqlite(connection!);
+                else options.UseNpgsql(postgresConnectionString);
                 configureDb?.Invoke(options);
             },
             ConfigureServices = (services, _) =>
@@ -115,7 +121,7 @@ public sealed class IntegrationTestHost : IAsyncDisposable
         await Host.StopAsync();
         Host.Dispose();
         LogContext.SetCurrentLogProvider(NullLoggerFactory.Instance);
-        await _connection.DisposeAsync();
+        if (_connection is not null) await _connection.DisposeAsync();
     }
 }
 

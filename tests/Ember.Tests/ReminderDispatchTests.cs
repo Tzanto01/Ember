@@ -19,17 +19,20 @@ public class ReminderDispatchTests
     private const string Berlin = "Europe/Berlin";
 
     // Friday 2027-01-15, 09:00 in Berlin (UTC+1).
-    private static readonly DateTimeOffset Now = new(2027, 1, 15, 8, 0, 0, TimeSpan.Zero);
-    private static readonly DateOnly Today = new(2027, 1, 15);
-    private static readonly DateTime TomorrowNineBerlin = new(2027, 1, 16, 8, 0, 0, DateTimeKind.Utc);
-    private static readonly TimeOnly Nine = new(9, 0);
+    internal static readonly DateTimeOffset Now = new(2027, 1, 15, 8, 0, 0, TimeSpan.Zero);
+    internal static readonly DateOnly Today = new(2027, 1, 15);
+    internal static readonly DateTime TomorrowNineBerlin = new(2027, 1, 16, 8, 0, 0, DateTimeKind.Utc);
+    internal static readonly TimeOnly Nine = new(9, 0);
 
     private static Task<IntegrationTestHost> CreateHostAsync(FakeTimeProvider time, params Habit[] habits)
         => CreateHostAsync(time, null, habits);
 
-    private static async Task<IntegrationTestHost> CreateHostAsync(FakeTimeProvider time, IInterceptor? interceptor, params Habit[] habits)
+    private static Task<IntegrationTestHost> CreateHostAsync(FakeTimeProvider time, IInterceptor? interceptor, params Habit[] habits)
+        => CreateHostAsync(time, interceptor, null, habits);
+
+    internal static async Task<IntegrationTestHost> CreateHostAsync(FakeTimeProvider time, IInterceptor? interceptor, string? postgres, params Habit[] habits)
     {
-        var host = await IntegrationTestHost.CreateAsync(start: false, time: time,
+        var host = await IntegrationTestHost.CreateAsync(start: false, time: time, postgresConnectionString: postgres,
             configureDb: interceptor is null ? null : options => options.AddInterceptors(interceptor));
         await host.WithScopeAsync(async sp =>
         {
@@ -42,7 +45,7 @@ public class ReminderDispatchTests
         return host;
     }
 
-    private static Habit DueHabit(int id, long userId, DateTime? nextUtc = null) => new()
+    internal static Habit DueHabit(int id, long userId, DateTime? nextUtc = null) => new()
     {
         Id = id,
         UserId = TestUsers.Id(userId),
@@ -52,10 +55,10 @@ public class ReminderDispatchTests
         CreatedAt = Now.UtcDateTime.AddDays(-30)
     };
 
-    private static Task RunJobAsync(IntegrationTestHost host)
+    internal static Task RunJobAsync(IntegrationTestHost host)
         => ActivatorUtilities.CreateInstance<ReminderDispatchJob>(host.Host.Services).RunAsync();
 
-    private static Task<DateTime?> NextReminderAsync(IntegrationTestHost host, int habitId)
+    internal static Task<DateTime?> NextReminderAsync(IntegrationTestHost host, int habitId)
         => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits
             .Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
@@ -267,7 +270,7 @@ public class ReminderDispatchTests
         (await NextReminderAsync(host, 1)).Should().Be(TomorrowNineBerlin);
     }
 
-    private static Task<User> UserAsync(IntegrationTestHost host, long userId)
+    internal static Task<User> UserAsync(IntegrationTestHost host, long userId)
         => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.SingleAsync(u => u.Id == TestUsers.Id(userId)));
 
     [Fact]

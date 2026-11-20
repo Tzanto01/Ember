@@ -17,7 +17,7 @@ namespace Ember.Tests;
 [Collection("Integration")]
 public class DoubleTapTests
 {
-    private sealed class RaceInterceptor : SaveChangesInterceptor
+    internal sealed class RaceInterceptor : SaveChangesInterceptor
     {
         public Func<DbConnection, Task>? Competitor { get; set; }
 
