@@ -33,14 +33,14 @@ describe('main nav Fireside entry', () => {
     localMode.mode.set('account');
   });
 
-  it('shows Fireside before Settings while it is on', async () => {
+  it('shows Fireside right after Today while it is on', async () => {
     auth.setMe(me);
     const fetch = mockFetch();
     await renderShell();
     (await fetch.next('GET', '/api/fireside')).respond(200, base);
 
     expect(await screen.findByRole('link', { name: 'Fireside' })).toHaveAttribute('href', '/fireside');
-    expect(navLinks()).toEqual(['Today', 'History', 'Fireside', 'Settings']);
+    expect(navLinks()).toEqual(['Today', 'Fireside', 'History', 'Settings']);
   });
 
   it('leaves Fireside out while it is off', async () => {

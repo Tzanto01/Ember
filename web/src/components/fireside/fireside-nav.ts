@@ -9,8 +9,8 @@ export const firesideNavItem = {
   under: ['/fireside'],
 } as const;
 
-/** `items` with the Fireside entry before the last one (Settings) while Fireside is on. */
+/** `items` with the Fireside entry right after the first one (Today) while Fireside is on. */
 export function useNavWithFireside<T>(items: readonly T[]): readonly (T | typeof firesideNavItem)[] {
   const on = useFireside().data?.enabled === true;
-  return on ? [...items.slice(0, -1), firesideNavItem, ...items.slice(-1)] : items;
+  return on ? [...items.slice(0, 1), firesideNavItem, ...items.slice(1)] : items;
 }
