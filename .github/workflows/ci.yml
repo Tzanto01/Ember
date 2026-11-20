@@ -95,7 +95,7 @@ jobs:
           name: web-dist
           path: web/dist/ember-web/browser
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
   android:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
