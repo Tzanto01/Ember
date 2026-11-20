@@ -669,7 +669,8 @@ public class TodayWidget extends AppWidgetProvider {
     private static RemoteViews views(Context context, Look look, JSONObject snapshot, float width, float height) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_today);
         Context text = look.text;
-        PendingIntent today = open(context, 0, new Intent(context, MainActivity.class).setAction(ACTION_OPEN_TODAY));
+        Intent openToday = new Intent(context, MainActivity.class).setAction(ACTION_OPEN_TODAY);
+        PendingIntent today = WidgetIntents.open(context, 0, openToday);
         views.setOnClickPendingIntent(R.id.widget_root, today);
         views.setOnClickPendingIntent(R.id.widget_flame_box, today);
         views.setOnClickPendingIntent(R.id.widget_count, today);
@@ -795,7 +796,7 @@ public class TodayWidget extends AppWidgetProvider {
             .putExtra("date", date)
             .putExtra("userId", userId)
             .putExtra("token", snapshot.optString("token"));
-        PendingIntent pending = background ? broadcast(context, 1, tap) : open(context, 1, tap);
+        PendingIntent pending = background ? WidgetIntents.broadcast(context, 1, tap) : WidgetIntents.open(context, 1, tap);
         int target = big || Build.VERSION.SDK_INT >= 31 ? R.id.widget_row_circle : R.id.widget_row;
         row.setContentDescription(
             target,
@@ -892,24 +893,5 @@ public class TodayWidget extends AppWidgetProvider {
             default:
                 return context.getString(R.string.widget_state_open);
         }
-    }
-
-    private static PendingIntent broadcast(Context context, int requestCode, Intent intent) {
-        return PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
-        );
-    }
-
-    static PendingIntent open(Context context, int requestCode, Intent intent) {
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return PendingIntent.getActivity(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
-        );
     }
 }

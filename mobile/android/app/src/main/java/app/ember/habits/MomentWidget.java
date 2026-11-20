@@ -20,7 +20,7 @@ public class MomentWidget extends AppWidgetProvider {
         views.setTextViewText(R.id.widget_moment_label, label);
         views.setContentDescription(R.id.widget_moment_root, label);
         Intent moment = new Intent(context, MainActivity.class).setAction(MainActivity.ACTION_OPEN_MOMENT);
-        views.setOnClickPendingIntent(R.id.widget_moment_root, TodayWidget.open(context, 0, moment));
+        views.setOnClickPendingIntent(R.id.widget_moment_root, WidgetIntents.open(context, 0, moment));
         manager.updateAppWidget(ids, views);
     }
 
