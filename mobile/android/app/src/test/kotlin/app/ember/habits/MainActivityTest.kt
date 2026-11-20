@@ -251,6 +251,10 @@ class MainActivityTest {
         val app = start(tap(token))
         app.newIntent(tap(token).addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY))
         app.newIntent(launcher())
+        app.newIntent(
+            Intent("forged\nrenderer gone").setComponent(ComponentName(context, MainActivity::class.java))
+                .addCategory("cat\rgory").putExtra("key\nname", 1),
+        )
 
         val lines = ShadowLog.getLogsForTag(MainActivity.LOG_TAG).map { it.msg }
         val launch = lines.singleOrNull { it.startsWith("launch ") }
@@ -258,7 +262,8 @@ class MainActivityTest {
         assertTrue(launch, launch!!.contains("component=app.ember.habits.MainActivity"))
         assertTrue(launch, launch.contains("extras=[date, habitId, token, userId]"))
         assertTrue(launch, launch.contains("saved=false history=false"))
-        assertEquals(2, lines.count { it.startsWith("newIntent ") })
+        assertEquals(3, lines.count { it.startsWith("newIntent ") })
+        assertTrue(lines.toString(), lines.none { '\n' in it || '\r' in it })
         assertTrue(lines.toString(), "route ignored reason=from history" in lines)
         assertTrue(lines.toString(), "route ignored reason=no moment or valid widget tap" in lines)
         for (value in listOf(token, "user-1", date)) {

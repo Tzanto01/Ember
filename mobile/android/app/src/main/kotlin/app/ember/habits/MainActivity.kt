@@ -120,6 +120,7 @@ class MainActivity : BridgeActivity() {
         internal const val ACTION_OPEN_MOMENT = "app.ember.habits.OPEN_MOMENT"
         internal const val RENDERER_RETRY_WINDOW_MS = 30_000L
         internal const val LOG_TAG = "EmberLaunch"
+        private const val MAX_LOGGED_LENGTH = 120
 
         private var processStarted = false
 
@@ -131,14 +132,20 @@ class MainActivity : BridgeActivity() {
 
         /**
          * One diagnostic line about [intent]: its action, categories, flags, component class, whether it carries data,
-         * and only the names of its extras, never a value, a URI or anything else the sender put in it.
+         * and only the names of its extras, never a value, a URI or anything else the sender put in it. The strings a
+         * sender chooses are cut short and lose control characters, so they cannot forge further log lines.
          */
         private fun describe(event: String, intent: Intent, cold: Boolean, saved: Boolean): String {
             val flags = "0x%08x".format(intent.flags)
-            val extras = runCatching { intent.extras?.keySet()?.sorted().orEmpty().toString() }.getOrDefault("unreadable")
-            return "$event action=${intent.action} categories=${intent.categories?.sorted().orEmpty()} flags=$flags " +
-                "component=${intent.component?.className} data=${intent.data != null} extras=$extras cold=$cold " +
-                "saved=$saved history=${fromHistory(intent)}"
+            val categories = intent.categories?.map(::plain)?.sorted().orEmpty()
+            val extras = runCatching { intent.extras?.keySet()?.map(::plain)?.sorted().orEmpty().toString() }
+                .getOrDefault("unreadable")
+            return "$event action=${intent.action?.let(::plain)} categories=$categories flags=$flags " +
+                "component=${intent.component?.className?.let(::plain)} data=${intent.data != null} extras=$extras " +
+                "cold=$cold saved=$saved history=${fromHistory(intent)}"
         }
+
+        private fun plain(text: String) =
+            text.take(MAX_LOGGED_LENGTH).map { if (it.isISOControl()) '?' else it }.joinToString("")
     }
 }
