@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>"Try again" after DM reminders were paused: <c>dmretry:{discordUserId}</c> (no action segment).</summary>
 internal static class DmRetryIds

@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary><c>/habit</c>: the habit pickers, the add and rename forms, the template picker, grace days and the streaks toggle.</summary>
 internal static class HabitIds

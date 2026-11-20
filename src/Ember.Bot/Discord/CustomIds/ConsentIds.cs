@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>The health-data consent prompt's answers: <c>consent:{agree|decline}:{discordUserId}</c>.</summary>
 internal static class ConsentIds

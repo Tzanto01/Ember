@@ -2,7 +2,7 @@ using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
-using Ember.Bot.CustomIds;
+using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;

@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>The slip buttons under the habit list: <c>letgo:slip:{habitId}</c>.</summary>
 internal static class LetGoIds

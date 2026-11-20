@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>Deleting the account and withdrawing consent, bound to the owner: <c>privacy:{delete|withdraw}:{step}:{discordUserId}</c>.</summary>
 internal static class PrivacyIds

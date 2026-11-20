@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>
 /// Setting a habit's reminder: <c>reminder:{action}:{habitId}</c>, the preset <c>reminder:preset:{habitId}:{HH:mm}</c> and the time form

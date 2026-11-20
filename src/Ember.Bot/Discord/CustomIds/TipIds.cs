@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>The one-time streaks question: <c>tip:streaks:{on|off}</c>.</summary>
 internal static class TipIds

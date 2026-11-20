@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>
 /// The timezone steps, carrying the habit id on to the reminder prompt: <c>onboard:timezone:{habitId}</c> (button), then the

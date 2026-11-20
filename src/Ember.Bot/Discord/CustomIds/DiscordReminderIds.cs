@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>Turning Discord reminders on or off: <c>discordreminders:{yes|no|stop}:{discordUserId}</c>.</summary>
 internal static class DiscordReminderIds

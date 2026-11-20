@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>The history grid, bound to its owner: <c>history:day:{ownerId}:{habitId}:{yyyyMMdd}</c> and the low-day select <c>history:low:{ownerId}:{habitId}</c>.</summary>
 internal static class HistoryIds

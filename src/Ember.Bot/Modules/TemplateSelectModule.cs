@@ -1,6 +1,6 @@
 using Discord;
 using Discord.Interactions;
-using Ember.Bot.CustomIds;
+using Ember.Bot.Discord.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;

@@ -1,5 +1,5 @@
 using Discord;
-using Ember.Bot.CustomIds;
+using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Services;
 using Ember.Core.Models;
 using Ember.Core.Services;

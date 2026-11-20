@@ -1,3 +1,4 @@
+using Discord.Net;
 using Ember.Bot.Services;
 using Ember.Core.Models;
 using Ember.Core.Services;
@@ -555,7 +556,7 @@ public class ReminderDispatchJob : IJob
     internal static bool IsTransient(Exception ex) => ex switch
     {
         TimeoutException or TaskCanceledException or HttpRequestException or IOException or System.Net.Sockets.SocketException => true,
-        Discord.Net.HttpException http => (int)http.HttpCode >= 500 || (int)http.HttpCode == 429,
+        HttpException http => (int)http.HttpCode >= 500 || (int)http.HttpCode == 429,
         _ => false,
     };
 

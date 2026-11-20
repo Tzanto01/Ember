@@ -2,7 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot;
-using Ember.Bot.CustomIds;
+using Ember.Bot.Discord.CustomIds;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 

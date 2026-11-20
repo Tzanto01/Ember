@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>
 /// The missed-day reflection, bound to its owner: <c>reflect:{log|low|pick}:{discordUserId}:{yyyyMMdd}</c> and <c>reflect:dismiss:{discordUserId}</c>.

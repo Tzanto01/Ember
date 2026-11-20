@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>Fireside: the friend and message pickers and the notice buttons, by the receiver's link id.</summary>
 internal static class FiresideIds

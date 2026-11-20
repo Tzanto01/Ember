@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>The days-and-times menu of a habit: <c>freq:{action}:{habitId}[:{weeklyTarget}]</c>.</summary>
 internal static class FrequencyIds

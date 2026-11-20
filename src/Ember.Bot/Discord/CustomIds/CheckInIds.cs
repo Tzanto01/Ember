@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>
 /// The buttons of a DM reminder: <c>checkin:{done|skip|snooze}:{habitId}:{sentUnixSeconds}</c>, with the reminder's send time so a

@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>The buttons under a picked habit: <c>habitaction:{action}:{habitId}[:{arg}]</c>.</summary>
 internal static class HabitActionIds

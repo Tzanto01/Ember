@@ -1,4 +1,4 @@
-namespace Ember.Bot.CustomIds;
+namespace Ember.Bot.Discord.CustomIds;
 
 /// <summary>The <c>/feedback</c> form.</summary>
 internal static class FeedbackIds
