@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 def signingPasswordFile = project.findProperty('emberUploadStorePasswordFile')
 def signingFilePassword = signingPasswordFile ? file(signingPasswordFile).text.trim() : null
@@ -81,6 +82,12 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+    }
+}
 
 try {
     def servicesJSON = file('google-services.json')
