@@ -57,6 +57,8 @@ export default defineConfig(
       '@typescript-eslint/no-unsafe-call': 'off',
       // Tests spread localStorage, navigator and ASCII literals into plain fixtures on purpose.
       '@typescript-eslint/no-misused-spread': 'off',
+      // Empty classes stand in for browser globals such as PushManager.
+      '@typescript-eslint/no-extraneous-class': ['error', { allowEmpty: true }],
     },
   },
   {
@@ -72,7 +74,6 @@ export default defineConfig(
       '@typescript-eslint/no-deprecated': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-extraneous-class': 'off',
       '@typescript-eslint/no-implied-eval': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/exhaustive-deps': 'off',
