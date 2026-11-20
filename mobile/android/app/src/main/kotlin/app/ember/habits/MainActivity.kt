@@ -59,6 +59,6 @@ class MainActivity : BridgeActivity() {
     }
 
     companion object {
-        const val ACTION_OPEN_MOMENT = "app.ember.habits.OPEN_MOMENT"
+        internal const val ACTION_OPEN_MOMENT = "app.ember.habits.OPEN_MOMENT"
     }
 }

@@ -170,17 +170,17 @@ class EmberWidgetPlugin : Plugin() {
     }
 
     /** Hands a validated widget tap to JS, retained until a listener takes it. */
-    fun tap(tap: JSObject) {
+    internal fun tap(tap: JSObject) {
         notifyListeners("widgetTap", tap, true)
     }
 
     /** Makes the moment door the pending launch action, for JS to take once it starts. */
-    fun pendMoment() {
+    internal fun pendMoment() {
         launchAction = "moment"
     }
 
     /** Tells a running app that a moment door was used, retained until a listener takes it. */
-    fun openMoment() {
+    internal fun openMoment() {
         notifyListeners("openMoment", JSObject(), true)
     }
 }

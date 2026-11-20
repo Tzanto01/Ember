@@ -111,9 +111,9 @@ class TodayWidget : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_CHECK_IN = "app.ember.habits.WIDGET_CHECK_IN"
-        const val ACTION_OPEN_TODAY = "app.ember.habits.WIDGET_OPEN_TODAY"
-        const val ACTION_OPEN_HABIT = "app.ember.habits.WIDGET_OPEN_HABIT"
+        internal const val ACTION_CHECK_IN = "app.ember.habits.WIDGET_CHECK_IN"
+        internal const val ACTION_OPEN_TODAY = "app.ember.habits.WIDGET_OPEN_TODAY"
+        internal const val ACTION_OPEN_HABIT = "app.ember.habits.WIDGET_OPEN_HABIT"
         private const val ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT"
         private const val BUDGET_MS = 8000L
 
@@ -122,7 +122,7 @@ class TodayWidget : AppWidgetProvider() {
          * or an open-habit tap needs our component and a row [listed] in the current snapshot, so a stale row or an
          * intent from another app does nothing. An open-habit tap carries `open: true`.
          */
-        fun validTap(context: Context, intent: Intent): JSObject? {
+        internal fun validTap(context: Context, intent: Intent): JSObject? {
             if (!ours(context, intent, MainActivity::class.java)) return null
             if (intent.action == ACTION_OPEN_TODAY) return JSObject()
             val open = intent.action == ACTION_OPEN_HABIT
@@ -163,7 +163,7 @@ class TodayWidget : AppWidgetProvider() {
         }
 
         /** Redraws every Today widget from the stored snapshot. */
-        fun refresh(context: Context) {
+        internal fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context) ?: return
             render(context, manager, manager.getAppWidgetIds(ComponentName(context, TodayWidget::class.java)))
         }

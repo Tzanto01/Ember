@@ -25,7 +25,7 @@ class MomentWidget : AppWidgetProvider() {
 
     companion object {
         /** Redraws every moment widget, for example after the app's language changed. */
-        fun refresh(context: Context) {
+        internal fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context) ?: return
             val ids = manager.getAppWidgetIds(ComponentName(context, MomentWidget::class.java))
             if (ids != null && ids.isNotEmpty()) MomentWidget().onUpdate(context, manager, ids)
