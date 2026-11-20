@@ -13,6 +13,10 @@ namespace Ember.Api.Tests;
 /// Auth is opt-in per endpoint (no fallback policy), so every route the app maps is pinned here with its auth requirement:
 /// <c>anonymous</c> (no auth metadata), <c>allow-anonymous</c> (explicit <see cref="IAllowAnonymous"/>), <c>authenticated</c>
 /// (<see cref="IAuthorizeData"/> without policy, roles or schemes), or the policy, roles and schemes it names.
+/// It sees only routed endpoints. Requests answered before routing or outside it are not covered: the Discord OAuth callback (answered
+/// by the auth handler), <see cref="AuthEndpoints.HideIdentityManage"/>, static files and <c>release-notes.json</c>, and the metrics
+/// listener on its own port (covered by <see cref="ApiMetricsTests"/>). A new <c>app.Map(path, branch)</c> or answering middleware
+/// needs its own test.
 /// </summary>
 public class EndpointAuthInventoryTests(PostgresFixture postgres) : ApiTestBase(postgres), IDisposable
 {
@@ -152,7 +156,11 @@ public class EndpointAuthInventoryTests(PostgresFixture postgres) : ApiTestBase(
 
         var problems = new List<string>();
         foreach (var (key, requirement) in actual.Where(e => !expected.ContainsKey(e.Key)))
-            problems.Add($"New endpoint '{key}' ({requirement}) is not in the inventory: decide its auth, then add '{key} -> {requirement}'.");
+            problems.Add(requirement is "anonymous" or "allow-anonymous"
+                ? $"New endpoint '{key}' is open to anyone ({requirement}). If it should need a signed-in user, add .RequireAuthorization() "
+                    + "or map it on the signed-in group. List it as anonymous only after reading its handler: it must check its own "
+                    + "token, key or cookie, or be meant for anyone."
+                : $"New endpoint '{key}' ({requirement}) is not in the inventory: review it, then add '{key} -> {requirement}'.");
         foreach (var key in expected.Keys.Where(k => !actual.ContainsKey(k)))
             problems.Add($"Endpoint '{key}' is in the inventory but no longer mapped: remove its line.");
         foreach (var (key, requirement) in actual.Where(e => expected.TryGetValue(e.Key, out var listed) && listed != e.Value))
@@ -207,12 +215,14 @@ public class EndpointAuthInventoryTests(PostgresFixture postgres) : ApiTestBase(
         if (metadata.GetMetadata<IAllowAnonymous>() is not null) return "allow-anonymous";
         var authorize = metadata.GetOrderedMetadata<IAuthorizeData>();
         var policies = metadata.GetOrderedMetadata<AuthorizationPolicy>();
-        if (authorize.Count == 0 && policies.Count == 0) return "anonymous";
+        var requirements = metadata.GetOrderedMetadata<IAuthorizationRequirementData>();
+        if (authorize.Count == 0 && policies.Count == 0 && requirements.Count == 0) return "anonymous";
 
         var parts = authorize.Select(a => a.Policy is { Length: > 0 } p ? $"policy:{p}" : null)
             .Concat(authorize.Select(a => a.Roles is { Length: > 0 } r ? $"roles:{r}" : null))
             .Concat(authorize.Select(a => a.AuthenticationSchemes is { Length: > 0 } s ? $"schemes:{s}" : null))
             .Concat(policies.Select(_ => "policy:inline"))
+            .Concat(requirements.Select(_ => "requirements:inline"))
             .OfType<string>().Distinct().ToList();
         return parts.Count == 0 ? "authenticated" : string.Join(" ", parts);
     }
