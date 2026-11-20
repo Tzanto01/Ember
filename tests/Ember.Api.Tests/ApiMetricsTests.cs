@@ -1,9 +1,12 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Ember.Api.Hosting.Metrics;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -136,6 +139,69 @@ public sealed class ApiMetricsTests : IDisposable
         (minute.GetProperty("route").GetString(), minute.GetProperty("count").GetInt32(), minute.GetProperty("minute").GetString())
             .Should().Be(("/api/habits", 1, "2026-11-18T10:00:00Z"));
         await server.StopAsync(default);
+    }
+
+    [Fact]
+    public async Task A_hosting_listener_scoped_to_the_outer_apps_start_never_configures_the_metrics_app()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Ops:MetricsKeyFile"] = _keyFile,
+            ["Ops:MetricsPort"] = "0",
+        }).Build();
+        await using var server = new MetricsServer(new RequestMetrics(_time), configuration, NullLogger<MetricsServer>.Instance);
+        using var listener = new StartScopedHostingListener();
+
+        await listener.RunInScopeAsync(() => server.StartAsync(default));
+
+        listener.HostsConfigured.Should().Be(0);
+        server.Address.Should().NotBeNull();
+        await server.StopAsync(default);
+    }
+
+    /// <summary>
+    /// Stands in for the hosting listener of <c>WebApplicationFactory</c> while the factory still waits for its app: it configures every
+    /// host built in its own async flow for the test server, which has no addresses.
+    /// </summary>
+    private sealed class StartScopedHostingListener : IObserver<DiagnosticListener>, IObserver<KeyValuePair<string, object?>>, IDisposable
+    {
+        private static readonly AsyncLocal<StartScopedHostingListener?> Current = new();
+        private readonly IDisposable _subscription;
+        private readonly List<IDisposable> _listeners = [];
+        private int _configured;
+
+        public StartScopedHostingListener() => _subscription = DiagnosticListener.AllListeners.Subscribe(this);
+
+        public int HostsConfigured => Volatile.Read(ref _configured);
+
+        public async Task RunInScopeAsync(Func<Task> action)
+        {
+            Current.Value = this;
+            await action();
+        }
+
+        public void OnNext(DiagnosticListener value)
+        {
+            if (Current.Value == this && value.Name == "Microsoft.Extensions.Hosting")
+                lock (_listeners) _listeners.Add(value.Subscribe(this));
+        }
+
+        public void OnNext(KeyValuePair<string, object?> value)
+        {
+            if (Current.Value != this || value.Key != "HostBuilding") return;
+            ((IHostBuilder)value.Value!).ConfigureWebHost(web => web.UseTestServer());
+            Interlocked.Increment(ref _configured);
+        }
+
+        public void OnCompleted() { }
+
+        public void OnError(Exception error) { }
+
+        public void Dispose()
+        {
+            _subscription.Dispose();
+            lock (_listeners) _listeners.ForEach(l => l.Dispose());
+        }
     }
 }
 

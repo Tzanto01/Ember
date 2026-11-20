@@ -18,6 +18,21 @@ public sealed class MetricsServer(RequestMetrics metrics, IConfiguration configu
         if (!ApiMetrics.Enabled(configuration)) return;
         var key = new MetricsKey(configuration["Ops:MetricsKeyFile"]);
         var port = configuration.GetValue("Ops:MetricsPort", 9090);
+        Task<WebApplication> build;
+        using (ExecutionContext.SuppressFlow()) build = Task.Run(() => Build(key, port), cancellationToken);
+        var app = await build;
+        await app.StartAsync(cancellationToken);
+        _app = app;
+        Address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault();
+        logger.LogInformation("Request metrics on {Address}{Path}", Address, ApiMetrics.Path);
+    }
+
+    /// <summary>
+    /// Builds the metrics app. It runs without the caller's execution context, so a hosting listener scoped to the start of the outer
+    /// app (as <c>WebApplicationFactory</c> uses) never takes this app's build for its own and never configures it.
+    /// </summary>
+    private WebApplication Build(MetricsKey key, int port)
+    {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.ConfigureKestrel(o => o.Listen(IPAddress.Any, port));
         builder.Logging.ClearProviders();
@@ -26,10 +41,7 @@ public sealed class MetricsServer(RequestMetrics metrics, IConfiguration configu
             key.Matches(request.Headers.Authorization.Count == 1 ? request.Headers.Authorization[0] : null)
                 ? Results.Ok(metrics.Snapshot(since?.ToUniversalTime(), until?.ToUniversalTime()))
                 : Results.StatusCode(StatusCodes.Status401Unauthorized));
-        await app.StartAsync(cancellationToken);
-        _app = app;
-        Address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault();
-        logger.LogInformation("Request metrics on {Address}{Path}", Address, ApiMetrics.Path);
+        return app;
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
