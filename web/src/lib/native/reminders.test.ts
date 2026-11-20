@@ -300,19 +300,31 @@ describe('Reminders', () => {
       };
       const stretch: Habit = { ...reminded, id: 3, name: 'Stretch', today: doneToday };
       const routine: Routine = { id: 4, name: 'Start', reminderTime: '08:00', reminderChannels: ['mobile'], habitIds: [3] };
-      await rebuildOnline([morning, reading, stretch], [routine]);
+      const evening: Routine = { ...routine, id: 5, name: 'Evening', habitIds: [2, 3] };
+      await rebuildOnline([morning, reading, stretch], [routine, evening]);
       deliver(
         [11, { userId: 'u1', habitId: 1, date: '2026-11-01' }],
         [12, { userId: 'u1', habitId: 1, date: '2026-10-31' }],
         [13, { userId: 'u1', habitId: 2, date: '2026-11-01' }],
         [14, { userId: 'u1', routineId: 4, date: '2026-11-01' }],
         [15, { userId: 'u2', habitId: 1, date: '2026-11-01' }],
+        [16, { userId: 'u1', routineId: 5, date: '2026-11-01' }],
       );
 
-      await rebuildOnline([{ ...morning, today: doneToday }, reading, stretch], [routine]);
+      await rebuildOnline([{ ...morning, today: doneToday }, reading, stretch], [routine, evening]);
 
       expect(schedule).toHaveBeenCalledTimes(1);
       expect(removed()).toEqual([11, 14]);
+    });
+
+    it('still schedules when reading the delivered reminders fails', async () => {
+      delivered = [{ id: 11, extra: { userId: 'u1', habitId: 1, date: '2026-11-01' } }];
+      removeDelivered.mockRejectedValue(new Error('shade unavailable'));
+
+      const notifications = await rebuildOnline([{ ...reminded, today: doneToday }]);
+
+      expect(removeDelivered).toHaveBeenCalledTimes(1);
+      expect(notifications).toHaveLength(planDays - 1);
     });
 
     it("removes a weekly habit's reminders from earlier that week once its target is met", async () => {
