@@ -49,7 +49,7 @@ public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        await _reminders.ResumeDmRemindersAsync(userId);
+        await _reminders.ResumeDmRemindersAsync(await _habits.FindDiscordUserAsync(userId));
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
             m.Content = t.Get("dmretry.worked");

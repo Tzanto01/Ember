@@ -27,7 +27,7 @@ public partial class ReminderService
     /// <param name="consent">Answers whether the user agreed to store health data.</param>
     /// <param name="settings">Gives the user's time zone; must use the same database.</param>
     /// <param name="habits">
-    /// Gives the check-in a Done token writes and the Discord user lookup; must use the same database, so a scope's
+    /// Gives the check-in a Done token writes; must use the same database, so a scope's
     /// reminder and habit calls share one context.
     /// </param>
     public ReminderService(EmberDbContext db, TimeProvider time, ConsentService consent, UserSettingsService settings, HabitService habits)

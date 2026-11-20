@@ -118,9 +118,11 @@ public class BotLanguageTests
             "consent" => ConsentModule.TryAnswerAsync(habits, discordId.ToString(), discordId, agreed: true, language),
             "grace" => habits.SetGraceDaysAsync(discordId, 2, language),
             "timezone" => habits.SetTimezoneAsync(discordId, "Europe/Berlin", language),
-            "second-reminder" => reminders.SetSecondReminderMinutesAsync(discordId, 30, language),
+            "second-reminder" => SecondReminderAsync(),
             _ => habits.SetShowStreaksAsync(discordId, true, language),
         };
+
+        async Task SecondReminderAsync() => await reminders.SetSecondReminderMinutesAsync(await habits.ResolveOrCreateDiscordUserAsync(discordId, language), 30);
     }
 
     [Theory]

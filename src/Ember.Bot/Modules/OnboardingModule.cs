@@ -224,7 +224,7 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         await _habits.SetTimezoneAsync(Context.User.Id, tz.Id, Languages.FromLocale(Context.Interaction.UserLocale));
-        await _reminders.RescheduleRemindersAsync(Context.User.Id);
+        await _reminders.RescheduleRemindersAsync(await _habits.FindDiscordUserAsync(Context.User.Id));
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         var embed = new EmbedBuilder()

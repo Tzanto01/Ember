@@ -224,8 +224,8 @@ public class ReminderDispatchTests
         var time = new FakeTimeProvider(Now);
         await using var host = await CreateHostAsync(time, DueHabit(1, 10, TomorrowNineBerlin));
 
-        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(10, 1, Now));
-        var othersSnooze = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(99, 1, Now));
+        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(TestUsers.Id(10), 1, Now));
+        var othersSnooze = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(TestUsers.Id(99), 1, Now));
 
         snoozed.Should().BeTrue();
         othersSnooze.Should().BeFalse();
@@ -292,11 +292,11 @@ public class ReminderDispatchTests
 
         var notices = new List<bool>();
         for (var i = 0; i < 2; i++)
-            notices.Add(await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().ClaimDmPauseNoticeAsync(10)));
+            notices.Add(await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().ClaimDmPauseNoticeAsync(TestUsers.Id(10))));
         notices.Should().Equal(true, false);
 
         host.Discord.Deliver = _ => DeliveryOutcome.Delivered;
-        await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().ResumeDmRemindersAsync(10));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().ResumeDmRemindersAsync(TestUsers.Id(10)));
         await RunJobAsync(host);
 
         host.Discord.Messages.Should().HaveCount(4);
@@ -508,7 +508,7 @@ public class ReminderDispatchTests
             var db = sp.GetRequiredService<EmberDbContext>();
             (await db.Users.SingleAsync()).Timezone = "Asia/Tokyo";
             await db.SaveChangesAsync();
-            await sp.GetRequiredService<ReminderService>().RescheduleRemindersAsync(10);
+            await sp.GetRequiredService<ReminderService>().RescheduleRemindersAsync(TestUsers.Id(10));
         });
         (await NextReminderAsync(host, habit.Id)).Should().Be(new DateTime(2027, 1, 16, 1, 0, 0));
 

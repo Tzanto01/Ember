@@ -63,8 +63,8 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     /// <summary>Sets Discord reminders from a command, creating the account as any bot command does.</summary>
     internal static async Task SetFromCommandAsync(HabitService habits, ReminderService reminders, ulong discordUserId, bool on, string? language)
     {
-        await habits.ResolveOrCreateDiscordUserAsync(discordUserId, language);
-        await reminders.SetDiscordRemindersAsync(discordUserId, on);
+        var userId = await habits.ResolveOrCreateDiscordUserAsync(discordUserId, language);
+        await reminders.SetDiscordRemindersAsync(userId, on);
     }
 
     [SlashCommand("reminders", "Turn reminder DMs from Ember off or on")]
@@ -77,10 +77,10 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     }
 
     /// <summary>Records the owner's answer only when the person clicking is that owner. Returns whether the clicker is the owner.</summary>
-    internal static async Task<bool> TryAnswerAsync(ReminderService reminders, string ownerIdStr, ulong clickerId, bool yes)
+    internal static async Task<bool> TryAnswerAsync(HabitService habits, ReminderService reminders, string ownerIdStr, ulong clickerId, bool yes)
     {
         if (!ulong.TryParse(ownerIdStr, out var ownerId) || ownerId != clickerId) return false;
-        await reminders.SetDiscordRemindersAsync(clickerId, yes);
+        await reminders.SetDiscordRemindersAsync(await habits.FindDiscordUserAsync(clickerId), yes);
         return true;
     }
 
@@ -94,7 +94,7 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     public async Task OnStopAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        if (!await TryAnswerAsync(_reminders, ownerIdStr, Context.User.Id, yes: false))
+        if (!await TryAnswerAsync(_habits, _reminders, ownerIdStr, Context.User.Id, yes: false))
         {
             await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
             return;
@@ -111,7 +111,7 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     private async Task AnswerAsync(string ownerIdStr, bool yes)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        if (!await TryAnswerAsync(_reminders, ownerIdStr, Context.User.Id, yes))
+        if (!await TryAnswerAsync(_habits, _reminders, ownerIdStr, Context.User.Id, yes))
         {
             await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
             return;

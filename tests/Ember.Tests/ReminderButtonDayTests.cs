@@ -75,7 +75,7 @@ public class ReminderButtonDayTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         var habitId = await AddHabitInLosAngelesAsync(host);
 
-        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(UserId, habitId, time.GetUtcNow()));
+        var snoozed = await host.WithScopeAsync(async sp => await sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, time.GetUtcNow()));
         var next = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
         snoozed.Should().BeFalse();
@@ -95,8 +95,8 @@ public class ReminderButtonDayTests
         });
         var before = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
-        var stale = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>()
-            .SnoozeReminderAsync(UserId, habitId, time.GetUtcNow() - ReminderService.SnoozeWindow - TimeSpan.FromMinutes(1)));
+        var stale = await host.WithScopeAsync(async sp => await sp.GetRequiredService<ReminderService>()
+            .SnoozeReminderAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, time.GetUtcNow() - ReminderService.SnoozeWindow - TimeSpan.FromMinutes(1)));
         var after = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
         stale.Should().BeFalse();
@@ -144,7 +144,7 @@ public class ReminderButtonDayTests
         time.SetUtcNow(new DateTimeOffset(2027, 1, 12, 7, 30, 0, TimeSpan.Zero));
         var before = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
-        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(UserId, habitId, time.GetUtcNow()));
+        var snoozed = await host.WithScopeAsync(async sp => await sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, time.GetUtcNow()));
         var after = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
         snoozed.Should().BeFalse();

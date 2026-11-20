@@ -272,7 +272,7 @@ public class ReminderMessageTests
         await RunJobAsync(host);
         (await SecondReminderAsync(host, 1)).Should().Be(Now.UtcDateTime.AddMinutes(30));
 
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync((ulong)DiscordUser, 1, Now))).Should().BeTrue();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(TestUsers.Id(DiscordUser), 1, Now))).Should().BeTrue();
         time.Advance(TimeSpan.FromMinutes(30));
         await RunJobAsync(host);
         host.Discord.Messages.Should().HaveCount(1);

@@ -111,8 +111,8 @@ public class DiscordReminderAskTests
         var declined = DiscordUser(20, answer: false);
         foreach (var habit in unanswered.Habits.Concat(declined.Habits)) habit.NextReminderUtc = Now.UtcDateTime;
         await using var host = await CreateAsync(unanswered, declined);
-        var note = (ulong discordId) => host.WithScopeAsync(sp =>
-            ReminderSetupModule.DiscordRemindersNoteAsync(Ember.Bot.BotTexts.English, sp.GetRequiredService<ReminderService>(), discordId));
+        var note = (ulong discordId) => host.WithScopeAsync(async sp =>
+            await ReminderSetupModule.DiscordRemindersNoteAsync(Ember.Bot.BotTexts.English, sp.GetRequiredService<ReminderService>(), await TestUsers.UserIdAsync(sp, discordId)));
 
         (await note(10)).Should().BeEmpty();
         (await note(20)).Should().Be(DiscordRemindersModule.OffText(Ember.Bot.BotTexts.English));
@@ -143,7 +143,7 @@ public class DiscordReminderAskTests
     {
         await using var host = await CreateAsync(DiscordUser(10));
         var answer = (ulong clicker, bool yes) => host.WithScopeAsync(sp =>
-            DiscordRemindersModule.TryAnswerAsync(sp.GetRequiredService<ReminderService>(), "10", clicker, yes));
+            DiscordRemindersModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), "10", clicker, yes));
 
         (await answer(11, true)).Should().BeFalse();
         (await UserAsync(host, 10)).DiscordReminders.Should().BeNull();

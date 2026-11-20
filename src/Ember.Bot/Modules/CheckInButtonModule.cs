@@ -189,7 +189,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        if (!await _reminders.SnoozeReminderAsync(Context.User.Id, habitId, DateTimeOffset.FromUnixTimeSeconds(sentUnix)))
+        if (!await _reminders.SnoozeReminderAsync(await _habits.FindDiscordUserAsync(Context.User.Id), habitId, DateTimeOffset.FromUnixTimeSeconds(sentUnix)))
         {
             await RespondAsync(t.Get("checkin.snooze-closed"), ephemeral: true);
             return;

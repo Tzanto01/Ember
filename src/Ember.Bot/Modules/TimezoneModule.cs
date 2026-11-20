@@ -54,7 +54,7 @@ public class TimezoneModule : InteractionModuleBase<SocketInteractionContext>
 
         await _habits.SetTimezoneAsync(Context.User.Id, tz.Id, Languages.FromLocale(Context.Interaction.UserLocale));
 
-        var rescheduled = await _reminders.RescheduleRemindersAsync(Context.User.Id);
+        var rescheduled = await _reminders.RescheduleRemindersAsync(await _habits.FindDiscordUserAsync(Context.User.Id));
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         await RespondAsync(

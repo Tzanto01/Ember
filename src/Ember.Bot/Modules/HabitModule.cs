@@ -539,7 +539,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task SecondReminderAsync([Summary("delay", "How long after a reminder")] SecondReminderDelay delay)
     {
         var minutes = (int)delay;
-        await _reminders.SetSecondReminderMinutesAsync(Context.User.Id, minutes, Languages.FromLocale(Context.Interaction.UserLocale));
+        await _reminders.SetSecondReminderMinutesAsync(await _habits.ResolveOrCreateDiscordUserAsync(Context.User.Id, Languages.FromLocale(Context.Interaction.UserLocale)), minutes);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         await RespondAsync(minutes == 0

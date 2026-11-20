@@ -41,12 +41,11 @@ public partial class ReminderService
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.DiscordRemindersAskedAt, (DateTime?)null), cancellationToken);
 
     /// <summary>
-    /// Bot only, for a reminder time set through the bot: records yes (and the ask, so it isn't sent) when the Discord user's account
+    /// Bot only, for a reminder time set through the bot: records yes (and the ask, so it isn't sent) when the account
     /// never answered about Discord reminders. Returns whether Discord reminders are on for the account afterwards.
     /// </summary>
-    public async Task<bool> DefaultDiscordRemindersOnAsync(ulong discordUserId)
+    public async Task<bool> DefaultDiscordRemindersOnAsync(Guid userId)
     {
-        var userId = await _habits.FindDiscordUserAsync(discordUserId);
         var now = _time.GetUtcNow().UtcDateTime;
         await _db.Users.Where(u => u.Id == userId && u.DiscordReminders == null)
             .ExecuteUpdateAsync(s => s
@@ -56,12 +55,11 @@ public partial class ReminderService
     }
 
     /// <summary>
-    /// Records the answer of the Discord user's account to "remind me in Discord DMs" (latest answer wins) and that it was asked,
+    /// Records the account's answer to "remind me in Discord DMs" (latest answer wins) and that it was asked,
     /// so the one-time question is never sent afterwards.
     /// </summary>
-    public async Task SetDiscordRemindersAsync(ulong discordUserId, bool enabled)
+    public async Task SetDiscordRemindersAsync(Guid userId, bool enabled)
     {
-        var userId = await _habits.FindDiscordUserAsync(discordUserId);
         var now = _time.GetUtcNow().UtcDateTime;
         await _db.Users.Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s
