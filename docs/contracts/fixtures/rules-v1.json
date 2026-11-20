@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed } where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today), in routine order. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
+  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed } where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today), in routine order. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done, { completed: null } clears the day, { count } sets the count), expected (the day\u0027s log after, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after, by date) }; the cases keep every count at or below the new target. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
   "cases": [
     {
       "name": "daily streak with one grace day used",
@@ -283,7 +283,22 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 6,
+          "totalPossible": 7,
+          "headline": "This week you showed up for 6 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 6,
+              "possible": 7,
+              "streak": 12
+            }
+          ]
+        }
       }
     },
     {
@@ -562,7 +577,22 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 6,
+          "totalPossible": 7,
+          "headline": "This week you showed up for 6 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 6,
+              "possible": 7,
+              "streak": 7
+            }
+          ]
+        }
       }
     },
     {
@@ -846,7 +876,22 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 6,
+          "totalPossible": 7,
+          "headline": "This week you showed up for 6 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 6,
+              "possible": 7,
+              "streak": 5
+            }
+          ]
+        }
       }
     },
     {
@@ -1301,7 +1346,29 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 12,
+          "totalPossible": 14,
+          "headline": "This week you showed up for 12 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 6,
+              "possible": 7,
+              "streak": 12
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 6,
+              "possible": 7,
+              "streak": 12
+            }
+          ]
+        }
       }
     },
     {
@@ -1587,7 +1654,22 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 6,
+          "totalPossible": 6,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 6 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 6,
+              "possible": 6,
+              "streak": 12
+            }
+          ]
+        }
       }
     },
     {
@@ -2017,7 +2099,29 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 8,
+          "totalPossible": 8,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 8 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 4,
+              "possible": 4,
+              "streak": 10
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 4,
+              "possible": 4,
+              "streak": 10
+            }
+          ]
+        }
       }
     },
     {
@@ -2700,7 +2804,43 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 12,
+          "totalPossible": 12,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 12 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 3,
+              "possible": 3,
+              "streak": 6
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 3,
+              "possible": 3,
+              "streak": 7
+            },
+            {
+              "habitId": 3,
+              "name": "Habit 3",
+              "done": 3,
+              "possible": 3,
+              "streak": 6
+            },
+            {
+              "habitId": 4,
+              "name": "Habit 4",
+              "done": 3,
+              "possible": 3,
+              "streak": 3
+            }
+          ]
+        }
       }
     },
     {
@@ -2994,7 +3134,22 @@
             "showedUp": true
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 6,
+          "totalPossible": 7,
+          "headline": "This week you showed up for 6 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 6,
+              "possible": 7,
+              "streak": 1
+            }
+          ]
+        }
       }
     },
     {
@@ -3162,7 +3317,22 @@
             "showedUp": true
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 6,
+          "totalPossible": 6,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 6 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 6,
+              "possible": 6,
+              "streak": 6
+            }
+          ]
+        }
       }
     },
     {
@@ -3330,7 +3500,22 @@
             "showedUp": true
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 4,
+          "totalPossible": 5,
+          "headline": "This week you showed up for 4 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 4,
+              "possible": 5,
+              "streak": 3
+            }
+          ]
+        }
       }
     },
     {
@@ -3620,7 +3805,29 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 4,
+          "totalPossible": 6,
+          "headline": "This week you showed up for 4 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 4,
+              "possible": 4,
+              "streak": null
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 0,
+              "possible": 2,
+              "streak": null
+            }
+          ]
+        }
       }
     },
     {
@@ -3786,7 +3993,22 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 4,
+          "totalPossible": 4,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 4 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 4,
+              "possible": 4,
+              "streak": 4
+            }
+          ]
+        }
       }
     },
     {
@@ -4234,7 +4456,50 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 7,
+          "totalPossible": 17,
+          "headline": "This week you showed up for 7 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "Small steps still move forward. You\u0027ve got this.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 3,
+              "possible": 6,
+              "streak": 1
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 1,
+              "possible": 2,
+              "streak": null
+            },
+            {
+              "habitId": 3,
+              "name": "Habit 3",
+              "done": 1,
+              "possible": 4,
+              "streak": 1
+            },
+            {
+              "habitId": 4,
+              "name": "Habit 4",
+              "done": 2,
+              "possible": 2,
+              "streak": 2
+            },
+            {
+              "habitId": 5,
+              "name": "Habit 5",
+              "done": 0,
+              "possible": 3,
+              "streak": 0
+            }
+          ]
+        }
       }
     },
     {
@@ -4527,6 +4792,70 @@
             2
           ],
           "2": []
+        },
+        "weekly": {
+          "totalDone": 0,
+          "totalPossible": 46,
+          "headline": "It\u0027s been a quiet week, and that\u0027s okay. \uD83D\uDC99\nWhenever you\u0027re ready, your habits are here waiting.",
+          "footer": "No pressure. Progress happens at its own pace.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 0,
+              "possible": 7,
+              "streak": 1
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            },
+            {
+              "habitId": 3,
+              "name": "Habit 3",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            },
+            {
+              "habitId": 4,
+              "name": "Habit 4",
+              "done": 0,
+              "possible": 3,
+              "streak": 0
+            },
+            {
+              "habitId": 5,
+              "name": "Habit 5",
+              "done": 0,
+              "possible": 6,
+              "streak": 0
+            },
+            {
+              "habitId": 6,
+              "name": "Habit 6",
+              "done": 0,
+              "possible": 2,
+              "streak": null
+            },
+            {
+              "habitId": 7,
+              "name": "Habit 7",
+              "done": 0,
+              "possible": 7,
+              "streak": 1
+            },
+            {
+              "habitId": 8,
+              "name": "Habit 8",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            }
+          ]
         }
       }
     },
@@ -4626,6 +4955,28 @@
         ],
         "routinePending": {
           "1": []
+        },
+        "weekly": {
+          "totalDone": 0,
+          "totalPossible": 14,
+          "headline": "It\u0027s been a quiet week, and that\u0027s okay. \uD83D\uDC99\nWhenever you\u0027re ready, your habits are here waiting.",
+          "footer": "No pressure. Progress happens at its own pace.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            }
+          ]
         }
       }
     },
@@ -4893,7 +5244,29 @@
             "showedUp": true
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 7,
+          "totalPossible": 7,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 7 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 4,
+              "possible": 4,
+              "streak": null
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 3,
+              "possible": 3,
+              "streak": null
+            }
+          ]
+        }
       }
     },
     {
@@ -5126,7 +5499,29 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 5,
+          "totalPossible": 8,
+          "headline": "This week you showed up for 5 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 4,
+              "possible": 4,
+              "streak": null
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 1,
+              "possible": 4,
+              "streak": null
+            }
+          ]
+        }
       }
     },
     {
@@ -5329,7 +5724,22 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 2,
+          "totalPossible": 3,
+          "headline": "This week you showed up for 2 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 2,
+              "possible": 3,
+              "streak": 8
+            }
+          ]
+        }
       }
     },
     {
@@ -5613,7 +6023,22 @@
             "showedUp": true
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 5,
+          "totalPossible": 7,
+          "headline": "This week you showed up for 5 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 5,
+              "possible": 7,
+              "streak": 6
+            }
+          ]
+        }
       }
     },
     {
@@ -5801,7 +6226,22 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 5,
+          "totalPossible": 7,
+          "headline": "This week you showed up for 5 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 5,
+              "possible": 7,
+              "streak": 1
+            }
+          ]
+        }
       }
     },
     {
@@ -5941,7 +6381,22 @@
             "showedUp": true
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 3,
+          "totalPossible": 3,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 3 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 3,
+              "possible": 3,
+              "streak": 4
+            }
+          ]
+        }
       }
     },
     {
@@ -6173,7 +6628,22 @@
             "showedUp": false
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 6,
+          "totalPossible": 7,
+          "headline": "This week you showed up for 6 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 6,
+              "possible": 7,
+              "streak": 11
+            }
+          ]
+        }
       }
     },
     {
@@ -6524,8 +6994,1459 @@
             "showedUp": true
           }
         ],
-        "routinePending": {}
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 2,
+          "totalPossible": 2,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 2 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 0,
+              "possible": 0,
+              "streak": 5
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 2,
+              "possible": 2,
+              "streak": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a weekly habit without a target aims for 3 a week, and a new one for the days it had",
+      "today": "2027-03-17",
+      "from": "2027-03-08",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "habits": [
+        {
+          "id": 1,
+          "frequency": "weekly",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-02-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "logs": [
+            {
+              "date": "2027-03-08",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-11",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-12",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-15",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-17",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "frequency": "weekly",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-14",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "logs": [
+            {
+              "date": "2027-03-15",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "days": {
+          "1": [
+            {
+              "date": "2027-03-08",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-09",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-10",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-11",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-12",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-13",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-14",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-15",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-16",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-17",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            }
+          ],
+          "2": [
+            {
+              "date": "2027-03-08",
+              "state": "beforestart",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-09",
+              "state": "beforestart",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-10",
+              "state": "beforestart",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-11",
+              "state": "beforestart",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-12",
+              "state": "beforestart",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-13",
+              "state": "beforestart",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-14",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-15",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-16",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-17",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            }
+          ]
+        },
+        "stats": {
+          "1": {
+            "streak": null,
+            "graceUsed": null,
+            "bestStreak": null,
+            "last7": 4,
+            "week": {
+              "done": 2,
+              "target": 3
+            }
+          },
+          "2": {
+            "streak": null,
+            "graceUsed": null,
+            "bestStreak": null,
+            "last7": 1,
+            "week": {
+              "done": 1,
+              "target": 3
+            }
+          }
+        },
+        "dayStats": [
+          {
+            "date": "2027-03-08",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-09",
+            "scheduled": 0,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-10",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-11",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-12",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-13",
+            "scheduled": 0,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-14",
+            "scheduled": 0,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-15",
+            "scheduled": 2,
+            "done": 2,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-16",
+            "scheduled": 0,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-17",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          }
+        ],
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 5,
+          "totalPossible": 6,
+          "headline": "This week you showed up for 5 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 4,
+              "possible": 4,
+              "streak": null
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 1,
+              "possible": 2,
+              "streak": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "weekly summary over low days, a pause, partial days and a weekly habit",
+      "today": "2027-03-17",
+      "from": "2027-03-09",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [
+        "2027-03-15"
+      ],
+      "habits": [
+        {
+          "id": 1,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-02-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-11",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-13",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-14",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-16",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 2,
+          "startDate": "2027-02-01",
+          "pausedFrom": "2027-03-13",
+          "pausedUntil": "2027-03-14",
+          "routineId": null,
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": false
+            },
+            {
+              "date": "2027-03-11",
+              "count": 2,
+              "completed": false
+            },
+            {
+              "date": "2027-03-12",
+              "count": 2,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "frequency": "weekly",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-02-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "logs": [
+            {
+              "date": "2027-03-11",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "days": {
+          "1": [
+            {
+              "date": "2027-03-09",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-10",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-11",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-12",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-13",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-14",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-15",
+              "state": "lowday",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-16",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-17",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            }
+          ],
+          "2": [
+            {
+              "date": "2027-03-09",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-10",
+              "state": "partial",
+              "completed": null,
+              "count": 1
+            },
+            {
+              "date": "2027-03-11",
+              "state": "partial",
+              "completed": null,
+              "count": 2
+            },
+            {
+              "date": "2027-03-12",
+              "state": "done",
+              "completed": true,
+              "count": 2
+            },
+            {
+              "date": "2027-03-13",
+              "state": "paused",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-14",
+              "state": "paused",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-15",
+              "state": "lowday",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-16",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-17",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            }
+          ],
+          "3": [
+            {
+              "date": "2027-03-09",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-10",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-11",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-12",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-13",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-14",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-15",
+              "state": "lowday",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-16",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-17",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            }
+          ]
+        },
+        "stats": {
+          "1": {
+            "streak": 5,
+            "graceUsed": 1,
+            "bestStreak": 5,
+            "last7": 5,
+            "week": null
+          },
+          "2": {
+            "streak": 1,
+            "graceUsed": 0,
+            "bestStreak": 1,
+            "last7": 2,
+            "week": null
+          },
+          "3": {
+            "streak": null,
+            "graceUsed": null,
+            "bestStreak": null,
+            "last7": 2,
+            "week": {
+              "done": 0,
+              "target": 3
+            }
+          }
+        },
+        "dayStats": [
+          {
+            "date": "2027-03-09",
+            "scheduled": 2,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-10",
+            "scheduled": 2,
+            "done": 1,
+            "partial": 1,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-11",
+            "scheduled": 3,
+            "done": 2,
+            "partial": 1,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-12",
+            "scheduled": 2,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-13",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-14",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-15",
+            "scheduled": 2,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-16",
+            "scheduled": 2,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-17",
+            "scheduled": 2,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          }
+        ],
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 7,
+          "totalPossible": 13,
+          "headline": "This week you showed up for 7 check-ins. Every one of those counts. \uD83D\uDCAA",
+          "footer": "More than half, that\u0027s a win. Keep it up.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 5,
+              "possible": 6,
+              "streak": 5
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 1,
+              "possible": 4,
+              "streak": 1
+            },
+            {
+              "habitId": 3,
+              "name": "Habit 3",
+              "done": 1,
+              "possible": 3,
+              "streak": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "weekly summary when every possible check-in happened",
+      "today": "2027-03-17",
+      "from": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "habits": [
+        {
+          "id": 1,
+          "frequency": "weekdays",
+          "weeklyTarget": null,
+          "days": [
+            "mon",
+            "wed",
+            "fri"
+          ],
+          "timesPerDay": 1,
+          "startDate": "2027-02-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-12",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-15",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "frequency": "weekly",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-02-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "logs": [
+            {
+              "date": "2027-03-11",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-13",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-14",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-16",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "days": {
+          "1": [
+            {
+              "date": "2027-03-10",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-11",
+              "state": "offday",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-12",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-13",
+              "state": "offday",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-14",
+              "state": "offday",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-15",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-16",
+              "state": "offday",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-17",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            }
+          ],
+          "2": [
+            {
+              "date": "2027-03-10",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-11",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-12",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-13",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-14",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-15",
+              "state": "notdone",
+              "completed": null,
+              "count": 0
+            },
+            {
+              "date": "2027-03-16",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            },
+            {
+              "date": "2027-03-17",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            }
+          ]
+        },
+        "stats": {
+          "1": {
+            "streak": 3,
+            "graceUsed": 0,
+            "bestStreak": 3,
+            "last7": 2,
+            "week": null
+          },
+          "2": {
+            "streak": null,
+            "graceUsed": null,
+            "bestStreak": null,
+            "last7": 4,
+            "week": {
+              "done": 1,
+              "target": 3
+            }
+          }
+        },
+        "dayStats": [
+          {
+            "date": "2027-03-10",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-11",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-12",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-13",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-14",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-15",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-16",
+            "scheduled": 1,
+            "done": 1,
+            "partial": 0,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-17",
+            "scheduled": 1,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          }
+        ],
+        "routinePending": {},
+        "weekly": {
+          "totalDone": 7,
+          "totalPossible": 7,
+          "headline": "You nailed every single check-in this week \uD83D\uDD25 That\u0027s 7 check-ins. Incredible.",
+          "footer": "You\u0027re on fire. Keep going.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 3,
+              "possible": 3,
+              "streak": 3
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 4,
+              "possible": 4,
+              "streak": null
+            }
+          ]
+        }
       }
     }
-  ]
+  ],
+  "edits": {
+    "today": "2027-03-17",
+    "pause": [
+      {
+        "name": "a new pause starts today",
+        "pausedFrom": null,
+        "pausedUntil": null,
+        "until": "2027-03-20",
+        "expected": {
+          "pausedFrom": "2027-03-17",
+          "pausedUntil": "2027-03-20"
+        }
+      },
+      {
+        "name": "extending a running pause keeps its start",
+        "pausedFrom": "2027-03-14",
+        "pausedUntil": "2027-03-18",
+        "until": "2027-03-25",
+        "expected": {
+          "pausedFrom": "2027-03-14",
+          "pausedUntil": "2027-03-25"
+        }
+      },
+      {
+        "name": "pausing after an ended pause starts a new one today",
+        "pausedFrom": "2027-03-01",
+        "pausedUntil": "2027-03-05",
+        "until": "2027-03-20",
+        "expected": {
+          "pausedFrom": "2027-03-17",
+          "pausedUntil": "2027-03-20"
+        }
+      },
+      {
+        "name": "pausing before a planned pause starts it today",
+        "pausedFrom": "2027-03-20",
+        "pausedUntil": "2027-03-25",
+        "until": "2027-03-30",
+        "expected": {
+          "pausedFrom": "2027-03-17",
+          "pausedUntil": "2027-03-30"
+        }
+      },
+      {
+        "name": "resuming a running pause ends it yesterday",
+        "pausedFrom": "2027-03-14",
+        "pausedUntil": "2027-03-20",
+        "until": null,
+        "expected": {
+          "pausedFrom": "2027-03-14",
+          "pausedUntil": "2027-03-16"
+        }
+      },
+      {
+        "name": "resuming a pause that started today removes it",
+        "pausedFrom": "2027-03-17",
+        "pausedUntil": "2027-03-20",
+        "until": null,
+        "expected": {
+          "pausedFrom": null,
+          "pausedUntil": null
+        }
+      },
+      {
+        "name": "resuming after a pause ended keeps the past pause",
+        "pausedFrom": "2027-03-01",
+        "pausedUntil": "2027-03-05",
+        "until": null,
+        "expected": {
+          "pausedFrom": "2027-03-01",
+          "pausedUntil": "2027-03-05"
+        }
+      },
+      {
+        "name": "resuming a pause without a start ends it yesterday",
+        "pausedFrom": null,
+        "pausedUntil": "2027-03-20",
+        "until": null,
+        "expected": {
+          "pausedFrom": null,
+          "pausedUntil": "2027-03-16"
+        }
+      },
+      {
+        "name": "resuming a planned pause removes it",
+        "pausedFrom": "2027-03-20",
+        "pausedUntil": "2027-03-25",
+        "until": null,
+        "expected": {
+          "pausedFrom": null,
+          "pausedUntil": null
+        }
+      },
+      {
+        "name": "resuming when not paused changes nothing",
+        "pausedFrom": null,
+        "pausedUntil": null,
+        "until": null,
+        "expected": {
+          "pausedFrom": null,
+          "pausedUntil": null
+        }
+      }
+    ],
+    "writeDay": [
+      {
+        "name": "done on a new day logs the full count",
+        "timesPerDay": 1,
+        "date": "2027-03-17",
+        "log": null,
+        "edit": {
+          "completed": true
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 1,
+          "completed": true
+        }
+      },
+      {
+        "name": "done on a three times a day habit",
+        "timesPerDay": 3,
+        "date": "2027-03-17",
+        "log": null,
+        "edit": {
+          "completed": true
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 3,
+          "completed": true
+        }
+      },
+      {
+        "name": "not done logs zero",
+        "timesPerDay": 1,
+        "date": "2027-03-17",
+        "log": null,
+        "edit": {
+          "completed": false
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 0,
+          "completed": false
+        }
+      },
+      {
+        "name": "not done over a done day",
+        "timesPerDay": 2,
+        "date": "2027-03-17",
+        "log": {
+          "date": "2027-03-17",
+          "count": 2,
+          "completed": true
+        },
+        "edit": {
+          "completed": false
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 0,
+          "completed": false
+        }
+      },
+      {
+        "name": "clearing removes the log",
+        "timesPerDay": 2,
+        "date": "2027-03-15",
+        "log": {
+          "date": "2027-03-15",
+          "count": 1,
+          "completed": false
+        },
+        "edit": {
+          "completed": null
+        },
+        "expected": null
+      },
+      {
+        "name": "clearing a day without a log",
+        "timesPerDay": 1,
+        "date": "2027-03-15",
+        "log": null,
+        "edit": {
+          "completed": null
+        },
+        "expected": null
+      },
+      {
+        "name": "a count below the target is partial",
+        "timesPerDay": 3,
+        "date": "2027-03-17",
+        "log": null,
+        "edit": {
+          "count": 2
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 2,
+          "completed": false
+        }
+      },
+      {
+        "name": "a count at the target is done",
+        "timesPerDay": 3,
+        "date": "2027-03-12",
+        "log": {
+          "date": "2027-03-12",
+          "count": 1,
+          "completed": false
+        },
+        "edit": {
+          "count": 3
+        },
+        "expected": {
+          "date": "2027-03-12",
+          "count": 3,
+          "completed": true
+        }
+      },
+      {
+        "name": "lowering the count of a done day",
+        "timesPerDay": 3,
+        "date": "2027-03-17",
+        "log": {
+          "date": "2027-03-17",
+          "count": 3,
+          "completed": true
+        },
+        "edit": {
+          "count": 2
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 2,
+          "completed": false
+        }
+      },
+      {
+        "name": "a day done before the target rose stays done at the same count",
+        "timesPerDay": 3,
+        "date": "2027-03-12",
+        "log": {
+          "date": "2027-03-12",
+          "count": 2,
+          "completed": true
+        },
+        "edit": {
+          "count": 2
+        },
+        "expected": {
+          "date": "2027-03-12",
+          "count": 2,
+          "completed": true
+        }
+      },
+      {
+        "name": "a day done before the target rose stays done when more are logged",
+        "timesPerDay": 4,
+        "date": "2027-03-12",
+        "log": {
+          "date": "2027-03-12",
+          "count": 2,
+          "completed": true
+        },
+        "edit": {
+          "count": 3
+        },
+        "expected": {
+          "date": "2027-03-12",
+          "count": 3,
+          "completed": true
+        }
+      },
+      {
+        "name": "a day done before the target rose is not done below its count",
+        "timesPerDay": 3,
+        "date": "2027-03-12",
+        "log": {
+          "date": "2027-03-12",
+          "count": 2,
+          "completed": true
+        },
+        "edit": {
+          "count": 1
+        },
+        "expected": {
+          "date": "2027-03-12",
+          "count": 1,
+          "completed": false
+        }
+      },
+      {
+        "name": "a count of zero is not done",
+        "timesPerDay": 2,
+        "date": "2027-03-17",
+        "log": {
+          "date": "2027-03-17",
+          "count": 2,
+          "completed": true
+        },
+        "edit": {
+          "count": 0
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 0,
+          "completed": false
+        }
+      }
+    ],
+    "retarget": [
+      {
+        "name": "raising the target recomputes only today",
+        "timesPerDay": 1,
+        "newTimesPerDay": 3,
+        "logs": [
+          {
+            "date": "2027-03-15",
+            "count": 1,
+            "completed": true
+          },
+          {
+            "date": "2027-03-16",
+            "count": 1,
+            "completed": false
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": true
+          }
+        ],
+        "expected": [
+          {
+            "date": "2027-03-15",
+            "count": 1,
+            "completed": true
+          },
+          {
+            "date": "2027-03-16",
+            "count": 1,
+            "completed": false
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": false
+          }
+        ]
+      },
+      {
+        "name": "lowering the target makes days that reach it done",
+        "timesPerDay": 3,
+        "newTimesPerDay": 2,
+        "logs": [
+          {
+            "date": "2027-03-14",
+            "count": 2,
+            "completed": false
+          },
+          {
+            "date": "2027-03-15",
+            "count": 1,
+            "completed": false
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": false
+          }
+        ],
+        "expected": [
+          {
+            "date": "2027-03-14",
+            "count": 2,
+            "completed": true
+          },
+          {
+            "date": "2027-03-15",
+            "count": 1,
+            "completed": false
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": false
+          }
+        ]
+      },
+      {
+        "name": "lowering the target to one",
+        "timesPerDay": 3,
+        "newTimesPerDay": 1,
+        "logs": [
+          {
+            "date": "2027-03-15",
+            "count": 1,
+            "completed": false
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": false
+          }
+        ],
+        "expected": [
+          {
+            "date": "2027-03-15",
+            "count": 1,
+            "completed": true
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": true
+          }
+        ]
+      }
+    ]
+  },
+  "limits": {
+    "local": {
+      "habits": 25,
+      "routines": 10,
+      "activeMoods": 20,
+      "habitName": 100,
+      "routineName": 50,
+      "moodLabel": 24,
+      "noteText": 2000,
+      "habitNoteText": 280,
+      "todayOrder": 500,
+      "timesPerDay": 10
+    },
+    "fireside": {
+      "name": 32,
+      "codeLength": 8,
+      "codeMinutes": 30,
+      "friends": 20
+    }
+  }
 }
