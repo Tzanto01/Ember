@@ -21,7 +21,15 @@ public sealed class MetricsServer(RequestMetrics metrics, IConfiguration configu
         Task<WebApplication> build;
         using (ExecutionContext.SuppressFlow()) build = Task.Run(() => Build(key, port), cancellationToken);
         var app = await build;
-        await app.StartAsync(cancellationToken);
+        try
+        {
+            await app.StartAsync(cancellationToken);
+        }
+        catch
+        {
+            await app.DisposeAsync();
+            throw;
+        }
         _app = app;
         Address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault();
         logger.LogInformation("Request metrics on {Address}{Path}", Address, ApiMetrics.Path);
