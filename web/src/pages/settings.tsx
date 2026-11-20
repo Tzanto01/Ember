@@ -191,8 +191,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (redirect) void navigate(redirect, { replace: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- navigates only when the redirect changes
-  }, [redirect]);
+  }, [navigate, redirect]);
 
   useEffect(() => {
     const id = location.hash.slice(1);
