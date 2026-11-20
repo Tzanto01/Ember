@@ -122,7 +122,9 @@ class CheckInClientTest {
         send()
 
         assertEquals(setOf(12, 13, 14), shown())
-        assertNull(NotificationStorage(host.context).getSavedNotificationAsJSObject("11"))
+        val records = NotificationStorage(host.context)
+        assertNull(records.getSavedNotificationAsJSObject("11"))
+        assertNotNull(records.getSavedNotificationAsJSObject("12"))
     }
 
     @Test

@@ -14,18 +14,21 @@ internal object DeliveredReminders {
 
     /**
      * Removes the delivered reminders of [userId] for [habitId] on [date] from the shade, and forgets their plugin
-     * records the way the plugin does when the user dismisses one.
+     * records the way the plugin does when the user dismisses one. A failure leaves the rest in place.
      */
     fun clear(context: Context, userId: String, habitId: Long, date: String) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         val storage = NotificationStorage(context)
-        for (delivered in manager.activeNotifications) {
-            val id = delivered.id.toString()
-            val extra = storage.getSavedNotificationAsJSObject(id)?.optJSONObject("extra") ?: continue
-            if (extra.optString("userId") != userId || extra.optLong("habitId") != habitId) continue
-            if (extra.optString("date") != date) continue
-            manager.cancel(delivered.tag, delivered.id)
-            if (LocalNotificationManager.isSafeToForget(storage.getSavedNotification(id))) storage.deleteNotification(id)
+        try {
+            for (delivered in manager.activeNotifications) {
+                val id = delivered.id.toString()
+                val extra = storage.getSavedNotificationAsJSObject(id)?.optJSONObject("extra") ?: continue
+                if (extra.optString("userId") != userId || extra.optLong("habitId") != habitId) continue
+                if (extra.optString("date") != date) continue
+                manager.cancel(delivered.tag, delivered.id)
+                if (LocalNotificationManager.isSafeToForget(storage.getSavedNotification(id))) storage.deleteNotification(id)
+            }
+        } catch (e: RuntimeException) {
         }
     }
 }
