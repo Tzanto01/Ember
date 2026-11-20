@@ -563,11 +563,3 @@ public enum SecondReminderDelay
     [ChoiceDisplay("1 hour")] OneHour = 60,
     [ChoiceDisplay("2 hours")] TwoHours = 120,
 }
-
-public enum PauseDuration
-{
-    [ChoiceDisplay("Today only")] Today,
-    [ChoiceDisplay("3 days")] ThreeDays,
-    [ChoiceDisplay("1 week")] OneWeek,
-    [ChoiceDisplay("Resume (unpause)")] Resume,
-}
