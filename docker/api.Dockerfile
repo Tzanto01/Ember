@@ -1,15 +1,17 @@
 # ── Build stage ───────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.404@sha256:bef136a371963aaa46ec97882845ef6f54dec15728bb4b128b1c2a400ffbc9b4 AS build
 WORKDIR /src
-COPY src/ src/
+COPY src/Ember.Core/Ember.Core.csproj src/Ember.Core/
+COPY src/Ember.Api/Ember.Api.csproj src/Ember.Api/
 RUN dotnet restore src/Ember.Api/Ember.Api.csproj
+COPY src/ src/
 RUN dotnet publish src/Ember.Api/Ember.Api.csproj \
     -c Release \
     --no-restore \
     -o /app/publish
 
 # ── Web build stage ───────────────────────────────────────────────────────────
-FROM oven/bun:1.3.14 AS web
+FROM oven/bun:1.3.14@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS web
 WORKDIR /web
 COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
@@ -20,7 +22,7 @@ ENV VITE_PUBLIC_ORIGIN=$VITE_PUBLIC_ORIGIN
 RUN bun --bun run build
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.15@sha256:12b1135f5f8b3c0a214f2a680ff2033dff4f684f445d6c697d9524ceeb303586 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 COPY --from=web /web/dist/ember-web/browser /app/wwwroot

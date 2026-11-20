@@ -79,11 +79,8 @@ services:
 
   lookout-sender:
     profiles: ["lookout"]
-    build:
-      context: .
-      dockerfile: docker/api.Dockerfile
-      args:
-        VITE_PUBLIC_ORIGIN: ${VITE_PUBLIC_ORIGIN:-}
+    image: ${COMPOSE_PROJECT_NAME}-api
+    pull_policy: never
     command: ["--lookout-sender"]
     restart: unless-stopped
     user: "1000:1000"

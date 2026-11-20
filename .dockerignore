@@ -8,3 +8,10 @@ publish/
 **/appsettings*.json
 web/node_modules
 web/dist
+**/bin
+**/obj
+.env
+.env.*
+deletion-ledger/
+mobile/
+ops/
