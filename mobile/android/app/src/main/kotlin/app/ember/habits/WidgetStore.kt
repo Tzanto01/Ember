@@ -17,8 +17,8 @@ import org.json.JSONObject
 
 /**
  * The widgets' app-private store: the snapshot the app last pushed, the check-ins JS has not taken yet and the style,
- * in one SharedPreferences file that [WidgetKey] shares for the sealed key and API origin. Every read-modify-write of
- * the file, and every use of the in-memory count of check-in requests in flight, holds [LOCK].
+ * in one SharedPreferences file that [WidgetKey] shares for the sealed key and API origin. Every write of the file but
+ * [setStyle]'s, and every use of the in-memory count of check-in requests in flight, holds [LOCK].
  */
 internal object WidgetStore {
 
@@ -159,35 +159,39 @@ internal object WidgetStore {
 
     /**
      * Edits the stored row of [habitId] on [date] (the snapshot's day or its `next` day) while the stored token is
-     * still [token], keeping that day's `done` in step; true when [edit] changed it. Callers hold [LOCK].
+     * still [token], keeping that day's `done` in step; true when [edit] changed it. Callers that pair it with other
+     * store calls hold [LOCK] around them.
      */
     @JvmStatic
     fun editRow(context: Context, token: String, date: String, habitId: Long, edit: RowEdit): Boolean {
-        val stored = prefs(context).getString(SNAPSHOT, null) ?: return false
-        try {
-            val snapshot = JSONObject(stored)
-            if (snapshot.optString("token") != token) return false
-            val next = snapshot.optJSONObject("next")
-            val day = when {
-                date == snapshot.optString("date") -> snapshot
-                next != null && date == next.optString("date") -> next
-                else -> return false
-            }
-            val habits = day.optJSONArray("habits") ?: return false
-            for (i in 0 until habits.length()) {
-                val row = habits.optJSONObject(i)
-                if (row == null || row.optLong("id") != habitId) continue
-                val before = row.optString("state")
-                if (!edit.apply(row)) return false
-                if (day.has("done")) {
-                    day.put("done", WidgetPlan.done(day.optInt("done"), day.optInt("total"), before, row.optString("state")))
+        synchronized(LOCK) {
+            val stored = prefs(context).getString(SNAPSHOT, null) ?: return false
+            try {
+                val snapshot = JSONObject(stored)
+                if (snapshot.optString("token") != token) return false
+                val next = snapshot.optJSONObject("next")
+                val day = when {
+                    date == snapshot.optString("date") -> snapshot
+                    next != null && date == next.optString("date") -> next
+                    else -> return false
                 }
-                prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()
-                return true
+                val habits = day.optJSONArray("habits") ?: return false
+                for (i in 0 until habits.length()) {
+                    val row = habits.optJSONObject(i)
+                    if (row == null || row.optLong("id") != habitId) continue
+                    val before = row.optString("state")
+                    if (!edit.apply(row)) return false
+                    if (day.has("done")) {
+                        val done = WidgetPlan.done(day.optInt("done"), day.optInt("total"), before, row.optString("state"))
+                        day.put("done", done)
+                    }
+                    prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()
+                    return true
+                }
+                return false
+            } catch (e: JSONException) {
+                return false
             }
-            return false
-        } catch (e: JSONException) {
-            return false
         }
     }
 
@@ -285,10 +289,10 @@ internal object WidgetStore {
         }
     }
 
-    /** The check-in requests in flight or queued for one check-in. Callers hold [LOCK]. */
+    /** The check-in requests in flight or queued for one check-in. */
     @JvmStatic
     fun inFlightCount(userId: String, habitId: Long, date: String): Int =
-        requests.getOrDefault(pendingKey(userId, habitId, date), 0)
+        synchronized(LOCK) { requests.getOrDefault(pendingKey(userId, habitId, date), 0) }
 
     /** Forgets the snapshot, widget key, API origin and pending check-ins, keeping the style. */
     @JvmStatic
