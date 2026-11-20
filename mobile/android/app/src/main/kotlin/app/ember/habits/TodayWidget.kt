@@ -15,7 +15,6 @@ import app.ember.habits.widget.WidgetKey
 import app.ember.habits.widget.WidgetStore
 import com.getcapacitor.JSObject
 import java.util.Calendar
-import java.util.TimeZone
 import kotlin.math.min
 import org.json.JSONObject
 
@@ -182,7 +181,7 @@ class TodayWidget : AppWidgetProvider() {
 
         private fun scheduleMidnight(context: Context, timeZone: String) {
             val alarms = context.getSystemService(AlarmManager::class.java) ?: return
-            val midnight = Calendar.getInstance(TimeZone.getTimeZone(timeZone))
+            val midnight = Calendar.getInstance(WidgetStore.zone(timeZone))
             midnight.add(Calendar.DAY_OF_MONTH, 1)
             midnight.set(Calendar.HOUR_OF_DAY, 0)
             midnight.set(Calendar.MINUTE, 0)

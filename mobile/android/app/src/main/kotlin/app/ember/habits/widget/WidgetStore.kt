@@ -125,7 +125,7 @@ internal object WidgetStore {
         try {
             val snapshot = JSONObject(stored)
             val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            format.timeZone = TimeZone.getTimeZone(snapshot.getString("timeZone"))
+            format.timeZone = zone(snapshot.getString("timeZone"))
             val today = format.format(Date())
             if (today == snapshot.getString("date")) return snapshot
             val next = snapshot.optJSONObject("next")
@@ -139,6 +139,15 @@ internal object WidgetStore {
         } catch (e: JSONException) {
             return null
         }
+    }
+
+    /**
+     * The zone [id] names when this device's zone data knows it, else the device's own zone, never the GMT that
+     * [TimeZone.getTimeZone] silently gives an id it does not know.
+     */
+    fun zone(id: String): TimeZone {
+        val zone = TimeZone.getTimeZone(id)
+        return if (zone.id == "GMT" && id != "GMT") TimeZone.getDefault() else zone
     }
 
     /** Whether any snapshot is stored, even one for another day. */
