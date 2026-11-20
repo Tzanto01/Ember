@@ -38,7 +38,8 @@ internal object CheckInClient {
      * Runs [post] on its own thread and waits for it until [deadline] ([SystemClock.elapsedRealtime] time),
      * disconnecting on timeout; skips it when less than [MIN_REQUEST_MS] is left. A valid answer settles the pending
      * entry and updates the row while the snapshot is unchanged and no other request for that row is in flight or
-     * queued. Callers hold this request's in-flight mark.
+     * queued; a `done` answer also removes that habit's delivered reminders for [date] ([DeliveredReminders]). Callers
+     * hold this request's in-flight mark.
      */
     fun send(
         context: Context,
@@ -79,6 +80,7 @@ internal object CheckInClient {
             }
             WidgetStore.settlePending(context, userId, habitId, date, count)
         }
+        if (state == "done") DeliveredReminders.clear(context, userId, habitId, date)
     }
 
     private fun abandon(call: Future<*>, open: AtomicReference<HttpURLConnection?>) {
