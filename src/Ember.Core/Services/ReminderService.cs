@@ -15,6 +15,9 @@ public partial class ReminderService
     /// <summary>How long the Snooze button delays a reminder.</summary>
     public static readonly TimeSpan SnoozeDelay = TimeSpan.FromMinutes(60);
 
+    /// <summary>How long a reminder's snooze button stays usable after the reminder was sent.</summary>
+    public static readonly TimeSpan SnoozeWindow = TimeSpan.FromHours(24);
+
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
     private readonly ConsentService _consent;
@@ -32,9 +35,6 @@ public partial class ReminderService
         _consent = consent;
         _habits = habits;
     }
-
-    /// <summary>How long a reminder's snooze button stays usable after the reminder was sent.</summary>
-    public static readonly TimeSpan SnoozeWindow = TimeSpan.FromHours(24);
 
     /// <summary>
     /// Delays the habit's next reminder by <see cref="SnoozeDelay"/> and drops its pending second reminder. Returns false when the habit isn't the user's, is a let-go habit or has no reminder,
