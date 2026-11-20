@@ -1,5 +1,5 @@
 slash /export
-  format: String choices=[CSV (spreadsheet)=Csv, JSON=Json]
+  format: String choices=[Csv, Json]
 slash /feedback
 slash /fireside
   code: SubCommand
@@ -20,14 +20,14 @@ slash /habit
   pause: SubCommand
   grace: SubCommand
   second-reminder: SubCommand
-    delay: String required choices=[Off=Off, 15 minutes=FifteenMinutes, 30 minutes=ThirtyMinutes, 1 hour=OneHour, 2 hours=TwoHours]
+    delay: String required choices=[Off, FifteenMinutes, ThirtyMinutes, OneHour, TwoHours]
 slash /help
 slash /link
 slash /privacy
   delete: SubCommand
   withdraw: SubCommand
 slash /reminders
-  state: String required choices=[off=Off, on=On]
+  state: String required choices=[Off, On]
 slash /timezone
   set: SubCommand
     timezone: String required autocomplete
