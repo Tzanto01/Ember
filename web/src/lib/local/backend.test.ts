@@ -162,6 +162,22 @@ describe('LocalBackend through ApiClient', () => {
     expect(habit.today.state).toBe('partial');
   });
 
+  it('clamps logged counts to one when a habit switches to weekly, like Core', async () => {
+    const data = seed([localHabit(1, { timesPerDay: 3 })]);
+    data.logs = [
+      { habitId: 1, date: '2026-10-30', completed: true, count: 3 },
+      { habitId: 1, date: '2026-10-31', completed: false, count: 2 },
+    ];
+    await store.replace(data);
+
+    await api.updateHabit(1, { frequency: 'weekly', timesPerDay: 1, weeklyTarget: 3 });
+
+    expect((await store.load())?.logs).toEqual([
+      { habitId: 1, date: '2026-10-30', completed: true, count: 1 },
+      { habitId: 1, date: '2026-10-31', completed: true, count: 1 },
+    ]);
+  });
+
   it('keeps several reminder times sorted on the device, the earliest when timesPerDay drops, and refuses too many', async () => {
     connect(true);
     await store.replace(seed([]));

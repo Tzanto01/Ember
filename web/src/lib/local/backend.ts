@@ -236,8 +236,8 @@ function channelsField(value: unknown, errors: Errors): ReminderChannel[] | null
 function weeklyTargetField(value: unknown, frequency: Frequency | null, errors: Errors): void {
   if (value === null || value === undefined) return;
   if (frequency !== 'weekly') errors['weeklyTarget'] = ['Only for weekly habits.'];
-  else if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 6)
-    errors['weeklyTarget'] = ['Must be between 1 and 6.'];
+  else if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > limits.weeklyTarget)
+    errors['weeklyTarget'] = [`Must be between 1 and ${limits.weeklyTarget}.`];
 }
 
 function daysField(

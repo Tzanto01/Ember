@@ -420,10 +420,12 @@ export function writeDay(
   return index < 0 ? [...data.logs, log] : data.logs.map((l, i) => (i === index ? log : l));
 }
 
-/** The logs array after the habit's timesPerDay changes to `timesPerDay` (only today's log is recomputed; done days stay done). */
+/** The logs array after the habit's timesPerDay changes to `timesPerDay`, per Core SetScheduleAsync: today's log and every log whose count reaches the new target are recomputed (done when the count reaches it, counts above it clamped to it); other done days stay done. */
 export function retarget(data: LocalData, habitId: number, timesPerDay: number, today: LocalDateString): LocalLog[] {
   return data.logs.map((l) =>
-    l.habitId === habitId && (l.date === today || l.count >= timesPerDay) ? { ...l, completed: l.count >= timesPerDay } : l,
+    l.habitId === habitId && (l.date === today || l.count >= timesPerDay)
+      ? { ...l, completed: l.count >= timesPerDay, count: Math.min(l.count, timesPerDay) }
+      : l,
   );
 }
 
