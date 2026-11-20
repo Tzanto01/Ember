@@ -189,7 +189,7 @@ Android tests and lint (from `mobile/android`, after the same two `web/` steps; 
 
 The HTTP API is described in [docs/contracts/api-v1.md](docs/contracts/api-v1.md).
 
-CI (`.github/workflows/ci.yml`) runs on every push. For .NET it restores, checks for vulnerable packages, builds and runs the tests, the ops suite included. For the web it runs the unit tests and both builds. An Android job runs the JVM unit tests. A third job runs the end-to-end tests below and uploads the Playwright report, traces and test host log when they fail.
+CI (`.github/workflows/ci.yml`) runs on every push. For .NET it restores, checks for vulnerable packages, builds and runs the tests, the ops suite included. For the web it runs the unit tests and both builds. An Android job runs the JVM unit tests, and an end-to-end job runs the tests below and uploads the Playwright report, traces and test host log when they fail.
 
 ### End-to-end tests
 
