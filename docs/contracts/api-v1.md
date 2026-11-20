@@ -812,7 +812,7 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 ### Data
 
 - New table `MadeItDays`: `Id`, `HabitId` (FK, cascade), `Date` (user-local `DateOnly`, one row per habit and date, unique index), `CreatedAt` (UTC). Health data like slips: the write needs the health-data consent, a withdrawal deletes it with the habit, both exports carry it, a merge moves it with its habit.
-- A slip and a mark exclude each other on a day: noting a slip removes that day's mark (same save); removing slips doesn't bring it back.
+- A slip and a mark exclude each other on a day: noting a slip removes that day's mark; removing slips doesn't bring it back.
 - `LetGoDay.MadeIt` is true only on a `free` day that has a mark. A mark on a day that later became paused (or one that arrived with a slip) is kept but reads false. Marks change no stat (`docs/contracts/fixtures/letgo-v1.json` proves it in Core and the client).
 
 ### API
