@@ -398,6 +398,66 @@
       "weeklyTarget": "null"
     }
   },
+  "habit.with-exclusions": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(weekly)",
+      "name": "string",
+      "reminderExclusions": [
+        "browser-{n}"
+      ],
+      "reminderTime": "time",
+      "weeklyTarget": "integer"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {
+      "Location": "/api/habits/{id}"
+    },
+    "body": {
+      "createdAt": "datetime",
+      "days": "null",
+      "frequency": "enum(weekly)",
+      "id": "integer",
+      "kind": "enum(build)",
+      "name": "string",
+      "pausedFrom": "null",
+      "pausedToday": "boolean",
+      "pausedUntil": "null",
+      "reminderChannels": [
+        "string"
+      ],
+      "reminderExclusions": [
+        "browser-{n}"
+      ],
+      "reminderTime": "time",
+      "reminderTimes": [
+        "time"
+      ],
+      "routineId": "null",
+      "serverReminders": "boolean",
+      "startDate": "date",
+      "stats": {
+        "bestStreak": "null",
+        "graceUsed": "null",
+        "last7": "integer",
+        "streak": "null",
+        "week": {
+          "done": "integer",
+          "target": "integer"
+        }
+      },
+      "timesPerDay": "integer",
+      "today": {
+        "completed": "null",
+        "count": "integer",
+        "date": "date",
+        "state": "enum(pending)"
+      },
+      "weeklyTarget": "integer"
+    }
+  },
   "list.empty": {
     "method": "GET",
     "route": "/api/routines",

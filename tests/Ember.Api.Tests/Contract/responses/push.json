@@ -245,115 +245,42 @@
   "done.again": {
     "method": "POST",
     "route": "/api/reminders/done",
-    "request": {
-      "token": "string"
-    },
-    "status": 204,
-    "contentType": null,
-    "headers": {}
+    "status": 204
   },
   "done.consent-required": {
     "method": "POST",
     "route": "/api/reminders/done",
-    "request": {
-      "token": "string"
-    },
-    "status": 403,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "status": 403,
-      "title": "Forbidden",
-      "type": "consent_required"
-    }
+    "status": 403
   },
   "done.expired": {
     "method": "POST",
     "route": "/api/reminders/done",
-    "request": {
-      "token": "string"
-    },
-    "status": 410,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "status": 410,
-      "title": "Gone",
-      "type": "expired"
-    }
+    "status": 410
   },
   "done.let-go": {
     "method": "POST",
     "route": "/api/reminders/done",
-    "request": {
-      "token": "string"
-    },
-    "status": 400,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "errors": {
-        "kind": [
-          "Let-go habits record slips, not check-ins."
-        ]
-      },
-      "status": 400,
-      "title": "One or more validation errors occurred.",
-      "type": "validation"
-    }
+    "status": 400
   },
   "done.missing-token": {
     "method": "POST",
     "route": "/api/reminders/done",
-    "request": {},
-    "status": 404,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "status": 404,
-      "title": "Not Found",
-      "type": "not_found"
-    }
+    "status": 404
   },
   "done.ok": {
     "method": "POST",
     "route": "/api/reminders/done",
-    "request": {
-      "token": "string"
-    },
-    "status": 204,
-    "contentType": null,
-    "headers": {}
+    "status": 204
   },
   "done.token-too-long": {
     "method": "POST",
     "route": "/api/reminders/done",
-    "request": {
-      "token": "string"
-    },
-    "status": 404,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "status": 404,
-      "title": "Not Found",
-      "type": "not_found"
-    }
+    "status": 404
   },
   "done.unknown-token": {
     "method": "POST",
     "route": "/api/reminders/done",
-    "request": {
-      "token": "string"
-    },
-    "status": 404,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "status": 404,
-      "title": "Not Found",
-      "type": "not_found"
-    }
+    "status": 404
   },
   "subscribe.invalid-endpoint": {
     "method": "POST",

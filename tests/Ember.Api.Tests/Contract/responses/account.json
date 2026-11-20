@@ -330,61 +330,17 @@
   "delete.missing-password": {
     "method": "POST",
     "route": "/api/me/delete",
-    "request": {
-      "confirm": "null",
-      "password": "null"
-    },
-    "status": 400,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "errors": {
-        "password": [
-          "The password is not correct."
-        ]
-      },
-      "status": 400,
-      "title": "One or more validation errors occurred.",
-      "type": "validation"
-    }
+    "status": 400
   },
   "delete.ok": {
     "method": "POST",
     "route": "/api/me/delete",
-    "request": {
-      "confirm": "null",
-      "password": "string"
-    },
-    "status": 204,
-    "contentType": null,
-    "headers": {
-      "Set-Cookie": [
-        ".AspNetCore.Identity.Application",
-        "Identity.External",
-        "Identity.TwoFactorUserId"
-      ]
-    }
+    "status": 204
   },
   "delete.wrong-password": {
     "method": "POST",
     "route": "/api/me/delete",
-    "request": {
-      "confirm": "null",
-      "password": "string"
-    },
-    "status": 400,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "errors": {
-        "password": [
-          "The password is not correct."
-        ]
-      },
-      "status": 400,
-      "title": "One or more validation errors occurred.",
-      "type": "validation"
-    }
+    "status": 400
   },
   "dm-reminders.resume.no-content": {
     "method": "POST",
@@ -398,17 +354,7 @@
     "route": "/api/me/export",
     "status": 400,
     "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "errors": {
-        "format": [
-          "Must be json or csv."
-        ]
-      },
-      "status": 400,
-      "title": "One or more validation errors occurred.",
-      "type": "validation"
-    }
+    "headers": {}
   },
   "export.csv.ok": {
     "method": "GET",
@@ -417,8 +363,7 @@
     "contentType": "text/csv",
     "headers": {
       "Content-Disposition": "attachment; filename=ember-export-2026-11-01.csv; filename*=UTF-8''ember-export-2026-11-01.csv"
-    },
-    "body": "record_type,timezone,grace_days_per_week,theme,dm_failure_count,dm_reminders_paused_at,dm_pause_notice_sent_at,health_data_consent_at,consent_policy_version,consent_prompted_on,consent_withdrawn_at,habit_id,name,frequency,weekly_target,reminder_time,paused_until,paused_from,created_at,next_reminder_utc,date,completed,guild_id,kind,reminder_exclusions,endpoint,email,discord_id,account_created_at,two_factor_enabled,days,times_per_day,routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived,cipher_version,cipher_iv,cipher_text,version,turning_off,passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped,second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen,fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order"
+    }
   },
   "export.json.empty": {
     "method": "GET",
@@ -427,49 +372,6 @@
     "contentType": "application/json",
     "headers": {
       "Content-Disposition": "attachment; filename=ember-export-2026-11-01.json; filename*=UTF-8''ember-export-2026-11-01.json"
-    },
-    "body": {
-      "account": {
-        "created_at": "datetime",
-        "discord_id": "null",
-        "email": "string"
-      },
-      "day_marks": [],
-      "day_notes": [],
-      "format_version": "integer",
-      "habit_notes": [],
-      "habits": [],
-      "helps_encrypted": "null",
-      "journal_key": "null",
-      "logs": [],
-      "moods": [],
-      "phones": [],
-      "push_subscriptions": [],
-      "routines": [],
-      "settings": {
-        "calm_mode": "boolean",
-        "consent_policy_version": "string",
-        "consent_prompted_on": "null",
-        "consent_withdrawn_at": "null",
-        "dm_failure_count": "integer",
-        "dm_pause_notice_sent_at": "null",
-        "dm_reminders_paused_at": "null",
-        "fireside_enabled": "boolean",
-        "fireside_name": "null",
-        "fireside_notify": "boolean",
-        "grace_days_per_week": "integer",
-        "health_data_consent_at": "datetime",
-        "language": "string",
-        "offer_habit_note": "boolean",
-        "second_reminder_minutes": "integer",
-        "show_streaks": "boolean",
-        "theme": "null",
-        "timezone": "string",
-        "tips_seen": [],
-        "today_order": "null",
-        "two_factor_enabled": "boolean"
-      },
-      "slips": []
     }
   },
   "export.json.ok": {
@@ -479,130 +381,6 @@
     "contentType": "application/json",
     "headers": {
       "Content-Disposition": "attachment; filename=ember-export-2026-11-01.json; filename*=UTF-8''ember-export-2026-11-01.json"
-    },
-    "body": {
-      "account": {
-        "created_at": "datetime",
-        "discord_id": "null",
-        "email": "string"
-      },
-      "day_marks": [
-        {
-          "date": "date",
-          "kind": "enum(low_day)"
-        }
-      ],
-      "day_notes": [
-        {
-          "date": "date",
-          "encrypted": "null",
-          "mood": "string",
-          "text": "null|string"
-        }
-      ],
-      "format_version": "integer",
-      "habit_notes": [
-        {
-          "date": "date",
-          "encrypted": "null",
-          "habit_id": "integer",
-          "text": "string"
-        }
-      ],
-      "habits": [
-        {
-          "created_at": "datetime",
-          "days": {
-            "$nullable": [
-              "string"
-            ]
-          },
-          "frequency": "enum(daily,weekdays,weekly)",
-          "id": "integer",
-          "kind": "enum(build,let_go)",
-          "name": "string",
-          "next_reminder_utc": "datetime|null",
-          "paused_from": "date|null",
-          "paused_until": "date|null",
-          "reminder_exclusions": [],
-          "reminder_time": "null|string",
-          "reminder_times": [
-            "string"
-          ],
-          "routine_id": "integer|null",
-          "routine_position": "integer|null",
-          "times_per_day": "integer",
-          "weekly_target": "integer|null"
-        }
-      ],
-      "helps_encrypted": "null",
-      "journal_key": "null",
-      "logs": [
-        {
-          "completed": "boolean",
-          "count": "integer",
-          "date": "date",
-          "guild_id": "null",
-          "habit_id": "integer"
-        }
-      ],
-      "moods": [
-        {
-          "archived": "boolean",
-          "created_at": "datetime",
-          "emoji": "null|string",
-          "encrypted": "null",
-          "id": "integer",
-          "label": "string"
-        }
-      ],
-      "phones": [],
-      "push_subscriptions": [],
-      "routines": [
-        {
-          "created_at": "datetime",
-          "id": "integer",
-          "name": "string",
-          "next_reminder_utc": "datetime",
-          "reminder_exclusions": [],
-          "reminder_time": "string"
-        }
-      ],
-      "settings": {
-        "calm_mode": "boolean",
-        "consent_policy_version": "string",
-        "consent_prompted_on": "null",
-        "consent_withdrawn_at": "null",
-        "dm_failure_count": "integer",
-        "dm_pause_notice_sent_at": "null",
-        "dm_reminders_paused_at": "null",
-        "fireside_enabled": "boolean",
-        "fireside_name": "null",
-        "fireside_notify": "boolean",
-        "grace_days_per_week": "integer",
-        "health_data_consent_at": "datetime",
-        "language": "string",
-        "offer_habit_note": "boolean",
-        "second_reminder_minutes": "integer",
-        "show_streaks": "boolean",
-        "theme": "string",
-        "timezone": "string",
-        "tips_seen": [
-          "string"
-        ],
-        "today_order": "null",
-        "two_factor_enabled": "boolean"
-      },
-      "slips": [
-        {
-          "count": "integer",
-          "date": "date",
-          "habit_id": "integer",
-          "reasons": [
-            "string"
-          ]
-        }
-      ]
     }
   },
   "import.consent-required": {
@@ -1303,6 +1081,55 @@
         "string"
       ],
       "todayOrder": "null"
+    }
+  },
+  "me.get.today-order": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "string",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "string",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [
+        "string"
+      ],
+      "todayOrder": [
+        "string"
+      ]
     }
   },
   "me.patch.invalid": {

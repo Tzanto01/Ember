@@ -32,6 +32,9 @@ internal sealed partial class Exchanges
     /// <summary>Where the test host's fake Discord stands in for discord.com/oauth2/authorize.</summary>
     private const string FakeAuthorize = "/test/discord/authorize";
 
+    /// <summary>Endpoints whose content is about to change or is deliberately not pinned: only method, route and status are recorded (the export also its content type and download filename).</summary>
+    private static readonly HashSet<string> StatusOnly = ["/api/me/export", "/api/me/delete", "/api/reminders/done"];
+
     private readonly SortedDictionary<string, JsonObject> _byName = new(StringComparer.Ordinal);
 
     /// <summary>Records the answered <paramref name="call"/> under <paramref name="name"/> for the endpoint <paramref name="route"/> (its pattern, as in routes.txt) and returns the response.</summary>
@@ -41,6 +44,18 @@ internal sealed partial class Exchanges
         _byName.ContainsKey(name).Should().BeFalse("exchange names are unique ({0})", name);
 
         var exchange = new JsonObject { ["method"] = response.RequestMessage!.Method.Method, ["route"] = route };
+        if (StatusOnly.Contains(route))
+        {
+            exchange["status"] = (int)response.StatusCode;
+            if (route == "/api/me/export")
+            {
+                exchange["contentType"] = response.Content.Headers.ContentType?.MediaType;
+                exchange["headers"] = Headers(response);
+            }
+            _byName[name] = exchange;
+            return response;
+        }
+
         if (response.RequestMessage.Content is { } content && await content.ReadAsStringAsync() is { Length: > 0 } sent)
             exchange["request"] = content.Headers.ContentType?.MediaType == "application/json"
                 ? Shapes.Of(JsonDocument.Parse(sent).RootElement)

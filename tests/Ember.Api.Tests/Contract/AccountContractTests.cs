@@ -55,6 +55,7 @@ public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(p
         await Rec("me.patch.wrong-type", "/api/me", user.Patch("/api/me", new { graceDaysPerWeek = "many" }));
         await Rec("me.patch.not-an-object", "/api/me", user.Patch("/api/me", new[] { 1 }));
         await Rec("today-order.ok", "/api/me/today-order", user.Put("/api/me/today-order", new { order = new[] { $"h:{habit}" } }));
+        await Rec("me.get.today-order", "/api/me", user.Get("/api/me"));
         await Rec("today-order.clear.ok", "/api/me/today-order", user.Put("/api/me/today-order", new { order = (string[]?)null }));
         await Rec("today-order.too-many", "/api/me/today-order", user.Put("/api/me/today-order", new { order = Enumerable.Range(0, 501).Select(i => $"habit:{i}") }));
         await Rec("tips.ok", "/api/me/tips/{id}", user.Put("/api/me/tips/routines"));

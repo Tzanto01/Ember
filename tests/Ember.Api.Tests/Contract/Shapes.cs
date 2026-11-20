@@ -20,6 +20,9 @@ internal static partial class Shapes
     [GeneratedRegex(@"^\d{2}:\d{2}$")]
     private static partial Regex TimePattern();
 
+    [GeneratedRegex(@"^\d{2}:\d{2}:\d{2}$")]
+    private static partial Regex TimeWithSecondsPattern();
+
     [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")]
     private static partial Regex DateTimePattern();
 
@@ -86,6 +89,7 @@ internal static partial class Shapes
         if (DestinationIdPattern().Match(value) is { Success: true } destination) return $"{destination.Groups[1].Value}-{{n}}";
         if (DatePattern().IsMatch(value)) return "date";
         if (TimePattern().IsMatch(value)) return "time";
+        if (TimeWithSecondsPattern().IsMatch(value)) return "time-with-seconds";
         if (DateTimePattern().IsMatch(value)) return "datetime";
         if (UnzonedDateTimePattern().IsMatch(value)) return "datetime-without-Z";
         return key is not null && LiteralKeys.Contains(key) ? $"enum({value})" : "string";

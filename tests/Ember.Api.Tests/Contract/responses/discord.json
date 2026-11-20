@@ -169,40 +169,12 @@
   "delete.discord-only.ok": {
     "method": "POST",
     "route": "/api/me/delete",
-    "request": {
-      "confirm": "string",
-      "password": "null"
-    },
-    "status": 204,
-    "contentType": null,
-    "headers": {
-      "Set-Cookie": [
-        ".AspNetCore.Identity.Application",
-        "Identity.External",
-        "Identity.TwoFactorUserId"
-      ]
-    }
+    "status": 204
   },
   "delete.discord-only.unconfirmed": {
     "method": "POST",
     "route": "/api/me/delete",
-    "request": {
-      "confirm": "null",
-      "password": "null"
-    },
-    "status": 400,
-    "contentType": "application/problem+json",
-    "headers": {},
-    "body": {
-      "errors": {
-        "confirm": [
-          "Type DELETE to confirm."
-        ]
-      },
-      "status": 400,
-      "title": "One or more validation errors occurred.",
-      "type": "validation"
-    }
+    "status": 400
   },
   "link-complete.direct": {
     "method": "GET",

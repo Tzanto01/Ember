@@ -61,6 +61,7 @@ public class RoutinesContractTests(PostgresFixture postgres) : ContractTestBase(
 
     private async Task RoutineScenario(ApiClient user, int habit, int letGo, string destination)
     {
+        await Rec("habit.with-exclusions", "/api/habits", user.Post("/api/habits", new { name = "Quiet", frequency = "weekly", weeklyTarget = 2, reminderTime = "08:00", reminderExclusions = new[] { destination } }));
         await Rec("list.empty", Routines, user.Get(Routines));
         await Rec("list.unauthenticated", Routines, Host.NewClient().Get(Routines));
         var morning = await IdOf(await Rec("create.ok", Routines, user.Post(Routines, new { name = "Morning", reminderTime = "07:30", habitIds = new[] { habit }, reminderExclusions = new[] { destination } })));
