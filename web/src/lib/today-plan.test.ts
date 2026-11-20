@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Habit, Routine } from './models';
 import { habit, letGoHabit } from './test-support';
-import {
-  moveKey,
-  orderAfterMove,
-  planToday,
-  routineOrderAfterMove,
-  widgetDay,
-} from './today-plan';
+import { moveKey, orderAfterMove, planToday, routineOrderAfterMove, widgetDay } from './today-plan';
 
 const date = '2026-11-01';
 
@@ -166,7 +160,14 @@ describe('Today order', () => {
       at(5, 'Tea', null),
       at(6, 'Lunch walk', '12:00'),
     ];
-    expect(topKeys(habits, [], ['h:1', 'h:3', 'h:2'])).toEqual(['h:4', 'h:1', 'h:6', 'h:3', 'h:2', 'h:5']);
+    expect(topKeys(habits, [], ['h:1', 'h:3', 'h:2'])).toEqual([
+      'h:4',
+      'h:1',
+      'h:6',
+      'h:3',
+      'h:2',
+      'h:5',
+    ]);
   });
 
   it('goes back to automatic once the order is reset', () => {
@@ -216,7 +217,9 @@ describe('Today order', () => {
     const onSaturday = (h: Habit) => ({ ...h, today: { ...h.today, date: saturday } });
     const met = weekly(2, 2, 2, 1);
     const open = weekly(3, 1, 2, 1);
-    expect(widgetDay([onSaturday(met), onSaturday(open)], [], null, date).map((h) => h.id)).toEqual([3]);
+    expect(widgetDay([onSaturday(met), onSaturday(open)], [], null, date).map((h) => h.id)).toEqual(
+      [3],
+    );
     expect(widgetDay([met, open], [], null, '2026-11-02').map((h) => h.id)).toEqual([2, 3]);
   });
 });
@@ -251,5 +254,125 @@ describe('saving a new order', () => {
 
   it("rearranges a routine's shown members and keeps a hidden member in its slot", () => {
     expect(routineOrderAfterMove([4, 1, 3, 2], [2, 4, 3])).toEqual([2, 1, 4, 3]);
+  });
+
+  it('stops a move at the end of the list and leaves the list alone for an unknown key', () => {
+    expect(moveKey(['a', 'b', 'c'], 'a', 5)).toEqual(['b', 'c', 'a']);
+    expect(moveKey(['a', 'b', 'c'], 'z', 1)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('puts a shown key the saved order lacks ahead of the next shown key it knows', () => {
+    expect(orderAfterMove(['h:9', 'h:2'], [['h:1', 'h:2']], 0, ['h:1', 'h:2'])).toEqual([
+      'h:9',
+      'h:1',
+      'h:2',
+    ]);
+  });
+});
+
+describe('planToday pauses and routine membership', () => {
+  const planOn = (habits: Habit[], on: string) => planToday(habits, [], null, on);
+  const keysOn = (habits: Habit[], on: string) => planOn(habits, on).today.map((i) => i.key);
+  const memberIds = (plan: ReturnType<typeof planToday>) =>
+    plan.today.map((i) => [i.key, i.kind === 'routine' ? i.habits.map((h) => h.id) : []]);
+
+  it('pauses a habit only on dates inside pausedFrom to pausedUntil', () => {
+    const windowed = make(1, 'Read', { pausedFrom: '2026-11-02', pausedUntil: '2026-11-04' });
+    const untilOnly = make(2, 'Tea', { pausedUntil: '2026-11-03' });
+    const both = [windowed, untilOnly];
+
+    expect(keysOn(both, '2026-11-01')).toEqual(['h:1']);
+    expect(keysOn(both, '2026-11-03')).toEqual([]);
+    expect(planOn(both, '2026-11-03').notToday.map((i) => i.key)).toEqual(['h:1', 'h:2']);
+    expect(keysOn(both, '2026-11-04')).toEqual(['h:2']);
+    expect(keysOn(both, '2026-11-05')).toEqual(['h:1', 'h:2']);
+  });
+
+  it("applies pausedToday to today's date only", () => {
+    const pausedToday = make(1, 'Read', { pausedToday: true });
+
+    expect(keysOn([pausedToday], date)).toEqual([]);
+    expect(keysOn([pausedToday], '2026-11-02')).toEqual(['h:1']);
+  });
+
+  it('places a habit that is in two routines once, in the first routine', () => {
+    const plan = planToday(
+      [make(1, 'Read'), make(2, 'Tea')],
+      [routine(5, [1]), routine(6, [1, 2])],
+      null,
+      date,
+    );
+
+    expect(memberIds(plan)).toEqual([
+      ['r:5', [1]],
+      ['r:6', [2]],
+    ]);
+  });
+
+  it('ignores routine members that are missing or let go, and drops a routine left with none', () => {
+    const plan = planToday(
+      [make(1, 'Read'), letGoHabit],
+      [routine(5, [404, letGoHabit.id]), routine(6, [letGoHabit.id, 1, 404])],
+      null,
+      date,
+    );
+
+    expect(memberIds(plan)).toEqual([['r:6', [1]]]);
+    expect(plan.letGo).toEqual([letGoHabit]);
+  });
+
+  it('lists a paused routine member under Not for today and keeps the routine for the others', () => {
+    const plan = planToday(
+      [make(1, 'Read', { pausedToday: true }), make(2, 'Tea')],
+      [routine(5, [1, 2])],
+      null,
+      date,
+    );
+
+    expect(memberIds(plan)).toEqual([['r:5', [2]]]);
+    expect(plan.notToday.map((i) => i.key)).toEqual(['h:1']);
+  });
+
+  it('leaves paused and week-done habits out of the widget day', () => {
+    const paused = make(1, 'Read', { pausedToday: true });
+
+    expect(
+      widgetDay([paused, weekly(2, 2, 2, 0), make(3, 'Tea')], [], null, date).map((h) => h.id),
+    ).toEqual([3]);
+  });
+});
+
+describe('Today order in the other sections', () => {
+  const planWith = (habits: Habit[], order: string[] | null) => planToday(habits, [], order, date);
+
+  it('orders the let-go section by reminder time, then name, and by the saved order once there is one', () => {
+    const coffee = { ...letGoHabit, id: 11, name: 'Coffee' };
+    const soda = { ...letGoHabit, id: 12, name: 'Soda' };
+    const sweets = {
+      ...letGoHabit,
+      id: 13,
+      name: 'Sweets',
+      reminderTime: '09:00',
+      reminderTimes: ['09:00'],
+    };
+
+    expect(planWith([soda, sweets, coffee], null).letGo.map((h) => h.id)).toEqual([13, 11, 12]);
+    expect(planWith([soda, sweets, coffee], ['h:12', 'h:11']).letGo.map((h) => h.id)).toEqual([
+      12, 11, 13,
+    ]);
+  });
+
+  it('orders Not for today by the saved order', () => {
+    const a = make(1, 'Aaa', { pausedToday: true });
+    const b = make(2, 'Bbb', { pausedToday: true });
+
+    expect(planWith([a, b], null).notToday.map((i) => i.key)).toEqual(['h:1', 'h:2']);
+    expect(planWith([a, b], ['h:2', 'h:1']).notToday.map((i) => i.key)).toEqual(['h:2', 'h:1']);
+  });
+
+  it('breaks a tie on time and name by id, ignoring case', () => {
+    const at8 = { reminderTime: '08:00', reminderTimes: ['08:00'] };
+
+    expect(topKeys([make(3, 'read', at8), make(2, 'Read', at8)])).toEqual(['h:2', 'h:3']);
   });
 });
