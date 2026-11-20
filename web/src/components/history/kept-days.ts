@@ -23,7 +23,7 @@ export function windowStart(habit: Pick<Habit, 'startDate'>, today: LocalDateStr
 }
 
 /**
- * Kept days among the last `window` days ending on `today` (Core `HabitService.FlexibleStreak`): a day is kept when
+ * Kept days among the last `window` days ending on `today` (Core `HabitRules.FlexibleStreak`): a day is kept when
  * it was completed (offdays and paused days included) or is a low day from the habit's start, outside its paused
  * range and on a scheduled day. A partly done day is not kept.
  */
