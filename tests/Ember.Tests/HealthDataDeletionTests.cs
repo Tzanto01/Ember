@@ -1,8 +1,8 @@
 using System.Net;
 using System.Security.Cryptography;
 using Discord;
-using Ember.Bot.Services;
 using Ember.Bot.Jobs;
+using Ember.Bot.Services;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
@@ -10,7 +10,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
-
 using static Ember.Tests.WebPushTestKeys;
 
 namespace Ember.Tests;

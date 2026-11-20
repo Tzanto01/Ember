@@ -1,7 +1,10 @@
 version: 2
 updates:
   - package-ecosystem: nuget
-    directory: /
+    directories:
+      - /
+      - /ops/src/*
+      - /ops/tests/*
     schedule:
       interval: monthly
     groups:
@@ -11,5 +14,28 @@ updates:
           - "Npgsql.EntityFrameworkCore*"
   - package-ecosystem: github-actions
     directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns:
+          - "*"
+  - package-ecosystem: bun
+    directory: /web
+    schedule:
+      interval: monthly
+    groups:
+      web-minor:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: gradle
+    directory: /mobile/android
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directories:
+      - /docker
+      - /ops
     schedule:
       interval: monthly

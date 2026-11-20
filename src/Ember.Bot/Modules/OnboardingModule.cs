@@ -170,8 +170,8 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Get("onboard.region.question");
-            m.Embed      = null;
+            m.Content = t.Get("onboard.region.question");
+            m.Embed = null;
             m.Components = new ComponentBuilder().WithSelectMenu(menu).Build();
         });
     }
@@ -199,8 +199,8 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Get("onboard.tz.question");
-            m.Embed      = null;
+            m.Content = t.Get("onboard.tz.question");
+            m.Embed = null;
             m.Components = new ComponentBuilder().WithSelectMenu(menu).Build();
         });
     }
@@ -211,7 +211,7 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
     public async Task OnTimezoneSelectAsync(string habitIdStr, string[] selected)
     {
         var tzId = selected[0];
-        var tz   = TimezoneHelper.Find(tzId);
+        var tz = TimezoneHelper.Find(tzId);
 
         if (tz is null)
         {
@@ -230,14 +230,14 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
             .Build();
 
         var components = new ComponentBuilder()
-            .WithButton(t.Get("onboard.set-reminder"),   $"reminder:set:{habitIdStr}", ButtonStyle.Primary)
-            .WithButton(t.Get("common.skip-for-now"),    $"reminder:skip:{habitIdStr}", ButtonStyle.Secondary)
+            .WithButton(t.Get("onboard.set-reminder"), $"reminder:set:{habitIdStr}", ButtonStyle.Primary)
+            .WithButton(t.Get("common.skip-for-now"), $"reminder:skip:{habitIdStr}", ButtonStyle.Secondary)
             .Build();
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = "";
-            m.Embed      = embed;
+            m.Content = "";
+            m.Embed = embed;
             m.Components = components;
         });
     }

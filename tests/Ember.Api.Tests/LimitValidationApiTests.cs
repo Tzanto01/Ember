@@ -3,7 +3,6 @@ using FluentAssertions;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class LimitValidationApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static async Task ExpectFieldMessage(HttpResponseMessage response, string field, string message)

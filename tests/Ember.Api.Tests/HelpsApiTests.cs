@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>The end-to-end encrypted "What helps me" list, <c>/api/me/helps</c> (contract "Companion extras v1.17").</summary>
-[Collection("Postgres")]
 public class HelpsApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private sealed record KeyRequest(object Passphrase, object Recovery, string? Password, int? IfVersion);

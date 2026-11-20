@@ -6,7 +6,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
-using Quartz;
 
 namespace Ember.Tests;
 
@@ -38,9 +37,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(WeeklySummaryJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(WeeklySummaryJob.Key);
 
         var message = host.Discord.Messages.Single();
         message.UserId.Should().Be(55);
@@ -78,10 +75,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(WeeklySummaryJob.Key);
-        await host.WaitForDmCountAsync(1);
-        await Task.Delay(300);
+        await host.RunJobAsync(WeeklySummaryJob.Key);
 
         var message = host.Discord.Messages.Should().ContainSingle().Subject;
         message.UserId.Should().Be(56);
@@ -126,9 +120,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(WeeklySummaryJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(WeeklySummaryJob.Key);
 
         var message = host.Discord.Messages.Single(); // only the quiet-week user — 74 and 78 skipped
         message.UserId.Should().Be(77);
@@ -166,9 +158,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(WeeklySummaryJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(WeeklySummaryJob.Key);
 
         var message = host.Discord.Messages.Single();
         message.UserId.Should().Be(90);
@@ -220,9 +210,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         host.Discord.Messages.Should().ContainSingle();
         host.Discord.Messages[0].UserId.Should().Be(1001);
@@ -252,9 +240,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(1102);
     }
@@ -283,9 +269,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         var message = host.Discord.Messages.Should().ContainSingle().Subject;
         message.Embed!.Description.Should().StartWith("You're at 1/3 for **Swim** this week.\n\n");
@@ -318,9 +302,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(1302);
     }
@@ -344,9 +326,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(1401);
     }
@@ -364,9 +344,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         var message = host.Discord.Messages.Should().ContainSingle().Subject;
         message.Embed!.Description.Should().Contain("Yesterday is still open");
@@ -394,9 +372,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(1602);
     }
@@ -421,21 +397,11 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(WeeklySummaryJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(WeeklySummaryJob.Key);
 
         var message = host.Discord.Messages.Should().ContainSingle().Subject;
         message.UserId.Should().Be(82);
         message.Embed!.Description.Should().EndWith("\n\n[See your week in the Ember web app](https://ember.example/today)");
-    }
-
-    private static async Task RunToCompletionAsync(IntegrationTestHost host, JobKey key)
-    {
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(key);
-        await Task.Delay(100);
-        while ((await scheduler.GetCurrentlyExecutingJobs()).Count > 0) await Task.Delay(50);
     }
 
     [Fact]
@@ -452,12 +418,12 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        await RunToCompletionAsync(host, WeeklySummaryJob.Key);
+        await host.RunJobAsync(WeeklySummaryJob.Key);
         host.Discord.Messages.Should().ContainSingle();
         foreach (var later in new[] { TimeSpan.FromMinutes(15), TimeSpan.FromMinutes(45), TimeSpan.FromHours(3) })
         {
             time.Advance(later);
-            await RunToCompletionAsync(host, WeeklySummaryJob.Key);
+            await host.RunJobAsync(WeeklySummaryJob.Key);
         }
 
         host.Discord.Messages.Should().ContainSingle();
@@ -485,9 +451,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(1702);
     }
@@ -512,9 +476,7 @@ public class JobIntegrationTests
             await db.SaveChangesAsync();
         });
 
-        var scheduler = await host.WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
-        await scheduler.TriggerJob(MissedDayReflectionJob.Key);
-        await host.WaitForDmCountAsync(1);
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
 
         host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(1802);
     }

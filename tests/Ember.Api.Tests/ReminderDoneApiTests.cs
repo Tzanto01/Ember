@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string Done = "/api/reminders/done";

@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class ApiBehaviorTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private Task<DateTime?> NextReminder(int habitId) => Host.Db(db => db.Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());

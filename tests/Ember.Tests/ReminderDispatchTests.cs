@@ -198,7 +198,7 @@ public class ReminderDispatchTests
         }
         var time = new FakeTimeProvider(Now);
         await using var host = await CreateHostAsync(time, Weekly(1, 11, 13), Weekly(2, 11, 12, 13), Weekly(3, 11, 15));
-        int SentFor(int id) => host.Discord.Messages.Count(m => m.Text.Contains($"Habit {id}"));
+        int SentFor(int id) => host.Discord.Messages.Count(m => m.Text!.Contains($"Habit {id}"));
 
         await RunJobAsync(host);
 

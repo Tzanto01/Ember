@@ -389,7 +389,7 @@ public class BotHandlerFlowTests
         csvFile.Content.Should().StartWith(ExportBuilder.CsvHeader).And.Contain("habit,").And.Contain("Walk").And.NotContain("private words");
         var jsonFile = json.Files.Should().ContainSingle().Subject;
         jsonFile.FileName.Should().MatchRegex(@"^ember-export-\d{4}-\d{2}-\d{2}\.json$");
-        JsonDocument.Parse(jsonFile.Content).RootElement.GetProperty("habits").GetArrayLength().Should().Be(1);
+        JsonElement.Parse(jsonFile.Content).GetProperty("habits").GetArrayLength().Should().Be(1);
         jsonFile.Content.Should().NotContain("private words");
     }
 

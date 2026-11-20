@@ -59,12 +59,12 @@ public class ReminderDispatchJob : IJob
     public ReminderDispatchJob(IServiceProvider services, IEnumerable<IReminderChannel> channels, IDiscordDmSender discord,
         ILogger<ReminderDispatchJob> logger, TimeProvider time, ReminderRetries retries)
     {
-        _retries  = retries;
+        _retries = retries;
         _services = services;
         _channels = channels.DistinctBy(c => c.Channel).ToList();
         _discord = discord;
-        _logger   = logger;
-        _time     = time;
+        _logger = logger;
+        _time = time;
     }
 
     /// <summary>

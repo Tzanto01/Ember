@@ -11,7 +11,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary><c>POST /api/me/import</c> (contract "Export format v2").</summary>
-[Collection("Postgres")]
 public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static string B64(int bytes) => Convert.ToBase64String(Enumerable.Repeat((byte)7, bytes).ToArray());
@@ -131,7 +130,7 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var exported = await (await source.Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
 
         var target = await Host.SignedInAsync();
-        await (await Import(target, JsonDocument.Parse(exported).RootElement)).Expect(HttpStatusCode.NoContent);
+        await (await Import(target, JsonElement.Parse(exported))).Expect(HttpStatusCode.NoContent);
         var reexported = await (await target.Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
 
         var expected = Comparable(exported);

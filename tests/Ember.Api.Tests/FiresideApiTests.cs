@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>Fireside v1.22: friends by code and the five warmth messages, through the real HTTP pipeline on Postgres.</summary>
-[Collection("Postgres")]
 public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string Fireside = "/api/fireside";
@@ -149,7 +148,7 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
         await SendWarmthAsync(c, cToA);
         var body = await (await a.Client.Get(Fireside)).Expect(HttpStatusCode.OK);
 
-        var state = JsonDocument.Parse(body).RootElement;
+        var state = JsonElement.Parse(body);
 
         GuidPattern().IsMatch(body).Should().BeFalse();
         var ownLinkIds = await Host.Db(db => db.FiresideLinks.Where(l => l.OwnerId == a.Id).Select(l => l.Id).ToListAsync());
@@ -586,7 +585,7 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
 
         var json = await (await user.Client.Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
 
-        var settings = JsonDocument.Parse(json).RootElement.GetProperty("settings");
+        var settings = JsonElement.Parse(json).GetProperty("settings");
         (settings.GetProperty("fireside_enabled").GetBoolean(), settings.GetProperty("fireside_name").GetString(),
             settings.GetProperty("fireside_notify").GetBoolean()).Should().Be((true, user.Name, true));
         json.Should().NotContain(friend.Name).And.NotContainEquivalentOf("warmth").And.NotContainEquivalentOf("friends");

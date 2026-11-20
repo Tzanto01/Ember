@@ -3,7 +3,6 @@ using FluentAssertions;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class StaticFilesTests(PostgresFixture postgres) : ApiTestBase(postgres), IDisposable
 {
     private readonly string _root = CreateWebRoot();

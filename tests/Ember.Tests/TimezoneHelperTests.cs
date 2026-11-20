@@ -43,10 +43,10 @@ public class TimezoneHelperTests
         // Amsterdam is UTC+2 in summer (CEST)
         // This test is date-dependent for DST, so we compute expected dynamically
         var localTime = new TimeOnly(10, 0);
-        var utcTime   = TimezoneHelper.ToUtc(localTime, Amsterdam);
+        var utcTime = TimezoneHelper.ToUtc(localTime, Amsterdam);
 
-        var today    = DateTime.UtcNow.Date;
-        var localDt  = DateTime.SpecifyKind(today.Add(localTime.ToTimeSpan()), DateTimeKind.Unspecified);
+        var today = DateTime.UtcNow.Date;
+        var localDt = DateTime.SpecifyKind(today.Add(localTime.ToTimeSpan()), DateTimeKind.Unspecified);
         var expected = TimeOnly.FromDateTime(TimeZoneInfo.ConvertTimeToUtc(localDt, Amsterdam));
 
         utcTime.Should().Be(expected);
@@ -56,10 +56,10 @@ public class TimezoneHelperTests
     public void ToUtc_NewYork_ConvertsCorrectly()
     {
         var localTime = new TimeOnly(9, 30);
-        var utcTime   = TimezoneHelper.ToUtc(localTime, NewYork);
+        var utcTime = TimezoneHelper.ToUtc(localTime, NewYork);
 
-        var today    = DateTime.UtcNow.Date;
-        var localDt  = DateTime.SpecifyKind(today.Add(localTime.ToTimeSpan()), DateTimeKind.Unspecified);
+        var today = DateTime.UtcNow.Date;
+        var localDt = DateTime.SpecifyKind(today.Add(localTime.ToTimeSpan()), DateTimeKind.Unspecified);
         var expected = TimeOnly.FromDateTime(TimeZoneInfo.ConvertTimeToUtc(localDt, NewYork));
 
         utcTime.Should().Be(expected);
@@ -70,8 +70,8 @@ public class TimezoneHelperTests
     {
         // Tokyo is UTC+9, no DST
         var localTime = new TimeOnly(18, 0);
-        var utcTime   = TimezoneHelper.ToUtc(localTime, Tokyo);
-        var expected  = new TimeOnly(9, 0);
+        var utcTime = TimezoneHelper.ToUtc(localTime, Tokyo);
+        var expected = new TimeOnly(9, 0);
         utcTime.Should().Be(expected);
     }
 

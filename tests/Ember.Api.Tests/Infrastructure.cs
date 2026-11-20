@@ -4,7 +4,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using DotNet.Testcontainers.Configurations;
 using Ember.Api.Email;
 using Ember.Api.TestHost;
 using Ember.Core.Data;
@@ -15,73 +14,14 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Npgsql;
-using Testcontainers.PostgreSql;
 
 namespace Ember.Api.Tests;
-
-/// <summary>
-/// Fact that needs Docker: skipped locally when Docker is unreachable, but never skipped when <c>CI=true</c>,
-/// so a CI runner without Docker fails instead of silently passing.
-/// </summary>
-public sealed class DockerFactAttribute : FactAttribute
-{
-    internal static readonly bool ShouldRun =
-        TestcontainersSettings.OS.DockerEndpointAuthConfig is not null
-        || string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);
-
-    public DockerFactAttribute()
-    {
-        if (!ShouldRun)
-            Skip = "Docker is not available (set CI=true to force these tests to run).";
-    }
-}
-
-/// <summary>Starts one Postgres container per test run and hands out an empty database per call.</summary>
-public sealed class PostgresFixture : IAsyncLifetime
-{
-    private PostgreSqlContainer? _container;
-
-    public async Task InitializeAsync()
-    {
-        if (!DockerFactAttribute.ShouldRun)
-            return;
-
-        _container = new PostgreSqlBuilder("postgres:17-alpine").Build();
-        await _container.StartAsync();
-    }
-
-    public async Task<string> CreateDatabaseAsync()
-    {
-        if (_container is null)
-            throw new InvalidOperationException("Postgres container is not running.");
-
-        var name = $"ember_{Guid.NewGuid():N}";
-        await using (var connection = new NpgsqlConnection(_container.GetConnectionString()))
-        {
-            await connection.OpenAsync();
-            await using var command = new NpgsqlCommand($"CREATE DATABASE \"{name}\"", connection);
-            await command.ExecuteNonQueryAsync();
-        }
-
-        return new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = name }.ConnectionString;
-    }
-
-    public async Task DisposeAsync()
-    {
-        if (_container is not null)
-            await _container.DisposeAsync();
-    }
-}
-
-[CollectionDefinition("Postgres")]
-public class PostgresCollection : ICollectionFixture<PostgresFixture>;
 
 /// <summary>Request bodies of the Identity and account endpoints (camelCase on the wire).</summary>
 public sealed record Credentials(string Email, string Password);
@@ -111,10 +51,10 @@ public sealed class CapturingEmailTransport : IEmailTransport
     public List<SentMail> To(string email)
         => _sent.Where(m => string.Equals(m.To, email, StringComparison.OrdinalIgnoreCase)).ToList();
 
-    /// <summary>Waits up to 5 seconds until at least <paramref name="count"/> mails to <paramref name="email"/> arrived (the API sends in the background).</summary>
+    /// <summary>Waits up to 15 seconds until at least <paramref name="count"/> mails to <paramref name="email"/> arrived (the API sends in the background).</summary>
     public async Task<List<SentMail>> WaitForAsync(string email, int count)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
+        var deadline = DateTime.UtcNow.AddSeconds(15);
         while (To(email).Count < count && DateTime.UtcNow < deadline)
             await Task.Delay(20);
         return To(email);
@@ -392,9 +332,14 @@ public sealed partial class ApiClient
     }
 }
 
-public abstract class ApiTestBase(PostgresFixture postgres) : IAsyncLifetime
+/// <summary>
+/// One fresh, migrated database and API host per test. Test classes hold their own fixture on the shared Postgres container
+/// and run in parallel with each other; the tests of one class run one at a time.
+/// </summary>
+public abstract class ApiTestBase(PostgresFixture postgres) : IClassFixture<PostgresFixture>, IAsyncLifetime
 {
     private ApiHost? _host;
+    private string? _connectionString;
 
     protected ApiHost Host => _host!;
 
@@ -405,18 +350,25 @@ public abstract class ApiTestBase(PostgresFixture postgres) : IAsyncLifetime
         if (!DockerFactAttribute.ShouldRun)
             return;
 
-        var connectionString = await postgres.CreateDatabaseAsync();
-        await using (var db = new EmberDbContext(new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options))
-            await db.Database.MigrateAsync();
-
-        _host = new ApiHost(connectionString, Settings);
+        _connectionString = await postgres.CreateMigratedDatabaseAsync();
+        _host = new ApiHost(_connectionString, Settings);
     }
 
     public async Task DisposeAsync()
     {
-        if (_host is not null)
-            await _host.DisposeAsync();
-        NpgsqlConnection.ClearAllPools();
+        try
+        {
+            if (_host is not null)
+                await _host.DisposeAsync();
+        }
+        finally
+        {
+            if (_connectionString is not null)
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                NpgsqlConnection.ClearPool(connection);
+            }
+        }
     }
 }
 
@@ -433,7 +385,7 @@ internal static class HttpExtensions
     }
 
     public static async Task<JsonElement> ExpectJson(this HttpResponseMessage response, HttpStatusCode status = HttpStatusCode.OK)
-        => JsonDocument.Parse(await response.Expect(status)).RootElement.Clone();
+        => JsonElement.Parse(await response.Expect(status));
 
     /// <summary>Asserts an <c>application/problem+json</c> response and, when given, its <c>type</c>.</summary>
     public static async Task<JsonElement> ExpectProblem(this HttpResponseMessage response, HttpStatusCode status, string? type = null)

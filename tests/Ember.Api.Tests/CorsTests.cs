@@ -3,7 +3,6 @@ using FluentAssertions;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class CorsTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private async Task<HttpResponseMessage> Preflight(string origin)
@@ -66,7 +65,6 @@ public class CorsTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 }
 
-[Collection("Postgres")]
 public class CorsNativeOriginsConfigTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:NativeOrigins"] = " https://native.example/ ,capacitor://app " };

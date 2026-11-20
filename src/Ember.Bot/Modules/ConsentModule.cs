@@ -1,7 +1,7 @@
-using Ember.Core.Localization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -75,8 +75,8 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Get("consent.agreed");
-            m.Embed      = null;
+            m.Content = t.Get("consent.agreed");
+            m.Embed = null;
             m.Components = new ComponentBuilder().Build();
         });
     }
@@ -106,8 +106,8 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
         var content = DeclinedText(t, withdrawn, await _habits.GetUserTzAsync(Context.User.Id));
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = content;
-            m.Embed      = null;
+            m.Content = content;
+            m.Embed = null;
             m.Components = new ComponentBuilder()
                 .WithButton(t.Get("consent.delete-button"), $"privacy:delete:start:{Context.User.Id}", ButtonStyle.Secondary)
                 .Build();

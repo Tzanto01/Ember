@@ -3,7 +3,6 @@ using System.Net;
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>Journal notes, habit notes, moods, the private-journal key (plaintext and encrypted forms), "What helps me" and stats.</summary>
-[Collection("Postgres")]
 [ContractArea("journal")]
 public class JournalContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

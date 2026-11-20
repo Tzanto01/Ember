@@ -35,11 +35,11 @@ internal static class HabitFactory
         var today = Today;
         var habit = new Habit
         {
-            Id            = 1,
-            Name          = "Test",
+            Id = 1,
+            Name = "Test",
             FrequencyType = frequency,
-            WeeklyTarget  = weeklyTarget,
-            CreatedAt     = Today.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc).AddDays(-createdAtDaysAgo),
+            WeeklyTarget = weeklyTarget,
+            CreatedAt = Today.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc).AddDays(-createdAtDaysAgo),
         };
 
         if (pausedUntilDaysAgo.HasValue)

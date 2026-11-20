@@ -250,7 +250,7 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
             : Fetch<JsonElement?>("notice", async client =>
             {
                 using var response = await client.GetAsync(url, ct);
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return JsonDocument.Parse("""{"notices":[]}""").RootElement.Clone();
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return JsonElement.Parse("""{"notices":[]}""");
                 response.EnsureSuccessStatusCode();
                 using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
                 return doc.RootElement.Clone();

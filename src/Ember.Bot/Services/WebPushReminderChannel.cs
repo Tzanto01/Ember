@@ -72,20 +72,20 @@ public sealed class WebPushReminderChannel : IReminderChannel
     internal static string BuildPayload(string body, string? doneToken = null, string? tag = null, Texts? t = null, string url = "/today",
         string? title = null)
         => JsonSerializer.Serialize(new
-    {
-        notification = new
         {
-            title = title ?? "Ember",
-            body,
-            tag,
-            actions = doneToken is null ? null : new[] { new { action = "done", title = (t ?? BotTexts.English).Get("reminder.done") } },
-            data = new
+            notification = new
             {
-                onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url } },
-                doneToken,
+                title = title ?? "Ember",
+                body,
+                tag,
+                actions = doneToken is null ? null : new[] { new { action = "done", title = (t ?? BotTexts.English).Get("reminder.done") } },
+                data = new
+                {
+                    onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url } },
+                    doneToken,
+                },
             },
-        },
-    }, PayloadJson);
+        }, PayloadJson);
 
     private readonly IServiceScopeFactory _scopes;
     private readonly IHttpClientFactory _httpClients;
@@ -95,10 +95,10 @@ public sealed class WebPushReminderChannel : IReminderChannel
     public WebPushReminderChannel(IServiceScopeFactory scopes, IHttpClientFactory httpClients, VapidAuthentication vapid,
         ILogger<WebPushReminderChannel> logger)
     {
-        _scopes      = scopes;
+        _scopes = scopes;
         _httpClients = httpClients;
-        _vapid       = vapid;
-        _logger      = logger;
+        _vapid = vapid;
+        _logger = logger;
     }
 
     /// <summary>Builds the VAPID authentication from <c>WebPush:PublicKey</c>, <c>WebPush:PrivateKey</c> and <c>WebPush:Subject</c>.</summary>
@@ -118,6 +118,8 @@ public sealed class WebPushReminderChannel : IReminderChannel
         }
     }
 
+    private static readonly string[] VapidSettings = ["WebPush:PublicKey", "WebPush:PrivateKey", "WebPush:Subject"];
+
     private const string InvalidConfigMessage =
         "Invalid web push configuration: set all or none of WebPush:PublicKey, WebPush:PrivateKey and WebPush:Subject " +
         "(base64url VAPID keys; subject a mailto: or https: URL).";
@@ -126,8 +128,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
     /// <exception cref="InvalidOperationException">Only some of them are configured.</exception>
     public static bool IsConfigured(IConfiguration config)
     {
-        var set = new[] { "WebPush:PublicKey", "WebPush:PrivateKey", "WebPush:Subject" }
-            .Count(key => !string.IsNullOrWhiteSpace(config[key]));
+        var set = VapidSettings.Count(key => !string.IsNullOrWhiteSpace(config[key]));
         return set switch
         {
             0 => false,

@@ -19,7 +19,6 @@ public abstract class FeedbackRateLimitTestBase(PostgresFixture postgres) : ApiT
     protected static async Task<int> Status(ApiClient client) => (int)(await Send(client)).StatusCode;
 }
 
-[Collection("Postgres")]
 public class FeedbackPerSenderRateLimitTests(PostgresFixture postgres) : FeedbackRateLimitTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new()
@@ -76,7 +75,6 @@ public class FeedbackPerSenderRateLimitTests(PostgresFixture postgres) : Feedbac
     }
 }
 
-[Collection("Postgres")]
 public class FeedbackDailyRateLimitTests(PostgresFixture postgres) : FeedbackRateLimitTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new()
@@ -119,7 +117,6 @@ public class FeedbackDailyRateLimitTests(PostgresFixture postgres) : FeedbackRat
     }
 }
 
-[Collection("Postgres")]
 public class FeedbackPerUserRateLimitTests(PostgresFixture postgres) : FeedbackRateLimitTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:FeedbackPerHour"] = "2" };
@@ -138,7 +135,6 @@ public class FeedbackPerUserRateLimitTests(PostgresFixture postgres) : FeedbackR
     }
 }
 
-[Collection("Postgres")]
 public class FeedbackDailySignedInRateLimitTests(PostgresFixture postgres) : FeedbackRateLimitTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:FeedbackPerDay"] = "1" };
