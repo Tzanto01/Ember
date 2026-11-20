@@ -139,7 +139,7 @@ internal static class ImportEndpoints
             {
                 Name = name ?? "",
                 Kind = kind ?? HabitKind.Build,
-                ReminderTimes = HabitService.NormalizeReminderTimes(reminderTimes, timesTarget),
+                ReminderTimes = HabitRules.NormalizeReminderTimes(reminderTimes, timesTarget),
                 PausedFrom = h.PausedFrom,
                 PausedUntil = h.PausedUntil,
                 FrequencyType = frequency ?? FrequencyType.Daily,
@@ -154,7 +154,7 @@ internal static class ImportEndpoints
             habits.Add(habit);
             Nest(errors, path, local);
         }
-        DateOnly? earliestStart = habits.Count == 0 ? null : habits.Min(h => HabitService.StartDate(h, tz));
+        DateOnly? earliestStart = habits.Count == 0 ? null : habits.Min(h => HabitRules.StartDate(h, tz));
 
         var logged = new HashSet<(Habit, DateOnly)>();
         foreach (var (l, path) in Items(doc.Logs, "logs", errors))
@@ -166,7 +166,7 @@ internal static class ImportEndpoints
                 local["habit_id"] = ["Let-go habits have slips, not logs."];
             if (l.Date is not { } date) local["date"] = [Formats.DateMessage];
             else if (date > today) local["date"] = ["Can't be after today."];
-            else if (habit is not null && date < HabitService.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
+            else if (habit is not null && date < HabitRules.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
             else if (habit is not null && !logged.Add((habit, date))) local["date"] = ["Only one log per habit and day."];
             var count = l.Count ?? -1;
             var target = habit?.TimesPerDay ?? Limits.TimesPerDay;
@@ -187,7 +187,7 @@ internal static class ImportEndpoints
                 local["habit_id"] = ["Only let-go habits have slips."];
             if (sl.Date is not { } date) local["date"] = [Formats.DateMessage];
             else if (date > today) local["date"] = ["Can't be after today."];
-            else if (habit is not null && date < HabitService.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
+            else if (habit is not null && date < HabitRules.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
             else if (habit is not null && !slipped.Add((habit, date))) local["date"] = ["Only one slip entry per habit and day."];
             if (sl.Count is not >= 1) local["count"] = ["Must be at least 1."];
             if (sl.Reasons?.Any(r => r is null || !HabitSlip.ReasonIds.Contains(r)) == true)
@@ -278,7 +278,7 @@ internal static class ImportEndpoints
                 local["habit_id"] = ["Must be the id of a habit in this file."];
             if (n.Date is not { } date) local["date"] = [Formats.DateMessage];
             else if (date > today) local["date"] = ["Can't be after today."];
-            else if (habit is not null && date < HabitService.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
+            else if (habit is not null && date < HabitRules.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
             else if (habit is not null && !habitNoted.Add((habit, date))) local["date"] = ["Only one note per habit and day."];
             var cipher = JournalEndpoints.WriteForm(n.Encrypted, n.Text is not null, true, key, local,
                 JournalEndpoints.MaxHabitNoteCipherTextLength);

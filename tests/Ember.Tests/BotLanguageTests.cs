@@ -6,6 +6,7 @@ using Ember.Bot;
 using Ember.Bot.Modules;
 using Ember.Core.Data;
 using Ember.Core.Localization;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;

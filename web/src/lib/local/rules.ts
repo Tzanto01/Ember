@@ -139,7 +139,7 @@ function letGoDayOn(
   return { date, state, slips: state === 'slipped' ? slip!.count : 0 };
 }
 
-/** A let-go habit's days, oldest first, inclusive (Core `LetGoDayOn`). */
+/** A let-go habit's days, oldest first, inclusive (Core `LetGoRules.DayOn`). */
 export function letGoDays(data: LocalData, habitId: number, from: LocalDateString, to: LocalDateString): LetGoToday[] {
   const habit = findHabit(data, habitId);
   const slips = slipsOf(data, habitId);
@@ -149,7 +149,7 @@ export function letGoDays(data: LocalData, habitId: number, from: LocalDateStrin
   return days;
 }
 
-/** A let-go habit's stats on `today` (Core `LetGoStatsOn`): paused days neither count nor break a stretch. */
+/** A let-go habit's stats on `today` (Core `LetGoRules.StatsOn`): paused days neither count nor break a stretch. */
 export function letGoStats(data: LocalData, habitId: number, today: LocalDateString): LetGoStats {
   const start = habitStartDate(findHabit(data, habitId), data.profile.timezone);
   const monthStart = `${today.slice(0, 8)}01`;

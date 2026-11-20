@@ -242,12 +242,12 @@ public partial class RulesFixtureTests
 
         var dates = Enumerable.Range(0, input.Today.DayNumber - input.From.DayNumber + 1).Select(input.From.AddDays).ToList();
         return new ExpectedOut(
-            habits.ToDictionary(h => Key(h.Id), h => dates.Select(d => HabitService.DayOn(h, d, input.Today, tz, lowDays))
+            habits.ToDictionary(h => Key(h.Id), h => dates.Select(d => HabitRules.DayOn(h, d, input.Today, tz, lowDays))
                 .Select(d => new DayOut(d.Date, d.State.ToString().ToLowerInvariant(), d.Completed, d.Count)).ToList()),
-            habits.ToDictionary(h => Key(h.Id), h => ToStats(HabitService.StatsOn(h, input.Today, input.GraceDaysPerWeek, lowDays, tz))),
-            dates.Select(d => HabitService.DayStatsOn(habits, d, tz))
+            habits.ToDictionary(h => Key(h.Id), h => ToStats(HabitRules.StatsOn(h, input.Today, input.GraceDaysPerWeek, lowDays, tz))),
+            dates.Select(d => HabitRules.DayStatsOn(habits, d, tz))
                 .Select(s => new DayStatsOut(s.Date, s.Scheduled, s.Done, s.Partial, s.ShowedUp)).ToList(),
-            input.Routines.ToDictionary(r => Key(r.Id), r => HabitService.PendingRoutineHabits(
+            input.Routines.ToDictionary(r => Key(r.Id), r => HabitRules.PendingRoutineHabits(
                 habits.Where(h => h.RoutineId == r.Id), input.Today, tz, lowDays).Select(h => h.Id).ToList()),
             Weekly(input, habits));
     }

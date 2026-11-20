@@ -46,6 +46,20 @@ public class LimitValidationApiTests(PostgresFixture postgres) : ApiTestBase(pos
     }
 
     [DockerFact]
+    public async Task Weekly_target_accepts_6_and_rejects_0_and_7()
+    {
+        var user = await Host.SignedInAsync();
+
+        var created = await user.Post("/api/habits", new { name = "Run", frequency = "weekly", weeklyTarget = 6 });
+        (await created.ExpectJson(HttpStatusCode.Created)).GetProperty("weeklyTarget").GetInt32().Should().Be(6);
+
+        await ExpectFieldMessage(await user.Post("/api/habits", new { name = "Swim", frequency = "weekly", weeklyTarget = 7 }),
+            "weeklyTarget", "Must be between 1 and 6.");
+        await ExpectFieldMessage(await user.Post("/api/habits", new { name = "Swim", frequency = "weekly", weeklyTarget = 0 }),
+            "weeklyTarget", "Must be between 1 and 6.");
+    }
+
+    [DockerFact]
     public async Task The_11th_routine_is_rejected_with_the_routine_limit_message()
     {
         var user = await Host.SignedInAsync();

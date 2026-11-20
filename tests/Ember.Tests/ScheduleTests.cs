@@ -1,5 +1,6 @@
 using Ember.Bot.Jobs;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 
@@ -31,7 +32,7 @@ public class ScheduleTests
         AddLog(habit, 2, 1);
         AddLog(habit, 3, 2);
 
-        var days = Enumerable.Range(0, 6).Select(ago => HabitService.DayOn(habit, Today.AddDays(-ago), Today, TimeZoneInfo.Utc, NoLowDays));
+        var days = Enumerable.Range(0, 6).Select(ago => HabitRules.DayOn(habit, Today.AddDays(-ago), Today, TimeZoneInfo.Utc, NoLowDays));
 
         days.Select(d => (d.State, d.Completed, d.Count)).Should().Equal(
             (DayState.Pending, null, 0),
@@ -47,8 +48,8 @@ public class ScheduleTests
     {
         var habit = Weekdays(MonWedFri, (2, true), (4, true), (5, true), (7, true));
 
-        HabitService.ConsecutiveStreak(habit, Today, graceDays: 0).Should().Be((4, 0));
-        HabitService.BestStreak(habit, Today, graceDays: 0).Should().Be(4);
+        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 0, null).Should().Be((4, 0));
+        HabitRules.BestStreak(habit, Today, graceDays: 0, null).Should().Be(4);
     }
 
     [Fact]
@@ -58,8 +59,8 @@ public class ScheduleTests
         habit.TimesPerDay = 2;
         AddLog(habit, 3, 1);
 
-        HabitService.ConsecutiveStreak(habit, Today, graceDays: 1).Should().Be((2, 1));
-        HabitService.ConsecutiveStreak(habit, Today, graceDays: 0).Should().Be((1, 0));
+        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 1, null).Should().Be((2, 1));
+        HabitRules.ConsecutiveStreak(habit, Today, graceDays: 0, null).Should().Be((1, 0));
     }
 
     [Fact]
@@ -68,7 +69,7 @@ public class ScheduleTests
         var habit = Weekdays(MonWedFri, (3, true));
         var lowDays = new HashSet<DateOnly> { Today.AddDays(-1), Today.AddDays(-2) };
 
-        HabitService.FlexibleStreak(habit, Today, 7, lowDays, TimeZoneInfo.Utc).Should().Be(2);
+        HabitRules.FlexibleStreak(habit, Today, 7, lowDays, TimeZoneInfo.Utc).Should().Be(2);
     }
 
     [Fact]
@@ -101,8 +102,8 @@ public class ScheduleTests
         var notStarted = HabitFactory.Make(createdAtDaysAgo: 0, null, FrequencyType.Weekly, 3);
         var habits = new[] { weekdays, partial, paused, notStarted };
 
-        HabitService.DayStatsOn(habits, restDay, TimeZoneInfo.Utc).Should().Be(new DayStats(restDay, 1, 1, 1, true));
-        HabitService.DayStatsOn(habits, Today.AddDays(-2), TimeZoneInfo.Utc).Should().Be(new DayStats(Today.AddDays(-2), 2, 0, 0, false));
+        HabitRules.DayStatsOn(habits, restDay, TimeZoneInfo.Utc).Should().Be(new DayStats(restDay, 1, 1, 1, true));
+        HabitRules.DayStatsOn(habits, Today.AddDays(-2), TimeZoneInfo.Utc).Should().Be(new DayStats(Today.AddDays(-2), 2, 0, 0, false));
     }
 
     [Fact]
@@ -136,7 +137,7 @@ public class ScheduleTests
         AddLog(daily, 2, 1);
         var habits = new[] { weekly, daily };
 
-        HabitService.DayStatsOn(habits, Today.AddDays(-1), TimeZoneInfo.Utc).Should().Be(new DayStats(Today.AddDays(-1), 2, 1, 0, true));
-        HabitService.DayStatsOn(habits, Today.AddDays(-2), TimeZoneInfo.Utc).Should().Be(new DayStats(Today.AddDays(-2), 1, 1, 0, true));
+        HabitRules.DayStatsOn(habits, Today.AddDays(-1), TimeZoneInfo.Utc).Should().Be(new DayStats(Today.AddDays(-1), 2, 1, 0, true));
+        HabitRules.DayStatsOn(habits, Today.AddDays(-2), TimeZoneInfo.Utc).Should().Be(new DayStats(Today.AddDays(-2), 1, 1, 0, true));
     }
 }

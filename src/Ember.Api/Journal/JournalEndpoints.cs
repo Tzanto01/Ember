@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Ember.Api.Hosting;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -112,7 +113,7 @@ internal static class JournalEndpoints
             if (await habits.GetHabitAsync(userId, id) is not { } habit) return Problems.NotFound();
             var today = await habits.GetLocalTodayAsync(userId);
             if (day > today) return Problems.DayEdit(DayEditResult.InFuture)!;
-            if (day != today && day < HabitService.StartDate(habit, await habits.GetUserTzAsync(userId))
+            if (day != today && day < HabitRules.StartDate(habit, await habits.GetUserTzAsync(userId))
                 && (await habits.GetHabitNotesAsync(userId, day, day, id)).Count == 0)
                 return Problems.DayEdit(DayEditResult.BeforeHabitStart)!;
 

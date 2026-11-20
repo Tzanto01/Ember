@@ -1,6 +1,7 @@
 using Ember.Bot;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -105,7 +106,7 @@ public class PostgresMigrationTests(PostgresFixture postgres)
         habits[0].PausedFrom.Should().BeNull();
         habits[1].PausedFrom.Should().Be(new DateOnly(2020, 1, 11));
         habits[1].PausedUntil.Should().Be(new DateOnly(2020, 1, 10));
-        HabitService.IsPausedOn(habits[1], new DateOnly(2020, 1, 1)).Should().BeFalse("an ended pause no longer hides earlier history");
+        HabitRules.IsPausedOn(habits[1], new DateOnly(2020, 1, 1)).Should().BeFalse("an ended pause no longer hides earlier history");
         habits[2].PausedFrom.Should().NotBeNull();
         habits[2].PausedFrom!.Value.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
     }

@@ -1,4 +1,5 @@
 using Ember.Core.Data;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;

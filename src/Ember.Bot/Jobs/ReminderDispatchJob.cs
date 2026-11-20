@@ -306,8 +306,8 @@ public class ReminderDispatchJob : IJob
             && habit.Routine?.ReminderTime is null
             && now - dueAt <= StaleAfter
             && LocalDay(dueAt, tz) == today
-            && !HabitService.IsPausedOn(habit, today)
-            && HabitService.IsScheduledOn(habit, today)
+            && !HabitRules.IsPausedOn(habit, today)
+            && HabitRules.IsScheduledOn(habit, today)
             && !await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
             && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
             && !await habits.IsLowDayStoredAsync(user.Id, today);
@@ -348,7 +348,7 @@ public class ReminderDispatchJob : IJob
             && now - dueAt <= StaleAfter && LocalDay(dueAt, tz) == today)
         {
             var lowDays = await habits.GetLowDaysAsync(user.Id);
-            pending = HabitService.PendingRoutineHabits(routine.Habits, today, tz, lowDays)
+            pending = HabitRules.PendingRoutineHabits(routine.Habits, today, tz, lowDays)
                 .Select(h => new RoutineHabit(h.Id, h.Name))
                 .ToList();
         }
@@ -378,7 +378,7 @@ public class ReminderDispatchJob : IJob
     private static async Task<bool> IsWeekDoneAsync(HabitService habits, Habit habit, DateOnly today, CancellationToken cancellationToken)
     {
         if (habit.FrequencyType != FrequencyType.Weekly) return false;
-        var monday = HabitService.WeekStart(today);
+        var monday = HabitRules.WeekStart(today);
         return await habits.CountCompletedBetweenAsync(habit.Id, monday.AddDays(-1), monday.AddDays(7), cancellationToken) >= (habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget);
     }
 
@@ -415,8 +415,8 @@ public class ReminderDispatchJob : IJob
         var send = targets.Count > 0
             && habit.Routine?.ReminderTime is null
             && now - dueAt <= StaleAfter
-            && !HabitService.IsPausedOn(habit, today)
-            && HabitService.IsScheduledOn(habit, today)
+            && !HabitRules.IsPausedOn(habit, today)
+            && HabitRules.IsScheduledOn(habit, today)
             && (letGo
                 || (!await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
                     && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
@@ -473,7 +473,7 @@ public class ReminderDispatchJob : IJob
         if (targets.Count > 0 && now - dueAt <= StaleAfter)
         {
             var lowDays = await habits.GetLowDaysAsync(user.Id);
-            pending = HabitService.PendingRoutineHabits(routine.Habits, today, tz, lowDays)
+            pending = HabitRules.PendingRoutineHabits(routine.Habits, today, tz, lowDays)
                 .Select(h => new RoutineHabit(h.Id, h.Name))
                 .ToList();
         }

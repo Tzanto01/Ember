@@ -13,7 +13,7 @@ namespace Ember.Bot.Jobs;
 /// <summary>
 /// Fires once per day at <see cref="LocalSendHour"/>:00 in each user's local time.
 /// Checks whether any daily habits are still unlogged for yesterday, which is
-/// still open (see <see cref="HabitService.OpenDays"/>), or weekly habits are
+/// still open (see <see cref="HabitRules.OpenDays"/>), or weekly habits are
 /// below target for the week and weren't done yesterday, and sends a low-pressure DM with
 /// "Log yesterday" (only when a daily habit is open), "It was a low day" and dismiss buttons.
 ///
@@ -73,7 +73,7 @@ public class MissedDayReflectionJob : IJob
                     continue;
 
                 var yesterday = TimezoneHelper.LocalToday(user.Timezone, _time).AddDays(-1);
-                await ProcessUserAsync(user, discordId, yesterday, HabitService.WeekStart(yesterday));
+                await ProcessUserAsync(user, discordId, yesterday, HabitRules.WeekStart(yesterday));
             }
             catch (Exception ex)
             {
@@ -97,7 +97,7 @@ public class MissedDayReflectionJob : IJob
                 if (IsOpenDaily(habit, yesterday, tz))
                     open.Add(habit.Name);
             }
-            else if (HabitService.IsActiveOn(habit, yesterday, tz) && !HabitService.IsPausedOn(habit, yesterday))
+            else if (HabitRules.IsAfterStartDay(habit, yesterday, tz) && !HabitRules.IsPausedOn(habit, yesterday))
             {
                 // Weekly habit: are they behind target with 2 or fewer days left in the week?
                 var weekEnd = weekStart.AddDays(6);
@@ -153,8 +153,8 @@ public class MissedDayReflectionJob : IJob
     internal static bool IsOpenDaily(Ember.Core.Models.Habit habit, DateOnly date, TimeZoneInfo tz)
         => habit.Kind != Ember.Core.Models.HabitKind.LetGo
             && habit.FrequencyType != Ember.Core.Models.FrequencyType.Weekly
-            && HabitService.IsScheduledOn(habit, date)
-            && HabitService.IsActiveOn(habit, date, tz)
-            && !HabitService.IsPausedOn(habit, date)
+            && HabitRules.IsScheduledOn(habit, date)
+            && HabitRules.IsAfterStartDay(habit, date, tz)
+            && !HabitRules.IsPausedOn(habit, date)
             && !habit.Logs.Any(l => l.Date == date && l.Completed);
 }

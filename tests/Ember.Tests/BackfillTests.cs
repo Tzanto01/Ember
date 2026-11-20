@@ -1,4 +1,5 @@
 using Ember.Core.Data;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +50,7 @@ public class BackfillTests
             (await CheckInAsync(host, habitId, day)).Should().Be(DayEditResult.Saved);
 
         var habit = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitAsync(UserId, habitId));
-        HabitService.ConsecutiveStreak(habit!, today, graceDays: 0).streak.Should().Be(5);
+        HabitRules.ConsecutiveStreak(habit!, today, graceDays: 0, null).streak.Should().Be(5);
     }
 
     [Fact]

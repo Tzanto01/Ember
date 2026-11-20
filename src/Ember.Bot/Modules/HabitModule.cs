@@ -59,7 +59,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var log = h.Logs.FirstOrDefault(l => l.Date == day);
         return log?.Completed == true ? "✅"
             : log is { Count: > 0 } ? $"🔸 {log.Count}/{h.TimesPerDay}"
-            : !HabitService.IsScheduledOn(h, day) ? "💤"
+            : !HabitRules.IsScheduledOn(h, day) ? "💤"
             : "⬜";
     }
 
@@ -118,7 +118,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
                 ? h.Name[..SelectMenuOptionBuilder.MaxSelectLabelLength]
                 : h.Name;
             menu.AddOption(label, h.Id.ToString(CultureInfo.InvariantCulture), h.Kind == HabitKind.LetGo && tz is not null
-                ? DaysFreeText(t, HabitService.LetGoStatsOn(h, today, tz).DaysFree)
+                ? DaysFreeText(t, LetGoRules.StatsOn(h, today, tz).DaysFree)
                 : FrequencyLabel(t, h));
         }
 
@@ -222,7 +222,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 
             foreach (var h in slice)
             {
-                var todayMark = h.Kind == HabitKind.LetGo ? LetGoMark(HabitService.LetGoDayOn(h, today, tz).State) : DayMark(h, today);
+                var todayMark = h.Kind == HabitKind.LetGo ? LetGoMark(LetGoRules.DayOn(h, today, tz).State) : DayMark(h, today);
                 var reminderStr = FormatReminder(t, h.ReminderTimes);
                 var pauseStr = h.PausedUntil.HasValue && h.PausedUntil >= today
                     ? " · " + t.Format("habit.list.paused", h.PausedUntil.Value.ToString(t.Get("date.month-day"), t.Culture)) : "";
@@ -353,28 +353,28 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
                 string statsText;
                 if (h.Kind == HabitKind.LetGo)
                 {
-                    var stats = HabitService.LetGoStatsOn(h, today, tz);
+                    var stats = LetGoRules.StatsOn(h, today, tz);
                     statsText = t.Format("habit.letgo.stats", stats.DaysFree, stats.LongestStretch, stats.FreeDaysThisMonth);
                 }
                 else if (h.FrequencyType == FrequencyType.Weekly)
                 {
-                    var (done, target) = HabitService.WeeklyProgress(h, today);
+                    var (done, target) = HabitRules.WeeklyProgress(h, today);
                     var total = h.Logs.Count(l => l.Completed);
-                    var last28 = HabitService.FlexibleStreak(h, today, 28);
+                    var last28 = HabitRules.FlexibleStreak(h, today, 28, lowDays: null, TimeZoneInfo.Utc);
                     statsText = t.Format("habit.stats.weekly", done, target, last28, total);
                 }
                 else if (!showStreaks)
                 {
-                    var last7 = HabitService.FlexibleStreak(h, today, 7, lowDays, tz);
-                    var last30 = HabitService.FlexibleStreak(h, today, 30, lowDays, tz);
+                    var last7 = HabitRules.FlexibleStreak(h, today, 7, lowDays, tz);
+                    var last30 = HabitRules.FlexibleStreak(h, today, 30, lowDays, tz);
                     statsText = t.Format("habit.stats.flexible", last7, last30, h.Logs.Count(l => l.Completed));
                 }
                 else
                 {
-                    var (streak, graceUsed) = HabitService.ConsecutiveStreak(h, today, grace, lowDays);
-                    var last7 = HabitService.FlexibleStreak(h, today, 7, lowDays, tz);
-                    var last30 = HabitService.FlexibleStreak(h, today, 30, lowDays, tz);
-                    var best = HabitService.BestStreak(h, today, grace, lowDays);
+                    var (streak, graceUsed) = HabitRules.ConsecutiveStreak(h, today, grace, lowDays);
+                    var last7 = HabitRules.FlexibleStreak(h, today, 7, lowDays, tz);
+                    var last30 = HabitRules.FlexibleStreak(h, today, 30, lowDays, tz);
+                    var best = HabitRules.BestStreak(h, today, grace, lowDays);
                     var total = h.Logs.Count(l => l.Completed);
                     var graceStr = graceUsed > 0 ? "\n" + t.Plural("habit.stats.grace-used", graceUsed) : "";
                     statsText = t.Format("habit.stats.streak", StreakText(t, streak), graceStr, last7, last30, best, total);
@@ -396,16 +396,16 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     /// <summary>The <c>/habit list</c> progress line of <paramref name="h"/>; without <paramref name="showStreaks"/> it has no streak.</summary>
     internal static string ListProgress(Texts t, Habit h, DateOnly today, int grace, IReadOnlySet<DateOnly> lowDays, TimeZoneInfo tz, bool showStreaks)
     {
-        if (h.Kind == HabitKind.LetGo) return DaysFreeText(t, HabitService.LetGoStatsOn(h, today, tz).DaysFree);
+        if (h.Kind == HabitKind.LetGo) return DaysFreeText(t, LetGoRules.StatsOn(h, today, tz).DaysFree);
         if (h.FrequencyType == FrequencyType.Weekly)
         {
-            var (done, target) = HabitService.WeeklyProgress(h, today);
-            return t.Format("habit.progress.weekly", done, target, HabitService.FlexibleStreak(h, today, 28));
+            var (done, target) = HabitRules.WeeklyProgress(h, today);
+            return t.Format("habit.progress.weekly", done, target, HabitRules.FlexibleStreak(h, today, 28, lowDays: null, TimeZoneInfo.Utc));
         }
 
-        var last7 = t.Format("habit.progress.last7", HabitService.FlexibleStreak(h, today, 7, lowDays, tz));
+        var last7 = t.Format("habit.progress.last7", HabitRules.FlexibleStreak(h, today, 7, lowDays, tz));
         if (!showStreaks) return last7;
-        var (streak, graceUsed) = HabitService.ConsecutiveStreak(h, today, grace, lowDays);
+        var (streak, graceUsed) = HabitRules.ConsecutiveStreak(h, today, grace, lowDays);
         var graceStr = graceUsed > 0 ? " " + t.Plural("habit.progress.grace", graceUsed) : "";
         return $"{StreakText(t, streak)}{graceStr} · {last7}";
     }
