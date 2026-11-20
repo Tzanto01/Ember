@@ -12,6 +12,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Ember.Api.TestHost/Ember.Api.TestHost.csproj" />
     <Project Path="tests/Ember.Api.Tests/Ember.Api.Tests.csproj" />
+    <Project Path="tests/Ember.TestKit/Ember.TestKit.csproj" />
     <Project Path="tests/Ember.Tests/Ember.Tests.csproj" />
   </Folder>
 </Solution>
