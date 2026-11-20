@@ -30,14 +30,18 @@ describe('CenteredShell arrival', () => {
     const main = screen.getByRole('main');
     expect(main).toHaveAttribute('data-arrive', 'card');
 
-    act(() => vi.advanceTimersByTime(arrivalWindowMs));
+    act(() => {
+      vi.advanceTimersByTime(arrivalWindowMs);
+    });
     expect(main).not.toHaveAttribute('data-arrive');
 
     await act(() => router.navigate('/download'));
     expect(main).toHaveAttribute('data-arrive', 'card');
     await act(() => router.navigate('/about'));
     expect(main).toHaveAttribute('data-arrive', 'card');
-    act(() => vi.advanceTimersByTime(arrivalWindowMs));
+    act(() => {
+      vi.advanceTimersByTime(arrivalWindowMs);
+    });
     expect(main).not.toHaveAttribute('data-arrive');
   });
 

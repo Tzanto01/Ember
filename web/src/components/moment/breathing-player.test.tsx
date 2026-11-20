@@ -14,7 +14,9 @@ function circle(): HTMLElement {
 }
 
 function second(): void {
-  act(() => vi.advanceTimersByTime(1000));
+  act(() => {
+    vi.advanceTimersByTime(1000);
+  });
 }
 
 describe('BreathingPlayer', () => {
@@ -26,7 +28,9 @@ describe('BreathingPlayer', () => {
 
   it('waits for Start: no announcement and no progress before it', () => {
     render(<BreathingPlayer inhale={4} hold={0} exhale={6} rounds={6} />);
-    act(() => vi.advanceTimersByTime(30_000));
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
     expect(liveRegion()).toHaveTextContent('');
     expect(screen.queryByText(/Breathe in/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
@@ -59,7 +63,9 @@ describe('BreathingPlayer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     expect(root).toHaveAttribute('data-breath', 'paused');
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
-    act(() => vi.advanceTimersByTime(10_000));
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
     expect(root).toHaveAttribute('data-breath', 'done');
   });
 
@@ -68,7 +74,9 @@ describe('BreathingPlayer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     second();
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
-    act(() => vi.advanceTimersByTime(20_000));
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
     expect(
       screen.getByText('Breathe in, 3', { selector: 'p:not([aria-live])' }),
     ).toBeInTheDocument();
@@ -120,14 +128,18 @@ describe('BreathingPlayer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     second();
     rerender(<BreathingPlayer inhale={4} hold={0} exhale={6} rounds={6} halted />);
-    act(() => vi.advanceTimersByTime(20_000));
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
     expect(liveRegion()).toHaveTextContent('Round 1 of 6. Breathe in, 4');
     expect(
       screen.getByText('Breathe in, 3', { selector: 'p:not([aria-live])' }),
     ).toBeInTheDocument();
 
     rerender(<BreathingPlayer inhale={4} hold={0} exhale={6} rounds={6} />);
-    act(() => vi.advanceTimersByTime(5_000));
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
     expect(
       screen.getByText('Breathe in, 3', { selector: 'p:not([aria-live])' }),
     ).toBeInTheDocument();
@@ -143,7 +155,9 @@ describe('BreathingPlayer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
-    act(() => vi.advanceTimersByTime(2_000));
+    act(() => {
+      vi.advanceTimersByTime(2_000);
+    });
     expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
       'ready',
       'running',

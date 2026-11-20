@@ -68,7 +68,9 @@ describe('FiresidePage', { timeout: 15_000 }, () => {
       expect(screen.getByText(/12 minutes left/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'New code' })).toBeInTheDocument();
 
-      act(() => vi.advanceTimersByTime(13 * 60_000));
+      act(() => {
+        vi.advanceTimersByTime(13 * 60_000);
+      });
 
       expect(screen.queryByTestId('fireside-code')).toBeNull();
       expect(screen.getByRole('button', { name: 'Make a code' })).toBeInTheDocument();
