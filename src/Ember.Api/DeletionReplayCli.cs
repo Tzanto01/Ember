@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Ember.Core.Data;
 using Ember.Core.Services;
+using Ember.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api;
@@ -43,7 +44,7 @@ internal static partial class DeletionReplayCli
                 return 1;
             }
 
-            var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(configuration.GetConnectionString("DefaultConnection")).Options;
+            var options = ServiceCollectionExtensions.EmberDbOptions(configuration);
             await using var db = new EmberDbContext(options);
             return await ReplayAsync(db, entries, since.UtcDateTime, Console.Out, TimeProvider.System);
         }

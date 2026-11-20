@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Api;
@@ -301,7 +302,7 @@ internal static class HabitEndpoints
 
     private static string Lower<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 
-    internal static string? ValidName(string? name, Dictionary<string, string[]> errors, int maxLength = 100)
+    internal static string? ValidName(string? name, Dictionary<string, string[]> errors, int maxLength = Limits.HabitNameLength)
     {
         var trimmed = name?.Trim();
         if (trimmed is { Length: >= 1 } && trimmed.Length <= maxLength) return trimmed;
@@ -335,7 +336,7 @@ internal static class HabitEndpoints
             times.Add(time);
         }
 
-        var max = Math.Min(timesPerDay, HabitService.MaxTimesPerDay);
+        var max = Math.Min(timesPerDay, Limits.TimesPerDay);
         if (times.Distinct().Count() != times.Count) errors["reminderTimes"] = ["Each time can appear only once."];
         else if (times.Count > max) errors["reminderTimes"] = [$"At most {max}, the habit's timesPerDay."];
         else return times.Order().ToList();
@@ -413,7 +414,7 @@ internal static class HabitEndpoints
     internal static int ValidateTimesPerDay(int timesPerDay, FrequencyType? frequency, Dictionary<string, string[]> errors)
     {
         if (frequency == FrequencyType.Weekly && timesPerDay != 1) errors["timesPerDay"] = ["Always 1 for weekly habits."];
-        else if (timesPerDay is < 1 or > HabitService.MaxTimesPerDay) errors["timesPerDay"] = [$"Must be between 1 and {HabitService.MaxTimesPerDay}."];
+        else if (timesPerDay is < 1 or > Limits.TimesPerDay) errors["timesPerDay"] = [$"Must be between 1 and {Limits.TimesPerDay}."];
         return timesPerDay;
     }
 

@@ -3,6 +3,7 @@ using Ember.Api.Email;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
+using Ember.Core;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
@@ -32,12 +33,7 @@ public static class ApiApp
         var services = builder.Services;
         var config = builder.Configuration;
 
-        services.AddDbContext<EmberDbContext>(options => options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
-        services.AddSingleton(TimeProvider.System);
-        services.AddSingleton(sp => new DeletionLedger(config[DeletionLedger.FileSetting], sp.GetRequiredService<TimeProvider>(),
-            sp.GetRequiredService<ILogger<DeletionLedger>>()));
-        services.AddScoped<HabitService>();
-        services.AddScoped<FiresideService>();
+        services.AddEmberCore(config);
 
         services.AddProblemDetails(options => options.CustomizeProblemDetails = Problems.Customize);
         services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
