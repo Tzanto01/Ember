@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Let-go habit rules (API v1.21) shared by Core and the no-account client. Days run from `from` through `today` (user-local, timezone UTC, the habit's start day is startDate). State precedence: beforestart, slipped, paused, free. daysFree counts free days after the last slip (or from the start) through today, skipping paused days; longestStretch is the longest such run ever; freeDaysThisMonth counts free days of today's calendar month; slipDaysLast30 counts slipped days in the 30 days ending today.",
+  "about": "Let-go habit rules (API v1.21) shared by Core and the no-account client. Days run from `from` through `today` (user-local, timezone UTC, the habit's start day is startDate). State precedence: beforestart, slipped, paused, free. daysFree counts free days after the last slip (or from the start) through today, skipping paused days; longestStretch is the longest such run ever; freeDaysThisMonth counts free days of today's calendar month; slipDaysLast30 counts slipped days in the 30 days ending today. madeIt (API v1.24) is true only on a free day that has a made-it mark; marks on paused or slipped days read false, and marks never change any stat.",
   "cases": [
     {
       "name": "fresh habit without slips counts every day so far, today included",
@@ -11,7 +11,8 @@
         "startDate": "2027-03-10",
         "pausedFrom": null,
         "pausedUntil": null,
-        "slips": []
+        "slips": [],
+        "madeIt": []
       },
       "expected": {
         "stats": {
@@ -23,33 +24,39 @@
         "today": {
           "date": "2027-03-14",
           "state": "free",
-          "slips": 0
+          "slips": 0,
+          "madeIt": false
         },
         "days": [
           {
             "date": "2027-03-10",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-11",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-12",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-13",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-14",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           }
         ]
       }
@@ -76,7 +83,8 @@
             "count": 1,
             "reasons": []
           }
-        ]
+        ],
+        "madeIt": []
       },
       "expected": {
         "stats": {
@@ -88,133 +96,159 @@
         "today": {
           "date": "2027-03-14",
           "state": "free",
-          "slips": 0
+          "slips": 0,
+          "madeIt": false
         },
         "days": [
           {
             "date": "2027-02-18",
             "state": "beforestart",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-19",
             "state": "beforestart",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-20",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-21",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-22",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-23",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-24",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-25",
             "state": "slipped",
-            "slips": 2
+            "slips": 2,
+            "madeIt": false
           },
           {
             "date": "2027-02-26",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-27",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-02-28",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-01",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-02",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-03",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-04",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-05",
             "state": "slipped",
-            "slips": 1
+            "slips": 1,
+            "madeIt": false
           },
           {
             "date": "2027-03-06",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-07",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-08",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-09",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-10",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-11",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-12",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-13",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-14",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           }
         ]
       }
@@ -244,7 +278,8 @@
               "lonely"
             ]
           }
-        ]
+        ],
+        "madeIt": []
       },
       "expected": {
         "stats": {
@@ -256,78 +291,93 @@
         "today": {
           "date": "2027-03-14",
           "state": "slipped",
-          "slips": 3
+          "slips": 3,
+          "madeIt": false
         },
         "days": [
           {
             "date": "2027-03-01",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-02",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-03",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-04",
             "state": "paused",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-05",
             "state": "paused",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-06",
             "state": "paused",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-07",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-08",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-09",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-10",
             "state": "slipped",
-            "slips": 1
+            "slips": 1,
+            "madeIt": false
           },
           {
             "date": "2027-03-11",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-12",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-13",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-14",
             "state": "slipped",
-            "slips": 3
+            "slips": 3,
+            "madeIt": false
           }
         ]
       }
@@ -347,7 +397,8 @@
             "count": 1,
             "reasons": []
           }
-        ]
+        ],
+        "madeIt": []
       },
       "expected": {
         "stats": {
@@ -359,78 +410,93 @@
         "today": {
           "date": "2027-03-14",
           "state": "paused",
-          "slips": 0
+          "slips": 0,
+          "madeIt": false
         },
         "days": [
           {
             "date": "2027-03-01",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-02",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-03",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-04",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-05",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-06",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-07",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-08",
             "state": "slipped",
-            "slips": 1
+            "slips": 1,
+            "madeIt": false
           },
           {
             "date": "2027-03-09",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-10",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-11",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-12",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-13",
             "state": "paused",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-14",
             "state": "paused",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           }
         ]
       }
@@ -452,7 +518,8 @@
               "aroundOthers"
             ]
           }
-        ]
+        ],
+        "madeIt": []
       },
       "expected": {
         "stats": {
@@ -464,33 +531,39 @@
         "today": {
           "date": "2027-03-05",
           "state": "free",
-          "slips": 0
+          "slips": 0,
+          "madeIt": false
         },
         "days": [
           {
             "date": "2027-03-01",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-02",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-03",
             "state": "slipped",
-            "slips": 1
+            "slips": 1,
+            "madeIt": false
           },
           {
             "date": "2027-03-04",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-05",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           }
         ]
       }
@@ -504,7 +577,8 @@
         "startDate": "2027-03-01",
         "pausedFrom": null,
         "pausedUntil": "2027-03-02",
-        "slips": []
+        "slips": [],
+        "madeIt": []
       },
       "expected": {
         "stats": {
@@ -516,33 +590,39 @@
         "today": {
           "date": "2027-03-05",
           "state": "free",
-          "slips": 0
+          "slips": 0,
+          "madeIt": false
         },
         "days": [
           {
             "date": "2027-03-01",
             "state": "paused",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-02",
             "state": "paused",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-03",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-04",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-05",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           }
         ]
       }
@@ -569,7 +649,8 @@
             "count": 1,
             "reasons": []
           }
-        ]
+        ],
+        "madeIt": []
       },
       "expected": {
         "stats": {
@@ -581,163 +662,355 @@
         "today": {
           "date": "2027-03-31",
           "state": "free",
-          "slips": 0
+          "slips": 0,
+          "madeIt": false
         },
         "days": [
           {
             "date": "2027-03-01",
             "state": "slipped",
-            "slips": 1
+            "slips": 1,
+            "madeIt": false
           },
           {
             "date": "2027-03-02",
             "state": "slipped",
-            "slips": 1
+            "slips": 1,
+            "madeIt": false
           },
           {
             "date": "2027-03-03",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-04",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-05",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-06",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-07",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-08",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-09",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-10",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-11",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-12",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-13",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-14",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-15",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-16",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-17",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-18",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-19",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-20",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-21",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-22",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-23",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-24",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-25",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-26",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-27",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-28",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-29",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-30",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
           },
           {
             "date": "2027-03-31",
             "state": "free",
-            "slips": 0
+            "slips": 0,
+            "madeIt": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "made-it marks show only on free days and change no number",
+      "today": "2027-03-14",
+      "from": "2027-03-08",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-03-08",
+        "pausedFrom": "2027-03-10",
+        "pausedUntil": "2027-03-10",
+        "slips": [
+          {
+            "date": "2027-03-12",
+            "count": 1,
+            "reasons": []
+          }
+        ],
+        "madeIt": [
+          "2027-03-08",
+          "2027-03-09",
+          "2027-03-10",
+          "2027-03-12",
+          "2027-03-14"
+        ]
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 2,
+          "longestStretch": 3,
+          "freeDaysThisMonth": 5,
+          "slipDaysLast30": 1
+        },
+        "today": {
+          "date": "2027-03-14",
+          "state": "free",
+          "slips": 0,
+          "madeIt": true
+        },
+        "days": [
+          {
+            "date": "2027-03-08",
+            "state": "free",
+            "slips": 0,
+            "madeIt": true
+          },
+          {
+            "date": "2027-03-09",
+            "state": "free",
+            "slips": 0,
+            "madeIt": true
+          },
+          {
+            "date": "2027-03-10",
+            "state": "paused",
+            "slips": 0,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-11",
+            "state": "free",
+            "slips": 0,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-12",
+            "state": "slipped",
+            "slips": 1,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-13",
+            "state": "free",
+            "slips": 0,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-14",
+            "state": "free",
+            "slips": 0,
+            "madeIt": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "the same habit without marks has the same numbers",
+      "today": "2027-03-14",
+      "from": "2027-03-08",
+      "timezone": "UTC",
+      "habit": {
+        "startDate": "2027-03-08",
+        "pausedFrom": "2027-03-10",
+        "pausedUntil": "2027-03-10",
+        "slips": [
+          {
+            "date": "2027-03-12",
+            "count": 1,
+            "reasons": []
+          }
+        ],
+        "madeIt": []
+      },
+      "expected": {
+        "stats": {
+          "daysFree": 2,
+          "longestStretch": 3,
+          "freeDaysThisMonth": 5,
+          "slipDaysLast30": 1
+        },
+        "today": {
+          "date": "2027-03-14",
+          "state": "free",
+          "slips": 0,
+          "madeIt": false
+        },
+        "days": [
+          {
+            "date": "2027-03-08",
+            "state": "free",
+            "slips": 0,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-09",
+            "state": "free",
+            "slips": 0,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-10",
+            "state": "paused",
+            "slips": 0,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-11",
+            "state": "free",
+            "slips": 0,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-12",
+            "state": "slipped",
+            "slips": 1,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-13",
+            "state": "free",
+            "slips": 0,
+            "madeIt": false
+          },
+          {
+            "date": "2027-03-14",
+            "state": "free",
+            "slips": 0,
+            "madeIt": false
           }
         ]
       }
