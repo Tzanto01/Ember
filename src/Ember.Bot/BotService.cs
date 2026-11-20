@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -13,6 +14,7 @@ using System.Reflection;
 
 namespace Ember.Bot;
 
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The SemaphoreSlim is only awaited, so it never allocates a wait handle and holds nothing to release.")]
 public class BotService : IHostedService
 {
     private readonly DiscordSocketClient _client;

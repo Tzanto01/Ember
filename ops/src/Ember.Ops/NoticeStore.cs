@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -94,6 +95,7 @@ public static class NoticeRules
 /// Edge-cached reads lag, so for <see cref="StaleReadWindow"/> a read that still shows a document this process replaced counts as
 /// the document it wrote; any other read, such as another writer's change, counts as live.
 /// </summary>
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The SemaphoreSlim is only awaited, so it never allocates a wait handle and holds nothing to release.")]
 public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, IHttpClientFactory http, TimeProvider time, ILogger<NoticeStore> logger)
 {
     public const string HttpClientName = "notices";
