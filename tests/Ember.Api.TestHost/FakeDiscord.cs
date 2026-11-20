@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Net;
-using System.Net.Http.Json;
 using AspNet.Security.OAuth.Discord;
 using Microsoft.AspNetCore.WebUtilities;
 

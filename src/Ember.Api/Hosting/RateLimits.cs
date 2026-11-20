@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
 using Ember.Core.Services;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace Ember.Api.Hosting;

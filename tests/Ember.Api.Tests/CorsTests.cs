@@ -1,4 +1,3 @@
-using System.Net;
 using FluentAssertions;
 
 namespace Ember.Api.Tests;

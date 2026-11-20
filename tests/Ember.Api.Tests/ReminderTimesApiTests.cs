@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using Ember.Core.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 

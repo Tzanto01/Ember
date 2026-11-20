@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Ember.Core.Services;
 
 namespace Ember.Api.Tests.Contract;
 

@@ -10,7 +10,6 @@ using Ember.Api.Journal;
 using Ember.Core;
 using Ember.Core.Data;
 using Ember.Core.Models;
-using Ember.Core.Services;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;

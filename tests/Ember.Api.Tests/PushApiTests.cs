@@ -1,6 +1,5 @@
 using System.Net;
 using System.Security.Cryptography;
-using Ember.Core.Models;
 using FluentAssertions;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
