@@ -379,12 +379,12 @@ describe('retarget', () => {
     expect(byDay(retarget(input, 1, 4, TODAY))).toEqual({ [ago(3)]: true, [ago(1)]: true, [ago(0)]: false });
   });
 
-  it('keeps counts and other habits unchanged and does not modify its input', () => {
+  it('clamps counts above a lowered target, leaves other habits alone and does not modify its input', () => {
     const logs = [log(4, 2, false), log(4, 1, false, 2)];
     const input = data([habit({ timesPerDay: 3 }), habit({ id: 2, timesPerDay: 3 })], logs);
     const out = retarget(input, 1, 1, TODAY);
-    expect(out.map((l) => [l.habitId, l.count, l.completed])).toEqual([[1, 2, true], [2, 1, false]]);
-    expect(input.logs[0].completed).toBe(false);
+    expect(out.map((l) => [l.habitId, l.count, l.completed])).toEqual([[1, 1, true], [2, 1, false]]);
+    expect(input.logs[0]).toMatchObject({ count: 2, completed: false });
   });
 });
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed } where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today), in routine order. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done, { completed: null } clears the day, { count } sets the count), expected (the day\u0027s log after, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after, by date) }; the cases keep every count at or below the new target. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
+  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed } where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done, with counts above it clamped to it). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today), in routine order. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done, { completed: null } clears the day, { count } sets the count), expected (the day\u0027s log after, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after, by date) }. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
   "cases": [
     {
       "name": "daily streak with one grace day used",
@@ -8417,6 +8417,104 @@
         "expected": [
           {
             "date": "2027-03-15",
+            "count": 1,
+            "completed": true
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": true
+          }
+        ]
+      },
+      {
+        "name": "lowering the target clamps counts above it and makes those days done",
+        "timesPerDay": 3,
+        "newTimesPerDay": 2,
+        "logs": [
+          {
+            "date": "2027-03-13",
+            "count": 3,
+            "completed": true
+          },
+          {
+            "date": "2027-03-14",
+            "count": 3,
+            "completed": false
+          },
+          {
+            "date": "2027-03-15",
+            "count": 2,
+            "completed": false
+          },
+          {
+            "date": "2027-03-16",
+            "count": 1,
+            "completed": true
+          },
+          {
+            "date": "2027-03-17",
+            "count": 3,
+            "completed": true
+          }
+        ],
+        "expected": [
+          {
+            "date": "2027-03-13",
+            "count": 2,
+            "completed": true
+          },
+          {
+            "date": "2027-03-14",
+            "count": 2,
+            "completed": true
+          },
+          {
+            "date": "2027-03-15",
+            "count": 2,
+            "completed": true
+          },
+          {
+            "date": "2027-03-16",
+            "count": 1,
+            "completed": true
+          },
+          {
+            "date": "2027-03-17",
+            "count": 2,
+            "completed": true
+          }
+        ]
+      },
+      {
+        "name": "lowering the target to one clamps every count",
+        "timesPerDay": 4,
+        "newTimesPerDay": 1,
+        "logs": [
+          {
+            "date": "2027-03-15",
+            "count": 4,
+            "completed": true
+          },
+          {
+            "date": "2027-03-16",
+            "count": 2,
+            "completed": false
+          },
+          {
+            "date": "2027-03-17",
+            "count": 3,
+            "completed": false
+          }
+        ],
+        "expected": [
+          {
+            "date": "2027-03-15",
+            "count": 1,
+            "completed": true
+          },
+          {
+            "date": "2027-03-16",
             "count": 1,
             "completed": true
           },
