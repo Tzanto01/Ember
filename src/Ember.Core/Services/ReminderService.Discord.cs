@@ -1,8 +1,8 @@
 namespace Ember.Core.Services;
 
 /// <summary>
-/// The Discord side of <see cref="ReminderService"/>: its user-scoped methods keyed on a Discord user ID instead of the Ember user ID.
-/// Each one resolves the Discord ID through <see cref="HabitService.FindDiscordUserAsync"/> or
+/// The Discord side of <see cref="ReminderService"/>'s scheduling: its methods keyed on a Discord user ID instead of the Ember user ID
+/// (the Discord ask's answers live with the ask). Each one resolves the Discord ID through <see cref="HabitService.FindDiscordUserAsync"/> or
 /// <see cref="HabitService.ResolveOrCreateDiscordUserAsync"/>, then calls the <see cref="Guid"/> overload.
 /// </summary>
 public partial class ReminderService
