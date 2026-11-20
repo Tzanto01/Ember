@@ -165,16 +165,20 @@ dotnet_diagnostic.CA1716.severity = none
 [src/Ember.Core/Data/Migrations/**.cs]
 generated_code = true
 
-# Test code (bot, API and ops tests and their hosts).
+# Test code: the bot, API and ops tests and their hosts.
 [{tests,ops/tests}/**.cs]
 # CA1707 off: test names are behavior sentences with underscores.
 dotnet_diagnostic.CA1707.severity = none
 # CA1711 off: xUnit collection definitions are named *Collection by convention.
 dotnet_diagnostic.CA1711.severity = none
-# Performance off: test speed comes from fixtures, not from cached arrays or serializer options.
-dotnet_analyzer_diagnostic.category-Performance.severity = none
-# Globalization off: test strings and formatting are fixed fixtures; culture rules matter in product code.
-dotnet_analyzer_diagnostic.category-Globalization.severity = none
+# Performance rules off (CA1826, CA1861, CA1862, CA1869): test speed comes from fixtures, not cached arrays or serializer options.
+dotnet_diagnostic.CA1826.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1862.severity = none
+dotnet_diagnostic.CA1869.severity = none
+# Globalization rules off (CA1305, CA1310): test strings are fixed fixtures; culture rules matter in product code.
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1310.severity = none
 # CA1001 off: xUnit disposes test classes through IAsyncLifetime, which the rule does not see.
 dotnet_diagnostic.CA1001.severity = none
 # CA1816 off: test classes have no finalizers to suppress.
