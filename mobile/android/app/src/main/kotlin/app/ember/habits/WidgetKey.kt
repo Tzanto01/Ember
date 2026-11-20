@@ -16,7 +16,7 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * The per-device widget check-in key, sealed with an AndroidKeyStore AES-GCM key, and the API origin it is sent to.
- * Both live in [WidgetStore]'s app-private prefs, so [TodayWidget.clear] erases them. Unrelated to the app's session
+ * Both live in [WidgetStore]'s app-private prefs, so [WidgetStore.clear] erases them. Unrelated to the app's session
  * tokens.
  */
 internal object WidgetKey {

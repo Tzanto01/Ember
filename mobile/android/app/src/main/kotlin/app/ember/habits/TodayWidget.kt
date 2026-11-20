@@ -8,13 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
-import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import java.util.Calendar
 import java.util.TimeZone
 import kotlin.math.min
-import org.json.JSONArray
-import org.json.JSONException
 import org.json.JSONObject
 
 /**
@@ -120,42 +117,6 @@ class TodayWidget : AppWidgetProvider() {
         private const val ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT"
         private const val BUDGET_MS = 8000L
 
-        /** Validates and stores a snapshot with a fresh tap token ([WidgetStore.save]), then redraws every widget. */
-        @JvmStatic
-        @Throws(JSONException::class)
-        fun save(
-            context: Context,
-            userId: String?,
-            date: String?,
-            timeZone: String?,
-            habits: JSONArray?,
-            more: Int,
-            done: Int?,
-            total: Int?,
-            next: JSONObject?,
-        ) {
-            WidgetStore.save(context, userId, date, timeZone, habits, more, done, total, next)
-            refresh(context)
-        }
-
-        /** Returns and removes the pending widget check-ins JS may replay ([WidgetStore.takePending]), then redraws. */
-        @JvmStatic
-        fun takePending(context: Context): JSArray {
-            val result = WidgetStore.takePending(context)
-            refresh(context)
-            return result
-        }
-
-        /**
-         * Forgets the snapshot, widget key, API origin and pending check-ins (sign-out, session end, account
-         * deletion), keeping the style, and redraws the signed-out state.
-         */
-        @JvmStatic
-        fun clear(context: Context) {
-            WidgetStore.clear(context)
-            refresh(context)
-        }
-
         /**
          * The JS payload for a widget intent, or null to ignore it. "Open Today" yields an empty object. A check-in
          * or an open-habit tap needs our component and a row [listed] in the current snapshot, so a stale row or an
@@ -207,16 +168,6 @@ class TodayWidget : AppWidgetProvider() {
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context) ?: return
             render(context, manager, manager.getAppWidgetIds(ComponentName(context, TodayWidget::class.java)))
-        }
-
-        /**
-         * Stores the app's widget style (`theme`, `colorScheme`, `motion`) and redraws. Until the first call the
-         * widget is Hearthlight, follows the system scheme and stands still.
-         */
-        @JvmStatic
-        fun setStyle(context: Context, theme: String?, motion: Boolean, colorScheme: String?) {
-            WidgetStore.setStyle(context, theme, motion, colorScheme)
-            refresh(context)
         }
 
         private fun render(context: Context, manager: AppWidgetManager, ids: IntArray?) {
