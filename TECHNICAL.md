@@ -166,7 +166,7 @@ dotnet build
 dotnet test
 ```
 
-`Ember.slnx` is the solution, including the ops dashboard projects under `ops/`. Many API tests and the PostgreSQL migration tests need Docker. Without Docker they are skipped locally. Set `CI=true` to force them to run.
+`Ember.slnx` is the solution, including the ops dashboard projects under `ops/`. Many API tests and the PostgreSQL migration tests need Docker. Without Docker they are skipped locally (set `CI=true` to force them to run), except the ops tests, which always need Docker.
 
 Web (from `web/`, using Bun 1.3.14):
 
