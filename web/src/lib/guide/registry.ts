@@ -29,6 +29,8 @@ export interface Guide {
 }
 
 const core = 'src/Ember.Core/Services/HabitService.cs';
+const rules = 'src/Ember.Core/Rules/HabitRules.cs';
+const letGoRules = 'src/Ember.Core/Rules/LetGoRules.cs';
 const dispatch = 'src/Ember.Bot/Jobs/ReminderDispatchJob.cs';
 const plan = 'web/src/lib/native/reminder-plan.ts';
 const settingsPage = 'web/src/pages/settings.tsx';
@@ -67,20 +69,20 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'today-weekly',
         questionKey: 'guide.today.weekly.q',
         answerKey: 'guide.today.weekly.a',
-        covers: [core, 'web/src/components/today/habit-row.tsx'],
+        covers: [rules, 'web/src/components/today/habit-row.tsx'],
       },
       {
         id: 'today-low-day',
         questionKey: 'guide.today.lowDay.q',
         answerKey: 'guide.today.lowDay.a',
         target: 'mark-low-day',
-        covers: [core, dispatch, plan],
+        covers: [rules, dispatch, plan],
       },
       {
         id: 'today-reminders',
         questionKey: 'guide.today.reminders.q',
         answerKey: 'guide.today.reminders.a',
-        covers: [dispatch, plan, core],
+        covers: [dispatch, plan, rules],
       },
       {
         id: 'today-moment',
@@ -119,7 +121,7 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'history-streaks',
         questionKey: 'guide.history.streaks.q',
         answerKey: 'guide.history.streaks.a',
-        covers: [core, 'web/src/components/history/stat-tiles.tsx'],
+        covers: [rules, 'web/src/components/history/stat-tiles.tsx'],
       },
       {
         id: 'history-year',
@@ -139,7 +141,7 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.habit.frequency.q',
         answerKey: 'guide.habit.frequency.a',
         target: 'frequency',
-        covers: ['web/src/components/habits/habit-fields.tsx', core],
+        covers: ['web/src/components/habits/habit-fields.tsx', rules],
       },
       {
         id: 'habit-times-a-day',
@@ -157,14 +159,14 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.habit.limits.q',
         answerKey: 'guide.habit.limits.a',
         values: { habits: limits.habits, name: limits.habitName },
-        covers: ['web/src/lib/local/limits.ts', 'web/src/components/habits/habit-fields.tsx', core],
+        covers: ['web/src/lib/local/limits.ts', 'web/src/components/habits/habit-fields.tsx', 'src/Ember.Core/Rules/Limits.cs'],
       },
       {
         id: 'habit-pause',
         questionKey: 'guide.habit.pause.q',
         answerKey: 'guide.habit.pause.a',
         target: 'pause',
-        covers: ['web/src/components/habits/habit-edit-sections.tsx', core, plan],
+        covers: ['web/src/components/habits/habit-edit-sections.tsx', rules, plan],
       },
       {
         id: 'habit-let-go',
@@ -173,7 +175,7 @@ export const guides: Record<GuideScreen, Guide> = {
         covers: [
           'web/src/components/letgo/letgo-section.tsx',
           'web/src/components/habits/habit-fields.tsx',
-          'src/Ember.Core/Services/HabitService.LetGo.cs',
+          letGoRules,
         ],
       },
     ],
@@ -300,7 +302,7 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.habitsDays.streaks.q',
         answerKey: 'guide.habitsDays.streaks.a',
         target: 'streaks',
-        covers: ['web/src/components/today/habit-row.tsx', 'web/src/components/history/stat-tiles.tsx', core],
+        covers: ['web/src/components/today/habit-row.tsx', 'web/src/components/history/stat-tiles.tsx', rules],
       },
       {
         id: 'habits-days-grace',
@@ -308,13 +310,13 @@ export const guides: Record<GuideScreen, Guide> = {
         answerKey: 'guide.habitsDays.grace.a',
         values: { max: Math.max(...graceOptions) },
         target: 'grace',
-        covers: [core, 'web/src/lib/models.ts', 'web/src/components/settings/grace-card.tsx'],
+        covers: [rules, 'web/src/lib/models.ts', 'web/src/components/settings/grace-card.tsx'],
       },
       {
         id: 'habits-days-kinds',
         questionKey: 'guide.habitsDays.kinds.q',
         answerKey: 'guide.habitsDays.kinds.a',
-        covers: [core],
+        covers: [rules],
       },
       {
         id: 'habits-days-timezone',
@@ -330,7 +332,7 @@ export const guides: Record<GuideScreen, Guide> = {
         covers: [
           'web/src/components/letgo/slip-sheet.tsx',
           'web/src/components/letgo/try-instead.tsx',
-          'src/Ember.Core/Services/HabitService.LetGo.cs',
+          letGoRules,
         ],
       },
     ],
