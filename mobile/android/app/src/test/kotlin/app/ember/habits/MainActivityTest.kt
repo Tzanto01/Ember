@@ -4,6 +4,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageInfo
 import android.os.Bundle
+import android.os.Looper
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
 import android.webkit.ServiceWorkerWebSettings
@@ -13,23 +15,31 @@ import com.getcapacitor.JSObject
 import com.getcapacitor.PluginCall
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import org.robolectric.shadows.ShadowSystemClock
 import org.robolectric.shadows.ShadowWebView
+import java.time.Duration
 
 /**
  * How launches reach the web app: a moment door on a cold start is the pending launch action, on a warm one an
  * `openMoment` event; a validated widget tap is a `widgetTap` event; replayed, restored and foreign launches do
- * nothing. Runs the real Capacitor bridge, so the web app's side is a listener on the EmberWidget plugin.
+ * nothing; a dead WebView renderer recreates the activity once and then gives up. Runs the real Capacitor bridge, so
+ * the web app's side is a listener on the EmberWidget plugin.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], shadows = [NoServiceWorkers::class])
@@ -50,6 +60,8 @@ class MainActivityTest {
 
     @Before
     fun setUp() {
+        shadowOf(context).declareActionUnbindable("android.support.customtabs.action.CustomTabsService")
+        MainActivity.rendererGoneAt = null
         ShadowWebView.setCurrentWebViewPackage(
             PackageInfo().apply {
                 packageName = "com.google.android.webview"
@@ -75,6 +87,23 @@ class MainActivityTest {
         val call = Call(JSObject().put("eventName", event))
         plugin().addListener(call)
         return call
+    }
+
+    /**
+     * The WebView's render process dies, as Android reports it to the bridge's client, and the main thread then runs
+     * what that scheduled; true when the death was handled.
+     */
+    private fun ActivityController<MainActivity>.rendererGone(): Boolean {
+        val bridge = get().bridge
+        val handled = bridge.webViewClient.onRenderProcessGone(
+            bridge.webView,
+            object : RenderProcessGoneDetail() {
+                override fun didCrash() = true
+                override fun rendererPriorityAtExit() = 0
+            },
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        return handled
     }
 
     private fun launcher() = Intent(Intent.ACTION_MAIN).setComponent(ComponentName(context, MainActivity::class.java))
@@ -155,6 +184,48 @@ class MainActivityTest {
         assertEquals(0, taps.resolved.size)
         warm.newIntent(tap(token))
         assertEquals(1, taps.resolved.size)
+    }
+
+    @Test
+    fun aDeadRendererRecreatesTheActivityWithoutReplayingTheLaunch() {
+        val app = start(moment())
+        val first = app.get()
+        val deadWebView = first.bridge.webView
+        assertEquals("moment", app.launchAction())
+
+        assertTrue(app.rendererGone())
+
+        assertNull(deadWebView.parent)
+        assertNotSame(first, app.get())
+        assertTrue(first.isDestroyed)
+        assertFalse(app.get().isFinishing)
+        assertNull(app.launchAction())
+    }
+
+    @Test
+    fun aSecondRendererDeathWithinTheWindowFinishesInsteadOfLooping() {
+        val app = start(launcher())
+        assertTrue(app.rendererGone())
+        val recreated = app.get()
+
+        ShadowSystemClock.advanceBy(Duration.ofMillis(MainActivity.RENDERER_RETRY_WINDOW_MS / 2))
+        assertTrue(app.rendererGone())
+
+        assertTrue(recreated.isFinishing)
+        assertSame(recreated, app.get())
+    }
+
+    @Test
+    fun aRendererDeathAfterTheWindowRecreatesAgain() {
+        val app = start(launcher())
+        assertTrue(app.rendererGone())
+        val recreated = app.get()
+
+        ShadowSystemClock.advanceBy(Duration.ofMillis(MainActivity.RENDERER_RETRY_WINDOW_MS))
+        assertTrue(app.rendererGone())
+
+        assertNotSame(recreated, app.get())
+        assertFalse(app.get().isFinishing)
     }
 }
 

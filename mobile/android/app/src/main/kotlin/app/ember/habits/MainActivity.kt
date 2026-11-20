@@ -2,11 +2,17 @@ package app.ember.habits
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
+import android.view.ViewGroup
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
+import androidx.annotation.VisibleForTesting
 import app.ember.habits.plugin.BackupFilePlugin
 import app.ember.habits.plugin.EmberWidgetPlugin
 import app.ember.habits.plugin.FlavorPlugins
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.WebViewListener
 
 /** The Capacitor activity hosting the web app, with Ember's plugins and the moment and widget launches routed to it. */
 class MainActivity : BridgeActivity() {
@@ -18,6 +24,11 @@ class MainActivity : BridgeActivity() {
         registerPlugin(EmberWidgetPlugin::class.java)
         registerPlugin(BackupFilePlugin::class.java)
         registerPlugins(FlavorPlugins.all())
+        bridgeBuilder.addWebViewListener(
+            object : WebViewListener() {
+                override fun onRenderProcessGone(webView: WebView, detail: RenderProcessGoneDetail?) = recover(webView)
+            },
+        )
         restoring = savedInstanceState != null
         starting = true
         super.onCreate(savedInstanceState)
@@ -33,6 +44,19 @@ class MainActivity : BridgeActivity() {
                 }
             },
         )
+    }
+
+    /**
+     * Replaces a WebView whose render process died or was killed by recreating the activity, so Ember never stays
+     * blank. A second death within [RENDERER_RETRY_WINDOW_MS] of the last one finishes the activity instead of looping.
+     */
+    private fun recover(webView: WebView): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        val again = rendererGoneAt?.let { now - it < RENDERER_RETRY_WINDOW_MS } == true
+        rendererGoneAt = now
+        (webView.parent as? ViewGroup)?.removeView(webView)
+        if (again) finish() else recreate()
+        return true
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -63,5 +87,10 @@ class MainActivity : BridgeActivity() {
 
     companion object {
         internal const val ACTION_OPEN_MOMENT = "app.ember.habits.OPEN_MOMENT"
+        internal const val RENDERER_RETRY_WINDOW_MS = 30_000L
+
+        /** When this process last saw Ember's renderer die, on the [SystemClock.elapsedRealtime] clock. */
+        @VisibleForTesting
+        internal var rendererGoneAt: Long? = null
     }
 }
