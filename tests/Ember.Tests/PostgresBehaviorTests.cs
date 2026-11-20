@@ -107,7 +107,7 @@ public class PostgresBehaviorTests(PostgresFixture postgres)
         (await UserAsync(host, 10)).DmRemindersPausedAt.Should().NotBeNull();
 
         host.Discord.Deliver = _ => DeliveryOutcome.Delivered;
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ResumeDmRemindersAsync(10));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().ResumeDmRemindersAsync(10));
         await RunJobAsync(host);
 
         host.Discord.Messages.Should().HaveCount(4);

@@ -48,7 +48,7 @@ internal static class MeEndpoints
             await LoadMe(principal, users, habits, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
 
         api.MapPatch("/me", async (JsonElement body, ClaimsPrincipal principal, UserManager<User> users, HabitService habits,
-            ConsentService consent, JournalService journal, EmberDbContext db, TimeProvider time) =>
+            ReminderService reminders, ConsentService consent, JournalService journal, EmberDbContext db, TimeProvider time) =>
         {
             MePatch? patch;
             try
@@ -74,7 +74,7 @@ internal static class MeEndpoints
             db.ChangeTracker.Clear();
             if (patch.GraceDaysPerWeek is { } grace) await habits.SetGraceDaysAsync(userId, grace);
             if (patch.Theme is { } theme) await habits.SetThemeAsync(userId, theme);
-            if (patch.SecondReminderMinutes is { } second) await habits.SetSecondReminderMinutesAsync(userId, second);
+            if (patch.SecondReminderMinutes is { } second) await reminders.SetSecondReminderMinutesAsync(userId, second);
             if (patch.ShowStreaks is { } showStreaks) await habits.SetShowStreaksAsync(userId, showStreaks);
             if (patch.Language is { } language) await habits.SetLanguageAsync(userId, language);
             if (patch.CalmMode is { } calmMode) await habits.SetCalmModeAsync(userId, calmMode);
@@ -82,7 +82,7 @@ internal static class MeEndpoints
             if (zone is not null)
             {
                 await habits.SetTimezoneAsync(userId, zone.Id);
-                await habits.RescheduleRemindersAsync(userId);
+                await reminders.RescheduleRemindersAsync(userId);
             }
 
             return await LoadMe(principal, users, habits, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
@@ -127,9 +127,9 @@ internal static class MeEndpoints
             return Results.NoContent();
         });
 
-        api.MapPost("/me/dm-reminders/resume", async (ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPost("/me/dm-reminders/resume", async (ClaimsPrincipal principal, ReminderService reminders) =>
         {
-            await habits.ResumeDmRemindersAsync(principal.UserId());
+            await reminders.ResumeDmRemindersAsync(principal.UserId());
             return Results.NoContent();
         });
 

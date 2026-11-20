@@ -153,21 +153,6 @@ public partial class HabitService
     public async Task<(HabitWriteResult Result, Habit? Habit)> EditHabitAsync(ulong discordUserId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder)
         => await EditHabitAsync(await FindDiscordUserAsync(discordUserId), habitId, newName, newReminderTime, clearReminder);
 
-    public async Task<bool> SnoozeReminderAsync(ulong discordUserId, int habitId, DateTimeOffset sentAtUtc)
-        => await SnoozeReminderAsync(await FindDiscordUserAsync(discordUserId), habitId, sentAtUtc);
-
-    public async Task<int> RescheduleRemindersAsync(ulong discordUserId)
-        => await RescheduleRemindersAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<bool> ClaimDmPauseNoticeAsync(ulong discordUserId)
-        => await ClaimDmPauseNoticeAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task ReleaseDmPauseNoticeAsync(ulong discordUserId)
-        => await ReleaseDmPauseNoticeAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task ResumeDmRemindersAsync(ulong discordUserId)
-        => await ResumeDmRemindersAsync(await FindDiscordUserAsync(discordUserId));
-
     public async Task<Habit?> PauseHabitAsync(ulong discordUserId, int habitId, DateOnly? pausedUntil)
         => await PauseHabitAsync(await FindDiscordUserAsync(discordUserId), habitId, pausedUntil);
 

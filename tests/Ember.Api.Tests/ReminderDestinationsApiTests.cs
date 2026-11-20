@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -105,12 +106,12 @@ public class ReminderDestinationsApiTests(PostgresFixture postgres) : ApiTestBas
         var discordId = ApiHost.NewDiscordId();
         await Host.DiscordAsync(user, "/api/auth/discord/link", discordId);
         var browser = await SubscribeAsync(user);
-        await Host.Run(h => h.SetDiscordRemindersAsync(discordId, true));
+        await Host.Run<ReminderService>(r => r.SetDiscordRemindersAsync(discordId, true));
 
         (await ListAsync(user)).Should().Contain([new Destination("discord", "discord", "Discord DMs", true, false)])
             .And.Contain(d => d.Id == browser && d.Enabled);
 
-        await Host.Run(h => h.SetDiscordRemindersAsync(discordId, false));
+        await Host.Run<ReminderService>(r => r.SetDiscordRemindersAsync(discordId, false));
 
         var list = await ListAsync(user);
         list.Single(d => d.Kind == "discord").Enabled.Should().BeFalse();
@@ -193,6 +194,22 @@ public class ReminderDestinationsApiTests(PostgresFixture postgres) : ApiTestBas
         (await ListAsync(a)).Should().BeEmpty();
         await (await b.Post("/api/auth/logout")).Expect(HttpStatusCode.NoContent);
         (await Host.Db(db => db.ReminderPhones.CountAsync(p => p.InstallId == install))).Should().Be(0);
+    }
+
+    [DockerFact]
+    public async Task Registering_an_eleventh_phone_keeps_the_ten_most_recently_registered()
+    {
+        var user = await Host.SignedInAsync();
+        var userId = await user.IdAsync();
+        var installs = Enumerable.Range(1, 11).Select(_ => InstallId()).ToList();
+        foreach (var install in installs)
+        {
+            await (await user.Post("/api/me/phones", new { installId = install })).ExpectJson();
+            Host.Time.Advance(TimeSpan.FromMinutes(1));
+        }
+
+        (await Host.Db(db => db.ReminderPhones.Where(p => p.UserId == userId).Select(p => p.InstallId).ToListAsync()))
+            .Should().BeEquivalentTo(installs.Skip(1));
     }
 
     [DockerFact]

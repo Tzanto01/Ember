@@ -119,66 +119,6 @@ public partial class HabitService
             .Where(r => r.Id == routineId && r.UserId == userId)
             .ExecuteDeleteAsync() == 1;
 
-    /// <summary>Id and due time of each routine whose next reminder is due at or before <paramref name="nowUtc"/>, skipping users who withdrew consent.</summary>
-    public async Task<List<(int Id, DateTime DueAt)>> GetDueReminderRoutinesAsync(DateTime nowUtc, CancellationToken cancellationToken = default)
-        => (await _db.Routines
-            .Where(r => r.NextReminderUtc != null && r.NextReminderUtc <= nowUtc && r.User.ConsentWithdrawnAt == null)
-            .Select(r => new { r.Id, DueAt = r.NextReminderUtc!.Value })
-            .ToListAsync(cancellationToken))
-            .Select(r => (r.Id, r.DueAt)).ToList();
-
-    /// <summary>
-    /// The routine (tracked) with its member habits and their logs of the last two UTC days onward (enough for any local today),
-    /// and its user with logins and push subscriptions, regardless of owner. Persist edits with <see cref="SaveChangesAsync"/>.
-    /// </summary>
-    public Task<Routine?> GetRoutineWithUserAsync(int routineId, CancellationToken cancellationToken = default)
-    {
-        var since = DateOnly.FromDateTime(_time.GetUtcNow().UtcDateTime).AddDays(-2);
-        return _db.Routines
-            .Include(r => r.Habits).ThenInclude(h => h.Logs.Where(l => l.Date >= since))
-            .Include(r => r.User).ThenInclude(u => u.Logins)
-            .Include(r => r.User).ThenInclude(u => u.PushSubscriptions)
-            .AsSplitQuery()
-            .FirstOrDefaultAsync(r => r.Id == routineId, cancellationToken);
-    }
-
-    /// <summary>
-    /// Moves the routine's next reminder directly in the database to the first occurrence of its reminder time after
-    /// <paramref name="nowUtc"/> in the user's timezone, or clears it when the routine has no reminder time.
-    /// </summary>
-    public async Task DeferRoutineReminderAsync(int routineId, DateTime nowUtc, CancellationToken cancellationToken = default)
-    {
-        var row = await _db.Routines.Where(r => r.Id == routineId)
-            .Select(r => new { r.ReminderTime, r.User.Timezone })
-            .FirstOrDefaultAsync(cancellationToken);
-        if (row is null) return;
-
-        DateTime? next = row.ReminderTime is { } time
-            ? TimezoneHelper.NextOccurrenceUtc(time, TimezoneHelper.Find(row.Timezone) ?? TimeZoneInfo.Utc, nowUtc)
-            : null;
-        await _db.Routines
-            .Where(r => r.Id == routineId)
-            .ExecuteUpdateAsync(s => s.SetProperty(r => r.NextReminderUtc, next), cancellationToken);
-    }
-
-    /// <summary>
-    /// Saves pending changes and, in the same transaction, moves the routine's next reminder to <paramref name="nextUtc"/> and its
-    /// second reminder to <paramref name="secondUtc"/> directly in the database, but only while the next reminder is still
-    /// <paramref name="dueAtUtc"/>. False when an edit moved it meanwhile; that change is kept.
-    /// </summary>
-    public async Task<bool> SaveAndAdvanceRoutineReminderAsync(int routineId, DateTime dueAtUtc, DateTime? nextUtc, DateTime? secondUtc,
-        CancellationToken cancellationToken = default)
-    {
-        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
-        var advanced = await _db.Routines
-            .Where(r => r.Id == routineId && r.NextReminderUtc == dueAtUtc)
-            .ExecuteUpdateAsync(s => s.SetProperty(r => r.NextReminderUtc, nextUtc).SetProperty(r => r.SecondReminderUtc, secondUtc),
-                cancellationToken) == 1;
-        await transaction.CommitAsync(cancellationToken);
-        return advanced;
-    }
-
     /// <summary>
     /// Makes <paramref name="habitIds"/> the routine's members in that order. Members of a tracked routine must be loaded.
     /// False, changing nothing, when any id isn't one of the user's habits.

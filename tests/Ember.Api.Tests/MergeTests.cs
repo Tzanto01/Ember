@@ -62,6 +62,30 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task A_merge_leaves_the_account_with_its_ten_most_recently_registered_phones()
+    {
+        var user = await Host.SignedInAsync();
+        var userId = await user.IdAsync();
+        var bot = await BotOnlyAsync([]);
+        var now = Host.Time.GetUtcNow().UtcDateTime;
+        var own = Enumerable.Range(1, 2).Select(i => $"own-phone-{i}-{Guid.NewGuid():N}").ToList();
+        var botInstalls = Enumerable.Range(1, 11).Select(i => $"bot-phone-{i}-{Guid.NewGuid():N}").ToList();
+        await Host.Db(async db =>
+        {
+            var sessionId = await db.AuthSessions.Where(s => s.UserId == userId).Select(s => s.Id).SingleAsync();
+            db.ReminderPhones.AddRange(own.Select(install => new ReminderPhone { UserId = userId, InstallId = install, SessionId = sessionId, CreatedAt = now }));
+            db.ReminderPhones.AddRange(botInstalls.Select((install, i) => new ReminderPhone { UserId = bot.UserId, InstallId = install, CreatedAt = now.AddMinutes(-(i + 1)) }));
+            return await db.SaveChangesAsync();
+        });
+        await StartMergeAsync(user, bot.DiscordId);
+
+        await (await user.Post(MergeUrl)).Expect(HttpStatusCode.NoContent);
+
+        (await Host.Db(db => db.ReminderPhones.Where(p => p.UserId == userId).Select(p => p.InstallId).ToListAsync()))
+            .Should().BeEquivalentTo(own.Concat(botInstalls.Take(8)));
+    }
+
+    [DockerFact]
     public async Task Merging_keeps_the_accounts_own_discord_answer()
     {
         var user = await Host.SignedInAsync();

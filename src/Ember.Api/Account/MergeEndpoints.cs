@@ -30,7 +30,7 @@ internal static class MergeEndpoints
         });
 
         api.MapPost("/account/merge", async (HttpContext http, UserManager<User> users, SignInManager<User> signIn,
-            HabitService habits, AccountService accounts, ConsentService consent, EmberDbContext db, AuthSessions sessions) =>
+            ReminderService reminders, AccountService accounts, ConsentService consent, EmberDbContext db, AuthSessions sessions) =>
         {
             var user = await users.GetUserAsync(http.User);
             if (user is null) return Problems.Unauthenticated();
@@ -51,7 +51,7 @@ internal static class MergeEndpoints
             PendingMerge.Clear(http);
             db.ChangeTracker.Clear();
             if (await users.FindByIdAsync(user.Id.ToString()) is { } merged) await signIn.RefreshSignInAsync(merged);
-            await habits.RescheduleRemindersAsync(user.Id);
+            await reminders.RescheduleRemindersAsync(user.Id);
             return Results.NoContent();
         });
 

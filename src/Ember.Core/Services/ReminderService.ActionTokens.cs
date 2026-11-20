@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Core.Services;
 
 /// <summary>One-time "Done" tokens for web push reminders (<see cref="ReminderActionToken"/>).</summary>
-public partial class HabitService
+public partial class ReminderService
 {
     /// <summary>
     /// Bot only: creates a random 256-bit token (base64url) that checks in <paramref name="habitId"/> for the local
@@ -17,7 +17,7 @@ public partial class HabitService
         CancellationToken cancellationToken = default)
     {
         var token = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
-        var tz = await GetUserTzAsync(userId);
+        var tz = await _habits.GetUserTzAsync(userId);
         _db.ReminderActionTokens.Add(new ReminderActionToken
         {
             TokenHash = ReminderActionTokenHash(token),
@@ -32,7 +32,7 @@ public partial class HabitService
 
     /// <summary>
     /// Uses a reminder action token: adds one check-in (capped at the habit's times per day) to its habit and day by the same
-    /// rules as <see cref="AddCheckInAsync"/>, at most once. A token already used answers <see cref="ReminderActionResult.Logged"/>
+    /// rules as <see cref="HabitService.AddCheckInAsync"/>, at most once. A token already used answers <see cref="ReminderActionResult.Logged"/>
     /// without writing; an unknown one <see cref="ReminderActionResult.Unknown"/>, an expired one
     /// <see cref="ReminderActionResult.Expired"/>. When nothing is written (no consent, a rejected or failed write) the token
     /// stays unused.
@@ -56,7 +56,7 @@ public partial class HabitService
         DayEditResult result;
         try
         {
-            result = await AddCheckInAsync(row.UserId, row.HabitId, row.Day);
+            result = await _habits.AddCheckInAsync(row.UserId, row.HabitId, row.Day);
         }
         catch
         {

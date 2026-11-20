@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,7 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
 
     /// <summary>A token for the habit on the host's today, expiring like a reminder: 10:00 local the next day.</summary>
     private Task<string> TokenAsync(Guid userId, int habitId)
-        => Host.Service(h => h.CreateReminderActionTokenAsync(userId, habitId, Host.Today, Host.Today.AddDays(1).ToDateTime(new TimeOnly(10, 0))));
+        => Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, habitId, Host.Today, Host.Today.AddDays(1).ToDateTime(new TimeOnly(10, 0))));
 
     private Task<int?> CountAsync(int habitId, DateOnly day)
         => Host.Db(db => db.HabitLogs.Where(l => l.HabitId == habitId && l.Date == day).Select(l => (int?)l.Count).SingleOrDefaultAsync());
@@ -77,7 +78,7 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
         await (await Host.NewClient().Post(Done, new { token })).ExpectProblem(HttpStatusCode.Gone, "expired");
 
         (await CountAsync(habitId, Host.Today.AddDays(-1))).Should().BeNull();
-        (await Host.Service(h => h.DeleteExpiredReminderActionTokensAsync())).Should().Be(1);
+        (await Host.Service<ReminderService, int>(r => r.DeleteExpiredReminderActionTokensAsync())).Should().Be(1);
         (await Host.Db(db => db.ReminderActionTokens.CountAsync())).Should().Be(0);
     }
 
@@ -88,7 +89,7 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
         await TokenAsync(userId, habitId);
         Host.Time.Advance(TimeSpan.FromHours(21));
 
-        (await Host.Service(h => h.DeleteExpiredReminderActionTokensAsync())).Should().Be(0);
+        (await Host.Service<ReminderService, int>(r => r.DeleteExpiredReminderActionTokensAsync())).Should().Be(0);
         (await Host.Db(db => db.ReminderActionTokens.CountAsync())).Should().Be(1);
     }
 
@@ -125,7 +126,7 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
     public async Task A_rejected_write_leaves_the_token_unused_instead_of_replaying_as_logged()
     {
         var (_, userId, habitId) = await HabitAsync();
-        var token = await Host.Service(h => h.CreateReminderActionTokenAsync(userId, habitId, Host.Today.AddDays(-1),
+        var token = await Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, habitId, Host.Today.AddDays(-1),
             Host.Today.ToDateTime(new TimeOnly(10, 0)).AddDays(1)));
 
         await (await Host.NewClient().Post(Done, new { token })).ExpectProblem(HttpStatusCode.Gone, "expired");
@@ -225,6 +226,33 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
         await (await Host.NewClient().Post(Done, new { token })).Expect(HttpStatusCode.NoContent);
 
         (await CountAsync(habitId, Host.Today)).Should().Be(2);
+    }
+
+    [DockerFact]
+    public async Task A_token_used_from_another_users_session_checks_in_only_the_tokens_habit()
+    {
+        var (_, ownerId, ownerHabit) = await HabitAsync();
+        var (other, _, otherHabit) = await HabitAsync();
+        var token = await TokenAsync(ownerId, ownerHabit);
+
+        await (await other.Post(Done, new { token })).Expect(HttpStatusCode.NoContent);
+
+        (await CountAsync(ownerHabit, Host.Today)).Should().Be(1);
+        (await CountAsync(otherHabit, Host.Today)).Should().BeNull();
+    }
+
+    [DockerFact]
+    public async Task A_token_whose_user_does_not_own_its_habit_answers_404_writes_no_log_and_stays_unused()
+    {
+        var (_, _, habitId) = await HabitAsync();
+        var (_, strangerId, strangerHabit) = await HabitAsync();
+        var token = await TokenAsync(strangerId, habitId);
+
+        await (await Host.NewClient().Post(Done, new { token })).ExpectProblem(HttpStatusCode.NotFound, "not_found");
+
+        (await Host.Db(db => db.HabitLogs.CountAsync())).Should().Be(0);
+        (await Host.Db(db => db.ReminderActionTokens.SingleAsync())).UsedUtc.Should().BeNull();
+        (await CountAsync(strangerHabit, Host.Today)).Should().BeNull();
     }
 
     [DockerFact]

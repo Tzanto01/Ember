@@ -10,10 +10,12 @@ namespace Ember.Bot.Modules;
 public class TimezoneModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ReminderService _reminders;
 
-    public TimezoneModule(HabitService habits)
+    public TimezoneModule(HabitService habits, ReminderService reminders)
     {
         _habits = habits;
+        _reminders = reminders;
     }
 
     // ── Autocomplete handler for timezone ────────────────────────────────────
@@ -51,7 +53,7 @@ public class TimezoneModule : InteractionModuleBase<SocketInteractionContext>
 
         await _habits.SetTimezoneAsync(Context.User.Id, tz.Id, Languages.FromLocale(Context.Interaction.UserLocale));
 
-        var rescheduled = await _habits.RescheduleRemindersAsync(Context.User.Id);
+        var rescheduled = await _reminders.RescheduleRemindersAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         await RespondAsync(

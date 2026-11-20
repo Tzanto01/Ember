@@ -69,7 +69,7 @@ public class GraceDaysAndSnoozeTests
         });
         var habitId = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Select(h => h.Id).SingleAsync());
 
-        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SnoozeReminderAsync(UserId, habitId, Now));
+        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(UserId, habitId, Now));
 
         snoozed.Should().BeFalse();
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.AsNoTracking().SingleAsync())).NextReminderUtc.Should().Be(due);

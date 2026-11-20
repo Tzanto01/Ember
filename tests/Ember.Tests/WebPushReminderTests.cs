@@ -31,13 +31,16 @@ public class WebPushReminderTests
 
     private static string Endpoint(string label) => $"https://fcm.googleapis.com/send/{label}";
 
-    private static async Task<(IntegrationTestHost Host, FakePushService Push, FakeTimeProvider Time)> CreateAsync(params Seed[] seeds)
+    private static Task<(IntegrationTestHost Host, FakePushService Push, FakeTimeProvider Time)> CreateAsync(params Seed[] seeds)
+        => CreateAsync(withVapid: true, seeds);
+
+    private static async Task<(IntegrationTestHost Host, FakePushService Push, FakeTimeProvider Time)> CreateAsync(bool withVapid, params Seed[] seeds)
     {
         var push = new FakePushService();
         var time = new FakeTimeProvider(Now);
         var (publicKey, privateKey) = NewKeyPair();
         var host = await IntegrationTestHost.CreateAsync(start: false, time: time,
-            args: [$"--WebPush:PublicKey={publicKey}", $"--WebPush:PrivateKey={privateKey}", "--WebPush:Subject=mailto:test@example.test"],
+            args: withVapid ? [$"--WebPush:PublicKey={publicKey}", $"--WebPush:PrivateKey={privateKey}", "--WebPush:Subject=mailto:test@example.test"] : null,
             configureServices: services => services.AddHttpClient(WebPushReminderChannel.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => push));
 
@@ -338,6 +341,22 @@ public class WebPushReminderTests
 
         push.Requests.Should().ContainSingle();
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().ReminderActionTokens.CountAsync())).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Without_web_push_keys_a_due_reminder_is_still_sent_as_a_dm_and_stores_no_token_and_no_push_reminder()
+    {
+        var (host, push, _) = await CreateAsync(withVapid: false, new Seed(30, [Endpoint("live")]));
+        await using var hostScope = host;
+        await LinkLiveSessionAsync(host, 30);
+
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Select(m => m.UserId).Should().Equal(30UL);
+        push.Requests.Should().BeEmpty();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().ReminderActionTokens.CountAsync())).Should().Be(0);
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().PushReminders.CountAsync())).Should().Be(0);
+        (await NextReminderAsync(host, 30)).Should().Be(TomorrowNineBerlin);
     }
 
     [Fact]

@@ -132,14 +132,14 @@ public class DiscordDmReminderChannel : IReminderChannel
         try
         {
             using var scope = _scopes.CreateScope();
-            var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+            var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
             int? habitId = reminder.PendingHabits is null ? reminder.HabitId : null;
             int? routineId = reminder.PendingHabits is null ? null : reminder.HabitId;
 
             var superseded = reminder.Second
-                ? await habits.GetReminderMessagesAsync(habitId, routineId, reminder.Day)
+                ? await reminders.GetReminderMessagesAsync(habitId, routineId, reminder.Day)
                 : [];
-            await habits.AddReminderMessageAsync(new ReminderMessage
+            await reminders.AddReminderMessageAsync(new ReminderMessage
             {
                 UserId = reminder.UserId,
                 HabitId = habitId,
@@ -153,7 +153,7 @@ public class DiscordDmReminderChannel : IReminderChannel
             {
                 if (!await _discord.DeleteMessageAsync(old.ChannelId, old.MessageId))
                     await _discord.CloseMessageAsync(old.ChannelId, old.MessageId, ClosedLine(BotTexts.For(reminder.Language)));
-                await habits.DeleteReminderMessageAsync(old.Id);
+                await reminders.DeleteReminderMessageAsync(old.Id);
             }
         }
         catch (Exception ex)

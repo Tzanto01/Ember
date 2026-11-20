@@ -48,27 +48,27 @@ public class FiresideNotifyJob : IJob
     {
         using var scope = _services.CreateScope();
         var fireside = scope.ServiceProvider.GetRequiredService<FiresideService>();
-        var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+        var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
 
         await fireside.DeleteExpiredAsync(cancellationToken);
         var (warmthIds, linkIds) = await fireside.GetPendingNoticesAsync(MaxPerRun, cancellationToken);
         foreach (var id in warmthIds)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            if (await fireside.ClaimWarmthNoticeAsync(id, cancellationToken) is { } notice) await SendAsync(habits, notice, id, cancellationToken);
+            if (await fireside.ClaimWarmthNoticeAsync(id, cancellationToken) is { } notice) await SendAsync(reminders, notice, id, cancellationToken);
         }
         foreach (var id in linkIds)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            if (await fireside.ClaimJoinNoticeAsync(id, cancellationToken) is { } notice) await SendAsync(habits, notice, null, cancellationToken);
+            if (await fireside.ClaimJoinNoticeAsync(id, cancellationToken) is { } notice) await SendAsync(reminders, notice, null, cancellationToken);
         }
     }
 
-    private async Task SendAsync(HabitService habits, FiresideNotice notice, int? warmthId, CancellationToken cancellationToken)
+    private async Task SendAsync(ReminderService reminders, FiresideNotice notice, int? warmthId, CancellationToken cancellationToken)
     {
         try
         {
-            if (await habits.GetUserWithDestinationsAsync(notice.ReceiverId, cancellationToken) is not { } user) return;
+            if (await reminders.GetUserWithDestinationsAsync(notice.ReceiverId, cancellationToken) is not { } user) return;
             var targets = ReminderDestinations.Resolve(user, []);
             var t = BotTexts.For(user.Language);
             var warmth = notice.Message is not null;

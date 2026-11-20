@@ -30,7 +30,7 @@ internal static class PushEndpoints
                 ? Results.StatusCode(StatusCodes.Status501NotImplemented)
                 : Results.Ok(new VapidKeyDto(config["WebPush:PublicKey"]!)));
 
-        api.MapPost("/me/push-subscriptions", async (PushSubscriptionRequest request, ClaimsPrincipal principal, HabitService habits,
+        api.MapPost("/me/push-subscriptions", async (PushSubscriptionRequest request, ClaimsPrincipal principal, ReminderService reminders,
             HttpRequest http) =>
         {
             var errors = new Dictionary<string, string[]>();
@@ -41,16 +41,16 @@ internal static class PushEndpoints
                 errors["keys.auth"] = [$"Must be base64url, at most {MaxAuthLength} characters."];
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            await habits.SavePushSubscriptionAsync(principal.UserId(), request.Endpoint!, request.Keys!.P256dh!, request.Keys.Auth!,
+            await reminders.SavePushSubscriptionAsync(principal.UserId(), request.Endpoint!, request.Keys!.P256dh!, request.Keys.Auth!,
                 AuthSessions.IdOf(principal), BrowserLabels.From(http.Headers.UserAgent.ToString()), request.ShowNames);
             return Results.NoContent();
         }).RequireAuthorization();
 
-        api.MapDelete("/me/push-subscriptions", async (string? endpoint, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapDelete("/me/push-subscriptions", async (string? endpoint, ClaimsPrincipal principal, ReminderService reminders) =>
         {
             if (string.IsNullOrEmpty(endpoint)) return Problems.Validation("endpoint", "Required.");
 
-            await habits.DeletePushSubscriptionAsync(principal.UserId(), endpoint);
+            await reminders.DeletePushSubscriptionAsync(principal.UserId(), endpoint);
             return Results.NoContent();
         }).RequireAuthorization();
 

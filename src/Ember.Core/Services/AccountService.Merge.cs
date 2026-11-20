@@ -102,12 +102,12 @@ public partial class AccountService
             await _db.PushSubscriptions
                 .Where(s => s.UserId == sourceUserId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.UserId, targetUserId).SetProperty(p => p.SessionId, p => p.SessionId ?? sessionId), cancellationToken);
-            await _habits.TrimPushSubscriptionsAsync(targetUserId, cancellationToken);
+            await _reminders.TrimPushSubscriptionsAsync(targetUserId, cancellationToken);
 
             await _db.ReminderPhones
                 .Where(p => p.UserId == sourceUserId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.UserId, targetUserId).SetProperty(p => p.SessionId, p => p.SessionId ?? sessionId), cancellationToken);
-            await _habits.TrimReminderPhonesAsync(targetUserId, cancellationToken);
+            await _reminders.TrimReminderPhonesAsync(targetUserId, cancellationToken);
 
             var source = await _db.Users.Where(u => u.Id == sourceUserId)
                 .Select(u => new { u.DiscordReminders, u.DiscordRemindersAskedAt, u.TipsSeen })

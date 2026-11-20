@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Ember.Core.Services;
 
 namespace Ember.Api.Tests.Contract;
 
@@ -59,7 +60,7 @@ public class PushContractTests(PostgresFixture postgres) : ContractTestBase(post
         var habit = (await user.CreateHabitAsync("Water")).GetProperty("id").GetInt32();
         var letGo = (await (await user.Post("/api/habits", new { name = "Coffee", kind = "letGo", frequency = "daily" })).ExpectJson(HttpStatusCode.Created)).GetProperty("id").GetInt32();
         Task<string> Token(int id, TimeSpan lifetime)
-            => Host.Service(h => h.CreateReminderActionTokenAsync(userId, id, Host.Today, Host.Time.GetUtcNow().UtcDateTime + lifetime));
+            => Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, id, Host.Today, Host.Time.GetUtcNow().UtcDateTime + lifetime));
 
         var anonymous = Host.NewClient();
         var token = await Token(habit, TimeSpan.FromHours(10));

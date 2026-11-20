@@ -35,6 +35,10 @@ public class ConsentGateMatrixTests
         ["Pause"] = (s, b, _) => Outcome(async () => (await s.PauseHabitAsync(UserId, b, Today.AddDays(2)))!.PausedUntil!.Value.ToString("yyyy-MM-dd")),
         ["DeleteHabit"] = (s, b, _) => Outcome(() => s.DeleteHabitAsync(UserId, b)),
         ["AddRoutine"] = (s, _, _) => Outcome(async () => (await s.AddRoutineAsync(UserId, "Morning", null, null, null)).Result),
+    };
+
+    private static readonly Dictionary<string, Func<ReminderService, int, int, Task<string>>> ReminderOperations = new()
+    {
         ["UseReminderActionToken"] = (s, b, _) => Outcome(async () =>
             await s.UseReminderActionTokenAsync(await s.CreateReminderActionTokenAsync(UserId, b, Today, Now.UtcDateTime.AddHours(5)))),
     };
@@ -101,7 +105,9 @@ public class ConsentGateMatrixTests
 
         var outcome = await host.WithScopeAsync(sp => Operations.TryGetValue(operation, out var habitOperation)
             ? habitOperation(sp.GetRequiredService<HabitService>(), buildId, letGoId)
-            : AccountOperations[operation](sp.GetRequiredService<AccountService>(), buildId, letGoId));
+            : ReminderOperations.TryGetValue(operation, out var reminderOperation)
+                ? reminderOperation(sp.GetRequiredService<ReminderService>(), buildId, letGoId)
+                : AccountOperations[operation](sp.GetRequiredService<AccountService>(), buildId, letGoId));
 
         outcome.Should().Be(expected);
     }

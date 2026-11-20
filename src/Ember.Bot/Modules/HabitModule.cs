@@ -14,11 +14,13 @@ namespace Ember.Bot.Modules;
 public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ReminderService _reminders;
     private readonly IConfiguration _config;
 
-    public HabitModule(HabitService habits, IConfiguration config)
+    public HabitModule(HabitService habits, ReminderService reminders, IConfiguration config)
     {
         _habits = habits;
+        _reminders = reminders;
         _config = config;
     }
 
@@ -537,7 +539,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task SecondReminderAsync([Summary("delay", "How long after a reminder")] SecondReminderDelay delay)
     {
         var minutes = (int)delay;
-        await _habits.SetSecondReminderMinutesAsync(Context.User.Id, minutes, Languages.FromLocale(Context.Interaction.UserLocale));
+        await _reminders.SetSecondReminderMinutesAsync(Context.User.Id, minutes, Languages.FromLocale(Context.Interaction.UserLocale));
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         await RespondAsync(minutes == 0

@@ -16,19 +16,21 @@ namespace Ember.Bot.Modules;
 /// Custom ids: <see cref="CheckInIds"/>.
 /// Done and skip log the user's local day the reminder was sent on, until the reminder expires
 /// (<see cref="ReminderDispatchJob.IsExpired"/>); after that they close the message instead.
-/// Snooze only works within <see cref="HabitService.SnoozeWindow"/> of the send time and while the snoozed reminder stays on the local day
+/// Snooze only works within <see cref="ReminderService.SnoozeWindow"/> of the send time and while the snoozed reminder stays on the local day
 /// the reminder was sent.
 /// A tap that removes a reminder's buttons forgets its <see cref="Core.Models.ReminderMessage"/>.
 /// </summary>
 public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ReminderService _reminders;
     private readonly TimeProvider _time;
     private readonly IConfiguration _config;
 
-    public CheckInButtonModule(HabitService habits, TimeProvider time, IConfiguration config)
+    public CheckInButtonModule(HabitService habits, ReminderService reminders, TimeProvider time, IConfiguration config)
     {
         _habits = habits;
+        _reminders = reminders;
         _time = time;
         _config = config;
     }
@@ -68,7 +70,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
     /// second reminder. Returns the edit result and the day it applied to.
     /// </summary>
     internal static async Task<(DayEditResult Result, DateOnly Day, bool KeptDone)> LogReminderDayAsync(
-        HabitService habits, ulong userId, int habitId, string timestampStr, bool completed, ulong? guildId)
+        HabitService habits, ReminderService reminders, ulong userId, int habitId, string timestampStr, bool completed, ulong? guildId)
     {
         var day = await SentDayAsync(habits, userId, timestampStr) ?? await habits.GetLocalTodayAsync(userId);
 
@@ -77,7 +79,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
         var keptDone = (await habits.GetHabitAsync(userId, habitId))?.Logs.Any(l => l.Date == day && (l.Completed || l.Count > 0)) == true;
         var result = keptDone ? DayEditResult.Saved : await habits.CheckInAsync(userId, habitId, day, completed: false, guildId);
         if (result == DayEditResult.Saved && day == await habits.GetLocalTodayAsync(userId))
-            await habits.ClearSecondReminderAsync(habitId);
+            await reminders.ClearSecondReminderAsync(habitId);
         return (result, day, keptDone);
     }
 
@@ -99,11 +101,11 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
                 msg.Components = new ComponentBuilder().Build();
             });
             await FollowupAsync(t.Get("checkin.expired"), ephemeral: true);
-            await _habits.DeleteReminderMessageByDiscordIdAsync(component.Message.Id);
+            await _reminders.DeleteReminderMessageByDiscordIdAsync(component.Message.Id);
             return;
         }
 
-        var (result, day, keptDone) = await LogReminderDayAsync(_habits, Context.User.Id, habitId, timestampStr, completed, Context.Guild?.Id);
+        var (result, day, keptDone) = await LogReminderDayAsync(_habits, _reminders, Context.User.Id, habitId, timestampStr, completed, Context.Guild?.Id);
         switch (result)
         {
             case DayEditResult.Saved:
@@ -150,7 +152,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             msg.Content = text;
             msg.Components = new ComponentBuilder().Build();
         });
-        await _habits.DeleteReminderMessageByDiscordIdAsync(component.Message.Id);
+        await _reminders.DeleteReminderMessageByDiscordIdAsync(component.Message.Id);
     }
 
     /// <summary>
@@ -187,7 +189,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        if (!await _habits.SnoozeReminderAsync(Context.User.Id, habitId, DateTimeOffset.FromUnixTimeSeconds(sentUnix)))
+        if (!await _reminders.SnoozeReminderAsync(Context.User.Id, habitId, DateTimeOffset.FromUnixTimeSeconds(sentUnix)))
         {
             await RespondAsync(t.Get("checkin.snooze-closed"), ephemeral: true);
             return;
@@ -199,6 +201,6 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             msg.Content = t.Get("checkin.snoozed");
             msg.Components = new ComponentBuilder().Build();
         });
-        await _habits.DeleteReminderMessageByDiscordIdAsync(component.Message.Id);
+        await _reminders.DeleteReminderMessageByDiscordIdAsync(component.Message.Id);
     }
 }

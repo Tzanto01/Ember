@@ -19,34 +19,35 @@ internal static class RoutineEndpoints
 
     public static RouteGroupBuilder MapRoutines(this RouteGroupBuilder api)
     {
-        api.MapGet("/routines", async (ClaimsPrincipal principal, HabitService habits) =>
+        api.MapGet("/routines", async (ClaimsPrincipal principal, HabitService habits, ReminderService reminders) =>
         {
             var userId = principal.UserId();
-            var destinations = await LoadDestinations(habits, userId);
+            var destinations = await LoadDestinations(reminders, userId);
             return (await habits.GetRoutinesAsync(userId)).Select(r => ToDto(r, destinations)).ToList();
         });
 
-        api.MapPost("/routines", async (CreateRoutineRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPost("/routines", async (CreateRoutineRequest request, ClaimsPrincipal principal, HabitService habits, ReminderService reminders) =>
         {
             var errors = new Dictionary<string, string[]>();
             var name = HabitEndpoints.ValidName(request.Name, errors, Limits.RoutineNameLength);
             var reminder = HabitEndpoints.ParseReminder(request.ReminderTime, errors);
             var userId = principal.UserId();
-            var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
+            var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, reminders, userId, errors);
             await ValidateHabitIdsAsync(request.HabitIds, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var (result, routine) = await habits.AddRoutineAsync(userId, name!, reminder, exclusions, request.HabitIds);
             return result switch
             {
-                RoutineWriteResult.Saved => Results.Created($"/api/routines/{routine!.Id}", ToDto(routine, await LoadDestinations(habits, userId))),
+                RoutineWriteResult.Saved => Results.Created($"/api/routines/{routine!.Id}", ToDto(routine, await LoadDestinations(reminders, userId))),
                 RoutineWriteResult.LimitReached => Problems.Conflict(
                     $"You already have {Limits.RoutinesPerUser} routines, the most Ember can hold. Delete one to add another."),
                 _ => Problems.NotFound(),
             };
         });
 
-        api.MapPatch("/routines/{id:int}", async (int id, UpdateRoutineRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPatch("/routines/{id:int}", async (int id, UpdateRoutineRequest request, ClaimsPrincipal principal, HabitService habits,
+            ReminderService reminders) =>
         {
             var errors = new Dictionary<string, string[]>();
             var name = request.Name is null ? null : HabitEndpoints.ValidName(request.Name, errors, Limits.RoutineNameLength);
@@ -54,7 +55,7 @@ internal static class RoutineEndpoints
             if (request.ReminderTime is not null && request.ClearReminder == true)
                 errors["reminderTime"] = ["Can't be combined with clearReminder."];
             var userId = principal.UserId();
-            var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
+            var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, reminders, userId, errors);
             await ValidateHabitIdsAsync(request.HabitIds, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
@@ -63,7 +64,7 @@ internal static class RoutineEndpoints
                 return Problems.NotFound();
 
             return (await habits.GetRoutinesAsync(userId)).FirstOrDefault(r => r.Id == id) is { } routine
-                ? Results.Ok(ToDto(routine, await LoadDestinations(habits, userId)))
+                ? Results.Ok(ToDto(routine, await LoadDestinations(reminders, userId)))
                 : Problems.NotFound();
         });
 
@@ -96,9 +97,9 @@ internal static class RoutineEndpoints
             errors["habitIds"] = ["Let-go habits can't be in a routine."];
     }
 
-    private static async Task<(User User, HashSet<string> Ids)> LoadDestinations(HabitService habits, Guid userId)
+    private static async Task<(User User, HashSet<string> Ids)> LoadDestinations(ReminderService reminders, Guid userId)
     {
-        var user = await habits.GetUserWithDestinationsAsync(userId) ?? new User { Id = userId };
+        var user = await reminders.GetUserWithDestinationsAsync(userId) ?? new User { Id = userId };
         return (user, ReminderDestinations.Ids(user));
     }
 

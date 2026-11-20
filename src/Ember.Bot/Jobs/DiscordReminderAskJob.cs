@@ -8,8 +8,8 @@ using Quartz;
 namespace Ember.Bot.Jobs;
 
 /// <summary>
-/// Runs every minute and asks, once per account, up to <see cref="HabitService.MaxDiscordAsksPerRun"/> Discord-linked users who never
-/// answered whether their reminders may come by Discord DM and have a reminder time set (<see cref="HabitService.GetDiscordAskUserIdsAsync"/>).
+/// Runs every minute and asks, once per account, up to <see cref="ReminderService.MaxDiscordAsksPerRun"/> Discord-linked users who never
+/// answered whether their reminders may come by Discord DM and have a reminder time set (<see cref="ReminderService.GetDiscordAskUserIdsAsync"/>).
 /// The ask is recorded before the DM is sent, so it is never repeated, also when the DM can't be delivered; only a transient send
 /// failure (<see cref="ReminderDispatchJob.IsTransient"/>) clears it so the next run asks again.
 /// </summary>
@@ -35,12 +35,13 @@ public class DiscordReminderAskJob : IJob
     {
         using var scope = _services.CreateScope();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-        foreach (var (userId, discordUserId) in await habits.GetDiscordAskUserIdsAsync(cancellationToken))
+        var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
+        foreach (var (userId, discordUserId) in await reminders.GetDiscordAskUserIdsAsync(cancellationToken))
         {
             if (cancellationToken.IsCancellationRequested) return;
             try
             {
-                await habits.MarkDiscordRemindersAskedAsync(userId, cancellationToken);
+                await reminders.MarkDiscordRemindersAskedAsync(userId, cancellationToken);
                 var t = BotTexts.For(await habits.GetLanguageAsync(userId));
                 var outcome = await _discord.SendMessageAsync(discordUserId, DiscordRemindersModule.AskText(t),
                     components: DiscordRemindersModule.AskButtons(t, discordUserId), cancellationToken: cancellationToken);
@@ -54,7 +55,7 @@ public class DiscordReminderAskJob : IJob
             catch (Exception ex) when (ReminderDispatchJob.IsTransient(ex))
             {
                 _logger.LogWarning(ex, "Could not ask user {UserId} about Discord reminders; asking again next run.", userId);
-                await habits.ClearDiscordRemindersAskedAsync(userId, CancellationToken.None);
+                await reminders.ClearDiscordRemindersAskedAsync(userId, CancellationToken.None);
             }
             catch (Exception ex)
             {

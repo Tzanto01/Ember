@@ -20,8 +20,8 @@ namespace Ember.Bot.Services;
 /// subscription opted in (<see cref="Core.Models.PushSubscription.ShowNames"/>); then it names the habit or routine. Its tag
 /// (<see cref="HabitTag"/>, <see cref="RoutineTag"/>) lets a later reminder or the clear push (<see cref="SendClearAsync"/>) replace it.
 /// A subscription the push service reports as gone (404/410) is deleted. Delivered when at least one subscription accepted the
-/// message; a delivered reminder is remembered (<see cref="HabitService.AddPushReminderAsync"/>) until its item is done or it expires.
-/// A single-habit reminder also carries a "Done ✅" action with a one-time token (<see cref="HabitService.CreateReminderActionTokenAsync"/>)
+/// message; a delivered reminder is remembered (<see cref="ReminderService.AddPushReminderAsync"/>) until its item is done or it expires.
+/// A single-habit reminder also carries a "Done ✅" action with a one-time token (<see cref="ReminderService.CreateReminderActionTokenAsync"/>)
 /// that expires with the reminder (<see cref="ReminderDispatchJob.IsExpired"/>), sent only to subscriptions registered by a
 /// sign-in session that is still live; other subscriptions and routine reminders get the plain payload.
 /// A let-go habit's reminder (<see cref="Reminder.LetGo"/>) is the quiet check-in text (nameless unless the subscription opted in) with
@@ -155,14 +155,14 @@ public sealed class WebPushReminderChannel : IReminderChannel
         var allowed = reminder.PushSubscriptionIds ?? [];
         using (var scope = _scopes.CreateScope())
         {
-            var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-            subscriptions = (await habits.GetPushSubscriptionsAsync(reminder.UserId, cancellationToken))
+            var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
+            subscriptions = (await reminders.GetPushSubscriptionsAsync(reminder.UserId, cancellationToken))
                 .Where(s => allowed.Contains(s.Id)).ToList();
             if (subscriptions.Count == 0) return DeliveryOutcome.UserNotFound;
 
-            liveSessions = await habits.GetLiveSessionIdsAsync(reminder.UserId, cancellationToken);
+            liveSessions = await reminders.GetLiveSessionIdsAsync(reminder.UserId, cancellationToken);
             if (reminder.PendingHabits is null && !reminder.LetGo && subscriptions.Any(s => s.SessionId is { } id && liveSessions.Contains(id)))
-                doneToken = await habits.CreateReminderActionTokenAsync(reminder.UserId, reminder.HabitId, reminder.Day,
+                doneToken = await reminders.CreateReminderActionTokenAsync(reminder.UserId, reminder.HabitId, reminder.Day,
                     reminder.Day.AddDays(1).ToDateTime(new TimeOnly(MissedDayReflectionJob.LocalSendHour, 0)), cancellationToken);
         }
 
@@ -176,7 +176,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
         try
         {
             using var scope = _scopes.CreateScope();
-            await scope.ServiceProvider.GetRequiredService<HabitService>().AddPushReminderAsync(reminder.UserId,
+            await scope.ServiceProvider.GetRequiredService<ReminderService>().AddPushReminderAsync(reminder.UserId,
                 reminder.PendingHabits is null ? reminder.HabitId : null, reminder.PendingHabits is null ? null : reminder.HabitId,
                 reminder.Day, cancellationToken);
         }
@@ -196,7 +196,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
     {
         List<Core.Models.PushSubscription> subscriptions;
         using (var scope = _scopes.CreateScope())
-            subscriptions = (await scope.ServiceProvider.GetRequiredService<HabitService>().GetPushSubscriptionsAsync(userId, cancellationToken))
+            subscriptions = (await scope.ServiceProvider.GetRequiredService<ReminderService>().GetPushSubscriptionsAsync(userId, cancellationToken))
                 .Where(s => subscriptionIds.Contains(s.Id)).ToList();
         var payload = ClearPayload(tag, BotTexts.For(language));
         await SendAsync(userId, subscriptions, _ => payload, cancellationToken);
@@ -212,7 +212,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
     {
         List<Core.Models.PushSubscription> subscriptions;
         using (var scope = _scopes.CreateScope())
-            subscriptions = (await scope.ServiceProvider.GetRequiredService<HabitService>().GetPushSubscriptionsAsync(userId, cancellationToken))
+            subscriptions = (await scope.ServiceProvider.GetRequiredService<ReminderService>().GetPushSubscriptionsAsync(userId, cancellationToken))
                 .Where(s => subscriptionIds.Contains(s.Id)).ToList();
         if (subscriptions.Count == 0) return false;
         return await SendAsync(userId, subscriptions, s => BuildPayload(s.ShowNames ? namedBody : body, tag: tag, url: url, title: title), cancellationToken);
@@ -247,7 +247,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
                 try
                 {
                     using var scope = _scopes.CreateScope();
-                    await scope.ServiceProvider.GetRequiredService<HabitService>()
+                    await scope.ServiceProvider.GetRequiredService<ReminderService>()
                         .DeletePushSubscriptionByEndpointAsync(subscription.Endpoint, cancellationToken);
                     _logger.LogInformation("Removed an expired push subscription {SubscriptionId} of user {UserId}.",
                         subscription.Id, userId);

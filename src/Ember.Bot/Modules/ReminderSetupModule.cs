@@ -14,10 +14,12 @@ namespace Ember.Bot.Modules;
 public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ReminderService _reminders;
 
-    public ReminderSetupModule(HabitService habits)
+    public ReminderSetupModule(HabitService habits, ReminderService reminders)
     {
         _habits = habits;
+        _reminders = reminders;
     }
 
     // ── "Set a reminder" button ───────────────────────────────────────────────
@@ -94,7 +96,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        var discordNote = await DiscordRemindersNoteAsync(t, _habits, Context.User.Id);
+        var discordNote = await DiscordRemindersNoteAsync(t, _reminders, Context.User.Id);
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
@@ -115,10 +117,10 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
     /// <summary>
     /// For a reminder time set through the bot: turns Discord reminders on when the user never answered the ask
-    /// (<see cref="HabitService.DefaultDiscordRemindersOnAsync"/>), and returns the note that they are off when the user said no.
+    /// (<see cref="ReminderService.DefaultDiscordRemindersOnAsync"/>), and returns the note that they are off when the user said no.
     /// </summary>
-    internal static async Task<string> DiscordRemindersNoteAsync(Texts t, HabitService habits, ulong userId)
-        => await habits.DefaultDiscordRemindersOnAsync(userId) ? "" : DiscordRemindersModule.OffText(t);
+    internal static async Task<string> DiscordRemindersNoteAsync(Texts t, ReminderService reminders, ulong userId)
+        => await reminders.DefaultDiscordRemindersOnAsync(userId) ? "" : DiscordRemindersModule.OffText(t);
 
     /// <summary>
     /// "every day", "on Mon, Wed" for a habit on set weekdays, or for a weekly habit the days without a check-in until the
@@ -233,7 +235,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        var discordNote = await DiscordRemindersNoteAsync(t, _habits, Context.User.Id);
+        var discordNote = await DiscordRemindersNoteAsync(t, _reminders, Context.User.Id);
         var embed = new EmbedBuilder()
             .WithColor(0xE8873A)
             .WithTitle(t.Get("reminder.set.title"))

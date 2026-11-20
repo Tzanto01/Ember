@@ -20,10 +20,12 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     internal static string OffText(Texts t) => "\n" + t.Get("discordreminders.off");
 
     private readonly HabitService _habits;
+    private readonly ReminderService _reminders;
 
-    public DiscordRemindersModule(HabitService habits)
+    public DiscordRemindersModule(HabitService habits, ReminderService reminders)
     {
         _habits = habits;
+        _reminders = reminders;
     }
 
     internal static MessageComponent AskButtons(Texts t, ulong userId) => new ComponentBuilder()
@@ -59,26 +61,26 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     }
 
     /// <summary>Sets Discord reminders from a command, creating the account as any bot command does.</summary>
-    internal static async Task SetFromCommandAsync(HabitService habits, ulong discordUserId, bool on, string? language)
+    internal static async Task SetFromCommandAsync(HabitService habits, ReminderService reminders, ulong discordUserId, bool on, string? language)
     {
         await habits.ResolveOrCreateDiscordUserAsync(discordUserId, language);
-        await habits.SetDiscordRemindersAsync(discordUserId, on);
+        await reminders.SetDiscordRemindersAsync(discordUserId, on);
     }
 
     [SlashCommand("reminders", "Turn reminder DMs from Ember off or on")]
     public async Task RemindersAsync([Summary("state", "Off or on")] DiscordRemindersState state)
     {
         var on = state == DiscordRemindersState.On;
-        await SetFromCommandAsync(_habits, Context.User.Id, on, Languages.FromLocale(Context.Interaction.UserLocale));
+        await SetFromCommandAsync(_habits, _reminders, Context.User.Id, on, Languages.FromLocale(Context.Interaction.UserLocale));
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         await RespondAsync(on ? t.Get("discordreminders.yes") : t.Get("discordreminders.command.off"), ephemeral: true);
     }
 
     /// <summary>Records the owner's answer only when the person clicking is that owner. Returns whether the clicker is the owner.</summary>
-    internal static async Task<bool> TryAnswerAsync(HabitService habits, string ownerIdStr, ulong clickerId, bool yes)
+    internal static async Task<bool> TryAnswerAsync(ReminderService reminders, string ownerIdStr, ulong clickerId, bool yes)
     {
         if (!ulong.TryParse(ownerIdStr, out var ownerId) || ownerId != clickerId) return false;
-        await habits.SetDiscordRemindersAsync(clickerId, yes);
+        await reminders.SetDiscordRemindersAsync(clickerId, yes);
         return true;
     }
 
@@ -92,7 +94,7 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     public async Task OnStopAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        if (!await TryAnswerAsync(_habits, ownerIdStr, Context.User.Id, yes: false))
+        if (!await TryAnswerAsync(_reminders, ownerIdStr, Context.User.Id, yes: false))
         {
             await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
             return;
@@ -109,7 +111,7 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     private async Task AnswerAsync(string ownerIdStr, bool yes)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        if (!await TryAnswerAsync(_habits, ownerIdStr, Context.User.Id, yes))
+        if (!await TryAnswerAsync(_reminders, ownerIdStr, Context.User.Id, yes))
         {
             await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
             return;
