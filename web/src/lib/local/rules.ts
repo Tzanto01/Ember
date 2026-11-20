@@ -37,7 +37,7 @@ function zonedDate(instant: Date, timeZone: string): LocalDateString {
   return fromParts(get('year'), get('month'), get('day'));
 }
 
-/** The current local day in `timeZone` (unknown zones fall back to UTC, as in Core `TimezoneHelper.LocalToday`). */
+/** The current local day in `timeZone` (unknown zones fall back to UTC, as in Core `TimeZones.LocalToday`). */
 export function localToday(timeZone: string, now: Date = new Date()): LocalDateString {
   return zonedDate(now, timeZone);
 }
@@ -372,7 +372,7 @@ function plainText(discordMarkdown: string): string {
   return discordMarkdown.replace(/\*\*|__|~~|\|\||`/g, '');
 }
 
-/** `GET /api/stats/weekly`: the 7 days ending yesterday (Core `WeeklySummaryService`), Discord markdown stripped. */
+/** `GET /api/stats/weekly`: the 7 days ending yesterday (Core `WeeklySummary`), Discord markdown stripped. */
 export function weeklySummary(data: LocalData, today: LocalDateString): WeeklyStats {
   const weekEnd = addDays(today, -1);
   const from = addDays(weekEnd, -6);
