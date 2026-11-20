@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json.Nodes;
 using Ember.Bot.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
@@ -34,6 +35,22 @@ public class NoticePollerTests
         var notices = NoticePoller.Parse(TwoNotices)!;
 
         NoticePoller.Select(notices, Now)!.Id.Should().Be("now");
+    }
+
+    [Fact]
+    public void The_shared_notices_document_ops_publishes_parses_into_its_notices()
+    {
+        var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(RulesFixtureTests.RepoRoot(), "docs", "contracts", "fixtures", "notices.json")))!;
+        var published = new JsonObject { ["notices"] = fixture["notices"]!.DeepClone() }.ToJsonString();
+
+        var notices = NoticePoller.Parse(published);
+
+        notices.Should().Equal(
+            new Notice("maintenance-2027-03-20", new DateTimeOffset(2027, 3, 20, 22, 0, 0, TimeSpan.Zero), new DateTimeOffset(2027, 3, 20, 23, 30, 0, TimeSpan.Zero),
+                "Ember is resting for an update tonight from 22:00 UTC. Your check-ins will wait for you."),
+            new Notice("journal.moods_v2", null, null, "New: pick your own moods in the journal 🌱"),
+            new Notice("spring-tips", null, new DateTimeOffset(2027, 4, 1, 0, 0, 0, TimeSpan.Zero), "Small steps count. Try a low day when a day is hard."),
+            new Notice("fireside-launch", new DateTimeOffset(2027, 4, 2, 8, 0, 0, TimeSpan.Zero), null, "Fireside is here: share your streaks with a few friends."));
     }
 
     [Fact]

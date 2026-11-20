@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Ember.Ops.TestHost;
 using FluentAssertions;
 
@@ -122,6 +123,31 @@ public sealed class NoticeTests(V2DatabaseFixture database) : IDisposable
         view.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("id").GetString() == id).GetProperty("state").GetString()!;
 
     private static string UniqueId(string prefix) => $"{prefix}-{Guid.NewGuid():N}";
+
+    [Fact]
+    public async Task Publishing_the_shared_fixture_notices_writes_the_shared_notices_document()
+    {
+        var fixture = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(DatabaseFixture.OpsRoot(), "..", "docs", "contracts", "fixtures", "notices.json")))!;
+        var (client, fake) = Start();
+
+        foreach (var notice in fixture["notices"]!.AsArray())
+        {
+            var body = new
+            {
+                id = (string?)notice!["id"],
+                kind = (string?)notice["kind"],
+                text = new { en = (string?)notice["en"], de = (string?)notice["de"] },
+                showFrom = (string?)notice["showFrom"],
+                showUntil = (string?)notice["showUntil"],
+            };
+            (await PublishAsync(client, body)).StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        var published = JsonNode.Parse(fake.LastPublished!)!.AsObject();
+        published.Select(p => p.Key).Should().Equal("notices");
+        JsonNode.DeepEquals(published["notices"], fixture["notices"]).Should()
+            .BeTrue($"ops must publish docs/contracts/fixtures/notices.json, but wrote {published.ToJsonString()}");
+    }
 
     [Fact]
     public async Task A_second_publish_within_90_seconds_keeps_the_first_even_when_the_edge_still_serves_the_old_document()

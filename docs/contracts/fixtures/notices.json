@@ -1,0 +1,33 @@
+{
+  "about": "A synthetic live notices document as the ops dashboard publishes it (NoticeStore in ops/src/Ember.Ops) and the bot reads it (NoticePoller in src/Ember.Bot). The published document is exactly { \"notices\": [...] }; this about field is not part of it. A notice: id (letters, digits, '.', '_' and '-'), kind (info|maintenance), en, de, and the optional showFrom and showUntil (UTC times ending in Z; left out when absent). Publishing these notices in this order writes this document (ops/tests/Ember.Ops.Tests/NoticeTests.cs), and the bot parses it into id, showFrom, showUntil and en (tests/Ember.Tests/NoticePollerTests.cs).",
+  "notices": [
+    {
+      "id": "maintenance-2027-03-20",
+      "kind": "maintenance",
+      "en": "Ember is resting for an update tonight from 22:00 UTC. Your check-ins will wait for you.",
+      "de": "Ember ruht heute ab 22:00 UTC für ein Update. Deine Check-ins warten auf dich.",
+      "showFrom": "2027-03-20T22:00:00Z",
+      "showUntil": "2027-03-20T23:30:00Z"
+    },
+    {
+      "id": "journal.moods_v2",
+      "kind": "info",
+      "en": "New: pick your own moods in the journal 🌱",
+      "de": "Neu: Wähle im Tagebuch deine eigenen Stimmungen 🌱"
+    },
+    {
+      "id": "spring-tips",
+      "kind": "info",
+      "en": "Small steps count. Try a low day when a day is hard.",
+      "de": "Kleine Schritte zählen. Nimm dir einen ruhigen Tag, wenn ein Tag schwer ist.",
+      "showUntil": "2027-04-01T00:00:00Z"
+    },
+    {
+      "id": "fireside-launch",
+      "kind": "info",
+      "en": "Fireside is here: share your streaks with a few friends.",
+      "de": "Fireside ist da: Teile deine Serien mit ein paar Freunden.",
+      "showFrom": "2027-04-02T08:00:00Z"
+    }
+  ]
+}

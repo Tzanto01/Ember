@@ -30,6 +30,9 @@ public sealed class FakeNoticesUpstream(string token) : HttpMessageHandler
     /// <summary>Accepted PUTs so far.</summary>
     public int Publishes { get; private set; }
 
+    /// <summary>The body of the last accepted PUT, as sent.</summary>
+    public string? LastPublished { get; private set; }
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var url = request.RequestUri?.ToString();
@@ -38,10 +41,11 @@ public sealed class FakeNoticesUpstream(string token) : HttpMessageHandler
         if (request.Method != HttpMethod.Put || url != PublishUrl) return new(HttpStatusCode.NotFound);
         if (request.Headers.Authorization is not { Scheme: "Bearer", Parameter: var sent } || sent != Token) return new(HttpStatusCode.Unauthorized);
 
+        var body = await request.Content!.ReadAsStringAsync(cancellationToken);
         NoticeDocument? doc;
         try
         {
-            doc = JsonSerializer.Deserialize<NoticeDocument>(await request.Content!.ReadAsStringAsync(cancellationToken), JsonSerializerOptions.Web);
+            doc = JsonSerializer.Deserialize<NoticeDocument>(body, JsonSerializerOptions.Web);
         }
         catch (JsonException)
         {
@@ -52,6 +56,7 @@ public sealed class FakeNoticesUpstream(string token) : HttpMessageHandler
         lock (gate)
         {
             notices = sentNotices.ToArray();
+            LastPublished = body;
             Publishes++;
         }
         return new(HttpStatusCode.NoContent);

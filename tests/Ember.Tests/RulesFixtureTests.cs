@@ -345,7 +345,8 @@ public partial class RulesFixtureTests
         return $"expected {want?.ToJsonString()} but Core computed {got?.ToJsonString()}";
     }
 
-    private static string RepoRoot()
+    /// <summary>The repository root: the nearest folder above the test output that holds <c>Ember.slnx</c>.</summary>
+    internal static string RepoRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
             if (File.Exists(Path.Combine(dir.FullName, "Ember.slnx"))) return dir.FullName;
