@@ -5,7 +5,6 @@ using FluentAssertions;
 namespace Ember.Api.Tests;
 
 /// <summary>The account's Today order (<c>PUT /api/me/today-order</c>) and the habit-note offer setting on <c>/api/me</c>.</summary>
-[Collection("Postgres")]
 public class TodayOrderApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static async Task<int> HabitIdAsync(ApiClient user)

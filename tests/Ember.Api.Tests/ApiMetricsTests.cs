@@ -138,7 +138,6 @@ public sealed class ApiMetricsTests : IDisposable
     }
 }
 
-[Collection("Postgres")]
 public sealed class ApiMetricsHostTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static readonly string KeyFile = Path.Combine(Path.GetTempPath(), $"ember-metrics-{Guid.NewGuid():N}.key");
@@ -163,7 +162,6 @@ public sealed class ApiMetricsHostTests(PostgresFixture postgres) : ApiTestBase(
     }
 }
 
-[Collection("Postgres")]
 public sealed class ApiMetricsWithoutKeyTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     [DockerFact]

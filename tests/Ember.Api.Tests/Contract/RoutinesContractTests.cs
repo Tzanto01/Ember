@@ -3,7 +3,6 @@ using System.Net;
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>Routines, reminder destinations (browsers, phones, Discord) and low days.</summary>
-[Collection("Postgres")]
 [ContractArea("routines")]
 public class RoutinesContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

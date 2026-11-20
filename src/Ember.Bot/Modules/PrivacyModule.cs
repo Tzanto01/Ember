@@ -81,7 +81,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = outcome == DeleteOutcome.Deleted ? t.Get("privacy.delete.done") : WebAppDeleteText(t, _config);
+            m.Content = outcome == DeleteOutcome.Deleted ? t.Get("privacy.delete.done") : WebAppDeleteText(t, _config);
             m.Components = new ComponentBuilder().Build();
         });
     }
@@ -98,7 +98,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Get("privacy.delete.cancelled");
+            m.Content = t.Get("privacy.delete.cancelled");
             m.Components = new ComponentBuilder().Build();
         });
     }
@@ -131,7 +131,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
         {
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
-                m.Content    = t.Get("privacy.withdraw.none");
+                m.Content = t.Get("privacy.withdraw.none");
                 m.Components = new ComponentBuilder().Build();
             });
             return;
@@ -140,7 +140,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
         var deletesOn = (await _habits.GetLocalTodayAsync(userId)).AddDays(HabitService.WithdrawnDataLifetime.Days);
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Format("privacy.withdraw.done", deletesOn.ToString(t.Get("date.full"), t.Culture));
+            m.Content = t.Format("privacy.withdraw.done", deletesOn.ToString(t.Get("date.full"), t.Culture));
             m.Components = new ComponentBuilder()
                 .WithButton(t.Get("consent.delete-button"), $"privacy:delete:start:{userId}", ButtonStyle.Secondary)
                 .Build();
@@ -159,7 +159,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Get("privacy.withdraw.cancelled");
+            m.Content = t.Get("privacy.withdraw.cancelled");
             m.Components = new ComponentBuilder().Build();
         });
     }

@@ -1,6 +1,6 @@
-using Ember.Core.Localization;
 using Discord;
 using Ember.Bot.Modules;
+using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,7 +35,7 @@ public class DiscordDmReminderChannel : IReminderChannel
         ILogger<DiscordDmReminderChannel> logger)
     {
         _discord = discord;
-        _time    = time;
+        _time = time;
         _scopes = scopes;
         _logger = logger;
     }

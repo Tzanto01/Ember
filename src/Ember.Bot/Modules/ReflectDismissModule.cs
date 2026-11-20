@@ -79,7 +79,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
             .WithMinValues(1)
             .WithMaxValues(Math.Min(open.Count, 25));
         foreach (var habit in open.Take(25))
-            menu.AddOption(habit.Name.Length > 100 ? habit.Name[..100] : habit.Name, habit.Id.ToString());
+            menu.AddOption(habit.Name.Length > 100 ? habit.Name[..100] : habit.Name, habit.Id.ToString(CultureInfo.InvariantCulture));
 
         var components = new ComponentBuilder()
             .WithSelectMenu(menu)
@@ -88,8 +88,8 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
             .Build();
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Format("reflect.pick.question", Label(t, date));
-            m.Embed      = null;
+            m.Content = t.Format("reflect.pick.question", Label(t, date));
+            m.Embed = null;
             m.Components = components;
         });
     }
@@ -143,8 +143,8 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     private async Task CloseAsync(string text) =>
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = text;
-            m.Embed      = null;
+            m.Content = text;
+            m.Embed = null;
             m.Components = new ComponentBuilder().Build();
         });
 

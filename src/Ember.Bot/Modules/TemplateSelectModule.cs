@@ -32,7 +32,7 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
     [ComponentInteraction("habit:template:select")]
     public async Task HandleTemplateSelectAsync(string[] selected)
     {
-        var key      = selected[0];
+        var key = selected[0];
         var template = HabitTemplates.Find(key);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -44,8 +44,8 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
 
         // Strip leading emoji + space. Emoji are multi-char in UTF-16 so we can't
         // use char literals — find the first space and take everything after it.
-        var rawName   = Name(t, template);
-        var spaceIdx  = rawName.IndexOf(' ');
+        var rawName = Name(t, template);
+        var spaceIdx = rawName.IndexOf(' ');
         var cleanName = spaceIdx >= 0 ? rawName[(spaceIdx + 1)..].Trim() : rawName;
 
         var frequency = template.Frequency == HabitTemplates.FrequencyHint.Weekly

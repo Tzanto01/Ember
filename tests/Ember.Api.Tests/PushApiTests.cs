@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class PushApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string Subscriptions = "/api/me/push-subscriptions";

@@ -2,7 +2,6 @@
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>The 429 answer of each limiter: per-IP policies (auth, auth-other, widget), the mail limits and the feedback limits.</summary>
-[Collection("Postgres")]
 [ContractArea("rate-limits")]
 public class RateLimitContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

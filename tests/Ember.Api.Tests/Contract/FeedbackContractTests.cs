@@ -3,7 +3,6 @@ using System.Net;
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>Feedback from signed-in and anonymous senders, and the push key of an app without Web Push configured.</summary>
-[Collection("Postgres")]
 [ContractArea("feedback")]
 public class FeedbackContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

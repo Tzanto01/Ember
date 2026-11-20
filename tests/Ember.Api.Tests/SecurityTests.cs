@@ -5,7 +5,6 @@ using FluentAssertions;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class SecurityTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     [DockerFact]

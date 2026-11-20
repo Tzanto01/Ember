@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>The account itself: settings, consent, export, import, two-factor sign-in, deletion and merging a bot-only account.</summary>
-[Collection("Postgres")]
 [ContractArea("account")]
 public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

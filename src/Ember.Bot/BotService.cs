@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -9,10 +11,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
 
 namespace Ember.Bot;
 
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The SemaphoreSlim is only awaited, so it never allocates a wait handle and holds nothing to release.")]
 public class BotService : IHostedService
 {
     private readonly DiscordSocketClient _client;
@@ -264,10 +266,10 @@ public class BotService : IHostedService
         var level = msg.Severity switch
         {
             LogSeverity.Critical => LogLevel.Critical,
-            LogSeverity.Error    => LogLevel.Error,
-            LogSeverity.Warning  => LogLevel.Warning,
-            LogSeverity.Info     => LogLevel.Information,
-            _                    => LogLevel.Debug
+            LogSeverity.Error => LogLevel.Error,
+            LogSeverity.Warning => LogLevel.Warning,
+            LogSeverity.Info => LogLevel.Information,
+            _ => LogLevel.Debug
         };
         _logger.Log(level, msg.Exception, "{Source}: {Message}", msg.Source, msg.Message);
         return Task.CompletedTask;

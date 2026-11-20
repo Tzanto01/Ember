@@ -29,8 +29,8 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
         {
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
-                m.Content    = HabitModule.LetGoWebOnlyText(t);
-                m.Embed      = null;
+                m.Content = HabitModule.LetGoWebOnlyText(t);
+                m.Embed = null;
                 m.Components = new ComponentBuilder().Build();
             });
             return;
@@ -39,8 +39,8 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
         {
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
-                m.Content    = t.Get("reminder.need-timezone");
-                m.Embed      = null;
+                m.Content = t.Get("reminder.need-timezone");
+                m.Embed = null;
                 m.Components = new ComponentBuilder()
                     .WithButton(t.Get("reminder.set-timezone"), $"onboard:timezone:{habitIdStr}", ButtonStyle.Primary, new Emoji("🌍"))
                     .WithButton(t.Get("reminder.on-utc"), $"reminder:time:{habitIdStr}", ButtonStyle.Secondary)

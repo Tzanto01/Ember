@@ -200,7 +200,7 @@ public class WebPushReminderTests
         delivered.Ttl.Should().Be(WebPushReminderChannel.TimeToLiveSeconds.ToString());
         delivered.BodyLength.Should().BeGreaterThan(0);
 
-        var payload = JsonDocument.Parse(WebPushReminderChannel.Payload).RootElement.GetProperty("notification");
+        var payload = JsonElement.Parse(WebPushReminderChannel.Payload).GetProperty("notification");
         payload.GetProperty("title").GetString().Should().Be("Ember");
         payload.GetProperty("body").GetString().Should().NotContain("Habit 10");
         var click = payload.GetProperty("data").GetProperty("onActionClick").GetProperty("default");

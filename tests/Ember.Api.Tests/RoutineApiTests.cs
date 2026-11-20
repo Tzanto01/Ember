@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>Routines (contract "Features v1.6 &gt; Routines").</summary>
-[Collection("Postgres")]
 public class RoutineApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static async Task<int> HabitIdAsync(ApiClient user) => (await user.CreateHabitAsync()).GetProperty("id").GetInt32();

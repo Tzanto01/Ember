@@ -1,7 +1,7 @@
+using System.Text.Json;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using FluentAssertions;
-using System.Text.Json;
 
 namespace Ember.Tests;
 
@@ -132,7 +132,7 @@ public class ExportBuilderTests
     {
         var user = UserWithLetGoHabit();
 
-        var json = JsonDocument.Parse(ExportBuilder.BuildJson(user)).RootElement;
+        var json = JsonElement.Parse(ExportBuilder.BuildJson(user));
         var rows = Rows(ExportBuilder.BuildCsv(user));
 
         json.GetProperty("habits").EnumerateArray().ToDictionary(h => h.GetProperty("id").GetInt32(), h => h.GetProperty("kind").GetString())

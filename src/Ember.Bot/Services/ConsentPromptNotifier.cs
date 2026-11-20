@@ -21,7 +21,7 @@ public class ConsentPromptNotifier
     public ConsentPromptNotifier(IServiceProvider services, ILogger<ConsentPromptNotifier> logger)
     {
         _services = services;
-        _logger   = logger;
+        _logger = logger;
     }
 
     public async Task OnInteractionExecutedAsync(ICommandInfo command, IInteractionContext context, IResult result)

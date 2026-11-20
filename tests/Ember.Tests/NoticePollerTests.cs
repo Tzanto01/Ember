@@ -1,9 +1,9 @@
+using System.Net;
 using Ember.Bot.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
-using System.Net;
 
 namespace Ember.Tests;
 

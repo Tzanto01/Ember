@@ -5,7 +5,6 @@ using Ember.Core.Services;
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>Fireside: settings and consent, friend codes, joining, friends, warmth and asking for company.</summary>
-[Collection("Postgres")]
 [ContractArea("fireside")]
 public class FiresideContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

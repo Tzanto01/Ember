@@ -1,9 +1,9 @@
+using System.Net;
+using System.Text.Json;
 using Ember.Bot.Modules;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Net;
-using System.Text.Json;
 
 namespace Ember.Bot.Services;
 

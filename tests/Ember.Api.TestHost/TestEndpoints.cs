@@ -3,10 +3,10 @@ using System.Security.Claims;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.TestHost;
 

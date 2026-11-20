@@ -3,7 +3,6 @@ using System.Net;
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>Habits of both kinds, their days and slips, and the habit templates.</summary>
-[Collection("Postgres")]
 [ContractArea("habits")]
 public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

@@ -122,8 +122,8 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
 
         return days[0].Completed switch
         {
-            null  => await habits.AddCheckInAsync(userId, habitId, date, guildId),
-            true  => await habits.CheckInAsync(userId, habitId, date, completed: false, guildId),
+            null => await habits.AddCheckInAsync(userId, habitId, date, guildId),
+            true => await habits.CheckInAsync(userId, habitId, date, completed: false, guildId),
             false => await habits.ClearDayAsync(userId, habitId, date),
         };
     }
@@ -193,10 +193,10 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         var symbol = day.State switch
         {
             DayState.BeforeStart => "",
-            DayState.LowDay      => unlogged ? "🌙" : "🌙" + log,
-            DayState.Paused      => unlogged ? "⏸️" : "⏸️" + log,
-            DayState.Offday      => "💤",
-            _                    => log,
+            DayState.LowDay => unlogged ? "🌙" : "🌙" + log,
+            DayState.Paused => unlogged ? "⏸️" : "⏸️" + log,
+            DayState.Offday => "💤",
+            _ => log,
         };
         return symbol.Length == 0 ? date : $"{date} {symbol}";
     }

@@ -252,7 +252,8 @@ public static class LookoutPages
     private static BarsWidget ActivePerDay(ActivityInsights a, ActivityFigures? figures) => figures is null
         ? Bars("active-per-day", "Active users per day", "day", ["Users"], []) with { Unavailable = NoSnapshots }
         : Bars("active-per-day", "Active users per day", "day", ["Users"], Guarded(a.PerDay.Select(d => (Bar(d), d.Count))),
-            $"{figures.History}; {SmallNote}") with { Better = "up" };
+            $"{figures.History}; {SmallNote}") with
+        { Better = "up" };
 
     private static StatItem WithMax(StatItem item, int max) => Equals(item.Value, Suppressed) ? item : item with { Max = max };
 

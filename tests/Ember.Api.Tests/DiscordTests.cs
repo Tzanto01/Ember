@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class DiscordTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string Login = "/api/auth/discord/login";

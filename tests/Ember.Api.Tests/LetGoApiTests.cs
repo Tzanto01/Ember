@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>Let-go habits (contract "Let go habits v1.21").</summary>
-[Collection("Postgres")]
 public class LetGoApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static async Task<int> CreateLetGoAsync(ApiClient user, string name = "Coffee")

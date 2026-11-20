@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>Several reminder times per habit (contract "Reminder times v1.12").</summary>
-[Collection("Postgres")]
 public class ReminderTimesApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static async Task ExpectFieldError(HttpResponseMessage response, string field)

@@ -147,7 +147,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
 
         await component.UpdateAsync(msg =>
         {
-            msg.Content    = text;
+            msg.Content = text;
             msg.Components = new ComponentBuilder().Build();
         });
         await _habits.DeleteReminderMessageByDiscordIdAsync(component.Message.Id);
@@ -196,7 +196,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
         var component = (SocketMessageComponent)Context.Interaction;
         await component.UpdateAsync(msg =>
         {
-            msg.Content    = t.Get("checkin.snoozed");
+            msg.Content = t.Get("checkin.snoozed");
             msg.Components = new ComponentBuilder().Build();
         });
         await _habits.DeleteReminderMessageByDiscordIdAsync(component.Message.Id);

@@ -1,10 +1,10 @@
+using System.Globalization;
+using System.Linq.Expressions;
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
-using System.Linq.Expressions;
 
 namespace Ember.Core.Services;
 
@@ -36,8 +36,8 @@ public partial class HabitService
     /// <param name="ledger">Where committed account and health-data deletions are recorded; none when null.</param>
     public HabitService(EmberDbContext db, TimeProvider time, DeletionLedger? ledger = null)
     {
-        _db     = db;
-        _time   = time;
+        _db = db;
+        _time = time;
         _ledger = ledger;
     }
 

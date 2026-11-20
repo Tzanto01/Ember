@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private Task<List<Ember.Core.Models.Feedback>> Stored()

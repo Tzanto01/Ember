@@ -19,7 +19,6 @@ using Microsoft.Extensions.Options;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class SessionTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string CookieName = ".AspNetCore.Identity.Application";

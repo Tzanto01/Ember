@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class FeedbackApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string Url = "/api/feedback";

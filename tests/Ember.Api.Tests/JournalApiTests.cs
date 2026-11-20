@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>Journal for the day, own moods (contract "Features v1.6") and the private journal key ("Privacy levels v1.7").</summary>
-[Collection("Postgres")]
 public class JournalApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private sealed record KeyRequest(object Passphrase, object Recovery, string? Password, int? IfVersion);

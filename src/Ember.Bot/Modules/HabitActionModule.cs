@@ -1,7 +1,7 @@
 using Discord;
-using Ember.Core.Localization;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -141,7 +141,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = text;
+                m.Content = text;
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -171,7 +171,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = t.Get("common.skipped-today");
+                m.Content = t.Get("common.skipped-today");
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -214,7 +214,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = text;
+                m.Content = text;
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -234,7 +234,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = t.Get("habit.delete.done");
+                m.Content = t.Get("habit.delete.done");
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -248,7 +248,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = t.Get("habit.delete.cancelled");
+                m.Content = t.Get("habit.delete.cancelled");
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -320,11 +320,11 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         var today = await _habits.GetLocalTodayAsync(Context.User.Id);
         DateOnly? pausedUntil = duration switch
         {
-            "today"  => (DateOnly?)today,
-            "3days"  => today.AddDays(2),
-            "1week"  => today.AddDays(6),
+            "today" => (DateOnly?)today,
+            "3days" => today.AddDays(2),
+            "1week" => today.AddDays(6),
             "resume" => null,
-            _        => today.AddDays(6)
+            _ => today.AddDays(6)
         };
 
         var habit = await _habits.PauseHabitAsync(Context.User.Id, habitId, pausedUntil);
@@ -338,7 +338,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = message;
+                m.Content = message;
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -361,7 +361,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = t.Format("habit.frequency.daily-set", habit.Name);
+                m.Content = t.Format("habit.frequency.daily-set", habit.Name);
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -383,7 +383,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = t.Format("habit.grace.set", days, t.Get($"habit.grace.desc.{days}"));
+                m.Content = t.Format("habit.grace.set", days, t.Get($"habit.grace.desc.{days}"));
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -402,8 +402,8 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = pages.Count == 0 ? t.Get("habit.stats.none") : null;
-                m.Embeds     = pages.Take(1).ToArray();
+                m.Content = pages.Count == 0 ? t.Get("habit.stats.none") : null;
+                m.Embeds = pages.Take(1).ToArray();
                 m.Components = pages.Count == 0 ? new ComponentBuilder().Build() : toggle;
             });
         foreach (var page in pages.Skip(1))
@@ -422,7 +422,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = t.Get(state == "on" ? "habit.streaks-tip.on" : "habit.streaks-tip.off");
+                m.Content = t.Get(state == "on" ? "habit.streaks-tip.on" : "habit.streaks-tip.off");
                 m.Components = new ComponentBuilder().Build();
             });
     }

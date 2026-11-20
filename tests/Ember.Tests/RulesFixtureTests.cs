@@ -1,8 +1,8 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using FluentAssertions;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace Ember.Tests;
 

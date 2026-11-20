@@ -5,7 +5,6 @@ using Ember.Core.Services;
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>Web push (with a VAPID key configured), the reminder "Done" action and the home screen widget check-in.</summary>
-[Collection("Postgres")]
 [ContractArea("push")]
 public class PushContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

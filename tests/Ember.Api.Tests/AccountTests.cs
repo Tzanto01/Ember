@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class AccountTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     [DockerFact]

@@ -1,7 +1,8 @@
+using System.Globalization;
 using Discord;
-using Ember.Core.Localization;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -47,7 +48,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = t.Format("freq.weekly-set", habit.Name, target);
+                m.Content = t.Format("freq.weekly-set", habit.Name, target);
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -84,7 +85,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Format("freq.days.question", habit.Name);
+            m.Content = t.Format("freq.days.question", habit.Name);
             m.Components = new ComponentBuilder().WithSelectMenu(menu).Build();
         });
     }
@@ -124,11 +125,11 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
             .WithMinValues(1)
             .WithMaxValues(1);
         for (var n = 1; n <= Limits.TimesPerDay; n++)
-            menu.AddOption(n == 1 ? t.Get("freq.times.once") : t.Format("freq.times.option", n), n.ToString(), isDefault: n == habit.TimesPerDay);
+            menu.AddOption(n == 1 ? t.Get("freq.times.once") : t.Format("freq.times.option", n), n.ToString(CultureInfo.InvariantCulture), isDefault: n == habit.TimesPerDay);
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Format("freq.times.question", habit.Name);
+            m.Content = t.Format("freq.times.question", habit.Name);
             m.Components = new ComponentBuilder().WithSelectMenu(menu).Build();
         });
     }
@@ -159,7 +160,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     private async Task DoneAsync(string text) =>
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = text;
+            m.Content = text;
             m.Components = new ComponentBuilder().Build();
         });
 
