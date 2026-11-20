@@ -23,7 +23,7 @@ public static class WeeklySummaryService
         int GraceUsed,
         string DotString);
 
-    /// <summary>A let-go habit in the recap: only its days free (<see cref="HabitService.LetGoStatsOn"/>), never slip counts.</summary>
+    /// <summary>A let-go habit in the recap: only its days free (<see cref="LetGoRules.LetGoStatsOn"/>), never slip counts.</summary>
     public sealed record LetGoSummary(Habit Habit, int DaysFree);
 
     /// <summary>
@@ -53,9 +53,9 @@ public static class WeeklySummaryService
 
         var today = weekEnd.AddDays(1);
         var letGo = user.Habits
-            .Where(h => h.Kind == HabitKind.LetGo && HabitService.StartDate(h, tz) <= today && !HabitService.IsPausedOn(h, today))
+            .Where(h => h.Kind == HabitKind.LetGo && HabitRules.StartDate(h, tz) <= today && !HabitRules.IsPausedOn(h, today))
             .OrderBy(h => h.CreatedAt)
-            .Select(h => new LetGoSummary(h, HabitService.LetGoStatsOn(h, today, tz).DaysFree))
+            .Select(h => new LetGoSummary(h, LetGoRules.LetGoStatsOn(h, today, tz).DaysFree))
             .ToList();
 
         return new UserSummary(habits, habits.Sum(h => h.Done), habits.Sum(h => h.Possible), letGo);
@@ -71,8 +71,8 @@ public static class WeeklySummaryService
         var activeDays = 0;
         for (var d = from; d <= weekEnd; d = d.AddDays(1))
         {
-            if (HabitService.IsActiveOn(habit, d, tz) && HabitService.IsScheduledOn(habit, d)
-                && !HabitService.IsPausedOn(habit, d) && !lowDays.Contains(d))
+            if (HabitRules.IsActiveOn(habit, d, tz) && HabitRules.IsScheduledOn(habit, d)
+                && !HabitRules.IsPausedOn(habit, d) && !lowDays.Contains(d))
                 activeDays++;
         }
 
@@ -85,7 +85,7 @@ public static class WeeklySummaryService
         possible = Math.Max(possible, done);
 
         var (streak, graceUsed) = habit.FrequencyType != FrequencyType.Weekly
-            ? HabitService.ConsecutiveStreak(habit, weekEnd.AddDays(1), graceDays, lowDays)
+            ? HabitRules.ConsecutiveStreak(habit, weekEnd.AddDays(1), graceDays, lowDays)
             : (0, 0);
 
         return new HabitSummary(habit, done, possible, streak, graceUsed, BuildDotString(habit, from, weekEnd));
@@ -127,7 +127,7 @@ public static class WeeklySummaryService
             var log = habit.Logs.FirstOrDefault(l => l.Date == d);
             parts.Add(log?.Completed == true ? "✅"
                 : log is { Count: > 0 } ? "🔸"
-                : !HabitService.IsScheduledOn(habit, d) ? "▫️"
+                : !HabitRules.IsScheduledOn(habit, d) ? "▫️"
                 : "⬜");
         }
 

@@ -1,4 +1,5 @@
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 
@@ -89,7 +90,7 @@ public class StreakRulesTests
     [MemberData(nameof(ConsecutiveCases))]
     public void ConsecutiveStreak_FollowsTheRules(ConsecutiveCase c)
     {
-        var (streak, graceUsed) = HabitService.ConsecutiveStreak(c.Habit(), c.Today, c.GraceDays);
+        var (streak, graceUsed) = HabitRules.ConsecutiveStreak(c.Habit(), c.Today, c.GraceDays);
 
         streak.Should().Be(c.Streak);
         if (c.GraceUsed is { } expectedGrace)
@@ -100,6 +101,6 @@ public class StreakRulesTests
     [MemberData(nameof(BestCases))]
     public void BestStreak_FollowsTheRules(BestCase c)
     {
-        HabitService.BestStreak(c.Habit(), c.Today, c.GraceDays, c.LowDays).Should().Be(c.Best);
+        HabitRules.BestStreak(c.Habit(), c.Today, c.GraceDays, c.LowDays).Should().Be(c.Best);
     }
 }

@@ -1,6 +1,7 @@
 using Ember.Bot.Modules;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -93,7 +94,7 @@ public class CheckInCountTests
         {
             var service = sp.GetRequiredService<HabitService>();
             var userId = await service.FindDiscordUserAsync(UserId);
-            return HabitService.ConsecutiveStreak((await service.GetHabitAsync(userId, habitId))!, Today, 0).streak;
+            return HabitRules.ConsecutiveStreak((await service.GetHabitAsync(userId, habitId))!, Today, 0).streak;
         });
         (await streak()).Should().Be(4);
 

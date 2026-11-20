@@ -1,6 +1,6 @@
-namespace Ember.Core.Services;
+namespace Ember.Core.Rules;
 
-/// <summary>What one local day means for a habit, by the streak rules of <see cref="HabitService.ConsecutiveStreak"/>.</summary>
+/// <summary>What one local day means for a habit, by the streak rules of <see cref="HabitRules.ConsecutiveStreak"/>.</summary>
 public enum DayState
 {
     /// <summary>Before the habit's local start day; nothing can be logged.</summary>
@@ -12,7 +12,7 @@ public enum DayState
     /// <summary>A closed day that isn't done (logged as not done, or not logged at all).</summary>
     NotDone,
 
-    /// <summary>An open day (today or yesterday, see <see cref="HabitService.OpenDays"/>) that isn't done yet; never counts as missed.</summary>
+    /// <summary>An open day (today or yesterday, see <see cref="HabitRules.OpenDays"/>) that isn't done yet; never counts as missed.</summary>
     Pending,
 
     /// <summary>One of the user's low days: protected, neither breaks nor extends a streak.</summary>
@@ -21,7 +21,7 @@ public enum DayState
     /// <summary>Inside the habit's paused range: protected, neither breaks nor extends a streak.</summary>
     Paused,
 
-    /// <summary>Not a scheduled day (see <see cref="HabitService.IsScheduledOn"/>) and not done: rest, never missed; streaks step over it.</summary>
+    /// <summary>Not a scheduled day (see <see cref="HabitRules.IsScheduledOn"/>) and not done: rest, never missed; streaks step over it.</summary>
     Offday,
 
     /// <summary>Some check-ins but fewer than the habit's <see cref="Models.Habit.TimesPerDay"/>; counts as not done for streaks.</summary>

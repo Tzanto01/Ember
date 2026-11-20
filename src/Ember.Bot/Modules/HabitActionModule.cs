@@ -205,7 +205,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var text = HabitModule.SlipNotedText(t,
-            HabitService.LetGoStatsOn(habit, today, await _habits.GetUserTzAsync(Context.User.Id)).LongestStretch);
+            LetGoRules.LetGoStatsOn(habit, today, await _habits.GetUserTzAsync(Context.User.Id)).LongestStretch);
         if (!inPlace)
         {
             await RespondAsync(text, ephemeral: true);

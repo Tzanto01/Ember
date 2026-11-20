@@ -28,17 +28,6 @@ public enum RoutineOrderResult
 /// <summary>Routines: named, ordered groups of habits with an optional shared reminder.</summary>
 public partial class HabitService
 {
-    /// <summary>
-    /// The routine members a reminder on the user's local <paramref name="today"/> is for: those whose day (<see cref="DayOn"/>)
-    /// is pending or partial, in <see cref="Habit.RoutinePosition"/> order. Done, offday, paused, low and not-started days and let-go habits are left out.
-    /// Needs each habit's log of <paramref name="today"/> loaded, if there is one.
-    /// </summary>
-    public static List<Habit> PendingRoutineHabits(IEnumerable<Habit> members, DateOnly today, TimeZoneInfo tz, IReadOnlySet<DateOnly> lowDays)
-        => members
-            .OrderBy(h => h.RoutinePosition)
-            .Where(h => h.Kind == HabitKind.Build && DayOn(h, today, today, tz, lowDays).State is DayState.Pending or DayState.Partial)
-            .ToList();
-
     /// <summary>The user's routines in their chosen order (<see cref="Routine.Position"/>) with their member habits ordered by <see cref="Habit.RoutinePosition"/>.</summary>
     public Task<List<Routine>> GetRoutinesAsync(Guid userId)
         => _db.Routines

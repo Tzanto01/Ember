@@ -1,5 +1,6 @@
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 

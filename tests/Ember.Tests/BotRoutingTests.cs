@@ -8,6 +8,7 @@ using Ember.Bot.Services;
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;

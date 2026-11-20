@@ -1,5 +1,6 @@
 using Discord;
 using Ember.Bot.Modules;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -139,8 +140,8 @@ public class HistoryTests
             var habit = (await service.GetHabitAsync(UserId, habitId))!;
             var today = await service.GetLocalTodayAsync(UserId);
             var lowDays = await service.GetLowDaysAsync(UserId);
-            var (s, g) = HabitService.ConsecutiveStreak(habit, today, await service.GetGraceDaysAsync(UserId), lowDays);
-            return (s, g, HabitService.FlexibleStreak(habit, today, 7, lowDays));
+            var (s, g) = HabitRules.ConsecutiveStreak(habit, today, await service.GetGraceDaysAsync(UserId), lowDays);
+            return (s, g, HabitRules.FlexibleStreak(habit, today, 7, lowDays));
         });
 
         streak.Should().Be(6);

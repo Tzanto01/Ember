@@ -1,4 +1,5 @@
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 
@@ -18,7 +19,7 @@ public class MissedDayReflectionTests
     {
         var date = new DateOnly(year, month, day);
 
-        HabitService.WeekStart(date).Should().Be(new DateOnly(2026, 1, 12));
+        HabitRules.WeekStart(date).Should().Be(new DateOnly(2026, 1, 12));
     }
 
     [Fact]
@@ -28,8 +29,8 @@ public class MissedDayReflectionTests
         var habit = new Habit { Name = "Test", CreatedAt = new DateTime(2026, 1, 15, 7, 30, 0, DateTimeKind.Utc) };
         var la = TimezoneHelper.Find("America/Los_Angeles")!;
 
-        HabitService.IsActiveOn(habit, new DateOnly(2026, 1, 15), la).Should().BeTrue();
-        HabitService.IsActiveOn(habit, new DateOnly(2026, 1, 14), la).Should().BeFalse();
+        HabitRules.IsActiveOn(habit, new DateOnly(2026, 1, 15), la).Should().BeTrue();
+        HabitRules.IsActiveOn(habit, new DateOnly(2026, 1, 14), la).Should().BeFalse();
     }
 
     [Fact]
@@ -43,7 +44,7 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitService.IsActiveOn(habit, yesterday).Should().BeFalse();
+        HabitRules.IsActiveOn(habit, yesterday).Should().BeFalse();
     }
 
     [Fact]
@@ -59,7 +60,7 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitService.IsActiveOn(habit, yesterday).Should().BeFalse();
+        HabitRules.IsActiveOn(habit, yesterday).Should().BeFalse();
     }
 
     [Fact]
@@ -74,7 +75,7 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitService.IsActiveOn(habit, yesterday).Should().BeTrue();
+        HabitRules.IsActiveOn(habit, yesterday).Should().BeTrue();
     }
 
     [Fact]
@@ -91,7 +92,7 @@ public class MissedDayReflectionTests
             weeklyTarget: 3,
             (0, true));
 
-        HabitService.IsActiveOn(habit, earlierDay).Should().BeFalse();
-        HabitService.IsActiveOn(habit, today).Should().BeTrue();
+        HabitRules.IsActiveOn(habit, earlierDay).Should().BeFalse();
+        HabitRules.IsActiveOn(habit, today).Should().BeTrue();
     }
 }

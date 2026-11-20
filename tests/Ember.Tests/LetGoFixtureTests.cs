@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 
@@ -62,12 +63,12 @@ public class LetGoFixtureTests
         foreach (var slip in input.Habit.Slips)
             habit.Slips.Add(new HabitSlip { Date = slip.Date, Count = slip.Count, Reasons = slip.Reasons });
 
-        var s = HabitService.LetGoStatsOn(habit, input.Today, tz);
+        var s = LetGoRules.LetGoStatsOn(habit, input.Today, tz);
         return new ExpectedOut(
             new StatsOut(s.DaysFree, s.LongestStretch, s.FreeDaysThisMonth, s.SlipDaysLast30),
-            Day(HabitService.LetGoDayOn(habit, input.Today, tz)),
+            Day(LetGoRules.LetGoDayOn(habit, input.Today, tz)),
             Enumerable.Range(0, input.Today.DayNumber - input.From.DayNumber + 1)
-                .Select(i => Day(HabitService.LetGoDayOn(habit, input.From.AddDays(i), tz))).ToList());
+                .Select(i => Day(LetGoRules.LetGoDayOn(habit, input.From.AddDays(i), tz))).ToList());
     }
 
     private static DayOut Day(LetGoDay day) => new(day.Date, day.State.ToString().ToLowerInvariant(), day.Slips);

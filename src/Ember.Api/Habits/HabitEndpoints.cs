@@ -273,15 +273,15 @@ internal static class HabitEndpoints
         object today, stats;
         if (habit.Kind == HabitKind.LetGo)
         {
-            var day = HabitService.LetGoDayOn(habit, user.Today, user.Tz);
-            var l = HabitService.LetGoStatsOn(habit, user.Today, user.Tz);
+            var day = LetGoRules.LetGoDayOn(habit, user.Today, user.Tz);
+            var l = LetGoRules.LetGoStatsOn(habit, user.Today, user.Tz);
             today = new LetGoDayDto(day.Date, Lower(day.State), day.Slips);
             stats = new LetGoStatsDto(l.DaysFree, l.LongestStretch, l.FreeDaysThisMonth, l.SlipDaysLast30);
         }
         else
         {
-            var s = HabitService.StatsOn(habit, user.Today, user.GraceDays, user.LowDays, user.Tz);
-            today = ToDayDto(HabitService.DayOn(habit, user.Today, user.Today, user.Tz, user.LowDays));
+            var s = HabitRules.StatsOn(habit, user.Today, user.GraceDays, user.LowDays, user.Tz);
+            today = ToDayDto(HabitRules.DayOn(habit, user.Today, user.Today, user.Tz, user.LowDays));
             stats = new StatsDto(s.Streak, s.GraceUsed, s.BestStreak, s.Last7, s.Week is { } week ? new WeekDto(week.Done, week.Target) : null);
         }
         var targets = ReminderDestinations.Resolve(user.Destinations, habit.ReminderExclusions);
@@ -289,8 +289,8 @@ internal static class HabitEndpoints
         return new HabitDto(
             habit.Id, habit.Name, Lower(habit.FrequencyType), habit.WeeklyTarget,
             habit.ReminderTime is { } time ? Formats.Time(time) : null,
-            habit.PausedFrom, habit.PausedUntil, HabitService.IsPausedOn(habit, user.Today),
-            DateTime.SpecifyKind(habit.CreatedAt, DateTimeKind.Utc), HabitService.StartDate(habit, user.Tz),
+            habit.PausedFrom, habit.PausedUntil, HabitRules.IsPausedOn(habit, user.Today),
+            DateTime.SpecifyKind(habit.CreatedAt, DateTimeKind.Utc), HabitRules.StartDate(habit, user.Tz),
             today, stats,
             ReminderDestinations.LegacyChannels(targets),
             habit.FrequencyType == FrequencyType.Weekdays && habit.Days is { } days ? ScheduleDayNames.ToNames(days) : null,

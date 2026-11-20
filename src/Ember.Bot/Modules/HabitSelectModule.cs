@@ -5,6 +5,7 @@ using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Bot.Modules;
@@ -35,7 +36,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         if (habit.Kind == HabitKind.LetGo)
         {
-            var daysFree = HabitService.LetGoStatsOn(habit, await _habits.GetLocalTodayAsync(Context.User.Id),
+            var daysFree = LetGoRules.LetGoStatsOn(habit, await _habits.GetLocalTodayAsync(Context.User.Id),
                 await _habits.GetUserTzAsync(Context.User.Id)).DaysFree;
             await ((SocketMessageComponent)Context.Interaction)
                 .UpdateAsync(m =>
@@ -238,7 +239,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     {
         if (habit.Kind == HabitKind.LetGo)
         {
-            var stats = HabitService.LetGoStatsOn(habit, today, tz ?? TimeZoneInfo.Utc);
+            var stats = LetGoRules.LetGoStatsOn(habit, today, tz ?? TimeZoneInfo.Utc);
             return new EmbedBuilder()
                 .WithColor(0xE8873A)
                 .WithTitle($"🌿 {habit.Name} _({HabitModule.FrequencyLabel(t, habit)})_")
@@ -262,8 +263,8 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             {
                 var d = from.AddDays(row * 10 + col);
                 dots.Append(completed.Contains(d) ? "🟩"
-                    : !HabitService.IsScheduledOn(habit, d) ? "▫️"
-                    : HabitService.IsOpen(d, today) ? "⬜"
+                    : !HabitRules.IsScheduledOn(habit, d) ? "▫️"
+                    : HabitRules.IsOpen(d, today) ? "⬜"
                     : "⬛");
             }
             rows.Add(dots.ToString());
@@ -274,22 +275,22 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         if (habit.FrequencyType == FrequencyType.Weekly)
         {
-            var (done, target) = HabitService.WeeklyProgress(habit, today);
+            var (done, target) = HabitRules.WeeklyProgress(habit, today);
             var total = habit.Logs.Count(l => l.Completed);
             titleLine = t.Format("habit.share.weekly.title", done, target);
-            statsLine = t.Format("habit.share.weekly.stats", HabitService.FlexibleStreak(habit, today, 28), total);
+            statsLine = t.Format("habit.share.weekly.stats", HabitRules.FlexibleStreak(habit, today, 28), total);
         }
         else if (!showStreaks)
         {
-            var last30 = HabitService.FlexibleStreak(habit, today, 30);
+            var last30 = HabitRules.FlexibleStreak(habit, today, 30);
             titleLine = t.Format("habit.share.flexible.title", last30);
             statsLine = t.Format("habit.share.flexible.stats", last30, habit.Logs.Count(l => l.Completed));
         }
         else
         {
-            var (streak, graceUsed) = HabitService.ConsecutiveStreak(habit, today, grace, lowDays);
-            var best = HabitService.BestStreak(habit, today, grace, lowDays);
-            var last30 = HabitService.FlexibleStreak(habit, today, 30);
+            var (streak, graceUsed) = HabitRules.ConsecutiveStreak(habit, today, grace, lowDays);
+            var best = HabitRules.BestStreak(habit, today, grace, lowDays);
+            var last30 = HabitRules.FlexibleStreak(habit, today, 30);
             var total = habit.Logs.Count(l => l.Completed);
             var graceStr = graceUsed > 0 ? " " + t.Plural("habit.progress.grace", graceUsed) : "";
             var fireCount = Math.Min(streak / 7 + 1, 5);

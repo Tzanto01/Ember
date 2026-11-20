@@ -1,5 +1,6 @@
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -17,10 +18,10 @@ public class GraceAndPauseTests
         habit.PausedFrom = HabitFactory.Today.AddDays(-5);
         habit.PausedUntil = HabitFactory.Today.AddDays(-3);
 
-        HabitService.IsPausedOn(habit, HabitFactory.Today.AddDays(-6)).Should().BeFalse();
-        HabitService.IsPausedOn(habit, HabitFactory.Today.AddDays(-5)).Should().BeTrue();
-        HabitService.IsPausedOn(habit, HabitFactory.Today.AddDays(-3)).Should().BeTrue();
-        HabitService.IsPausedOn(habit, HabitFactory.Today.AddDays(-2)).Should().BeFalse();
+        HabitRules.IsPausedOn(habit, HabitFactory.Today.AddDays(-6)).Should().BeFalse();
+        HabitRules.IsPausedOn(habit, HabitFactory.Today.AddDays(-5)).Should().BeTrue();
+        HabitRules.IsPausedOn(habit, HabitFactory.Today.AddDays(-3)).Should().BeTrue();
+        HabitRules.IsPausedOn(habit, HabitFactory.Today.AddDays(-2)).Should().BeFalse();
     }
 }
 
@@ -50,7 +51,7 @@ public class PauseServiceTests
 
         resumed!.PausedFrom.Should().Be(new DateOnly(2027, 1, 15));
         resumed.PausedUntil.Should().Be(new DateOnly(2027, 1, 17));
-        HabitService.IsPausedOn(resumed, new DateOnly(2027, 1, 18)).Should().BeFalse();
+        HabitRules.IsPausedOn(resumed, new DateOnly(2027, 1, 18)).Should().BeFalse();
     }
 
     [Fact]
@@ -164,7 +165,7 @@ public class PauseServiceTests
         async Task<(int Streak, int GraceUsed)> StreakAsync() => await host.WithScopeAsync(async sp =>
         {
             var habit = (await sp.GetRequiredService<HabitService>().GetHabitAsync(UserId, habitId))!;
-            return HabitService.ConsecutiveStreak(habit, today, graceDays: 0);
+            return HabitRules.ConsecutiveStreak(habit, today, graceDays: 0);
         });
 
         (await StreakAsync()).Should().Be((2, 0));
