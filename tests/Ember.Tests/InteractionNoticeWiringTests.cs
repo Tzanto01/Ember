@@ -31,7 +31,8 @@ public class InteractionNoticeWiringTests
         using var host = AppHost.CreateHostBuilder([], new EmberHostOptions
         {
             ConfigureDbContext = (options, _) => options.UseSqlite(connection),
-        }).Build();
+        }).ConfigureAppConfiguration(config => config.AddInMemoryCollection(new Dictionary<string, string?> { ["BotToken"] = null }))
+            .Build();
 
         await AppHost.InitializeAsync(host);
         await using (var scope = host.Services.CreateAsyncScope())
