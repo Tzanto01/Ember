@@ -62,6 +62,8 @@ export default defineConfig(
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       // `!` marks invariants the code relies on (Map lookups by known keys, finds after inserts, in-range indexes); replacing them with runtime checks would change behavior.
       '@typescript-eslint/no-non-null-assertion': 'off',
+      // `async` without `await` is deliberate here: it turns synchronous throws (the local backend's validation) into rejections and fits Promise-returning interfaces.
+      '@typescript-eslint/require-await': 'off',
     },
   },
   {
@@ -69,8 +71,6 @@ export default defineConfig(
     rules: {
       // `expect(fake.method)` on vi.fn() fakes is the Vitest idiom and never calls the method unbound.
       '@typescript-eslint/unbound-method': 'off',
-      // Async fakes implement Promise-returning interfaces without needing an await.
-      '@typescript-eslint/require-await': 'off',
       // Tests read back JSON.parse output and mock.calls payloads, which are `any` by design.
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
@@ -86,7 +86,6 @@ export default defineConfig(
     // TEMPORARY:rules with findings left to fix; this block must be empty when the lint pass is done.
     name: 'temporary-todo',
     rules: {
-      '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/exhaustive-deps': 'off',
