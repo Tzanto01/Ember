@@ -10,6 +10,7 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.VisibleForTesting
+import androidx.core.app.ActivityCompat
 import app.ember.habits.plugin.BackupFilePlugin
 import app.ember.habits.plugin.EmberWidgetPlugin
 import app.ember.habits.plugin.FlavorPlugins
@@ -53,7 +54,8 @@ class MainActivity : BridgeActivity() {
 
     /**
      * Replaces a WebView whose render process died or was killed by recreating the activity, so Ember never stays
-     * blank. A second death within [RENDERER_RETRY_WINDOW_MS] of the last one finishes the activity instead of looping.
+     * blank. A second death within [RENDERER_RETRY_WINDOW_MS] of the last one finishes the activity instead of looping,
+     * and an activity that is already finishing is left to finish.
      */
     private fun recover(webView: WebView, detail: RenderProcessGoneDetail?): Boolean {
         val now = SystemClock.elapsedRealtime()
@@ -63,10 +65,16 @@ class MainActivity : BridgeActivity() {
         val priority = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) detail?.rendererPriorityAtExit() else null
         Log.i(
             LOG_TAG,
-            "renderer gone crashed=$crashed priorityAtExit=$priority then=${if (again) "finish" else "recreate"}",
+            "renderer gone crashed=$crashed priorityAtExit=$priority then=" +
+                when {
+                    isFinishing -> "none"
+                    again -> "finish"
+                    else -> "recreate"
+                },
         )
         (webView.parent as? ViewGroup)?.removeView(webView)
-        if (again) finish() else recreate()
+        if (isFinishing) return true
+        if (again) finish() else ActivityCompat.recreate(this)
         return true
     }
 

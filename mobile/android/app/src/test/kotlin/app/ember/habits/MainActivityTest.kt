@@ -231,6 +231,18 @@ class MainActivityTest {
     }
 
     @Test
+    fun aRendererDeathWhileFinishingDoesNotBringTheActivityBack() {
+        val app = start(launcher())
+        val leaving = app.get()
+        leaving.finish()
+
+        assertTrue(app.rendererGone())
+
+        assertSame(leaving, app.get())
+        assertTrue(leaving.isFinishing)
+    }
+
+    @Test
     fun theLaunchLogNamesExtrasButNeverTheirValues() {
         val token = today()
         val date = WidgetStore.current(context)!!.getString("date")
