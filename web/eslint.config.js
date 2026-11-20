@@ -70,7 +70,6 @@ export default defineConfig(
       '@typescript-eslint/no-deprecated': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-meaningless-void-operator': 'off',
       '@typescript-eslint/no-misused-spread': 'off',
       '@typescript-eslint/no-unnecessary-type-conversion': 'off',
       '@typescript-eslint/no-extraneous-class': 'off',

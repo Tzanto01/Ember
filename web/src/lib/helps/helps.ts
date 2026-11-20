@@ -197,7 +197,7 @@ export class HelpsService {
     sameOwner();
     const current = this.items.get() ?? [];
     const next = apply(current, op);
-    if (!next) return void done?.(current);
+    if (!next) return done?.(current);
     let saved: HelpItem[];
     try {
       saved = await this.write(next);
@@ -206,7 +206,7 @@ export class HelpsService {
       sameOwner();
       const fresh = await this.read();
       const merged = apply(fresh, op);
-      if (!merged) return void done?.(fresh);
+      if (!merged) return done?.(fresh);
       try {
         saved = await this.write(merged);
       } catch (again) {

@@ -14,7 +14,7 @@ vi.mock('@capacitor/app', () => ({
   App: {
     addListener: async (_event: string, handler: () => void) => {
       back.handler = handler;
-      return { remove: async () => void back.removed++ };
+      return { remove: async () => { back.removed++; } };
     },
   },
 }));

@@ -11,7 +11,7 @@ const native = vi.hoisted(() => ({
 vi.mock('@capacitor/browser', () => ({
   Browser: {
     open: async ({ url }: { url: string }) => void native.opened.push(url),
-    close: async () => void native.closed++,
+    close: async () => { native.closed++; },
   },
 }));
 
