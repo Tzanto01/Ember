@@ -42,8 +42,8 @@ function toLocalData(c: FixtureCase): LocalData {
 }
 
 describe('client rules match the Core rules fixture', () => {
-  it('has all 15 cases', () => {
-    expect(fixture.cases).toHaveLength(15);
+  it('has all 23 cases', () => {
+    expect(fixture.cases).toHaveLength(23);
   });
 
   it.each(fixture.cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {
