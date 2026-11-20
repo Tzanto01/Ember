@@ -8,7 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
 import { Switch } from '@/components/ui/switch';
-import { firesideApi, firesideKey, isAsking, patchFireside, useFireside, warmthText } from '@/lib/fireside';
+import { useFireside } from '@/hooks/use-fireside';
+import { firesideApi, firesideKey, isAsking, patchFireside, warmthText } from '@/lib/fireside';
 import { asApiError, problemToMessage } from '@/lib/problem';
 import { SendSheet } from './send-sheet';
 

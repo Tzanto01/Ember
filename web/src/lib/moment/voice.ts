@@ -1,8 +1,6 @@
-import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { env } from '@/lib/env';
-import { isLanguage, type Language } from '@/lib/i18n';
-import { Store, useStore } from '@/lib/store';
+import type { Language } from '@/lib/i18n';
+import { Store } from '@/lib/store';
 
 const key = 'ember.momentVoice';
 const textToSpeech = () => import('@capacitor-community/text-to-speech');
@@ -22,7 +20,8 @@ export const voiceOn = new Store(stored());
 let spoken = 0;
 let pending = false;
 const nativeVoices = new Map<Language, { lang: string; index: number }>();
-const available = new Store<Partial<Record<Language, boolean>>>({});
+/** Per app language, whether this device has an offline voice for it (unknown until {@link checkVoice} ran). */
+export const voiceAvailable = new Store<Partial<Record<Language, boolean>>>({});
 
 /** Turns voice guidance on or off and remembers it on this device; turning it off stops speaking at once. */
 export function setVoiceOn(on: boolean): void {
@@ -116,24 +115,9 @@ export function pulse(): void {
     .catch(() => undefined);
 }
 
-/**
- * Voice guidance for the moment flow in the app language: `available` once the device has an offline voice for it
- * (the switch shows only then), `active` while it is also switched on.
- */
-export function useVoiceGuide(): { available: boolean; active: boolean; language: Language } {
-  const { i18n } = useTranslation();
-  const language: Language = isLanguage(i18n.language) ? i18n.language : 'en';
-  const on = useStore(voiceOn);
-  const known = useStore(available)[language] === true;
-
-  useEffect(() => {
-    const check = () =>
-      void canSpeak(language).then((yes) => available.update((all) => (all[language] === yes ? all : { ...all, [language]: yes })));
-    check();
-    const synth = env.native ? undefined : globalThis.speechSynthesis;
-    synth?.addEventListener?.('voiceschanged', check);
-    return () => synth?.removeEventListener?.('voiceschanged', check);
-  }, [language]);
-
-  return { available: known, active: known && on, language };
+/** Finds out whether this device can speak `language` and records it in {@link voiceAvailable}. */
+export function checkVoice(language: Language): void {
+  void canSpeak(language).then((yes) =>
+    voiceAvailable.update((all) => (all[language] === yes ? all : { ...all, [language]: yes })),
+  );
 }

@@ -3,7 +3,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { env } from '@/lib/env';
 import { momentCopy } from '@/lib/moment/copy';
-import { setVoiceOn, useVoiceGuide, voiceOn } from '@/lib/moment/voice';
+import { useVoiceGuide } from '@/hooks/use-voice-guide';
+import { setVoiceOn, voiceOn } from '@/lib/moment/voice';
 import { useStore } from '@/lib/store';
 
 /** "Guide me by voice": shown only when the device has an offline voice in the app language. */

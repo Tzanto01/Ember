@@ -3,7 +3,8 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BusyButton } from '@/components/auth/busy-button';
 import { Button } from '@/components/ui/button';
-import { firesideApi, isAsking, patchFireside, useFireside } from '@/lib/fireside';
+import { useFireside } from '@/hooks/use-fireside';
+import { firesideApi, isAsking, patchFireside } from '@/lib/fireside';
 
 /**
  * The ask step at the end of a moment (screen 7): "Let your fireside know you could use some warmth?". Shown only

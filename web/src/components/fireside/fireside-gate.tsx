@@ -5,7 +5,8 @@ import { PageHeader } from '@/components/page-header';
 import { Spinner } from '@/components/spinner';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
-import { type Fireside, useFireside } from '@/lib/fireside';
+import { useFireside } from '@/hooks/use-fireside';
+import type { Fireside } from '@/lib/fireside';
 
 /**
  * Shows `children` with the loaded Fireside; sends the user to Settings › People while Fireside is off or in

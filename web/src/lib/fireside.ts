@@ -1,9 +1,8 @@
-import { type QueryClient, useQuery } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { firesideLimits } from './fireside-limits';
 import { t } from './i18n';
 import type { Me } from './models';
-import { auth, http, localMode } from './services';
-import { useStore } from './store';
+import { http } from './services';
 
 /** The five fixed warmth messages (contract v1.22). */
 export const warmthMessages = ['thinking', 'proud', 'easy', 'notAlone', 'blanket'] as const;
@@ -102,26 +101,6 @@ export function firesideAvailable(me: Me | null, mode: string): boolean {
     me.consent.given &&
     me.consent.policyVersion === me.consent.currentPolicyVersion
   );
-}
-
-/**
- * The caller's Fireside; idle in no-account mode, without an account or before consent. With `cacheOnly` it never
- * fetches and only shows what is already loaded (a moment makes no network call of its own).
- */
-export function useFireside({ cacheOnly = false }: { cacheOnly?: boolean } = {}) {
-  const me = useStore(auth.me);
-  const mode = useStore(localMode.mode);
-  const available = firesideAvailable(me, mode);
-  const query = useQuery({
-    queryKey: firesideKey,
-    queryFn: firesideApi.get,
-    enabled: available && !cacheOnly,
-    gcTime: 60 * 60_000,
-    staleTime: 30_000,
-    refetchInterval: (q) => (q.state.data?.code && Date.parse(q.state.data.code.expiresAt) > Date.now() ? 60_000 : false),
-    refetchOnWindowFocus: true,
-  });
-  return { ...query, available, data: available ? query.data : undefined };
 }
 
 /** Replaces one friend in the cached Fireside. */

@@ -14,7 +14,7 @@ import { LiveNoticeBanner } from '@/components/live-notice';
 import { NativeConfirmation } from '@/components/native-confirmation';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
-import { useArrival } from '@/lib/arrival';
+import { useArrival } from '@/hooks/use-arrival';
 import { formatDate } from '@/lib/local-date';
 import { auth, deviceSync, helps, journal, localMode, offlineQueue } from '@/lib/services';
 import { useStore } from '@/lib/store';

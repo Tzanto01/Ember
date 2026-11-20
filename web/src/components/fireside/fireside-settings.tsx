@@ -11,7 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
 import { Switch } from '@/components/ui/switch';
-import { type FiresidePut, firesideApi, firesideKey, firesideNameMax, useFireside } from '@/lib/fireside';
+import { useFireside } from '@/hooks/use-fireside';
+import { type FiresidePut, firesideApi, firesideKey, firesideNameMax } from '@/lib/fireside';
 import { asApiError, problemToMessage } from '@/lib/problem';
 
 function nameError(value: string): string | null {

@@ -7,7 +7,7 @@ import { FlameMark } from '@/components/flame-mark';
 import { LegalLinks } from '@/components/legal-links';
 import { Card } from '@/components/ui/card';
 import { pitch } from '@/content/pitch';
-import { useArrival } from '@/lib/arrival';
+import { useArrival } from '@/hooks/use-arrival';
 import type { DayState } from '@/lib/models';
 import { cn } from '@/lib/utils';
 

@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { arrivalWindowMs } from '@/lib/arrival';
+import { arrivalWindowMs } from '@/hooks/use-arrival';
 import { CenteredShell } from './centered-shell';
 
 function renderShell(path: string) {

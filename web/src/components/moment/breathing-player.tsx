@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { LiveRegion } from '@/components/live-region';
 import { Button } from '@/components/ui/button';
 import { momentCopy } from '@/lib/moment/copy';
-import { pulse, speak, stopVoice, useVoiceGuide } from '@/lib/moment/voice';
+import { useVoiceGuide } from '@/hooks/use-voice-guide';
+import { pulse, speak, stopVoice } from '@/lib/moment/voice';
 import { cn } from '@/lib/utils';
 import { useReduceMotion } from './use-reduce-motion';
 

@@ -24,7 +24,8 @@ pages/ -> components/<feature>/ + components/ui/ -> lib/
 ```
 
 - `src/pages/`: one file per route (`router.tsx`). `src/components/<feature>/`: the screens' parts; `components/ui/` holds the shared primitives and knows nothing about Ember.
-- `src/lib/`: everything without React (except `store.ts` and a few hooks still to move). `lib/services.ts` builds the app's single instances; tests build their own with fakes.
+- `src/hooks/`: React hooks shared by several screens (`use-*.ts`); they use `lib/` only.
+- `src/lib/`: everything without React (`store.ts` and its `useStore` excepted). `lib/services.ts` builds the app's single instances; tests build their own with fakes.
 - No-account mode: `Http` hands every `/api` request to `lib/local/backend.ts`, which answers from IndexedDB with the rules in `lib/local/rules.ts`. Screens don't know which backend they talk to.
 - Rules parity: `lib/local/rules.ts` must give the server's answers. `docs/contracts/fixtures/*.json` holds the shared cases; `lib/local/rules-parity.test.ts` and `tests/Ember.Tests/RulesFixtureTests.cs` both run them.
 - Offline with an account: `lib/offline-queue.ts` keeps day and journal edits in `lib/device-store.ts` and replays them; `withDayEdit` there is the one optimistic day edit, used by Today and the offline answers.

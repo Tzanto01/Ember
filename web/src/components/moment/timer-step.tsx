@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { LiveRegion } from '@/components/live-region';
 import { Button } from '@/components/ui/button';
 import { momentCopy } from '@/lib/moment/copy';
-import { speak, stopVoice, useVoiceGuide } from '@/lib/moment/voice';
+import { useVoiceGuide } from '@/hooks/use-voice-guide';
+import { speak, stopVoice } from '@/lib/moment/voice';
 
 function clock(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;

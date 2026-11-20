@@ -1,5 +1,5 @@
 import { FlameKindling } from 'lucide-react';
-import { useFireside } from '@/lib/fireside';
+import { useFireside } from '@/hooks/use-fireside';
 
 /** The main-nav entry for `/fireside`. */
 export const firesideNavItem = {
