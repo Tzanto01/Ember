@@ -52,6 +52,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
     bundle {
         language {
             enableSplit = false
