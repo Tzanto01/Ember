@@ -1,5 +1,6 @@
 namespace Ember.Core.Rules;
 
+/// <summary>Time zone lookup, a user's local day and the UTC instants of local wall-clock times.</summary>
 public static class TimeZones
 {
     /// <summary>
