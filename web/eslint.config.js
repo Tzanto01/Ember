@@ -64,6 +64,8 @@ export default defineConfig(
       '@typescript-eslint/no-non-null-assertion': 'off',
       // `async` without `await` is deliberate here: it turns synchronous throws (the local backend's validation) into rejections and fits Promise-returning interfaces.
       '@typescript-eslint/require-await': 'off',
+      // Its findings are deliberate runtime guards: browser APIs some webviews and jsdom lack, server and stored data older than its type, indexed reads; removing them would change behavior. Revisit after noUncheckedIndexedAccess.
+      '@typescript-eslint/no-unnecessary-condition': 'off',
     },
   },
   {
@@ -86,7 +88,6 @@ export default defineConfig(
     // TEMPORARY:rules with findings left to fix; this block must be empty when the lint pass is done.
     name: 'temporary-todo',
     rules: {
-      '@typescript-eslint/no-unnecessary-condition': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/exhaustive-deps': 'off',
       'react-hooks/refs': 'off',
