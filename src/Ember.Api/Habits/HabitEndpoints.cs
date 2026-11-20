@@ -273,8 +273,8 @@ internal static class HabitEndpoints
         object today, stats;
         if (habit.Kind == HabitKind.LetGo)
         {
-            var day = LetGoRules.LetGoDayOn(habit, user.Today, user.Tz);
-            var l = LetGoRules.LetGoStatsOn(habit, user.Today, user.Tz);
+            var day = LetGoRules.DayOn(habit, user.Today, user.Tz);
+            var l = LetGoRules.StatsOn(habit, user.Today, user.Tz);
             today = new LetGoDayDto(day.Date, Lower(day.State), day.Slips);
             stats = new LetGoStatsDto(l.DaysFree, l.LongestStretch, l.FreeDaysThisMonth, l.SlipDaysLast30);
         }

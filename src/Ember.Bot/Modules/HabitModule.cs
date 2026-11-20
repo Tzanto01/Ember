@@ -118,7 +118,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
                 ? h.Name[..SelectMenuOptionBuilder.MaxSelectLabelLength]
                 : h.Name;
             menu.AddOption(label, h.Id.ToString(CultureInfo.InvariantCulture), h.Kind == HabitKind.LetGo && tz is not null
-                ? DaysFreeText(t, LetGoRules.LetGoStatsOn(h, today, tz).DaysFree)
+                ? DaysFreeText(t, LetGoRules.StatsOn(h, today, tz).DaysFree)
                 : FrequencyLabel(t, h));
         }
 
@@ -222,7 +222,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 
             foreach (var h in slice)
             {
-                var todayMark = h.Kind == HabitKind.LetGo ? LetGoMark(LetGoRules.LetGoDayOn(h, today, tz).State) : DayMark(h, today);
+                var todayMark = h.Kind == HabitKind.LetGo ? LetGoMark(LetGoRules.DayOn(h, today, tz).State) : DayMark(h, today);
                 var reminderStr = FormatReminder(t, h.ReminderTimes);
                 var pauseStr = h.PausedUntil.HasValue && h.PausedUntil >= today
                     ? " · " + t.Format("habit.list.paused", h.PausedUntil.Value.ToString(t.Get("date.month-day"), t.Culture)) : "";
@@ -353,7 +353,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
                 string statsText;
                 if (h.Kind == HabitKind.LetGo)
                 {
-                    var stats = LetGoRules.LetGoStatsOn(h, today, tz);
+                    var stats = LetGoRules.StatsOn(h, today, tz);
                     statsText = t.Format("habit.letgo.stats", stats.DaysFree, stats.LongestStretch, stats.FreeDaysThisMonth);
                 }
                 else if (h.FrequencyType == FrequencyType.Weekly)
@@ -396,7 +396,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     /// <summary>The <c>/habit list</c> progress line of <paramref name="h"/>; without <paramref name="showStreaks"/> it has no streak.</summary>
     internal static string ListProgress(Texts t, Habit h, DateOnly today, int grace, IReadOnlySet<DateOnly> lowDays, TimeZoneInfo tz, bool showStreaks)
     {
-        if (h.Kind == HabitKind.LetGo) return DaysFreeText(t, LetGoRules.LetGoStatsOn(h, today, tz).DaysFree);
+        if (h.Kind == HabitKind.LetGo) return DaysFreeText(t, LetGoRules.StatsOn(h, today, tz).DaysFree);
         if (h.FrequencyType == FrequencyType.Weekly)
         {
             var (done, target) = HabitRules.WeeklyProgress(h, today);

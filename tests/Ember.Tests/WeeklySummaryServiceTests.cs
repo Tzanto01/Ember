@@ -106,7 +106,7 @@ public class WeeklySummaryServiceTests
     [Fact]
     public void Possible_ExcludesDaysBeforeAndIncludingCreation()
     {
-        // Created 3 days ago; IsActiveOn is strictly-after-creation, so only
+        // Created 3 days ago; IsAfterStartDay is strictly-after-creation, so only
         // today-2 and today-1 are countable days inside the window.
         var habit = HabitFactory.Make(createdAtDaysAgo: 3, pausedUntilDaysAgo: null,
             FrequencyType.Daily, weeklyTarget: null, (1, true), (2, true));

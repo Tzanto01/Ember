@@ -23,18 +23,18 @@ public class MissedDayReflectionTests
     }
 
     [Fact]
-    public void IsActiveOn_WithTimezone_UsesTheLocalCreationDay()
+    public void IsAfterStartDay_WithTimezone_UsesTheLocalCreationDay()
     {
         // 07:30 UTC Jan 15 is 23:30 on Jan 14 in Los Angeles: the habit was created on Jan 14 locally.
         var habit = new Habit { Name = "Test", CreatedAt = new DateTime(2026, 1, 15, 7, 30, 0, DateTimeKind.Utc) };
         var la = TimezoneHelper.Find("America/Los_Angeles")!;
 
-        HabitRules.IsActiveOn(habit, new DateOnly(2026, 1, 15), la).Should().BeTrue();
-        HabitRules.IsActiveOn(habit, new DateOnly(2026, 1, 14), la).Should().BeFalse();
+        HabitRules.IsAfterStartDay(habit, new DateOnly(2026, 1, 15), la).Should().BeTrue();
+        HabitRules.IsAfterStartDay(habit, new DateOnly(2026, 1, 14), la).Should().BeFalse();
     }
 
     [Fact]
-    public void IsActiveOn_HabitCreatedToday_IsFalseForYesterday()
+    public void IsAfterStartDay_HabitCreatedToday_IsFalseForYesterday()
     {
         var habit = HabitFactory.Make(
             createdAtDaysAgo: 0,
@@ -44,11 +44,11 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitRules.IsActiveOn(habit, yesterday, TimeZoneInfo.Utc).Should().BeFalse();
+        HabitRules.IsAfterStartDay(habit, yesterday, TimeZoneInfo.Utc).Should().BeFalse();
     }
 
     [Fact]
-    public void IsActiveOn_HabitCreatedYesterday_IsFalseForYesterday()
+    public void IsAfterStartDay_HabitCreatedYesterday_IsFalseForYesterday()
     {
         // A habit created on the evaluated day should never count as "missed" —
         // the user had no full day to complete it.
@@ -60,11 +60,11 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitRules.IsActiveOn(habit, yesterday, TimeZoneInfo.Utc).Should().BeFalse();
+        HabitRules.IsAfterStartDay(habit, yesterday, TimeZoneInfo.Utc).Should().BeFalse();
     }
 
     [Fact]
-    public void IsActiveOn_HabitCreatedTwoDaysAgo_IsTrueForYesterday()
+    public void IsAfterStartDay_HabitCreatedTwoDaysAgo_IsTrueForYesterday()
     {
         // A habit created strictly before the evaluated day IS active on that day.
         var habit = HabitFactory.Make(
@@ -75,11 +75,11 @@ public class MissedDayReflectionTests
 
         var yesterday = HabitFactory.Today.AddDays(-1);
 
-        HabitRules.IsActiveOn(habit, yesterday, TimeZoneInfo.Utc).Should().BeTrue();
+        HabitRules.IsAfterStartDay(habit, yesterday, TimeZoneInfo.Utc).Should().BeTrue();
     }
 
     [Fact]
-    public void IsActiveOn_WeeklyHabitCreatedAfterWeekStart_IsFalseForEarlierDays()
+    public void IsAfterStartDay_WeeklyHabitCreatedAfterWeekStart_IsFalseForEarlierDays()
     {
         var today = HabitFactory.Today;
         var createdAt = HabitFactory.Today.AddDays(-1);
@@ -92,7 +92,7 @@ public class MissedDayReflectionTests
             weeklyTarget: 3,
             (0, true));
 
-        HabitRules.IsActiveOn(habit, earlierDay, TimeZoneInfo.Utc).Should().BeFalse();
-        HabitRules.IsActiveOn(habit, today, TimeZoneInfo.Utc).Should().BeTrue();
+        HabitRules.IsAfterStartDay(habit, earlierDay, TimeZoneInfo.Utc).Should().BeFalse();
+        HabitRules.IsAfterStartDay(habit, today, TimeZoneInfo.Utc).Should().BeTrue();
     }
 }

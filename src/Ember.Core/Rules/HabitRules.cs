@@ -194,12 +194,11 @@ public static class HabitRules
         => day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
     /// <summary>
-    /// Returns whether the habit should be counted as active on the given date.
-    /// A habit is only active on dates strictly after its creation date — the day
-    /// it was created is excluded because the user had no full day to complete it.
-    /// The creation day is the local one in the user's <paramref name="tz"/>.
+    /// Whether <paramref name="date"/> lies strictly after the habit's <see cref="StartDate"/> in the user's <paramref name="tz"/>.
+    /// The weekly summary and the missed-day reflection count a habit only from then: on its creation day the user had no full
+    /// day to complete it. Logging and the day states use the inclusive <see cref="StartDate"/> instead.
     /// </summary>
-    public static bool IsActiveOn(Habit habit, DateOnly date, TimeZoneInfo tz)
+    public static bool IsAfterStartDay(Habit habit, DateOnly date, TimeZoneInfo tz)
         => StartDate(habit, tz) < date;
 
     /// <summary>The habit's creation day in <paramref name="tz"/> (the user's current timezone): the first day that can be logged.</summary>

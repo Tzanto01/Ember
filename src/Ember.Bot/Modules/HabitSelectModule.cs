@@ -36,7 +36,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         if (habit.Kind == HabitKind.LetGo)
         {
-            var daysFree = LetGoRules.LetGoStatsOn(habit, await _habits.GetLocalTodayAsync(Context.User.Id),
+            var daysFree = LetGoRules.StatsOn(habit, await _habits.GetLocalTodayAsync(Context.User.Id),
                 await _habits.GetUserTzAsync(Context.User.Id)).DaysFree;
             await ((SocketMessageComponent)Context.Interaction)
                 .UpdateAsync(m =>
@@ -239,7 +239,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     {
         if (habit.Kind == HabitKind.LetGo)
         {
-            var stats = LetGoRules.LetGoStatsOn(habit, today, tz ?? TimeZoneInfo.Utc);
+            var stats = LetGoRules.StatsOn(habit, today, tz ?? TimeZoneInfo.Utc);
             return new EmbedBuilder()
                 .WithColor(0xE8873A)
                 .WithTitle($"🌿 {habit.Name} _({HabitModule.FrequencyLabel(t, habit)})_")

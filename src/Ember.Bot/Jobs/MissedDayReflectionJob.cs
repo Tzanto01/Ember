@@ -97,7 +97,7 @@ public class MissedDayReflectionJob : IJob
                 if (IsOpenDaily(habit, yesterday, tz))
                     open.Add(habit.Name);
             }
-            else if (HabitRules.IsActiveOn(habit, yesterday, tz) && !HabitRules.IsPausedOn(habit, yesterday))
+            else if (HabitRules.IsAfterStartDay(habit, yesterday, tz) && !HabitRules.IsPausedOn(habit, yesterday))
             {
                 // Weekly habit: are they behind target with 2 or fewer days left in the week?
                 var weekEnd = weekStart.AddDays(6);
@@ -154,7 +154,7 @@ public class MissedDayReflectionJob : IJob
         => habit.Kind != Ember.Core.Models.HabitKind.LetGo
             && habit.FrequencyType != Ember.Core.Models.FrequencyType.Weekly
             && HabitRules.IsScheduledOn(habit, date)
-            && HabitRules.IsActiveOn(habit, date, tz)
+            && HabitRules.IsAfterStartDay(habit, date, tz)
             && !HabitRules.IsPausedOn(habit, date)
             && !habit.Logs.Any(l => l.Date == date && l.Completed);
 }

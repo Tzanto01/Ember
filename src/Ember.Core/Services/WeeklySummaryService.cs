@@ -23,7 +23,7 @@ public static class WeeklySummaryService
         int GraceUsed,
         string DotString);
 
-    /// <summary>A let-go habit in the recap: only its days free (<see cref="LetGoRules.LetGoStatsOn"/>), never slip counts.</summary>
+    /// <summary>A let-go habit in the recap: only its days free (<see cref="LetGoRules.StatsOn"/>), never slip counts.</summary>
     public sealed record LetGoSummary(Habit Habit, int DaysFree);
 
     /// <summary>
@@ -55,7 +55,7 @@ public static class WeeklySummaryService
         var letGo = user.Habits
             .Where(h => h.Kind == HabitKind.LetGo && HabitRules.StartDate(h, tz) <= today && !HabitRules.IsPausedOn(h, today))
             .OrderBy(h => h.CreatedAt)
-            .Select(h => new LetGoSummary(h, LetGoRules.LetGoStatsOn(h, today, tz).DaysFree))
+            .Select(h => new LetGoSummary(h, LetGoRules.StatsOn(h, today, tz).DaysFree))
             .ToList();
 
         return new UserSummary(habits, habits.Sum(h => h.Done), habits.Sum(h => h.Possible), letGo);
@@ -71,7 +71,7 @@ public static class WeeklySummaryService
         var activeDays = 0;
         for (var d = from; d <= weekEnd; d = d.AddDays(1))
         {
-            if (HabitRules.IsActiveOn(habit, d, tz) && HabitRules.IsScheduledOn(habit, d)
+            if (HabitRules.IsAfterStartDay(habit, d, tz) && HabitRules.IsScheduledOn(habit, d)
                 && !HabitRules.IsPausedOn(habit, d) && !lowDays.Contains(d))
                 activeDays++;
         }

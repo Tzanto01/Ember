@@ -93,7 +93,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
                 m.Content = t.Format("history.letgo.grid", habit.Name, Days,
-                    HabitModule.DaysFreeText(t, LetGoRules.LetGoStatsOn(habit, today, tz).DaysFree));
+                    HabitModule.DaysFreeText(t, LetGoRules.StatsOn(habit, today, tz).DaysFree));
                 m.Components = BuildLetGoGrid(t, habit, today, tz);
             });
             return;
@@ -175,7 +175,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         var builder = new ComponentBuilder();
         for (var i = 0; i < Days; i++)
         {
-            var day = LetGoRules.LetGoDayOn(habit, today.AddDays(i + 1 - Days), tz);
+            var day = LetGoRules.DayOn(habit, today.AddDays(i + 1 - Days), tz);
             var date = day.Date.ToString(t.Get("date.button"), t.Culture);
             builder.WithButton(
                 day.State == LetGoDayState.BeforeStart ? date : $"{date} {HabitModule.LetGoMark(day.State)}",

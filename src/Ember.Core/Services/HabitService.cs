@@ -160,7 +160,7 @@ public partial class HabitService
         FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null, IReadOnlyCollection<string>? reminderExclusions = null,
         ScheduleDays? days = null, int timesPerDay = 1, IReadOnlyCollection<TimeOnly>? reminderTimes = null, HabitKind kind = HabitKind.Build)
     {
-        LetGoRules.GuardLetGo(kind, frequency, timesPerDay, weeklyTarget, days, reminderTimes?.Distinct().Count() ?? 0);
+        LetGoRules.ThrowIfInvalid(kind, frequency, timesPerDay, weeklyTarget, days, reminderTimes?.Distinct().Count() ?? 0);
         if (!await HasHealthDataConsentAsync(userId))
             throw new ConsentRequiredException();
         if (await _db.Habits.CountAsync(h => h.UserId == userId) >= Limits.HabitsPerUser)
@@ -432,7 +432,7 @@ public partial class HabitService
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
 
         if (habit is null) return null;
-        LetGoRules.GuardLetGo(habit.Kind, type, timesPerDay, null, null, 0);
+        LetGoRules.ThrowIfInvalid(habit.Kind, type, timesPerDay, null, null, 0);
 
         var target = type == FrequencyType.Weekly ? 1 : timesPerDay;
         var recompute = target != habit.TimesPerDay;
@@ -489,7 +489,7 @@ public partial class HabitService
 
         if (habit is null) return null;
         if (!clearReminder && newReminderTimes is not null)
-            LetGoRules.GuardLetGo(habit.Kind, FrequencyType.Daily, 1, null, null, newReminderTimes.Distinct().Count());
+            LetGoRules.ThrowIfInvalid(habit.Kind, FrequencyType.Daily, 1, null, null, newReminderTimes.Distinct().Count());
         if (newName is not null && newName != habit.Name && !await HasHealthDataConsentAsync(userId))
             throw new ConsentRequiredException();
 
