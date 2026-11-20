@@ -1,14 +1,14 @@
 import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 import { env } from '@/lib/env';
 import i18n from '@/lib/i18n';
 import { reminderNames } from '@/lib/native/reminder-names';
 import type { ReminderDestination } from '@/lib/models';
 import { applyGentleMotion, gentleMotion } from '@/lib/theme';
 import { auth, deviceSync, localMode, push } from '@/lib/services';
-import { type FetchMock, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, me, mockFetch } from '@/test/test-support';
 import SettingsPage from './settings';
 
 vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));

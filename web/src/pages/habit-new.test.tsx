@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
 import type { HabitTemplate } from '@/lib/models';
 import { auth, localMode, push } from '@/lib/services';
-import { type FetchMock, habit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, me, mockFetch } from '@/test/test-support';
 import HabitNewPage from './habit-new';
 
 vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));

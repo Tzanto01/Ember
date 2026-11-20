@@ -10,7 +10,7 @@ import { Keyring } from '../journal/keyring';
 import type { JournalKey, Me } from '../models';
 import { OfflineQueue } from '../offline-queue';
 import { Store } from '../store';
-import { type FakeCall, type FetchMock, habit, me as baseMe, mockFetch } from '../test-support';
+import { type FakeCall, type FetchMock, habit, me as baseMe, mockFetch } from '@/test/test-support';
 import { newLocalData } from './backend';
 import { LocalStore } from './store';
 import type { AppMode, LocalData } from './types';

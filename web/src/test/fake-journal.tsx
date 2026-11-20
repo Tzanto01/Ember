@@ -6,7 +6,7 @@ import { vi } from 'vitest';
 import type { JournalApi, JournalState } from '@/lib/journal/types';
 import type { DayNote, HabitNote, OwnMood } from '@/lib/models';
 import { Store } from '@/lib/store';
-import { JournalContext } from './journal-context';
+import { JournalContext } from '@/components/journal/journal-context';
 
 /** Test helper: an in-memory {@link JournalApi} whose screen-facing methods are `vi.fn` mocks. */
 export function fakeJournal({

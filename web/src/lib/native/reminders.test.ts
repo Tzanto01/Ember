@@ -8,7 +8,7 @@ import { env } from '../env';
 import { Http } from '../http';
 import type { AnyHabit, Habit, ReminderDestination, Routine } from '../models';
 import { OfflineQueue } from '../offline-queue';
-import { type FetchMock, habit, letGoHabit, mockFetch } from '../test-support';
+import { type FetchMock, habit, letGoHabit, mockFetch } from '@/test/test-support';
 import { applyTheme } from '../theme';
 import { reminderNames } from './reminder-names';
 import { planDays } from './reminder-plan';
@@ -780,7 +780,7 @@ describe('Reminders', () => {
 });
 
 vi.mock('@capacitor/local-notifications', async () => ({
-  LocalNotifications: (await import('../test-support')).capacitorPlugin({
+  LocalNotifications: (await import('@/test/test-support')).capacitorPlugin({
     checkPermissions: async () => ({ display: 'granted' }),
   }),
 }));

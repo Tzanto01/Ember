@@ -1,9 +1,9 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 import { auth } from '@/lib/services';
-import { type FetchMock, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, me, mockFetch } from '@/test/test-support';
 import ConsentPage from './consent';
 
 const notGiven = { given: false, policyVersion: null, currentPolicyVersion: '1', withdrawnAt: null, deletesAt: null };

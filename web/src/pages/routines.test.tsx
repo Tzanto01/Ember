@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Routine } from '@/lib/models';
-import { type FetchMock, habit, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, mockFetch } from '@/test/test-support';
 import RoutinesPage from './routines';
 
 const routine = (id: number, name: string): Routine => ({ id, name, reminderTime: null, reminderChannels: [], habitIds: [] });

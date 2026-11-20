@@ -4,11 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyLanguage, deviceLanguage } from '@/lib/i18n';
-import { inGerman, renderPage } from '@/test-utils';
+import { inGerman, renderPage } from '@/test/test-utils';
 import { env } from '@/lib/env';
 import { ApiError } from '@/lib/problem';
 import { api, auth, localMode } from '@/lib/services';
-import { type FetchMock, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, me, mockFetch } from '@/test/test-support';
 import ConfirmEmailPage from './confirm-email';
 import LoginPage from './login';
 

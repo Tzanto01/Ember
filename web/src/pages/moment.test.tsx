@@ -1,15 +1,15 @@
 import { act, cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, type Mock, vi } from 'vitest';
-import { fakeJournal } from '@/components/journal/fake-journal';
+import { fakeJournal } from '@/test/fake-journal';
 import { JournalContext } from '@/components/journal/journal-context';
 import type { JournalState } from '@/lib/journal/types';
 import { deviceToday } from '@/lib/guards';
 import type { HelpItem } from '@/lib/helps/types';
 import { api, auth, deviceSync, helps, localMode, offlineQueue } from '@/lib/services';
-import { me } from '@/lib/test-support';
+import { me } from '@/test/test-support';
 import { setVoiceOn } from '@/lib/moment/voice';
-import { fakeSpeech, inGerman, renderPage } from '@/test-utils';
+import { fakeSpeech, inGerman, renderPage } from '@/test/test-utils';
 import MomentPage from './moment';
 
 vi.mock('@/lib/services', async (original) => {

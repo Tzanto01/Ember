@@ -4,7 +4,7 @@ import { DeviceStore } from './device-store';
 import { Http } from './http';
 import { OfflineQueue } from './offline-queue';
 import { PushService, serviceWorkerRegistration } from './push';
-import { type FetchMock, mockFetch } from './test-support';
+import { type FetchMock, mockFetch } from '@/test/test-support';
 
 const endpoint = 'https://push.example.test/send/a b&c=1';
 const removal = `/api/me/push-subscriptions?endpoint=${encodeURIComponent(endpoint)}`;

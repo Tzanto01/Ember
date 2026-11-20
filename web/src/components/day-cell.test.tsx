@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { formatDate } from '@/lib/local-date';
 import type { DayState } from '@/lib/models';
-import { inGerman } from '@/test-utils';
+import { inGerman } from '@/test/test-utils';
 import { DayCell, joinsRun } from './day-cell';
 
 const longDate = (date: string) => formatDate(date, { weekday: 'long', day: 'numeric', month: 'long' });

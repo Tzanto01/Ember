@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { auth } from '@/lib/services';
-import { me } from '@/lib/test-support';
+import { me } from '@/test/test-support';
 import { loadFreshMe } from './fresh-me';
 
 describe('loadFreshMe', () => {

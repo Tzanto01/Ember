@@ -1,12 +1,12 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fakeJournal } from '@/components/journal/fake-journal';
+import { fakeJournal } from '@/test/fake-journal';
 import { JournalContext } from '@/components/journal/journal-context';
 import { env } from '@/lib/env';
 import type { JournalState } from '@/lib/journal/types';
 import { helps } from '@/lib/services';
-import { letGoHabit, mockFetch } from '@/lib/test-support';
+import { letGoHabit, mockFetch } from '@/test/test-support';
 import { SlipSheet } from './slip-sheet';
 import { TryInstead } from './try-instead';
 

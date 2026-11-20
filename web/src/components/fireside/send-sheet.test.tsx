@@ -2,8 +2,8 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FiresideFriend } from '@/lib/fireside';
-import { mockFetch } from '@/lib/test-support';
-import { renderPage } from '@/test-utils';
+import { mockFetch } from '@/test/test-support';
+import { renderPage } from '@/test/test-utils';
 import { SendSheet } from './send-sheet';
 
 const mara: FiresideFriend = {

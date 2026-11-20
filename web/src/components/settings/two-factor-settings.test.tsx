@@ -1,9 +1,9 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fakeJournal, renderWithJournal } from '@/components/journal/fake-journal';
+import { fakeJournal, renderWithJournal } from '@/test/fake-journal';
 import { Store } from '@/lib/store';
-import { type FetchMock, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, me, mockFetch } from '@/test/test-support';
 import { TwoFactorSettings } from './two-factor-settings';
 
 const codes = Array.from({ length: 10 }, (_, i) => `rc${i}-synthetic`);

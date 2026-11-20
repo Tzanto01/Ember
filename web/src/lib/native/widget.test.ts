@@ -7,7 +7,7 @@ import { DeviceStore } from '../device-store';
 import { Http } from '../http';
 import type { Habit } from '../models';
 import { OfflineQueue } from '../offline-queue';
-import { type FetchMock, habit, letGoHabit, mockFetch } from '../test-support';
+import { type FetchMock, habit, letGoHabit, mockFetch } from '@/test/test-support';
 import { reminderNames } from './reminder-names';
 import { Reminders } from './reminders';
 import { followWidgetStyle } from '../startup';

@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { fakeJournal, renderWithJournal } from './fake-journal';
+import { fakeJournal, renderWithJournal } from '@/test/fake-journal';
 import { MoodManager } from './mood-manager';
 
 describe('MoodManager', { timeout: 15_000 }, () => {

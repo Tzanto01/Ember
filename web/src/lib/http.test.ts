@@ -8,7 +8,7 @@ import { TokenStore } from './native/token-store';
 import { setNavigator } from './navigation';
 import { OfflineQueue } from './offline-queue';
 import { ApiError } from './problem';
-import { type FetchMock, me, memorySecureStore, mockFetch } from './test-support';
+import { type FetchMock, me, memorySecureStore, mockFetch } from '@/test/test-support';
 
 vi.mock('@capacitor/app', () => ({ App: { getInfo: async () => ({ version: '1.4.2', build: '7' }) } }));
 

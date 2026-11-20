@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inGerman } from '@/test-utils';
+import { inGerman } from '@/test/test-utils';
 import { reflectionBlock } from './reflection';
 import { hasMoments, helpedPractice, helpedSomething, parseMoments } from './moments';
 

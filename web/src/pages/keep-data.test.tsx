@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveExport } from '@/lib/native/save-file';
 import { auth, backup, localMode, upgrade } from '@/lib/services';
-import { me } from '@/lib/test-support';
-import { renderPage } from '@/test-utils';
+import { me } from '@/test/test-support';
+import { renderPage } from '@/test/test-utils';
 import KeepDataPage from './keep-data';
 
 vi.mock('@/lib/services', async (original) => {

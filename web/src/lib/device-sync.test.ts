@@ -11,7 +11,7 @@ import { Reminders } from './native/reminders';
 import { TokenStore } from './native/token-store';
 import { OfflineQueue } from './offline-queue';
 import { setNavigator } from './navigation';
-import { habit, me, memorySecureStore, mockFetch } from './test-support';
+import { habit, me, memorySecureStore, mockFetch } from '@/test/test-support';
 import { applyTheme } from './theme';
 
 const native = vi.hoisted(() => ({

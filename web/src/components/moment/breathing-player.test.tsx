@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setVoiceOn } from '@/lib/moment/voice';
 import { applyCalm } from '@/lib/theme';
-import { fakeSpeech } from '@/test-utils';
+import { fakeSpeech } from '@/test/test-utils';
 import { BreathingPlayer } from './breathing-player';
 
 function liveRegion(): HTMLElement {

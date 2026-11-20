@@ -1,7 +1,7 @@
 import { act, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import i18n from '@/lib/i18n';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 import LegalPage from './legal';
 
 function serve(markdown: string) {

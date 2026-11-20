@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type Fireside, firesideAvailable, formatCode, isAsking, normalizeCode } from './fireside';
-import { me } from './test-support';
+import { me } from '@/test/test-support';
 
 const base: Fireside = { enabled: true, name: 'Nia', notify: false, askingUntil: null, code: null, friends: [], warmth: [], consentVersion: '2026-11', consentGiven: true };
 

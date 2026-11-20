@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Fireside, FiresideFriend } from '@/lib/fireside';
 import { auth } from '@/lib/services';
-import { me, mockFetch } from '@/lib/test-support';
-import { renderPage } from '@/test-utils';
+import { me, mockFetch } from '@/test/test-support';
+import { renderPage } from '@/test/test-utils';
 import { FiresideToday } from './fireside-today';
 
 const friend = (over: Partial<FiresideFriend> = {}): FiresideFriend => ({

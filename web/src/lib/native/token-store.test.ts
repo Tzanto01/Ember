@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Http } from '../http';
-import { type FetchMock, memorySecureStore, mockFetch } from '../test-support';
+import { type FetchMock, memorySecureStore, mockFetch } from '@/test/test-support';
 import { capacitorSecureStore, TokenStore } from './token-store';
 
 const tokens = (access: string, refresh: string) => ({
@@ -115,7 +115,7 @@ describe('TokenStore', () => {
 });
 
 vi.mock('@aparajita/capacitor-secure-storage', async () => ({
-  SecureStorage: (await import('../test-support')).capacitorPlugin({
+  SecureStorage: (await import('@/test/test-support')).capacitorPlugin({
     getItem: async () => 'stored-refresh',
   }),
 }));

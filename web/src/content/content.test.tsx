@@ -11,7 +11,7 @@ import { momentCopy } from '@/lib/moment/copy';
 import type { CrisisLine } from '@/lib/moment/region';
 import type { MomentState, Practice } from '@/lib/moment/types';
 import HelpPage from '@/pages/help';
-import { inGerman } from '@/test-utils';
+import { inGerman } from '@/test/test-utils';
 import crisisLinesDe from './crisis-lines.de.json';
 import crisisLinesEn from './crisis-lines.en.json';
 import practicesDe from './practices.de.json';

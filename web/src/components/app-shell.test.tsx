@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { deviceSync, localMode, offlineQueue } from '@/lib/services';
-import { mockFetch } from '@/lib/test-support';
+import { mockFetch } from '@/test/test-support';
 import { AppShell } from './app-shell';
 
 function renderShell() {

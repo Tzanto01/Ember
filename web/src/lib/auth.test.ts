@@ -12,7 +12,7 @@ import { setNavigator } from './navigation';
 import { OfflineQueue } from './offline-queue';
 import { requiresTwoFactor } from './problem';
 import { PushService } from './push';
-import { type FetchMock, me, memorySecureStore, mockFetch } from './test-support';
+import { type FetchMock, me, memorySecureStore, mockFetch } from '@/test/test-support';
 import { chooseTheme } from './theme';
 
 describe('AuthService', () => {

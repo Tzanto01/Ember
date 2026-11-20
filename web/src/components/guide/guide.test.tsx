@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
 import { limits } from '@/lib/local/limits';
 import { applyCalm } from '@/lib/theme';
-import { inGerman } from '@/test-utils';
+import { inGerman } from '@/test/test-utils';
 import { Guide } from './guide';
 
 vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));

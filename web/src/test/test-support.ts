@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
-import type { Habit, LetGoHabit, Me } from './models';
-import type { SecureStore } from './native/token-store';
+import type { Habit, LetGoHabit, Me } from '@/lib/models';
+import type { SecureStore } from '@/lib/native/token-store';
 
 /** One request seen by {@link mockFetch}, answered by the test. */
 export interface FakeCall {

@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnyHabit, Habit, Me, ReminderDestination, Routine, WeeklyStats } from '@/lib/models';
 import { auth, backup, deviceSync, localMode } from '@/lib/services';
-import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/test/test-support';
 import TodayPage from './today';
 
 vi.mock('@/lib/services', async (original) => {

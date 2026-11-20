@@ -5,7 +5,7 @@ import { useReduceMotion } from '@/components/moment/use-reduce-motion';
 import { TodaysEmber } from '@/components/today/todays-ember';
 import { WhatsNewCard } from '@/components/today/whats-new-card';
 import { applyCalm } from '@/lib/theme';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 
 describe('calm mode', () => {
   afterEach(() => {

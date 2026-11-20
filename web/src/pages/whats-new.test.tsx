@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { inGerman, renderPage } from '@/test-utils';
+import { inGerman, renderPage } from '@/test/test-utils';
 import WhatsNewPage from './whats-new';
 
 describe('WhatsNewPage', () => {

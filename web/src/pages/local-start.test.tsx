@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { localMode } from '@/lib/services';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 import LocalStartPage from './local-start';
 
 vi.mock('@/lib/services', async () => {

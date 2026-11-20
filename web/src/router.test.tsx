@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type FetchMock, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, me, mockFetch } from '@/test/test-support';
 
 describe('router guards', () => {
   let mock: FetchMock;

@@ -65,7 +65,7 @@ export default defineConfig(
     },
   },
   {
-    files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/test-setup.ts', 'src/test-utils.tsx'],
+    files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/test/**'],
     rules: {
       // `expect(fake.method)` on vi.fn() fakes is the Vitest idiom and never calls the method unbound.
       '@typescript-eslint/unbound-method': 'off',

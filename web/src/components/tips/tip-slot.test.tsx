@@ -4,9 +4,9 @@ import type { ComponentType } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Habit, Me } from '@/lib/models';
 import { auth } from '@/lib/services';
-import { type FetchMock, habit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, me, mockFetch } from '@/test/test-support';
 import { readTipMemory } from '@/lib/tips';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 import { TipSlot } from './tip-slot';
 
 const notes = [{ version: '0.10.0-beta.1', date: '2026-11-14', notes: { en: ['Something new.'] } }];

@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Fireside } from '@/lib/fireside';
 import { auth, localMode } from '@/lib/services';
-import { me, mockFetch } from '@/lib/test-support';
+import { me, mockFetch } from '@/test/test-support';
 import SettingsPage from '@/pages/settings';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 
 const off: Fireside = { enabled: false, name: null, notify: false, askingUntil: null, code: null, friends: [], warmth: [], consentVersion: '2026-11', consentGiven: true };
 const on: Fireside = { ...off, enabled: true, name: 'Mara' };

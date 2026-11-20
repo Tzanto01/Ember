@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
 import { betaUpdate } from '@/lib/native/updater';
-import { mockFetch } from '@/lib/test-support';
+import { mockFetch } from '@/test/test-support';
 import { BetaUpdateBanner } from './beta-update';
 
 const native = vi.hoisted(() => ({

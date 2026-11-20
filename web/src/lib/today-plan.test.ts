@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnyHabit, Habit, Routine } from './models';
-import { habit, letGoHabit } from './test-support';
+import { habit, letGoHabit } from '@/test/test-support';
 import { moveKey, orderAfterMove, planToday, routineOrderAfterMove, widgetDay } from './today-plan';
 
 const date = '2026-11-01';

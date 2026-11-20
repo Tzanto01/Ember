@@ -7,7 +7,7 @@ import type { Me } from './models';
 import { OfflineQueue } from './offline-queue';
 import { auth, deviceStore, http } from './services';
 import { habitsCache, startApp } from './startup';
-import { habit, me, mockFetch } from './test-support';
+import { habit, me, mockFetch } from '@/test/test-support';
 
 vi.mock('virtual:pwa-register', () => ({ registerSW: () => () => undefined }));
 

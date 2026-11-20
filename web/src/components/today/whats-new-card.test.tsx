@@ -1,7 +1,7 @@
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 import { WhatsNewCard } from './whats-new-card';
 
 const seenKey = 'ember.seenReleaseNotes';

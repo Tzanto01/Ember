@@ -6,7 +6,7 @@ import { AuthService } from '../auth';
 import { DeviceStore } from '../device-store';
 import { Http } from '../http';
 import { OfflineQueue } from '../offline-queue';
-import { type FetchMock, me, mockFetch } from '../test-support';
+import { type FetchMock, me, mockFetch } from '@/test/test-support';
 import { LocalBackend, newLocalData } from './backend';
 import { LocalMode } from './mode';
 import { LocalStore } from './store';

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { inGerman } from '@/test-utils';
+import { inGerman } from '@/test/test-utils';
 import { listenForDiscord, startDiscordSignIn, takeDiscordRedirect } from './discord';
 
 const native = vi.hoisted(() => ({

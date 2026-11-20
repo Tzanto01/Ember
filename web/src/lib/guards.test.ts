@@ -4,7 +4,7 @@ import type { AuthService } from './auth';
 import { forgetUnreachable, guest, rememberedMe, rememberMe, signedIn, unreachableMs } from './guards';
 import { type Me } from './models';
 import { Store } from './store';
-import { me } from './test-support';
+import { me } from '@/test/test-support';
 
 function fakeSession(load: () => Promise<Me | null>, consentNeeded = false) {
   let prompted = false;

@@ -6,14 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { findGuideTarget } from '@/lib/guide/highlight';
 import { type GuideScreen, guides } from '@/lib/guide/registry';
 import { api, auth, localMode } from '@/lib/services';
-import { me, mockFetch } from '@/lib/test-support';
+import { me, mockFetch } from '@/test/test-support';
 import FiresidePage from '@/pages/fireside';
 import HabitEditPage from '@/pages/habit-edit';
 import HistoryPage from '@/pages/history';
 import RoutinesPage from '@/pages/routines';
 import SettingsPage from '@/pages/settings';
 import TodayPage from '@/pages/today';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 
 interface Screen {
   /** No-account mode with one daily habit checked in today, or an account with nothing loaded beyond `me`. */

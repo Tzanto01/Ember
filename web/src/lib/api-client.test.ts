@@ -5,7 +5,7 @@ import { ApiClient } from './api-client';
 import { DeviceStore } from './device-store';
 import { Http } from './http';
 import { OfflineQueue } from './offline-queue';
-import { type FetchMock, habit, me, mockFetch } from './test-support';
+import { type FetchMock, habit, me, mockFetch } from '@/test/test-support';
 
 const today = '2026-11-01';
 

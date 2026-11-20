@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mockFetch } from '@/lib/test-support';
+import { mockFetch } from '@/test/test-support';
 import { betaUpdate, checkForUpdate, installBetaUpdate, offerBetaUpdate, parseManifest } from './updater';
 
 const plugin = vi.hoisted(() => ({

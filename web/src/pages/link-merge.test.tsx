@@ -1,10 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 import type { MergePreview } from '@/lib/models';
 import { auth } from '@/lib/services';
-import { me, mockFetch } from '@/lib/test-support';
+import { me, mockFetch } from '@/test/test-support';
 import LinkMergePage from './link-merge';
 
 const preview: MergePreview = {

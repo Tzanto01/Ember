@@ -11,7 +11,7 @@ import type { JournalState } from '../journal/types';
 import type { EncryptedBlob, Me } from '../models';
 import { ApiError } from '../problem';
 import { Store } from '../store';
-import { me as baseMe } from '../test-support';
+import { me as baseMe } from '@/test/test-support';
 import { HelpsError, HelpsService } from './helps';
 import type { HelpItem, HelpsList } from './types';
 

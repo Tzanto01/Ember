@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Habit, ReminderDestination } from '@/lib/models';
 import { auth, push } from '@/lib/services';
-import { type FetchMock, habit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, me, mockFetch } from '@/test/test-support';
 import HabitEditPage from './habit-edit';
 
 const stretch: Habit = { ...habit, id: 7, name: 'Stretch', reminderTime: '08:00', reminderChannels: ['mobile'] };

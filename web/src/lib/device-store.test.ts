@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Habit } from './models';
 import { withDayEdit } from './device-store';
-import { habit } from './test-support';
+import { habit } from '@/test/test-support';
 
 const weekly = {
   ...habit,

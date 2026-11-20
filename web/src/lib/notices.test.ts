@@ -8,7 +8,7 @@ import {
   startNotices,
   liveNotices,
 } from './notices';
-import { mockFetch } from './test-support';
+import { mockFetch } from '@/test/test-support';
 
 const now = new Date('2026-11-18T12:00:00Z');
 const info: LiveNotice = { id: 'info-1', kind: 'info', en: 'New tips are here.' };

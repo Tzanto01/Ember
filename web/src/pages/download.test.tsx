@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 import DownloadPage from './download';
 
 vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));

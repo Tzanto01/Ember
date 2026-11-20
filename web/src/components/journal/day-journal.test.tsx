@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type JournalApi, JournalLockedError } from '@/lib/journal/types';
 import { auth, offlineQueue } from '@/lib/services';
-import { me } from '@/lib/test-support';
+import { me } from '@/test/test-support';
 import { DayJournal } from './day-journal';
-import { fakeJournal, renderWithJournal } from './fake-journal';
+import { fakeJournal, renderWithJournal } from '@/test/fake-journal';
 
 describe('DayJournal', { timeout: 15_000 }, () => {
   beforeEach(() => auth.setMe({ ...me, localToday: '2026-11-01' }));

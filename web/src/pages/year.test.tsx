@@ -1,11 +1,11 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fakeJournal, renderWithJournal } from '@/components/journal/fake-journal';
+import { fakeJournal, renderWithJournal } from '@/test/fake-journal';
 import { addDays } from '@/lib/local-date';
 import type { AnyHabit, DayStat } from '@/lib/models';
 import { auth } from '@/lib/services';
-import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/test/test-support';
 import YearPage from './year';
 
 const localToday = '2026-11-04';

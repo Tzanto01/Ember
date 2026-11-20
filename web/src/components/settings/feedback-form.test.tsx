@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
 import { auth, localMode } from '@/lib/services';
-import { me, mockFetch } from '@/lib/test-support';
+import { me, mockFetch } from '@/test/test-support';
 import FeedbackPage from '@/pages/feedback';
-import { renderPage } from '@/test-utils';
+import { renderPage } from '@/test/test-utils';
 
 vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));
 const appInfo = vi.hoisted(() => ({ getInfo: vi.fn() }));

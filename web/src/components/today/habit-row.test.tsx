@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import type { Habit } from '@/lib/models';
-import { habit } from '@/lib/test-support';
+import { habit } from '@/test/test-support';
 import { HabitRow } from './habit-row';
 
 function show(overrides: Partial<Habit>, showStreaks = true, checkInPaused = false) {

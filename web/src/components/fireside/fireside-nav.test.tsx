@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '@/components/app-shell';
 import type { Fireside } from '@/lib/fireside';
 import { auth, localMode } from '@/lib/services';
-import { me, mockFetch } from '@/lib/test-support';
+import { me, mockFetch } from '@/test/test-support';
 
 const base: Fireside = { enabled: true, name: 'Mara', notify: false, askingUntil: null, code: null, friends: [], warmth: [], consentVersion: '2026-11', consentGiven: true };
 

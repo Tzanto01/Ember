@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type Fireside, type FiresideFriend, firesideKey } from '@/lib/fireside';
 import { auth } from '@/lib/services';
-import { me, mockFetch } from '@/lib/test-support';
+import { me, mockFetch } from '@/test/test-support';
 import { FiresideAsk } from './fireside-ask';
 
 const mara: FiresideFriend = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DayEntry, Weekday } from '@/lib/models';
-import { habit } from '@/lib/test-support';
+import { habit } from '@/test/test-support';
 import { keptDays } from './kept-days';
 
 const today = '2026-11-04';

@@ -15,7 +15,7 @@ import {
   me as baseMe,
   memorySecureStore,
   mockFetch,
-} from '../test-support';
+} from '@/test/test-support';
 import {
   decryptHabitNote,
   decryptNote,

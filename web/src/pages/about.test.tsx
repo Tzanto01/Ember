@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { inGerman, renderPage } from '@/test-utils';
+import { inGerman, renderPage } from '@/test/test-utils';
 import AboutPage from './about';
 
 describe('AboutPage', () => {

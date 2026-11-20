@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnyHabit, DayEntry } from '@/lib/models';
 import { auth } from '@/lib/services';
-import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/lib/test-support';
+import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/test/test-support';
 import HistoryPage from './history';
 
 const localToday = '2026-11-04';

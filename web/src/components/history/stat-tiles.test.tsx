@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { Habit, HabitStats } from '@/lib/models';
-import { habit } from '@/lib/test-support';
+import { habit } from '@/test/test-support';
 import { StatTiles } from './stat-tiles';
 
 function show(

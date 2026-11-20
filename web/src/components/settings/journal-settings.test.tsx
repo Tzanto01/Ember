@@ -1,13 +1,13 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { fakeJournal, renderWithJournal } from '@/components/journal/fake-journal';
+import { fakeJournal, renderWithJournal } from '@/test/fake-journal';
 import { env } from '@/lib/env';
 import { type JournalApi, type JournalState, WrongSecretError } from '@/lib/journal/types';
 import { saveExport } from '@/lib/native/save-file';
 import { Store } from '@/lib/store';
 import { ApiError } from '@/lib/problem';
-import { me } from '@/lib/test-support';
+import { me } from '@/test/test-support';
 import { JournalSettings } from './journal-settings';
 
 vi.mock('@/lib/env', async (original) => ({
