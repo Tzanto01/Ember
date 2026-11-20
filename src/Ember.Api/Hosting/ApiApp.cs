@@ -31,12 +31,15 @@ namespace Ember.Api.Hosting;
 /// </summary>
 public static class ApiApp
 {
+    /// <summary>The Kestrel request body limit for every request; an endpoint that takes more (import, feedback pictures) sets its own.</summary>
+    internal const long MaxRequestBodyBytes = 64 * 1024;
+
     private const string ContentSecurityPolicy = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; frame-ancestors 'none'";
 
     public static WebApplicationBuilder CreateBuilder(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 64 * 1024);
+        builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxRequestBodyBytes);
         var services = builder.Services;
         var config = builder.Configuration;
 

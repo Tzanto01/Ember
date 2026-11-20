@@ -79,7 +79,7 @@ internal static class FeedbackEndpoints
     }
 
     /// <summary>The server's request body limit, which every other request keeps.</summary>
-    public const long SmallBodyBytes = 64 * 1024;
+    public const long SmallBodyBytes = ApiApp.MaxRequestBodyBytes;
 
     /// <summary>Most requests over <see cref="SmallBodyBytes"/> to <c>POST /api/feedback</c> read at the same time, across all users.</summary>
     public const int MaxConcurrentBigBodies = 2;
