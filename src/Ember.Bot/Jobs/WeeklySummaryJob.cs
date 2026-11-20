@@ -42,10 +42,10 @@ public class WeeklySummaryJob : IJob
         IConfiguration config)
     {
         _services = services;
-        _discord  = discord;
-        _logger   = logger;
-        _time     = time;
-        _config   = config;
+        _discord = discord;
+        _logger = logger;
+        _time = time;
+        _config = config;
     }
 
     public async Task Execute(IJobExecutionContext context)

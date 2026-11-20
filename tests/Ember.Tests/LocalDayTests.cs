@@ -14,15 +14,18 @@ namespace Ember.Tests;
 public class LocalDayTests
 {
     private const string LosAngeles = "America/Los_Angeles"; // UTC-8 in January
-    private const string Brisbane   = "Australia/Brisbane";  // UTC+10, no DST
+    private const string Brisbane = "Australia/Brisbane";  // UTC+10, no DST
 
     private static async Task<int> SeedHabitAsync(IntegrationTestHost host, long userId, string timezone)
     {
         return await host.WithScopeAsync(async sp =>
         {
             var db = sp.GetRequiredService<EmberDbContext>();
-            db.Users.Add(new User { Id = TestUsers.Id(userId), Logins = TestUsers.Discord(userId), Timezone = timezone,
-                HealthDataConsentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ConsentPolicyVersion = Ember.Core.Services.HabitService.CurrentConsentPolicyVersion });
+            db.Users.Add(new User
+            {
+                Id = TestUsers.Id(userId), Logins = TestUsers.Discord(userId), Timezone = timezone,
+                HealthDataConsentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ConsentPolicyVersion = Ember.Core.Services.HabitService.CurrentConsentPolicyVersion
+            });
             var habit = new Habit { UserId = TestUsers.Id(userId), Name = "Stretch", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
             db.Habits.Add(habit);
             await db.SaveChangesAsync();

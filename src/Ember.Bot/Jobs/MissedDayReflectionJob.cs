@@ -38,9 +38,9 @@ public class MissedDayReflectionJob : IJob
     public MissedDayReflectionJob(IServiceProvider services, IDiscordDmSender discord, ILogger<MissedDayReflectionJob> logger, TimeProvider time)
     {
         _services = services;
-        _discord  = discord;
-        _logger   = logger;
-        _time     = time;
+        _discord = discord;
+        _logger = logger;
+        _time = time;
     }
 
     public async Task Execute(IJobExecutionContext context)
@@ -98,11 +98,11 @@ public class MissedDayReflectionJob : IJob
             else if (HabitService.IsActiveOn(habit, yesterday, tz) && !HabitService.IsPausedOn(habit, yesterday))
             {
                 // Weekly habit: are they behind target with 2 or fewer days left in the week?
-                var weekEnd   = weekStart.AddDays(6);
-                var daysLeft  = (weekEnd.DayNumber - yesterday.DayNumber); // days remaining after yesterday
+                var weekEnd = weekStart.AddDays(6);
+                var daysLeft = (weekEnd.DayNumber - yesterday.DayNumber); // days remaining after yesterday
                 var doneCount = habit.Logs.Count(l => l.Completed && l.Date >= weekStart && l.Date <= yesterday);
-                var target    = habit.WeeklyTarget ?? 3;
-                var needed    = target - doneCount;
+                var target = habit.WeeklyTarget ?? 3;
+                var needed = target - doneCount;
 
                 // Only nudge if they need to catch up, have 1–2 days remaining and didn't just do it yesterday
                 if (needed > 0 && daysLeft is > 0 and <= 2 && !habit.Logs.Any(l => l.Date == yesterday && l.Completed))

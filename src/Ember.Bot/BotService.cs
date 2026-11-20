@@ -264,10 +264,10 @@ public class BotService : IHostedService
         var level = msg.Severity switch
         {
             LogSeverity.Critical => LogLevel.Critical,
-            LogSeverity.Error    => LogLevel.Error,
-            LogSeverity.Warning  => LogLevel.Warning,
-            LogSeverity.Info     => LogLevel.Information,
-            _                    => LogLevel.Debug
+            LogSeverity.Error => LogLevel.Error,
+            LogSeverity.Warning => LogLevel.Warning,
+            LogSeverity.Info => LogLevel.Information,
+            _ => LogLevel.Debug
         };
         _logger.Log(level, msg.Exception, "{Source}: {Message}", msg.Source, msg.Message);
         return Task.CompletedTask;

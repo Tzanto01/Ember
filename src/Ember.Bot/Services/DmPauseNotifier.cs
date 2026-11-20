@@ -19,7 +19,7 @@ public class DmPauseNotifier
     public DmPauseNotifier(IServiceProvider services, ILogger<DmPauseNotifier> logger)
     {
         _services = services;
-        _logger   = logger;
+        _logger = logger;
     }
 
     public async Task OnInteractionExecutedAsync(ICommandInfo command, IInteractionContext context, IResult result)

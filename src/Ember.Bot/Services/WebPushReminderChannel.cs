@@ -72,20 +72,20 @@ public sealed class WebPushReminderChannel : IReminderChannel
     internal static string BuildPayload(string body, string? doneToken = null, string? tag = null, Texts? t = null, string url = "/today",
         string? title = null)
         => JsonSerializer.Serialize(new
-    {
-        notification = new
         {
-            title = title ?? "Ember",
-            body,
-            tag,
-            actions = doneToken is null ? null : new[] { new { action = "done", title = (t ?? BotTexts.English).Get("reminder.done") } },
-            data = new
+            notification = new
             {
-                onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url } },
-                doneToken,
+                title = title ?? "Ember",
+                body,
+                tag,
+                actions = doneToken is null ? null : new[] { new { action = "done", title = (t ?? BotTexts.English).Get("reminder.done") } },
+                data = new
+                {
+                    onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url } },
+                    doneToken,
+                },
             },
-        },
-    }, PayloadJson);
+        }, PayloadJson);
 
     private readonly IServiceScopeFactory _scopes;
     private readonly IHttpClientFactory _httpClients;
@@ -95,10 +95,10 @@ public sealed class WebPushReminderChannel : IReminderChannel
     public WebPushReminderChannel(IServiceScopeFactory scopes, IHttpClientFactory httpClients, VapidAuthentication vapid,
         ILogger<WebPushReminderChannel> logger)
     {
-        _scopes      = scopes;
+        _scopes = scopes;
         _httpClients = httpClients;
-        _vapid       = vapid;
-        _logger      = logger;
+        _vapid = vapid;
+        _logger = logger;
     }
 
     /// <summary>Builds the VAPID authentication from <c>WebPush:PublicKey</c>, <c>WebPush:PrivateKey</c> and <c>WebPush:Subject</c>.</summary>

@@ -187,7 +187,8 @@ public static class OpsSeed
         {
             await using var command = new NpgsqlCommand(
                 "SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2)",
-                connection, transaction) { Parameters = { new() { Value = table }, new() { Value = column } } };
+                connection, transaction)
+            { Parameters = { new() { Value = table }, new() { Value = column } } };
             return (bool)(await command.ExecuteScalarAsync(ct))!;
         }
 

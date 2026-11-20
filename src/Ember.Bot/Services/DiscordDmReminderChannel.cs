@@ -35,7 +35,7 @@ public class DiscordDmReminderChannel : IReminderChannel
         ILogger<DiscordDmReminderChannel> logger)
     {
         _discord = discord;
-        _time    = time;
+        _time = time;
         _scopes = scopes;
         _logger = logger;
     }

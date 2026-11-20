@@ -50,10 +50,10 @@ public class DiscordRemindersModule : InteractionModuleBase<SocketInteractionCon
     {
         var builder = new ComponentBuilder();
         foreach (var (row, rowIndex) in components.OfType<ActionRowComponent>().Select((r, i) => (r, i)))
-        foreach (var button in row.Components.OfType<ButtonComponent>())
-            builder.WithButton(button.CustomId?.StartsWith("discordreminders:stop:", StringComparison.Ordinal) == true
-                ? TurnOn(t, userId)
-                : button.ToBuilder(), rowIndex);
+            foreach (var button in row.Components.OfType<ButtonComponent>())
+                builder.WithButton(button.CustomId?.StartsWith("discordreminders:stop:", StringComparison.Ordinal) == true
+                    ? TurnOn(t, userId)
+                    : button.ToBuilder(), rowIndex);
         return builder.Build();
     }
 

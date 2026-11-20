@@ -20,7 +20,7 @@ public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
 
     public DmRetryModule(HabitService habits, IDiscordDmSender discord)
     {
-        _habits  = habits;
+        _habits = habits;
         _discord = discord;
     }
 
@@ -49,7 +49,7 @@ public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
         await _habits.ResumeDmRemindersAsync(userId);
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Get("dmretry.worked");
+            m.Content = t.Get("dmretry.worked");
             m.Components = new ComponentBuilder().Build();
         });
     }

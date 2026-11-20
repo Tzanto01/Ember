@@ -1,4 +1,4 @@
-﻿using Ember.Bot;
+using Ember.Bot;
 using Ember.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

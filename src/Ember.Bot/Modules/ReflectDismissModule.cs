@@ -88,8 +88,8 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
             .Build();
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Format("reflect.pick.question", Label(t, date));
-            m.Embed      = null;
+            m.Content = t.Format("reflect.pick.question", Label(t, date));
+            m.Embed = null;
             m.Components = components;
         });
     }
@@ -143,8 +143,8 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     private async Task CloseAsync(string text) =>
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = text;
-            m.Embed      = null;
+            m.Content = text;
+            m.Embed = null;
             m.Components = new ComponentBuilder().Build();
         });
 

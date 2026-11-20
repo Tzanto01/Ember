@@ -47,7 +47,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content    = t.Format("freq.weekly-set", habit.Name, target);
+                m.Content = t.Format("freq.weekly-set", habit.Name, target);
                 m.Components = new ComponentBuilder().Build();
             });
     }
@@ -84,7 +84,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Format("freq.days.question", habit.Name);
+            m.Content = t.Format("freq.days.question", habit.Name);
             m.Components = new ComponentBuilder().WithSelectMenu(menu).Build();
         });
     }
@@ -128,7 +128,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Format("freq.times.question", habit.Name);
+            m.Content = t.Format("freq.times.question", habit.Name);
             m.Components = new ComponentBuilder().WithSelectMenu(menu).Build();
         });
     }
@@ -159,7 +159,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
     private async Task DoneAsync(string text) =>
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = text;
+            m.Content = text;
             m.Components = new ComponentBuilder().Build();
         });
 

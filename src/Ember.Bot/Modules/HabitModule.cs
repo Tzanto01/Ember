@@ -42,9 +42,9 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var times = h.TimesPerDay > 1 ? " · " + t.Format("habit.freq.per-day", h.TimesPerDay) : "";
         return h.FrequencyType switch
         {
-            FrequencyType.Weekly   => t.Format("habit.freq.weekly", h.WeeklyTarget ?? 3),
+            FrequencyType.Weekly => t.Format("habit.freq.weekly", h.WeeklyTarget ?? 3),
             FrequencyType.Weekdays => string.Join(" ", ScheduleDayNames.ToNames(h.Days.GetValueOrDefault()).Select(n => DayName(t, n))) + times,
-            _                      => t.Get("habit.freq.daily") + times,
+            _ => t.Get("habit.freq.daily") + times,
         };
     }
 
@@ -74,10 +74,10 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     /// <summary>A let-go day's soft mark: 🌿 free, 🍂 a slip noted, ⏸️ paused, ▫️ before the start.</summary>
     internal static string LetGoMark(LetGoDayState state) => state switch
     {
-        LetGoDayState.Free    => "🌿",
+        LetGoDayState.Free => "🌿",
         LetGoDayState.Slipped => "🍂",
-        LetGoDayState.Paused  => "⏸️",
-        _                     => "▫️",
+        LetGoDayState.Paused => "⏸️",
+        _ => "▫️",
     };
 
     /// <summary>
@@ -194,10 +194,10 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task ListAsync()
     {
         var habits = await _habits.GetHabitsAsync(Context.User.Id);
-        var grace  = await _habits.GetGraceDaysAsync(Context.User.Id);
-        var today  = await _habits.GetLocalTodayAsync(Context.User.Id);
+        var grace = await _habits.GetGraceDaysAsync(Context.User.Id);
+        var today = await _habits.GetLocalTodayAsync(Context.User.Id);
         var lowDays = await _habits.GetLowDaysAsync(Context.User.Id);
-        var tz     = await _habits.GetUserTzAsync(Context.User.Id);
+        var tz = await _habits.GetUserTzAsync(Context.User.Id);
         var showStreaks = await _habits.GetShowStreaksAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -220,12 +220,12 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 
             foreach (var h in slice)
             {
-                var todayMark    = h.Kind == HabitKind.LetGo ? LetGoMark(HabitService.LetGoDayOn(h, today, tz).State) : DayMark(h, today);
-                var reminderStr  = FormatReminder(t, h.ReminderTimes);
-                var pauseStr     = h.PausedUntil.HasValue && h.PausedUntil >= today
+                var todayMark = h.Kind == HabitKind.LetGo ? LetGoMark(HabitService.LetGoDayOn(h, today, tz).State) : DayMark(h, today);
+                var reminderStr = FormatReminder(t, h.ReminderTimes);
+                var pauseStr = h.PausedUntil.HasValue && h.PausedUntil >= today
                     ? " · " + t.Format("habit.list.paused", h.PausedUntil.Value.ToString(t.Get("date.month-day"), t.Culture)) : "";
 
-                var progressStr  = ListProgress(t, h, today, grace, lowDays, tz, showStreaks);
+                var progressStr = ListProgress(t, h, today, grace, lowDays, tz, showStreaks);
 
                 embed.AddField(
                     $"{todayMark} {h.Name}{pauseStr} _({FrequencyLabel(t, h)})_",
@@ -324,10 +324,10 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     internal static async Task<(List<Embed> Pages, MessageComponent Toggle)> RenderStatsAsync(Texts t, HabitService service, ulong userId)
     {
         var habits = await service.GetHabitsAsync(userId);
-        var grace  = await service.GetGraceDaysAsync(userId);
-        var today  = await service.GetLocalTodayAsync(userId);
+        var grace = await service.GetGraceDaysAsync(userId);
+        var today = await service.GetLocalTodayAsync(userId);
         var lowDays = await service.GetLowDaysAsync(userId);
-        var tz     = await service.GetUserTzAsync(userId);
+        var tz = await service.GetUserTzAsync(userId);
         var showStreaks = await service.GetShowStreaksAsync(userId);
 
         var toggle = new ComponentBuilder()
@@ -357,23 +357,23 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
                 else if (h.FrequencyType == FrequencyType.Weekly)
                 {
                     var (done, target) = HabitService.WeeklyProgress(h, today);
-                    var total  = h.Logs.Count(l => l.Completed);
+                    var total = h.Logs.Count(l => l.Completed);
                     var last28 = HabitService.FlexibleStreak(h, today, 28);
                     statsText = t.Format("habit.stats.weekly", done, target, last28, total);
                 }
                 else if (!showStreaks)
                 {
-                    var last7  = HabitService.FlexibleStreak(h, today, 7, lowDays, tz);
+                    var last7 = HabitService.FlexibleStreak(h, today, 7, lowDays, tz);
                     var last30 = HabitService.FlexibleStreak(h, today, 30, lowDays, tz);
                     statsText = t.Format("habit.stats.flexible", last7, last30, h.Logs.Count(l => l.Completed));
                 }
                 else
                 {
                     var (streak, graceUsed) = HabitService.ConsecutiveStreak(h, today, grace, lowDays);
-                    var last7  = HabitService.FlexibleStreak(h, today, 7, lowDays, tz);
+                    var last7 = HabitService.FlexibleStreak(h, today, 7, lowDays, tz);
                     var last30 = HabitService.FlexibleStreak(h, today, 30, lowDays, tz);
-                    var best   = HabitService.BestStreak(h, today, grace, lowDays);
-                    var total  = h.Logs.Count(l => l.Completed);
+                    var best = HabitService.BestStreak(h, today, grace, lowDays);
+                    var total = h.Logs.Count(l => l.Completed);
                     var graceStr = graceUsed > 0 ? "\n" + t.Plural("habit.stats.grace-used", graceUsed) : "";
                     statsText = t.Format("habit.stats.streak", StreakText(t, streak), graceStr, last7, last30, best, total);
                 }
@@ -517,10 +517,10 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         var components = new ComponentBuilder()
-            .WithButton(t.Get("habit.grace.strict"),           "habit:grace:0", current == 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .WithButton(t.Plural("habit.grace.button", 1),     "habit:grace:1", current == 1 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .WithButton(t.Plural("habit.grace.button", 2),     "habit:grace:2", current == 2 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-            .WithButton(t.Plural("habit.grace.button", 3),     "habit:grace:3", current == 3 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .WithButton(t.Get("habit.grace.strict"), "habit:grace:0", current == 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .WithButton(t.Plural("habit.grace.button", 1), "habit:grace:1", current == 1 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .WithButton(t.Plural("habit.grace.button", 2), "habit:grace:2", current == 2 ? ButtonStyle.Primary : ButtonStyle.Secondary)
+            .WithButton(t.Plural("habit.grace.button", 3), "habit:grace:3", current == 3 ? ButtonStyle.Primary : ButtonStyle.Secondary)
             .Build();
 
         await RespondAsync(
@@ -565,8 +565,8 @@ public enum SecondReminderDelay
 
 public enum PauseDuration
 {
-    [ChoiceDisplay("Today only")]       Today,
-    [ChoiceDisplay("3 days")]           ThreeDays,
-    [ChoiceDisplay("1 week")]           OneWeek,
+    [ChoiceDisplay("Today only")] Today,
+    [ChoiceDisplay("3 days")] ThreeDays,
+    [ChoiceDisplay("1 week")] OneWeek,
     [ChoiceDisplay("Resume (unpause)")] Resume,
 }
