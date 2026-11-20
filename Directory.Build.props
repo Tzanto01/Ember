@@ -1,0 +1,11 @@
+<Project>
+  <!-- Analyzer and build settings for every .NET project in the repository. Rule levels live in .editorconfig. -->
+  <PropertyGroup>
+    <!-- Microsoft's recommended rule set for the current SDK: catches real defects without the full style catalog. -->
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- Lets the build report the IDE style rules that .editorconfig raises to warning (namespace and using placement). -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- CI fails on any warning; locally warnings stay warnings so a work in progress still builds. -->
+    <TreatWarningsAsErrors Condition="'$(CI)' == 'true'">true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
