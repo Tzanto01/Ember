@@ -10,7 +10,8 @@ namespace Ember.Core.Services;
 /// The Discord side of <see cref="HabitService"/>: every user-scoped method keyed on a Discord user ID instead of
 /// the Ember user ID. Each one resolves the Discord ID through <see cref="FindDiscordUserAsync"/> (reads, and
 /// writes that need an existing user) or <see cref="ResolveOrCreateDiscordUserAsync"/> (writes that may create
-/// the user), then calls the <see cref="Guid"/> overload (for consent, on <see cref="ConsentService"/>). The lookup is never cached:
+/// the user), then calls the <see cref="Guid"/> overload (for consent, on <see cref="ConsentService"/>; for settings, on
+/// <see cref="UserSettingsService"/>). The lookup is never cached:
 /// the API can merge or delete accounts while the bot runs. The API uses the <see cref="Guid"/> overloads only.
 /// </summary>
 public partial class HabitService
@@ -157,20 +158,29 @@ public partial class HabitService
         => await PauseHabitAsync(await FindDiscordUserAsync(discordUserId), habitId, pausedUntil);
 
     public async Task<int> GetGraceDaysAsync(ulong discordUserId)
-        => await GetGraceDaysAsync(await FindDiscordUserAsync(discordUserId));
+        => await _settings.GetGraceDaysAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task SetGraceDaysAsync(ulong discordUserId, int graceDays, string? language = null)
-        => await SetGraceDaysAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), graceDays);
+        => await _settings.SetGraceDaysAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), graceDays);
 
     public async Task<TimeZoneInfo> GetUserTzAsync(ulong discordUserId)
-        => await GetUserTzAsync(await FindDiscordUserAsync(discordUserId));
+        => await _settings.GetUserTzAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task<DateOnly> GetLocalTodayAsync(ulong discordUserId)
-        => await GetLocalTodayAsync(await FindDiscordUserAsync(discordUserId));
+        => await _settings.GetLocalTodayAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task<bool> HasTimezoneSetAsync(ulong discordUserId)
-        => await HasTimezoneSetAsync(await FindDiscordUserAsync(discordUserId));
+        => await _settings.HasTimezoneSetAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task SetTimezoneAsync(ulong discordUserId, string timezoneId, string? language = null)
-        => await SetTimezoneAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), timezoneId);
+        => await _settings.SetTimezoneAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), timezoneId);
+
+    public async Task<bool> GetShowStreaksAsync(ulong discordUserId)
+        => await _settings.GetShowStreaksAsync(await FindDiscordUserAsync(discordUserId));
+
+    public async Task SetShowStreaksAsync(ulong discordUserId, bool show, string? language = null)
+        => await _settings.SetShowStreaksAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), show);
+
+    public async Task<bool> NeedsStreaksQuestionAsync(ulong discordUserId)
+        => await _settings.NeedsStreaksQuestionAsync(await FindDiscordUserAsync(discordUserId));
 }

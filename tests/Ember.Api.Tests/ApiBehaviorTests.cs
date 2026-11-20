@@ -312,7 +312,7 @@ public class ApiBehaviorTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var user = await Host.SignedInAsync();
         var userId = await user.IdAsync();
 
-        await Task.WhenAll(Ember.Core.Models.User.TipIds.Select(id => Host.Run(s => s.MarkTipSeenAsync(userId, id))));
+        await Task.WhenAll(Ember.Core.Models.User.TipIds.Select(id => Host.Run<UserSettingsService>(s => s.MarkTipSeenAsync(userId, id))));
 
         (await TipsSeenAsync(user)).Should().BeEquivalentTo(Ember.Core.Models.User.TipIds);
     }
@@ -327,7 +327,7 @@ public class ApiBehaviorTests(PostgresFixture postgres) : ApiTestBase(postgres)
 
         me.GetProperty("tipsSeen").EnumerateArray().Select(e => e.GetString()).Should().Equal("android", "streaks");
         var userId = await user.IdAsync();
-        (await Host.Service(s => s.NeedsStreaksQuestionAsync(userId))).Should().BeFalse();
+        (await Host.Service<UserSettingsService, bool>(s => s.NeedsStreaksQuestionAsync(userId))).Should().BeFalse();
     }
 
     [DockerFact]
@@ -339,8 +339,8 @@ public class ApiBehaviorTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var streaksOnId = await streaksOn.IdAsync();
         await Host.Db(db => db.Users.Where(u => u.Id == streaksOnId).ExecuteUpdateAsync(s => s.SetProperty(u => u.ShowStreaks, true)));
 
-        (await Host.Service(s => s.NeedsStreaksQuestionAsync(freshId))).Should().BeTrue();
-        (await Host.Service(s => s.NeedsStreaksQuestionAsync(streaksOnId))).Should().BeFalse();
-        (await Host.Service(s => s.NeedsStreaksQuestionAsync(Guid.NewGuid()))).Should().BeFalse();
+        (await Host.Service<UserSettingsService, bool>(s => s.NeedsStreaksQuestionAsync(freshId))).Should().BeTrue();
+        (await Host.Service<UserSettingsService, bool>(s => s.NeedsStreaksQuestionAsync(streaksOnId))).Should().BeFalse();
+        (await Host.Service<UserSettingsService, bool>(s => s.NeedsStreaksQuestionAsync(Guid.NewGuid()))).Should().BeFalse();
     }
 }

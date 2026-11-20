@@ -136,7 +136,8 @@ public class BotLanguageTests
         var languages = await host.WithScopeAsync(async sp =>
         {
             var habits = sp.GetRequiredService<HabitService>();
-            return (await habits.GetLanguageAsync(await habits.FindDiscordUserAsync(21)), await habits.GetLanguageAsync(await habits.FindDiscordUserAsync(22)));
+            var settings = sp.GetRequiredService<UserSettingsService>();
+            return (await settings.GetLanguageAsync(await habits.FindDiscordUserAsync(21)), await settings.GetLanguageAsync(await habits.FindDiscordUserAsync(22)));
         });
         languages.Should().Be(("de", "en"));
     }

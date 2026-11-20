@@ -31,7 +31,7 @@ public class GraceDaysAndSnoozeTests
 
         await host.WithScopeAsync(async sp =>
         {
-            var service = sp.GetRequiredService<HabitService>();
+            var service = sp.GetRequiredService<UserSettingsService>();
             await service.SetGraceDaysAsync(UserId, 2);
             (await service.GetGraceDaysAsync(UserId)).Should().Be(1);
         });
@@ -49,9 +49,9 @@ public class GraceDaysAndSnoozeTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
         await SeedUserAsync(host);
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetGraceDaysAsync(UserId, graceDays));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<UserSettingsService>().SetGraceDaysAsync(UserId, graceDays));
 
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetGraceDaysAsync(UserId))).Should().Be(graceDays);
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<UserSettingsService>().GetGraceDaysAsync(UserId))).Should().Be(graceDays);
     }
 
     [Fact]

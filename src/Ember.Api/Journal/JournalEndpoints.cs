@@ -38,11 +38,11 @@ internal static class JournalEndpoints
 
     public static RouteGroupBuilder MapJournal(this RouteGroupBuilder api)
     {
-        api.MapGet("/day-notes", async (string? from, string? to, ClaimsPrincipal principal, HabitService habits,
+        api.MapGet("/day-notes", async (string? from, string? to, ClaimsPrincipal principal, UserSettingsService settings,
             JournalService journal) =>
         {
             var userId = principal.UserId();
-            var today = await habits.GetLocalTodayAsync(userId);
+            var today = await settings.GetLocalTodayAsync(userId);
             var errors = new Dictionary<string, string[]>();
             var end = Formats.DateOr(to, today, "to", errors);
             var start = Formats.DateOr(from, Formats.DaysBefore(end, MaxRangeDays - 1), "from", errors);
@@ -54,13 +54,13 @@ internal static class JournalEndpoints
         });
 
         api.MapPut("/day-notes/{date}", async (string date, DayNoteRequest request, ClaimsPrincipal principal, HabitService habits,
-            ConsentService consent, JournalService journal) =>
+            UserSettingsService settings, ConsentService consent, JournalService journal) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
             var userId = principal.UserId();
             if (!await consent.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
-            var today = await habits.GetLocalTodayAsync(userId);
+            var today = await settings.GetLocalTodayAsync(userId);
             if (day > today) return Problems.DayEdit(DayEditResult.InFuture)!;
             if (day != today && (await journal.GetDayNotesAsync(userId, day, day)).Count == 0
                 && (await habits.GetEarliestHabitStartAsync(userId) is not { } start || day < start))
@@ -92,11 +92,11 @@ internal static class JournalEndpoints
             return Results.NoContent();
         });
 
-        api.MapGet("/habit-notes", async (string? from, string? to, int? habitId, ClaimsPrincipal principal, HabitService habits,
+        api.MapGet("/habit-notes", async (string? from, string? to, int? habitId, ClaimsPrincipal principal, UserSettingsService settings,
             JournalService journal) =>
         {
             var userId = principal.UserId();
-            var today = await habits.GetLocalTodayAsync(userId);
+            var today = await settings.GetLocalTodayAsync(userId);
             var errors = new Dictionary<string, string[]>();
             var end = Formats.DateOr(to, today, "to", errors);
             var start = Formats.DateOr(from, Formats.DaysBefore(end, MaxRangeDays - 1), "from", errors);
@@ -108,16 +108,16 @@ internal static class JournalEndpoints
         });
 
         api.MapPut("/habits/{id:int}/notes/{date}", async (int id, string date, HabitNoteRequest request, ClaimsPrincipal principal,
-            HabitService habits, ConsentService consent, JournalService journal) =>
+            HabitService habits, UserSettingsService settings, ConsentService consent, JournalService journal) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
             var userId = principal.UserId();
             if (!await consent.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
             if (await habits.GetHabitAsync(userId, id) is not { } habit) return Problems.NotFound();
-            var today = await habits.GetLocalTodayAsync(userId);
+            var today = await settings.GetLocalTodayAsync(userId);
             if (day > today) return Problems.DayEdit(DayEditResult.InFuture)!;
-            if (day != today && day < HabitRules.StartDate(habit, await habits.GetUserTzAsync(userId))
+            if (day != today && day < HabitRules.StartDate(habit, await settings.GetUserTzAsync(userId))
                 && (await journal.GetHabitNotesAsync(userId, day, day, id)).Count == 0)
                 return Problems.DayEdit(DayEditResult.BeforeHabitStart)!;
 

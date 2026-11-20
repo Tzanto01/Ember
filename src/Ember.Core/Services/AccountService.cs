@@ -14,24 +14,27 @@ public partial class AccountService
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
     private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly HabitService _habits;
     private readonly ReminderService _reminders;
     private readonly FiresideService _fireside;
     private readonly DeletionLedger _ledger;
 
-    /// <param name="db">The database; <paramref name="habits"/>, <paramref name="reminders"/> and <paramref name="fireside"/> must use the same one, so merge and import run in one transaction.</param>
+    /// <param name="db">The database; <paramref name="settings"/>, <paramref name="habits"/>, <paramref name="reminders"/> and <paramref name="fireside"/> must use the same one, so merge and import run in one transaction.</param>
     /// <param name="time">The clock.</param>
     /// <param name="consent">Answers whether the user agreed to store health data.</param>
-    /// <param name="habits">Time zone, tips and the Discord user lookup that merge and import use.</param>
+    /// <param name="settings">Time zone and tips that merge and import use.</param>
+    /// <param name="habits">The Discord user lookup that merge uses.</param>
     /// <param name="reminders">The per-user limits on push subscriptions and phones that merge applies; must use the same database.</param>
     /// <param name="fireside">The Fireside part of a merge.</param>
     /// <param name="ledger">Where committed account deletions are recorded.</param>
-    public AccountService(EmberDbContext db, TimeProvider time, ConsentService consent, HabitService habits, ReminderService reminders,
-        FiresideService fireside, DeletionLedger ledger)
+    public AccountService(EmberDbContext db, TimeProvider time, ConsentService consent, UserSettingsService settings, HabitService habits,
+        ReminderService reminders, FiresideService fireside, DeletionLedger ledger)
     {
         _db = db;
         _time = time;
         _consent = consent;
+        _settings = settings;
         _habits = habits;
         _reminders = reminders;
         _fireside = fireside;

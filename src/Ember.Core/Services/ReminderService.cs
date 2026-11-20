@@ -21,18 +21,21 @@ public partial class ReminderService
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
     private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
     private readonly HabitService _habits;
 
     /// <param name="consent">Answers whether the user agreed to store health data.</param>
+    /// <param name="settings">Gives the user's time zone; must use the same database.</param>
     /// <param name="habits">
-    /// Gives the time zone, the check-in a Done token writes and the Discord user lookup; must use the same database, so a scope's
+    /// Gives the check-in a Done token writes and the Discord user lookup; must use the same database, so a scope's
     /// reminder and habit calls share one context.
     /// </param>
-    public ReminderService(EmberDbContext db, TimeProvider time, ConsentService consent, HabitService habits)
+    public ReminderService(EmberDbContext db, TimeProvider time, ConsentService consent, UserSettingsService settings, HabitService habits)
     {
         _db = db;
         _time = time;
         _consent = consent;
+        _settings = settings;
         _habits = habits;
     }
 
@@ -45,7 +48,7 @@ public partial class ReminderService
     {
         if (_time.GetUtcNow() - sentAtUtc > SnoozeWindow) return false;
 
-        var tz = await _habits.GetUserTzAsync(userId);
+        var tz = await _settings.GetUserTzAsync(userId);
         if (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_time.GetUtcNow() + SnoozeDelay, tz).DateTime)
             != DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(sentAtUtc, tz).DateTime))
             return false;
@@ -64,7 +67,7 @@ public partial class ReminderService
     /// <summary>Recomputes every habit and routine reminder of the user from their current timezone. Returns how many habits have a reminder.</summary>
     public async Task<int> RescheduleRemindersAsync(Guid userId)
     {
-        var tz = await _habits.GetUserTzAsync(userId);
+        var tz = await _settings.GetUserTzAsync(userId);
         var habits = await _db.Habits
             .Where(h => h.UserId == userId && h.ReminderTimes.Count > 0)
             .ToListAsync();

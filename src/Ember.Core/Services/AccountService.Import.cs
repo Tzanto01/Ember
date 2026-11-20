@@ -55,7 +55,7 @@ public partial class AccountService
         if (data.JournalKey is not null && await _db.JournalKeys.AnyAsync(k => k.UserId == userId))
             return ImportResult.JournalKeyExists;
 
-        var tz = await _habits.GetUserTzAsync(userId);
+        var tz = await _settings.GetUserTzAsync(userId);
         foreach (var routine in data.Routines)
         {
             routine.UserId = userId;
@@ -108,7 +108,7 @@ public partial class AccountService
                 .SetProperty(u => u.Language, u => language ?? u.Language)
                 .SetProperty(u => u.CalmMode, u => calmMode ?? u.CalmMode)
                 .SetProperty(u => u.OfferHabitNote, u => offerHabitNote ?? u.OfferHabitNote));
-        foreach (var tip in data.TipsSeen ?? []) await _habits.MarkTipSeenAsync(userId, tip);
+        foreach (var tip in data.TipsSeen ?? []) await _settings.MarkTipSeenAsync(userId, tip);
         await transaction.CommitAsync();
         return ImportResult.Imported;
     }

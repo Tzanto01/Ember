@@ -26,8 +26,8 @@ public class UserSettingsBaselineTests
             await db.SaveChangesAsync();
         });
 
-    private static Task<T> InServiceAsync<T>(IntegrationTestHost host, Func<HabitService, Task<T>> action)
-        => host.WithScopeAsync(sp => action(sp.GetRequiredService<HabitService>()));
+    private static Task<T> InServiceAsync<T>(IntegrationTestHost host, Func<UserSettingsService, Task<T>> action)
+        => host.WithScopeAsync(sp => action(sp.GetRequiredService<UserSettingsService>()));
 
     public static TheoryData<string, int, int, int, int, int, int, int, int> LocalDays => new()
     {
@@ -124,7 +124,7 @@ public class UserSettingsBaselineTests
 
         await host.WithScopeAsync(async sp =>
         {
-            var service = sp.GetRequiredService<HabitService>();
+            var service = sp.GetRequiredService<UserSettingsService>();
             await service.SetLanguageAsync(UserId, "de");
             (await service.GetLanguageAsync(UserId)).Should().Be("en");
         });
@@ -139,7 +139,7 @@ public class UserSettingsBaselineTests
         await SeedUserAsync(host, "UTC");
 
         (await InServiceAsync(host, s => s.GetLanguageAsync(UserId))).Should().Be("en");
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetLanguageAsync(UserId, "de"));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<UserSettingsService>().SetLanguageAsync(UserId, "de"));
 
         (await InServiceAsync(host, s => s.GetLanguageAsync(UserId))).Should().Be("de");
     }
@@ -152,9 +152,10 @@ public class UserSettingsBaselineTests
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            (await service.GetShowStreaksAsync(UserId)).Should().BeFalse();
+            var settings = sp.GetRequiredService<UserSettingsService>();
+            (await settings.GetShowStreaksAsync(UserId)).Should().BeFalse();
             (await service.GetShowStreaksAsync(77UL)).Should().BeFalse();
-            (await service.NeedsStreaksQuestionAsync(UserId)).Should().BeFalse();
+            (await settings.NeedsStreaksQuestionAsync(UserId)).Should().BeFalse();
             (await service.NeedsStreaksQuestionAsync(77UL)).Should().BeFalse();
         });
     }
@@ -187,7 +188,7 @@ public class UserSettingsBaselineTests
         await SeedUserAsync(host, "UTC");
 
         (await InServiceAsync(host, s => s.NeedsStreaksQuestionAsync(UserId))).Should().BeTrue();
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().MarkTipSeenAsync(UserId, User.StreaksTip));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<UserSettingsService>().MarkTipSeenAsync(UserId, User.StreaksTip));
 
         (await InServiceAsync(host, s => s.NeedsStreaksQuestionAsync(UserId))).Should().BeFalse();
     }
@@ -201,10 +202,10 @@ public class UserSettingsBaselineTests
         await SeedUserAsync(host, "UTC");
         (await InServiceAsync(host, s => s.HasTimezoneSetAsync(UserId))).Should().BeFalse();
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetTimezoneAsync(UserId, "Europe/Berlin"));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<UserSettingsService>().SetTimezoneAsync(UserId, "Europe/Berlin"));
         (await InServiceAsync(host, s => s.HasTimezoneSetAsync(UserId))).Should().BeTrue();
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetTimezoneAsync(UserId, "UTC"));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<UserSettingsService>().SetTimezoneAsync(UserId, "UTC"));
         (await InServiceAsync(host, s => s.HasTimezoneSetAsync(UserId))).Should().BeFalse();
     }
 

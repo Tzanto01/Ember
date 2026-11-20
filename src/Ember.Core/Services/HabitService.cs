@@ -1,5 +1,4 @@
 using Ember.Core.Data;
-using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
@@ -11,13 +10,16 @@ public partial class HabitService
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
     private readonly ConsentService _consent;
+    private readonly UserSettingsService _settings;
 
     /// <param name="consent">Answers whether the user agreed to store health data.</param>
-    public HabitService(EmberDbContext db, TimeProvider time, ConsentService consent)
+    /// <param name="settings">Gives the user's time zone and local day; must use the same database.</param>
+    public HabitService(EmberDbContext db, TimeProvider time, ConsentService consent, UserSettingsService settings)
     {
         _db = db;
         _time = time;
         _consent = consent;
+        _settings = settings;
     }
 
     /// <summary>
@@ -54,7 +56,7 @@ public partial class HabitService
             CreatedAt = _time.GetUtcNow().UtcDateTime
         };
         if (reminderTimes is not null) habit.ReminderTimes = HabitRules.NormalizeReminderTimes(reminderTimes, habit.TimesPerDay);
-        habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+        habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         _db.Habits.Add(habit);
         await _db.SaveChangesAsync();
 
@@ -171,7 +173,7 @@ public partial class HabitService
     public async Task<DayEditResult> SetLowDayAsync(Guid userId, DateOnly date)
     {
         if (!await _consent.HasHealthDataConsentAsync(userId)) return DayEditResult.ConsentRequired;
-        if (date > await GetLocalTodayAsync(userId)) return DayEditResult.InFuture;
+        if (date > await _settings.GetLocalTodayAsync(userId)) return DayEditResult.InFuture;
 
         if (await IsLowDayStoredAsync(userId, date)) return DayEditResult.Saved;
 
@@ -211,7 +213,7 @@ public partial class HabitService
             .Where(h => h.UserId == userId)
             .OrderBy(h => h.CreatedAt)
             .FirstOrDefaultAsync();
-        return oldest is null ? (DateOnly?)null : HabitRules.StartDate(oldest, await GetUserTzAsync(userId));
+        return oldest is null ? (DateOnly?)null : HabitRules.StartDate(oldest, await _settings.GetUserTzAsync(userId));
     }
 
     /// <summary>
@@ -221,7 +223,7 @@ public partial class HabitService
     /// </summary>
     public async Task<IReadOnlyList<HabitDay>?> GetHabitDaysAsync(Guid userId, int habitId, int days)
     {
-        var today = await GetLocalTodayAsync(userId);
+        var today = await _settings.GetLocalTodayAsync(userId);
         return await GetHabitDaysAsync(userId, habitId, today.AddDays(1 - days), today);
     }
 
@@ -255,7 +257,7 @@ public partial class HabitService
     /// </summary>
     public async Task<IReadOnlyList<DayStats>> GetDayStatsAsync(Guid userId, DateOnly from, DateOnly to)
     {
-        var tz = await GetUserTzAsync(userId);
+        var tz = await _settings.GetUserTzAsync(userId);
         var habits = await _db.Habits
             .AsNoTracking()
             .Where(h => h.UserId == userId)
@@ -317,14 +319,14 @@ public partial class HabitService
         if (habit.ReminderTimes.Count > target)
         {
             habit.ReminderTimes = habit.ReminderTimes.Take(target).ToList();
-            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync();
         await _db.SaveChangesAsync();
         if (recompute)
         {
-            var today = await GetLocalTodayAsync(userId);
+            var today = await _settings.GetLocalTodayAsync(userId);
             await _db.HabitLogs
                 .Where(l => l.HabitId == habitId && (l.Date == today || l.Count >= target))
                 .ExecuteUpdateAsync(s => s
@@ -379,12 +381,12 @@ public partial class HabitService
         else if (newReminderTimes is not null)
         {
             habit.ReminderTimes = HabitRules.NormalizeReminderTimes(newReminderTimes, habit.TimesPerDay);
-            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
         else if (newReminderTime.HasValue)
         {
             habit.ReminderTime = newReminderTime;
-            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
 
         await _db.SaveChangesAsync();
@@ -403,7 +405,7 @@ public partial class HabitService
 
         if (habit is null) return null;
 
-        var today = await GetLocalTodayAsync(userId);
+        var today = await _settings.GetLocalTodayAsync(userId);
         if (pausedUntil is not null)
         {
             if (!HabitRules.IsPausedOn(habit, today)) habit.PausedFrom = today;
@@ -421,104 +423,6 @@ public partial class HabitService
 
         await _db.SaveChangesAsync();
         return habit;
-    }
-
-    public async Task<int> GetGraceDaysAsync(Guid userId)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return user?.GraceDaysPerWeek ?? 1;
-    }
-
-    public async Task SetGraceDaysAsync(Guid userId, int graceDays)
-    {
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.GraceDaysPerWeek, graceDays));
-    }
-
-    /// <summary>The user's <see cref="User.Language"/>; <see cref="Languages.English"/> when the user doesn't exist.</summary>
-    public async Task<string> GetLanguageAsync(Guid userId)
-        => await _db.Users.Where(u => u.Id == userId).Select(u => u.Language).FirstOrDefaultAsync() ?? Languages.English;
-
-    /// <summary>Sets <see cref="User.Language"/>; the caller passes one of <see cref="Languages.All"/>.</summary>
-    public async Task SetLanguageAsync(Guid userId, string language)
-    {
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.Language, language));
-    }
-
-    /// <summary>Sets <see cref="User.OfferHabitNote"/>.</summary>
-    public async Task SetOfferHabitNoteAsync(Guid userId, bool offer)
-    {
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.OfferHabitNote, offer));
-    }
-
-    /// <summary>
-    /// Stores <paramref name="order"/> as the user's <see cref="User.TodayOrder"/>, keeping only the first occurrence of each
-    /// <c>h:&lt;id&gt;</c> of the user's habits outside a routine and <c>r:&lt;id&gt;</c> of the user's routines, in canonical form.
-    /// Null resets to automatic. Returns what was stored. Callers enforce <see cref="User.MaxTodayOrderEntries"/>.
-    /// </summary>
-    public async Task<List<string>?> SetTodayOrderAsync(Guid userId, IReadOnlyList<string?>? order)
-    {
-        List<string>? kept = null;
-        if (order is not null)
-        {
-            var valid = (await _db.Habits.Where(h => h.UserId == userId && h.RoutineId == null).Select(h => h.Id).ToListAsync())
-                .Select(id => $"h:{id}")
-                .Concat((await _db.Routines.Where(r => r.UserId == userId).Select(r => r.Id).ToListAsync()).Select(id => $"r:{id}"))
-                .ToHashSet();
-            var seen = new HashSet<string>();
-            kept = order.OfType<string>().Where(k => valid.Contains(k) && seen.Add(k)).ToList();
-        }
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.TodayOrder, kept));
-        return kept;
-    }
-
-    /// <summary>Sets <see cref="User.CalmMode"/>.</summary>
-    public async Task SetCalmModeAsync(Guid userId, bool calmMode)
-    {
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.CalmMode, calmMode));
-    }
-
-    public async Task SetThemeAsync(Guid userId, string theme)
-    {
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.Theme, theme));
-    }
-
-    public async Task<TimeZoneInfo> GetUserTzAsync(Guid userId)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return TimeZones.Find(user?.Timezone ?? "UTC") ?? TimeZoneInfo.Utc;
-    }
-
-    /// <summary>The user's current local day (UTC when the user has no known timezone).</summary>
-    public async Task<DateOnly> GetLocalTodayAsync(Guid userId)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return TimeZones.LocalToday(user?.Timezone, _time);
-    }
-
-    public async Task<bool> HasTimezoneSetAsync(Guid userId)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return user?.Timezone is not null && user.Timezone != "UTC";
-    }
-
-    /// <summary>Stores the user's timezone id. Does not reschedule reminders.</summary>
-    public async Task SetTimezoneAsync(Guid userId, string timezoneId)
-    {
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.Timezone, timezoneId));
     }
 
     /// <summary>Total number of habits across all users.</summary>

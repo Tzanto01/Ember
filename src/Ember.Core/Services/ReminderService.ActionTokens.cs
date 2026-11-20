@@ -18,7 +18,7 @@ public partial class ReminderService
         CancellationToken cancellationToken = default)
     {
         var token = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
-        var tz = await _habits.GetUserTzAsync(userId);
+        var tz = await _settings.GetUserTzAsync(userId);
         _db.ReminderActionTokens.Add(new ReminderActionToken
         {
             TokenHash = ReminderActionTokenHash(token),

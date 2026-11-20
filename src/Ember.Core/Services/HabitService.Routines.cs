@@ -60,7 +60,7 @@ public partial class HabitService
         if (habitIds is not null && !await SetRoutineHabitsAsync(userId, routine, habitIds))
             return (RoutineWriteResult.NotFound, null);
 
-        routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+        routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         _db.Routines.Add(routine);
         await _db.SaveChangesAsync();
         return (RoutineWriteResult.Saved, routine);
@@ -92,7 +92,7 @@ public partial class HabitService
         else if (reminderTime.HasValue)
         {
             routine.ReminderTime = reminderTime;
-            routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, await GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+            routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
 
         await _db.SaveChangesAsync();

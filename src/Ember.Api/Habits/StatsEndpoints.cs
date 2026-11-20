@@ -27,10 +27,10 @@ internal static partial class StatsEndpoints
                     h.Habit.FrequencyType != FrequencyType.Weekly ? (int?)h.CurrentStreak : null)).ToList()));
         });
 
-        api.MapGet("/stats/days", async (string? from, string? to, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapGet("/stats/days", async (string? from, string? to, ClaimsPrincipal principal, HabitService habits, UserSettingsService settings) =>
         {
             var userId = principal.UserId();
-            var today = await habits.GetLocalTodayAsync(userId);
+            var today = await settings.GetLocalTodayAsync(userId);
             var errors = new Dictionary<string, string[]>();
             var end = Formats.DateOr(to, today, "to", errors);
             var start = Formats.DateOr(from, Formats.DaysBefore(end, HabitEndpoints.MaxDaysPerRequest - 1), "from", errors);

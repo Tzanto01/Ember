@@ -117,7 +117,7 @@ public partial class AccountService
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(u => u.DiscordReminders, source.DiscordReminders)
                     .SetProperty(u => u.DiscordRemindersAskedAt, source.DiscordRemindersAskedAt), cancellationToken);
-            foreach (var tip in source.TipsSeen) await _habits.MarkTipSeenAsync(targetUserId, tip);
+            foreach (var tip in source.TipsSeen) await _settings.MarkTipSeenAsync(targetUserId, tip);
 
             var key = DiscordLogin.Key(discordUserId);
             await _db.UserLogins
