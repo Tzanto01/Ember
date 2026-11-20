@@ -43,7 +43,7 @@ export function toBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const url = String(reader.result);
+      const url = reader.result as string;
       resolve(url.slice(url.indexOf(',') + 1));
     };
     reader.onerror = () => reject(reader.error ?? new Error('read failed'));

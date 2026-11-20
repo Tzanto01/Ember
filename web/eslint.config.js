@@ -73,7 +73,6 @@ export default defineConfig(
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
       '@typescript-eslint/no-extraneous-class': 'off',
-      '@typescript-eslint/no-base-to-string': 'off',
       '@typescript-eslint/no-redundant-type-constituents': 'off',
       '@typescript-eslint/no-implied-eval': 'off',
       'react-hooks/set-state-in-effect': 'off',

@@ -36,6 +36,7 @@ export function mockFetch(): FetchMock {
       new Promise<Response>((resolve, reject) => {
         const call: FakeCall = {
           method: init.method ?? 'GET',
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string -- app code fetches string URLs, never a Request
           url: String(input),
           headers: new Headers(init.headers),
           body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined,
