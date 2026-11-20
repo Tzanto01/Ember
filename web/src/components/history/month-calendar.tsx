@@ -84,7 +84,7 @@ export function MonthCalendar({
           <thead>
             <tr>
               {shortDays.map((short, i) => (
-                <th key={short + i} scope="col" className="pb-1 text-[14px] font-medium text-muted-foreground md:w-[56px]">
+                <th key={short + String(i)} scope="col" className="pb-1 text-[14px] font-medium text-muted-foreground md:w-[56px]">
                   <span aria-hidden="true">{short}</span>
                   <span className="sr-only">{longDays[i]}</span>
                 </th>

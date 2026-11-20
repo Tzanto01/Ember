@@ -74,7 +74,6 @@ export default defineConfig(
       '@typescript-eslint/no-unnecessary-type-conversion': 'off',
       '@typescript-eslint/no-extraneous-class': 'off',
       '@typescript-eslint/no-base-to-string': 'off',
-      '@typescript-eslint/restrict-plus-operands': 'off',
       '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/no-redundant-type-constituents': 'off',
       '@typescript-eslint/no-unnecessary-type-parameters': 'off',
