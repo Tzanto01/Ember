@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronRight, Sparkles } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronRight, Sparkles } from 'lucide-react';
 import {
   type SubmitEvent,
   useEffect,
@@ -15,20 +15,21 @@ import { BackLink } from '@/components/back-link';
 import { useField, type Validator, validateAll } from '@/components/auth/use-field';
 import { FiresideSettings } from '@/components/fireside/fireside-settings';
 import { FormField, focusFirstInvalid } from '@/components/form-field';
-import { DestinationName, reminderDestinationsKey } from '@/components/habits/device-reminders';
+import { reminderDestinationsKey } from '@/components/habits/device-reminders';
 import { MoodManager } from '@/components/journal/mood-manager';
 import { CrisisLines } from '@/components/moment/crisis-lines';
 import { DeleteDeviceData, DeviceDataSettings } from '@/components/local/device-data-settings';
 import { PageHeader } from '@/components/page-header';
 import { AccountCard } from '@/components/settings/account-card';
+import { AppearanceCard } from '@/components/settings/appearance-card';
 import { AppUpdatesSettings } from '@/components/settings/app-updates-settings';
-import { ColorSchemePicker } from '@/components/settings/color-scheme-picker';
-import { LanguagePicker } from '@/components/settings/language-picker';
 import { DiscordCard } from '@/components/settings/discord-card';
+import { DmRemindersCard } from '@/components/settings/dm-reminders-card';
 import { FeedbackForm } from '@/components/settings/feedback-form';
 import { HelpsSettings } from '@/components/settings/helps-settings';
 import { JournalSettings } from '@/components/settings/journal-settings';
-import { ReminderNamesSetting } from '@/components/settings/reminder-names-setting';
+import { PhoneRemindersCard } from '@/components/settings/phone-reminders-card';
+import { PushCard } from '@/components/settings/push-card';
 import { SettingsCard } from '@/components/settings/settings-card';
 import {
   type SettingsMessage,
@@ -37,7 +38,6 @@ import {
 } from '@/components/settings/settings-status';
 import { settingsGroupOf, settingsGroups } from '@/components/settings/settings-groups';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
-import { ThemePicker } from '@/components/theme-picker';
 import { Button } from '@/components/ui/button';
 import { Input, PasswordInput } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,24 +52,15 @@ import { browserTimeZone, formatInstantDate, isValidTimeZone, timeZoneLabel } fr
 import {
   type ExportFormat,
   graceOptions,
-  type ReminderDestination,
   secondReminderChoices,
   type SecondReminderMinutes,
 } from '@/lib/models';
 import { openOnWeb } from '@/lib/native/browser';
 import { updaterAvailable } from '@/lib/native/updater';
-import { ApiError, asApiError, problemToMessage } from '@/lib/problem';
-import { api, auth, deviceSync, localMode, push, reminders } from '@/lib/services';
+import { asApiError } from '@/lib/problem';
+import { api, auth, localMode, push } from '@/lib/services';
 import { useStore } from '@/lib/store';
-import { applyLanguage, currentLanguage, heldLanguage, holdLanguage, type Language, rememberDeviceLanguage, storedLanguage, t } from '@/lib/i18n';
-import {
-  applyCalm,
-  applyGentleMotion,
-  calmMode,
-  gentleMotion,
-  rememberAccountTheme,
-  type ThemeId,
-} from '@/lib/theme';
+import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 const discordOutcomes = {
@@ -112,20 +103,6 @@ const deleteWord: Validator = (value) => {
   return word === expected ? null : t('settings.delete.typeDeleteCaps', { word: expected });
 };
 
-function isIos(): boolean {
-  return (
-    // eslint-disable-next-line @typescript-eslint/no-deprecated -- iPadOS reports MacIntel here and Safari has no replacement API
-    /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  );
-}
-
-function isStandalone(): boolean {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
-
 function subscribeWide(change: () => void): () => void {
   const query = window.matchMedia(wideQuery);
   query.addEventListener('change', change);
@@ -160,10 +137,8 @@ export default function SettingsPage() {
   const me = useStore(auth.me);
   const local = useStore(localMode.mode) === 'local';
   const pushAvailable = useStore(push.available);
-  const browserNames = useStore(push.showNames);
-  const queryClient = useQueryClient();
   const status = useSettingsStatusState();
-  const { busy, message, start, finish, show, fail, outcome, savedStatus, patch, act } = status;
+  const { busy, message, start, finish, fail, outcome, savedStatus, patch } = status;
 
   const scrolled = useRef<string | null>(null);
   const tzForm = useRef<HTMLFormElement>(null);
@@ -173,19 +148,12 @@ export default function SettingsPage() {
   const claimed = useRef<Promise<void> | null>(null);
 
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
-  const gentle = useStore(gentleMotion);
   const [zone, setZone] = useState<string | null>(null);
   const [zoneTouched, setZoneTouched] = useState(false);
   const [zoneServerError, setZoneServerError] = useState<string | null>(null);
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [deleteErrors, setDeleteErrors] = useState<{ password?: string; confirm?: string }>({});
-  const [notificationsOff, setNotificationsOff] = useState(false);
-  const [remindersLate, setRemindersLate] = useState(false);
-  const togglingRef = useRef(new Set<string>());
-  const [toggling, setToggling] = useState<Partial<Record<string, boolean>>>({});
-  const [toggled, setToggled] = useState<Partial<Record<string, { error: string | null }>>>({});
   const [browserZone] = useState(browserTimeZone);
-  const [showIosHint] = useState(() => isIos() && !isStandalone());
   const [discordOutcome] = useState<DiscordOutcome | null>(() => {
     const outcome = new URLSearchParams(location.search).get('discord');
     return outcome && Object.hasOwn(discordOutcomes, outcome) ? (outcome as DiscordOutcome) : null;
@@ -200,12 +168,6 @@ export default function SettingsPage() {
     const linked = params.get('discord') === 'linked';
     void (linked ? auth.refreshAntiforgery() : Promise.resolve()).then(() => auth.loadMe(true)).catch(() => null);
     if (!local) claimed.current = push.claim();
-    if (env.native) {
-      void import('@capacitor/local-notifications')
-        .then(({ LocalNotifications }) => LocalNotifications.checkPermissions())
-        .then((status) => setNotificationsOff(status.display === 'denied'), () => undefined);
-    }
-    if (updaterAvailable()) void reminders?.exactAllowed().then((exact) => setRemindersLate(!exact));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; adding deps would rerun it
   }, []);
 
@@ -219,42 +181,10 @@ export default function SettingsPage() {
     (value: boolean) => patch('habitNotes', { offerHabitNote: value }),
     { onError: (error) => fail('habitNotes', error) },
   );
-  const [calm, changeCalm] = useMePatchField((value: boolean) => patch('calm', { calmMode: value }), {
-    onError: (error) => fail('calm', error),
-    apply: (value) => {
-      const before = calmMode.get();
-      applyCalm(value);
-      return () => applyCalm(before);
-    },
-  });
   const [second, changeSecond] = useMePatchField(
     (value: SecondReminderMinutes) => patch('second', { secondReminderMinutes: value }),
     { onError: (error) => fail('second', error) },
   );
-
-  function saveTheme(theme: ThemeId): void {
-    if (!auth.signedIn()) return;
-    void patch('appearance', { theme }).then((error) => {
-      if (!error) rememberAccountTheme(theme);
-      else if (!error.handled) show('appearance', { tone: 'info', text: t('settings.appearance.notSaved') });
-    });
-  }
-
-  function saveLanguage(language: Language): void {
-    const before = currentLanguage();
-    const stored = storedLanguage();
-    holdLanguage(language);
-    rememberDeviceLanguage(language);
-    applyLanguage(language);
-    void patch('appearance', { language }).then((error) => {
-      if (heldLanguage() !== language) return;
-      holdLanguage(null);
-      if (!error) return;
-      rememberDeviceLanguage(stored);
-      applyLanguage(before);
-      if (!error.handled) show('appearance', { tone: 'info', text: t('language.notSaved') });
-    });
-  }
 
   async function saveTimezone(chosen?: string): Promise<void> {
     if (status.isBusy()) return;
@@ -276,79 +206,6 @@ export default function SettingsPage() {
       setZoneServerError(t('settings.timezone.unknown'));
     } else {
       fail('timezone', error);
-    }
-  }
-
-  const resumeDms = () =>
-    act('dm', async () => {
-      await api.resumeDmReminders();
-      await auth.loadMe(true);
-      return { tone: 'success', text: t('settings.dm.resumed') };
-    });
-
-  async function toggleDestination(destination: ReminderDestination, enabled: boolean): Promise<void> {
-    const { id } = destination;
-    if (togglingRef.current.has(id)) return;
-    togglingRef.current.add(id);
-    setToggling((t) => ({ ...t, [id]: enabled }));
-    setToggled((t) => ({ ...t, [id]: undefined }));
-    try {
-      const updated = await api.setReminderDestination(id, enabled);
-      queryClient.setQueryData<ReminderDestination[]>(reminderDestinationsKey, (list) =>
-        list?.map((d) => (d.id === updated.id ? updated : d)),
-      );
-      if (env.native) deviceSync.rebuildReminders();
-      setToggled((t) => ({ ...t, [id]: { error: null } }));
-    } catch (error) {
-      if (!asApiError(error).handled) {
-        const text = destination.enabled
-          ? t('settings.push.stillOn', { name: destination.label })
-          : t('settings.push.stillOff', { name: destination.label });
-        setToggled((t) => ({ ...t, [id]: { error: text } }));
-      }
-    } finally {
-      togglingRef.current.delete(id);
-      setToggling((t) => ({ ...t, [id]: undefined }));
-    }
-  }
-
-  const enablePhone = () =>
-    act('push', async () => {
-      const phone = (await reminders?.enablePhone()) ?? null;
-      if (!phone) return { tone: 'info', text: t('settings.phone.notificationsOff') };
-      await queryClient.invalidateQueries({ queryKey: reminderDestinationsKey });
-      deviceSync.rebuildReminders();
-      return { tone: 'success', text: t('settings.phone.on') };
-    });
-
-  async function enablePush(): Promise<void> {
-    if (status.isBusy()) return;
-    start('push');
-    try {
-      await push.subscribe();
-      await queryClient.invalidateQueries({ queryKey: reminderDestinationsKey });
-      show('push', { tone: 'success', text: t('settings.push.on') });
-    } catch (error) {
-      if (error instanceof ApiError) fail('push', error);
-      else if (push.isDenied() || (error instanceof DOMException && error.name === 'NotAllowedError'))
-        show('push', { tone: 'notice', text: t('settings.push.denied') });
-      else
-        show('push', { tone: 'notice', text: t('settings.push.failed') });
-    } finally {
-      finish();
-    }
-  }
-
-  async function changeBrowserNames(on: boolean): Promise<void> {
-    if (status.isBusy()) return;
-    start('push');
-    try {
-      await push.setShowNames(on);
-      status.markSaved('push');
-    } catch (error) {
-      fail('push', asApiError(error));
-    } finally {
-      finish();
     }
   }
 
@@ -623,230 +480,13 @@ export default function SettingsPage() {
 
               {shown('account') && <AccountCard title={title('account')} me={me} />}
 
-              {shown('appearance') && (
-                <SettingsCard id="appearance" title={title('appearance')}>
-                  <p id="appearance-hint">
-                    {local ? t('settings.appearance.hintLocal') : t('settings.appearance.hintAccount')}
-                  </p>
-                  <LanguagePicker local={local} onChoose={saveLanguage} />
-                  <ColorSchemePicker />
-                  <ThemePicker labelledBy="appearance-heading" describedBy="appearance-hint" onChoose={saveTheme} />
-                  {outcome('appearance')}
-                  <div className="flex min-h-[44px] items-center justify-between gap-4">
-                    <Label htmlFor="calm-mode" className="min-w-0 font-normal">
-                      {t('settings.calm.label')}
-                    </Label>
-                    <Switch
-                      id="calm-mode"
-                      aria-describedby="calm-mode-hint"
-                      checked={calm ?? me?.calmMode === true}
-                      onCheckedChange={changeCalm}
-                    />
-                  </div>
-                  <p id="calm-mode-hint" className="text-[0.875rem] text-muted-foreground">
-                    {t('settings.calm.hint')}
-                  </p>
-                  {savedStatus('calm')}
-                  {outcome('calm')}
-                  {env.native && (
-                    <>
-                      <div className="flex min-h-[44px] items-center justify-between gap-4">
-                        <Label htmlFor="gentle-motion" className="min-w-0 font-normal">
-                          {t('settings.gentleMotion.label')}
-                        </Label>
-                        <Switch
-                          id="gentle-motion"
-                          aria-describedby="gentle-motion-hint"
-                          checked={gentle}
-                          onCheckedChange={applyGentleMotion}
-                        />
-                      </div>
-                      <p id="gentle-motion-hint" className="text-[0.875rem] text-muted-foreground">
-                        {t('settings.gentleMotion.hint')}
-                      </p>
-                    </>
-                  )}
-                </SettingsCard>
-              )}
+              {shown('appearance') && <AppearanceCard title={title('appearance')} me={me} local={local} />}
 
-              {shown('push') && (
-                <SettingsCard id="push" title={title('push')}>
-                  {destinations.data ? (
-                    destinations.data.length > 0 ? (
-                      <>
-                        <p>{t('settings.push.intro')}</p>
-                        <ul className="flex flex-col divide-y divide-border">
-                          {destinations.data.map((destination) => (
-                            <li key={destination.id} className="flex flex-col py-2 first:pt-0 last:pb-0">
-                              <div className="flex min-h-[44px] items-center justify-between gap-4">
-                                <Label
-                                  htmlFor={`destination-${destination.id}`}
-                                  className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-normal"
-                                >
-                                  <DestinationName destination={destination} />
-                                </Label>
-                                <Switch
-                                  id={`destination-${destination.id}`}
-                                  checked={toggling[destination.id] ?? destination.enabled}
-                                  aria-disabled={toggling[destination.id] !== undefined || undefined}
-                                  onCheckedChange={(checked) => void toggleDestination(destination, checked)}
-                                />
-                              </div>
-                              <p role="status" className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                                {toggled[destination.id]?.error === null && (
-                                  <>
-                                    <Check aria-hidden className="size-[18px] text-primary" />
-                                    {t('settings.saved')}
-                                  </>
-                                )}
-                              </p>
-                              {toggled[destination.id]?.error && (
-                                <Notice tone="notice" className="mt-2">
-                                  <p>{toggled[destination.id]?.error}</p>
-                                </Notice>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : (
-                      <p className="text-muted-foreground">
-                        {t('settings.push.none')}
-                        {!(env.native || pushAvailable) && (
-                          <>
-                            {' '}
-                            <Trans
-                              i18nKey="settings.push.noneDiscord"
-                              components={{
-                                anchor: (
-                                  <Link
-                                    to={{ pathname: '/settings', hash: 'discord' }}
-                                    className="text-primary underline underline-offset-4"
-                                  />
-                                ),
-                              }}
-                            />
-                          </>
-                        )}
-                      </p>
-                    )
-                  ) : destinations.isError ? (
-                    !asApiError(destinations.error).handled && (
-                      <Notice tone="notice">
-                        <p>{problemToMessage(asApiError(destinations.error)).message}</p>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          aria-disabled={destinations.isFetching || undefined}
-                          onClick={() => void destinations.refetch()}
-                        >
-                          {t('settings.tryAgain')}
-                        </Button>
-                      </Notice>
-                    )
-                  ) : (
-                    <>
-                      <p role="status" className="sr-only">
-                        {t('settings.push.loading')}
-                      </p>
-                      <Skeleton className="h-[7rem] rounded-md" />
-                    </>
-                  )}
-                  {destinations.data &&
-                    !destinations.data.some((d) => d.current) &&
-                    (env.native ? (
-                      <div>
-                        <BusyButton
-                          type="button"
-                          busy={busy === 'push'}
-                          busyLabel={t('settings.turningOn')}
-                          onClick={() => void enablePhone()}
-                        >
-                          {t('settings.phone.turnOn')}
-                        </BusyButton>
-                      </div>
-                    ) : (
-                      pushAvailable && (
-                        <>
-                          <p className="text-muted-foreground">{t('settings.push.browserHint')}</p>
-                          {showIosHint && (
-                            <p className="text-muted-foreground">{t('settings.push.iosHint')}</p>
-                          )}
-                          <div>
-                            <BusyButton
-                              type="button"
-                              busy={busy === 'push'}
-                              busyLabel={t('settings.turningOn')}
-                              onClick={() => void enablePush()}
-                            >
-                              {t('settings.push.turnOn')}
-                            </BusyButton>
-                          </div>
-                        </>
-                      )
-                    ))}
-                  {!env.native && destinations.data?.some((d) => d.current && d.kind === 'browser') && (
-                    <>
-                      <ReminderNamesSetting
-                        checked={browserNames}
-                        onCheckedChange={(on) => void changeBrowserNames(on)}
-                      />
-                      {savedStatus('push')}
-                    </>
-                  )}
-                  {outcome('push')}
-                </SettingsCard>
-              )}
+              {shown('push') && <PushCard title={title('push')} destinations={destinations} />}
 
-              {shown('dm-reminders') && (
-                <SettingsCard id="dm-reminders" title={title('dm-reminders')}>
-                  {me.dmReminders.paused && (
-                    <>
-                      <p>{t('settings.dm.paused')}</p>
-                      <div>
-                        <BusyButton
-                          type="button"
-                          variant="secondary"
-                          busy={busy === 'dm'}
-                          busyLabel={t('settings.dm.resuming')}
-                          onClick={() => void resumeDms()}
-                        >
-                          {t('settings.dm.resume')}
-                        </BusyButton>
-                      </div>
-                    </>
-                  )}
-                  {outcome('dm')}
-                </SettingsCard>
-              )}
+              {shown('dm-reminders') && <DmRemindersCard title={title('dm-reminders')} me={me} />}
 
-              {shown('phone-reminders') && (
-                <SettingsCard id="phone-reminders" title={title('phone-reminders')}>
-                  <p>{local ? t('settings.phone.introLocal') : t('settings.phone.intro')}</p>
-                  <ReminderNamesSetting />
-                  {remindersLate && (
-                    <Notice tone="info">
-                      <p>{t('settings.phone.late')}</p>
-                      <Button
-                        variant="secondary"
-                        onClick={() =>
-                          void reminders?.allowExact().then((exact) => {
-                            setRemindersLate(!exact);
-                            if (exact) deviceSync.rebuildReminders();
-                          })
-                        }
-                      >
-                        {t('settings.phone.allowExact')}
-                      </Button>
-                    </Notice>
-                  )}
-                  {notificationsOff && (
-                    <Notice tone="info">
-                      <p>{t('settings.phone.notificationsOff')}</p>
-                    </Notice>
-                  )}
-                </SettingsCard>
-              )}
+              {shown('phone-reminders') && <PhoneRemindersCard title={title('phone-reminders')} local={local} />}
 
               {shown('second-reminder') && (
                 <SettingsCard id="second-reminder" title={title('second-reminder')}>
