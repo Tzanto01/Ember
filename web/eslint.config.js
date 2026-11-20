@@ -39,6 +39,13 @@ export default defineConfig(
       ],
       // Every reject passes on an IndexedDB `error` (DOMException | null) or a caught value; wrapping them would change what callers catch.
       '@typescript-eslint/prefer-promise-reject-errors': 'off',
+      // The local backend throws its plain `Problem` objects on purpose and catches them with `instanceof Problem`.
+      '@typescript-eslint/only-throw-error': [
+        'error',
+        {
+          allow: [{ from: 'file', name: 'Problem', path: 'src/lib/local/backend.ts' }],
+        },
+      ],
       // Numbers in template strings (counts, ids, pixel sizes) format predictably.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       // Its remaining findings are `!` on indexed reads that noUncheckedIndexedAccess makes necessary; turn it back on with that option.
@@ -70,7 +77,6 @@ export default defineConfig(
     name: 'temporary-todo',
     rules: {
       '@typescript-eslint/require-await': 'off',
-      '@typescript-eslint/only-throw-error': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
       '@typescript-eslint/no-deprecated': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
