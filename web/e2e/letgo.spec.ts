@@ -193,3 +193,34 @@ test('the social-media-free evenings template creates a let-go habit with its qu
   await page.getByRole('link', { name: /^Edit .*Social-media-free evenings/ }).click();
   await expect(page.getByLabel('Quiet evening check-in (optional)')).toHaveValue('21:00');
 });
+
+test('made it today marks and undoes a free day without touching the count, and a slip removes the toggle', async ({ page }) => {
+  await createWebUser(page);
+  await createLetGoHabit(page, 'Late snacks');
+  const row = letGoRow(page, 'Late snacks');
+  const madeIt = row.getByRole('button', { name: 'Made it today: Late snacks' });
+  await expect(row.getByText('1 day without')).toBeVisible();
+  await expect(madeIt).toHaveAttribute('aria-pressed', 'false');
+
+  await madeIt.click();
+  await expect(madeIt).toHaveAttribute('aria-pressed', 'true');
+  await expect(row.getByText('Nice. Let that feel good.')).toBeVisible();
+  await expect(row.getByText('1 day without')).toBeVisible();
+
+  await madeIt.click();
+  await expect(madeIt).toHaveAttribute('aria-pressed', 'false');
+  await expect(row.getByText('1 day without')).toBeVisible();
+
+  await madeIt.click();
+  await expect(madeIt).toHaveAttribute('aria-pressed', 'true');
+
+  await row.getByRole('button', { name: 'I slipped: Late snacks' }).click();
+  const sheet = slipDialog(page);
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(sheet.getByRole('status')).toContainText(/^Noted\./);
+  await sheet.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+
+  await expect(row.getByText('Starting again, gently')).toBeVisible();
+  await expect(row.getByRole('button', { name: 'Made it today: Late snacks' })).toHaveCount(0);
+});

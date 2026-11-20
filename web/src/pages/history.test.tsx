@@ -218,7 +218,7 @@ describe('HistoryPage for a let-go habit', () => {
   }
 
   let refetchTimer: ReturnType<typeof setInterval> | undefined;
-  function answerRefetches(slips: { date: string; count: number; reasons: string[] }[]) {
+  function answerRefetches(slips: { date: string; count: number; reasons: string[] }[], madeIt: { date: string }[] = []) {
     clearInterval(refetchTimer);
     const timer = (refetchTimer = setInterval(() => {
       for (const call of f.pending.filter((c) => c.url.startsWith('/api/habits/9/slips?'))) {
@@ -227,7 +227,7 @@ describe('HistoryPage for a let-go habit', () => {
       }
       for (const call of f.pending.filter((c) => c.url.startsWith('/api/habits/9/made-it?'))) {
         f.pending.splice(f.pending.indexOf(call), 1);
-        call.respond(200, []);
+        call.respond(200, madeIt);
       }
     }, 5));
     setTimeout(() => clearInterval(timer), 1500);
@@ -287,5 +287,91 @@ describe('HistoryPage for a let-go habit', () => {
     (await f.next('DELETE', '/api/habits/9/slips/2026-11-03')).respond(200, coffee);
     answerRefetches([{ date: '2026-11-02', count: 1, reasons: ['tired'] }]);
     await waitFor(() => expect(container.querySelector('#day-2026-11-03')).toHaveAttribute('data-state', 'free'));
+  });
+  describe('made it marks', () => {
+    const madeItUrl = '/api/habits/9/made-it?from=2026-11-01&to=2026-11-04';
+    const slipsUrl = '/api/habits/9/slips?from=2026-11-01&to=2026-11-04';
+
+    async function open(markedDays: string[], slippedDays: string[] = []) {
+      const container = renderHistory('/history/9');
+      await answerHabits(f, [coffee]);
+      (await f.next('GET', slipsUrl)).respond(
+        200,
+        slippedDays.map((date) => ({ date, count: 1, reasons: [] })),
+      );
+      (await f.next('GET', madeItUrl)).respond(
+        200,
+        markedDays.map((date) => ({ date })),
+      );
+      return container;
+    }
+
+    const dayButton = (container: HTMLElement, date: string) =>
+      waitFor(() => {
+        const b = container.querySelector<HTMLButtonElement>(`#day-${date}`);
+        expect(b).not.toBeNull();
+        return b!;
+      });
+
+    it('names a marked free day "made it" and leaves an unmarked free day plain', async () => {
+      const container = await open(['2026-11-02']);
+
+      const marked = await dayButton(container, '2026-11-02');
+      await waitFor(() => expect(marked).toHaveAccessibleName(/a day without, made it$/));
+      expect(marked).toHaveAttribute('data-state', 'free');
+      expect(container.querySelector('#day-2026-11-03')).toHaveAccessibleName(/a day without$/);
+    });
+
+    it('lists "Made it" in the legend', async () => {
+      await open([]);
+
+      expect(within(await screen.findByRole('list', { name: 'Legend' })).getByText('Made it')).toBeInTheDocument();
+    });
+
+    it('marks a free day made it from the day panel and shows it marked', async () => {
+      const container = await open([]);
+      await userEvent.click(await dayButton(container, '2026-11-03'));
+      const panel = container.querySelector<HTMLElement>('#day-panel')!;
+      expect(within(panel).queryByRole('button', { name: 'Remove the made it mark' })).toBeNull();
+
+      await userEvent.click(within(panel).getByRole('button', { name: 'Mark this day as made it' }));
+      (await f.next('PUT', '/api/habits/9/made-it/2026-11-03')).respond(200, coffee);
+      answerRefetches([], [{ date: '2026-11-03' }]);
+
+      await waitFor(() =>
+        expect(container.querySelector('#day-2026-11-03')).toHaveAccessibleName(/a day without, made it$/),
+      );
+      expect(await within(panel).findByRole('button', { name: 'Remove the made it mark' })).toBeInTheDocument();
+      expect(within(panel).queryByRole('button', { name: 'Mark this day as made it' })).toBeNull();
+    });
+
+    it('removes the made it mark from a marked day', async () => {
+      const container = await open(['2026-11-03']);
+      await userEvent.click(await dayButton(container, '2026-11-03'));
+      const panel = container.querySelector<HTMLElement>('#day-panel')!;
+
+      await userEvent.click(await within(panel).findByRole('button', { name: 'Remove the made it mark' }));
+      (await f.next('DELETE', '/api/habits/9/made-it/2026-11-03')).respond(200, coffee);
+      answerRefetches([], []);
+
+      await waitFor(() =>
+        expect(container.querySelector('#day-2026-11-03')).toHaveAccessibleName(/a day without$/),
+      );
+      expect(await within(panel).findByRole('button', { name: 'Mark this day as made it' })).toBeInTheDocument();
+    });
+
+    it('offers no made it action on a slipped day, even one with a stale mark', async () => {
+      const container = await open(['2026-11-02'], ['2026-11-02']);
+      const slipped = await dayButton(container, '2026-11-02');
+      await waitFor(() => expect(slipped).toHaveAttribute('data-state', 'slipped'));
+      expect(slipped).not.toHaveAccessibleName(/made it/);
+
+      await userEvent.click(slipped);
+      const panel = container.querySelector<HTMLElement>('#day-panel')!;
+
+      expect(within(panel).getByRole('button', { name: "Remove this day's slips" })).toBeInTheDocument();
+      expect(within(panel).queryByRole('button', { name: 'Mark this day as made it' })).toBeNull();
+      expect(within(panel).queryByRole('button', { name: 'Remove the made it mark' })).toBeNull();
+    });
   });
 });

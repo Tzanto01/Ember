@@ -663,6 +663,89 @@ describe('TodayPage let-go habits', () => {
   });
 });
 
+describe('TodayPage made it today', () => {
+  let f: FetchMock;
+  const marked = { ...letGoHabit, today: { ...letGoHabit.today, madeIt: true } };
+
+  beforeEach(() => {
+    f = mockFetch();
+    auth.setMe(me);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    auth.clearSession();
+    localMode.mode.set('account');
+  });
+
+  it('marks a free day made it with a warm line that fades after six seconds, and unmarks on a second tap', async () => {
+    renderToday();
+    await answerLoad(f, [letGoHabit]);
+    const button = await screen.findByRole('button', { name: 'Made it today: Coffee' });
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fireEvent.click(button);
+    (await f.next('PUT', '/api/habits/9/made-it/2026-11-01')).respond(200, marked);
+
+    expect(await screen.findByText('Nice. Let that feel good.')).toBeVisible();
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+
+    act(() => {
+      vi.advanceTimersByTime(6000);
+    });
+    expect(screen.queryByText('Nice. Let that feel good.')).toBeNull();
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(button);
+    (await f.next('DELETE', '/api/habits/9/made-it/2026-11-01')).respond(200, letGoHabit);
+    await waitFor(() => expect(button).toHaveAttribute('aria-pressed', 'false'));
+    expect(screen.queryByText('Nice. Let that feel good.')).toBeNull();
+  });
+
+  it('keeps the warm line for the full stretch before six seconds are up', async () => {
+    renderToday();
+    await answerLoad(f, [letGoHabit]);
+    const button = await screen.findByRole('button', { name: 'Made it today: Coffee' });
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fireEvent.click(button);
+    (await f.next('PUT', '/api/habits/9/made-it/2026-11-01')).respond(200, marked);
+    await screen.findByText('Nice. Let that feel good.');
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(screen.getByText('Nice. Let that feel good.')).toBeVisible();
+  });
+
+  it.each([
+    ['slipped', { state: 'slipped' as const, slips: 1 }, {}],
+    ['paused', { state: 'paused' as const }, { pausedUntil: '2026-11-10' }],
+    ['not started', { state: 'beforestart' as const }, { startDate: '2026-11-05' }],
+  ])('offers no made it toggle on a %s day', async (_name, today, habitChange) => {
+    renderToday();
+    await answerLoad(f, [{ ...letGoHabit, ...habitChange, today: { ...letGoHabit.today, ...today } }]);
+
+    expect(await screen.findByText('Coffee')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Made it today: Coffee' })).toBeNull();
+  });
+
+  it('shows a quiet notice and leaves the toggle unpressed when marking fails', async () => {
+    renderToday();
+    await answerLoad(f, [letGoHabit]);
+    const button = await screen.findByRole('button', { name: 'Made it today: Coffee' });
+
+    await userEvent.click(button);
+    (await f.next('PUT', '/api/habits/9/made-it/2026-11-01')).respond(500, { title: 'Server error', status: 500 });
+
+    expect(await screen.findByText("That didn't save just now")).toBeInTheDocument();
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByText('Nice. Let that feel good.')).toBeNull();
+  });
+});
+
 describe('TodayPage sections and order', () => {
   let f: FetchMock;
   const at = (id: number, name: string, time: string | null, change: Partial<Habit> = {}): Habit => ({
