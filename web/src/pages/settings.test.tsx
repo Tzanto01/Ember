@@ -321,4 +321,34 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('link', { name: 'Your routines' }));
     expect(router.state.location.pathname).toBe('/routines');
   });
+  it('claims this browser for the account on entry, before listing reminders', async () => {
+    const subscription = { toJSON: () => ({ endpoint: 'https://push.example/1', keys: { p256dh: 'p256', auth: 'secret' } }) };
+    const registration = { pushManager: { getSubscription: async () => subscription } };
+    vi.stubGlobal('PushManager', class {});
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { getRegistration: async () => registration, ready: Promise.resolve(registration) },
+    });
+    const { fetch } = await openSettings('/settings/reminders');
+
+    (await fetch.next('GET', '/api/push/vapid-public-key')).respond(200, { key: 'BAAA' });
+    const claim = await fetch.next('POST', '/api/me/push-subscriptions');
+    expect(claim.body).toMatchObject({ endpoint: 'https://push.example/1' });
+    await settle();
+    expect(fetch.pending.some((call) => call.url === '/api/me/reminder-destinations')).toBe(false);
+    claim.respond(204);
+    (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, []);
+  });
+
+  it('claims no browser when entered without an account, not even once the device data starts moving into one', async () => {
+    const getRegistration = vi.fn(async () => ({ pushManager: { getSubscription: async () => null } }));
+    vi.stubGlobal('PushManager', class {});
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { getRegistration } });
+    localMode.mode.set('local');
+    await openSettings('/settings/account');
+
+    act(() => localMode.mode.set('upgrading'));
+    await settle();
+    expect(getRegistration).not.toHaveBeenCalled();
+  });
 });
