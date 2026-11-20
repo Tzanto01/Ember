@@ -40,7 +40,18 @@ export default defineConfig(
     },
   },
   {
-    // TEMPORARY: rules with findings left to fix; this block must be empty when the lint pass is done.
+    files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/test-setup.ts', 'src/test-utils.tsx'],
+    rules: {
+      // Tests assert fixture presence with `!`; a missing value fails the test anyway.
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      // `expect(fake.method)` on vi.fn() fakes is the Vitest idiom and never calls the method unbound.
+      '@typescript-eslint/unbound-method': 'off',
+      // Async fakes implement Promise-returning interfaces without needing an await.
+      '@typescript-eslint/require-await': 'off',
+    },
+  },
+  {
+    // TEMPORARY:rules with findings left to fix; this block must be empty when the lint pass is done.
     name: 'temporary-todo',
     rules: {
       '@typescript-eslint/require-await': 'off',
@@ -49,7 +60,6 @@ export default defineConfig(
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/only-throw-error': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
-      '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/no-deprecated': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
