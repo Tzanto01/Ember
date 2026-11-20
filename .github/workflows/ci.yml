@@ -50,6 +50,9 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
+      - name: Lint
+        run: bun --bun run lint --max-warnings 0
+
       - name: Unit tests
         run: bun --bun run test
 
@@ -86,7 +89,11 @@ jobs:
 
       - name: Android unit tests
         working-directory: mobile/android
-        run: ./gradlew --no-daemon testBetaDebugUnitTest
+        run: ./gradlew --no-daemon testBetaDebugUnitTest testPlayDebugUnitTest
+
+      - name: Android lint
+        working-directory: mobile/android
+        run: ./gradlew --no-daemon lintBetaDebug lintPlayDebug
 
   e2e:
     runs-on: ubuntu-latest
