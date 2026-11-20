@@ -239,8 +239,8 @@ public partial class HabitService
 
         if (habit is null) return null;
 
-        var tz = TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
-        var today = TimezoneHelper.LocalToday(habit.User.Timezone, _time);
+        var tz = TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
+        var today = TimeZones.LocalToday(habit.User.Timezone, _time);
         var lowDays = await GetLowDaysAsync(userId);
 
         var result = new List<HabitDay>();
@@ -280,8 +280,8 @@ public partial class HabitService
 
         if (habit is null) return (null, DayEditResult.HabitNotFound);
         if (habit.Kind == HabitKind.LetGo) return (null, DayEditResult.LetGoHabit);
-        if (date > TimezoneHelper.LocalToday(habit.User.Timezone, _time)) return (null, DayEditResult.InFuture);
-        if (date < HabitRules.StartDate(habit, TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc)) return (null, DayEditResult.BeforeHabitStart);
+        if (date > TimeZones.LocalToday(habit.User.Timezone, _time)) return (null, DayEditResult.InFuture);
+        if (date < HabitRules.StartDate(habit, TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc)) return (null, DayEditResult.BeforeHabitStart);
         return (habit, DayEditResult.Saved);
     }
 
@@ -497,14 +497,14 @@ public partial class HabitService
     public async Task<TimeZoneInfo> GetUserTzAsync(Guid userId)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return TimezoneHelper.Find(user?.Timezone ?? "UTC") ?? TimeZoneInfo.Utc;
+        return TimeZones.Find(user?.Timezone ?? "UTC") ?? TimeZoneInfo.Utc;
     }
 
     /// <summary>The user's current local day (UTC when the user has no known timezone).</summary>
     public async Task<DateOnly> GetLocalTodayAsync(Guid userId)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return TimezoneHelper.LocalToday(user?.Timezone, _time);
+        return TimeZones.LocalToday(user?.Timezone, _time);
     }
 
     public async Task<bool> HasTimezoneSetAsync(Guid userId)

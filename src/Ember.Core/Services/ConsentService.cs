@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
@@ -265,6 +266,6 @@ public class ConsentService
     private async Task<DateOnly> GetLocalTodayAsync(Guid userId)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return TimezoneHelper.LocalToday(user?.Timezone, _time);
+        return TimeZones.LocalToday(user?.Timezone, _time);
     }
 }

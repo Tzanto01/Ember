@@ -230,7 +230,7 @@ public partial class RulesFixtureTests
 
     private static ExpectedOut Compute(CaseInput input)
     {
-        var tz = TimezoneHelper.Find(input.Timezone) ?? throw new InvalidOperationException($"Unknown timezone {input.Timezone}.");
+        var tz = TimeZones.Find(input.Timezone) ?? throw new InvalidOperationException($"Unknown timezone {input.Timezone}.");
         var lowDays = input.LowDays.ToHashSet();
         var habits = input.Habits.Select(ToHabit).ToList();
         foreach (var routine in input.Routines)

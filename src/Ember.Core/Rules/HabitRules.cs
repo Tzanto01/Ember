@@ -1,5 +1,4 @@
 using Ember.Core.Models;
-using Ember.Core.Services;
 
 namespace Ember.Core.Rules;
 
@@ -92,7 +91,7 @@ public static class HabitRules
     /// with up to <paramref name="graceDays"/> forgiven gaps, and how many grace days that streak used.
     /// Open days (<see cref="OpenDays"/>: today and yesterday) that aren't done yet are pending: they never
     /// break the streak and use no grace. Paused days, the user's <paramref name="lowDays"/> and an unlogged
-    /// <see cref="TimezoneHelper.SwitchoverDate"/> are protected: they neither break nor extend the streak. So is an offday
+    /// <see cref="TimeZones.SwitchoverDate"/> are protected: they neither break nor extend the streak. So is an offday
     /// (not <see cref="IsScheduledOn"/>) that isn't done, so grace only ever covers scheduled days; a done offday extends it.
     /// A partial day counts as not done. Streaks are computed from the logs, never stored, so backfilling an older day heals the streak retroactively.
     /// </summary>
@@ -115,7 +114,7 @@ public static class HabitRules
 
     private static bool IsCoveredOn(Habit habit, DateOnly date, HashSet<DateOnly> completed, IReadOnlySet<DateOnly>? lowDays)
         => IsPausedOn(habit, date) || lowDays?.Contains(date) == true
-            || (!completed.Contains(date) && (date == TimezoneHelper.SwitchoverDate || !IsScheduledOn(habit, date)));
+            || (!completed.Contains(date) && (date == TimeZones.SwitchoverDate || !IsScheduledOn(habit, date)));
 
     /// <summary>
     /// Returns the longest streak the habit ever had, by the same rules as <see cref="ConsecutiveStreak"/>:
@@ -214,12 +213,12 @@ public static class HabitRules
 
     /// <summary>The habit's next reminder after <paramref name="nowUtc"/> among its <see cref="Habit.ReminderTimes"/> in <paramref name="tz"/>, or null without any.</summary>
     public static DateTime? NextReminderUtc(Habit habit, TimeZoneInfo tz, DateTime nowUtc)
-        => TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, nowUtc);
+        => TimeZones.NextOccurrenceUtc(habit.ReminderTimes, tz, nowUtc);
 
     /// <summary>The routine's next reminder after <paramref name="nowUtc"/> at its <see cref="Routine.ReminderTime"/> in <paramref name="tz"/>, or null without one.</summary>
     public static DateTime? NextReminderUtc(Routine routine, TimeZoneInfo tz, DateTime nowUtc)
         => routine.ReminderTime is { } time
-            ? TimezoneHelper.NextOccurrenceUtc(time, tz, nowUtc)
+            ? TimeZones.NextOccurrenceUtc(time, tz, nowUtc)
             : null;
 
     /// <summary>

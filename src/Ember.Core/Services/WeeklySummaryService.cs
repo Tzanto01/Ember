@@ -42,7 +42,7 @@ public static class WeeklySummaryService
     public static UserSummary Build(User user, DateOnly weekEnd)
     {
         var from = weekEnd.AddDays(-(WindowDays - 1));
-        var tz = TimezoneHelper.Find(user.Timezone) ?? TimeZoneInfo.Utc;
+        var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
         var lowDays = user.DayMarks.Where(m => m.Kind == DayMarkKind.LowDay).Select(m => m.Date).ToHashSet();
 
         var habits = user.Habits

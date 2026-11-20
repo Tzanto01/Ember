@@ -9,6 +9,7 @@ using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -215,7 +216,7 @@ internal static class MeEndpoints
         return new MeDto(
             user.Id, user.Email, user.EmailConfirmed, await users.HasPasswordAsync(user),
             new DiscordDto(discordId is not null, discordId),
-            user.Timezone, await habits.HasTimezoneSetAsync(user.Id), TimezoneHelper.LocalToday(user.Timezone, time),
+            user.Timezone, await habits.HasTimezoneSetAsync(user.Id), TimeZones.LocalToday(user.Timezone, time),
             user.GraceDaysPerWeek, user.Theme, user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode,
             new ConsentDto(await consent.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, ConsentService.CurrentConsentPolicyVersion,
                 user.ConsentWithdrawnAt,

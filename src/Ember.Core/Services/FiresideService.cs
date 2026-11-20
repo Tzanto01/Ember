@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
@@ -159,10 +160,10 @@ public class FiresideService
 
     private static (DateTime Start, DateTime End) LocalDayUtc(string? timezone, TimeProvider time)
     {
-        var tz = TimezoneHelper.Find(timezone ?? "UTC") ?? TimeZoneInfo.Utc;
-        var today = TimezoneHelper.LocalToday(timezone, time);
-        return (TimezoneHelper.LocalToUtc(today.ToDateTime(TimeOnly.MinValue), tz),
-            TimezoneHelper.LocalToUtc(today.AddDays(1).ToDateTime(TimeOnly.MinValue), tz));
+        var tz = TimeZones.Find(timezone ?? "UTC") ?? TimeZoneInfo.Utc;
+        var today = TimeZones.LocalToday(timezone, time);
+        return (TimeZones.LocalToUtc(today.ToDateTime(TimeOnly.MinValue), tz),
+            TimeZones.LocalToUtc(today.AddDays(1).ToDateTime(TimeOnly.MinValue), tz));
     }
 
     /// <summary>The user's Fireside page, or null when the user doesn't exist.</summary>
@@ -225,7 +226,7 @@ public class FiresideService
             })
             .ToListAsync(cancellationToken);
 
-        var todays = rows.Where(r => r.FlameShared).ToDictionary(r => r.FriendId, r => TimezoneHelper.LocalToday(r.Timezone, _time));
+        var todays = rows.Where(r => r.FlameShared).ToDictionary(r => r.FriendId, r => TimeZones.LocalToday(r.Timezone, _time));
         var ids = todays.Keys.ToList();
         var dates = todays.Values.Distinct().ToList();
         HashSet<Guid> done = ids.Count == 0 ? [] : (await _db.HabitLogs.AsNoTracking()

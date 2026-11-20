@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Bot.Modules;
@@ -44,7 +45,7 @@ public class TimezoneModule : InteractionModuleBase<SocketInteractionContext>
     public async Task SetAsync(
         [Summary("timezone", "Start typing your city or region"), Autocomplete(typeof(TimezoneAutocompleteHandler))] string tzId)
     {
-        var tz = TimezoneHelper.Find(tzId);
+        var tz = TimeZones.Find(tzId);
         if (tz is null)
         {
             await RespondAsync((await BotTexts.ForAsync(_habits, Context.Interaction)).Format("timezone.not-found", tzId), ephemeral: true);

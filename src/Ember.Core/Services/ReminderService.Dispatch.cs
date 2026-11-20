@@ -1,4 +1,5 @@
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
@@ -47,7 +48,7 @@ public partial class ReminderService
             .FirstOrDefaultAsync(cancellationToken);
         if (row is null) return;
 
-        var next = TimezoneHelper.NextOccurrenceUtc(row.ReminderTimes, TimezoneHelper.Find(row.Timezone) ?? TimeZoneInfo.Utc, nowUtc);
+        var next = TimeZones.NextOccurrenceUtc(row.ReminderTimes, TimeZones.Find(row.Timezone) ?? TimeZoneInfo.Utc, nowUtc);
         await _db.Habits
             .Where(h => h.Id == habitId)
             .ExecuteUpdateAsync(s => s.SetProperty(h => h.NextReminderUtc, next), cancellationToken);
@@ -106,7 +107,7 @@ public partial class ReminderService
         if (row is null) return;
 
         DateTime? next = row.ReminderTime is { } time
-            ? TimezoneHelper.NextOccurrenceUtc(time, TimezoneHelper.Find(row.Timezone) ?? TimeZoneInfo.Utc, nowUtc)
+            ? TimeZones.NextOccurrenceUtc(time, TimeZones.Find(row.Timezone) ?? TimeZoneInfo.Utc, nowUtc)
             : null;
         await _db.Routines
             .Where(r => r.Id == routineId)

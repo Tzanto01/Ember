@@ -2,6 +2,7 @@ using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
@@ -24,7 +25,7 @@ public partial class ReminderService
             UserId = userId,
             HabitId = habitId,
             Day = day,
-            ExpiresUtc = TimezoneHelper.LocalToUtc(expiresLocal, tz),
+            ExpiresUtc = TimeZones.LocalToUtc(expiresLocal, tz),
         });
         await _db.SaveChangesAsync(cancellationToken);
         return token;

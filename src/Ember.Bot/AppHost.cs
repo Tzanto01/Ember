@@ -7,6 +7,7 @@ using Ember.Bot.Modules;
 using Ember.Bot.Services;
 using Ember.Core;
 using Ember.Core.Data;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -157,8 +158,8 @@ public static class AppHost
 
         foreach (var habit in habits)
         {
-            var tz = TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
-            habit.NextReminderUtc = TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now);
+            var tz = TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
+            habit.NextReminderUtc = TimeZones.NextOccurrenceUtc(habit.ReminderTimes, tz, now);
         }
 
         await db.SaveChangesAsync(cancellationToken);

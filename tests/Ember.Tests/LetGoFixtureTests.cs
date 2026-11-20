@@ -50,7 +50,7 @@ public class LetGoFixtureTests
 
     private static ExpectedOut Compute(CaseInput input)
     {
-        var tz = TimezoneHelper.Find(input.Timezone) ?? throw new InvalidOperationException($"Unknown timezone {input.Timezone}.");
+        var tz = TimeZones.Find(input.Timezone) ?? throw new InvalidOperationException($"Unknown timezone {input.Timezone}.");
         var habit = new Habit
         {
             Id = 1,

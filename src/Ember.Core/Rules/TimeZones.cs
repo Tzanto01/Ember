@@ -1,6 +1,6 @@
-namespace Ember.Core.Services;
+namespace Ember.Core.Rules;
 
-public static class TimezoneHelper
+public static class TimeZones
 {
     /// <summary>
     /// Tries to find a TimeZoneInfo from an IANA or Windows timezone id.

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Ember.Api.Hosting;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Api.Habits;
@@ -19,7 +20,7 @@ internal static partial class StatsEndpoints
             var user = await accounts.GetUserForExportAsync(principal.UserId());
             if (user is null) return Problems.NotFound();
 
-            var summary = WeeklySummaryService.Build(user, TimezoneHelper.LocalToday(user.Timezone, time).AddDays(-1));
+            var summary = WeeklySummaryService.Build(user, TimeZones.LocalToday(user.Timezone, time).AddDays(-1));
             var (headline, footer) = summary.HasSummarableWeek ? WeeklySummaryService.ToneLines(summary.TotalDone, summary.TotalPossible, new Ember.Core.Localization.Texts(user.Language, Ember.Core.Localization.Texts.CoreResources)) : ("", "");
             return Results.Ok(new WeeklyDto(summary.TotalDone, summary.TotalPossible, PlainText(headline), PlainText(footer),
                 summary.Habits.Select(h => new WeeklyHabitDto(h.Habit.Id, h.Habit.Name, h.Done, h.Possible,

@@ -70,14 +70,14 @@ public class StreakRulesTests
         new("Best streak honors low days, the pause and the switchover date", SwitchoverHabit, SwitchoverToday, 0, 8, SwitchoverLowDays),
     };
 
-    private static DateOnly SwitchoverToday => TimezoneHelper.SwitchoverDate.AddDays(30);
+    private static DateOnly SwitchoverToday => TimeZones.SwitchoverDate.AddDays(30);
 
     private static IReadOnlySet<DateOnly> SwitchoverLowDays
-        => new HashSet<DateOnly> { TimezoneHelper.SwitchoverDate.AddDays(-4), TimezoneHelper.SwitchoverDate.AddDays(-2) };
+        => new HashSet<DateOnly> { TimeZones.SwitchoverDate.AddDays(-4), TimeZones.SwitchoverDate.AddDays(-2) };
 
     private static Habit SwitchoverHabit()
     {
-        var s = TimezoneHelper.SwitchoverDate;
+        var s = TimeZones.SwitchoverDate;
         var habit = new Habit { Name = "Test", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
         foreach (var d in new[] { -6, -5, -3, -1, 1, 2, 4, 5 })
             habit.Logs.Add(new HabitLog { Date = s.AddDays(d), Completed = true });

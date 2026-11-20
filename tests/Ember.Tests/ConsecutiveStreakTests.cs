@@ -20,7 +20,7 @@ public class ConsecutiveStreakTests
     [Fact]
     public void GapOnSwitchoverDate_DoesNotBreakStreak()
     {
-        var s = TimezoneHelper.SwitchoverDate;
+        var s = TimeZones.SwitchoverDate;
         var habit = HabitWithLogsOn(s.AddDays(1), s.AddDays(-1), s.AddDays(-2));
 
         var (streak, graceUsed) = HabitRules.ConsecutiveStreak(habit, s.AddDays(1), graceDays: 0, null);
@@ -32,7 +32,7 @@ public class ConsecutiveStreakTests
     [Fact]
     public void GapOnAnotherDateAroundSwitchover_StillBreaksStreak()
     {
-        var s = TimezoneHelper.SwitchoverDate;
+        var s = TimeZones.SwitchoverDate;
         var habit = HabitWithLogsOn(s.AddDays(3), s.AddDays(2), s, s.AddDays(-1));
 
         var (streak, _) = HabitRules.ConsecutiveStreak(habit, s.AddDays(3), graceDays: 0, null);

@@ -1,6 +1,7 @@
 using Ember.Bot.Modules;
 using Ember.Bot.Services;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -114,7 +115,7 @@ public class HealthDataDeletionJob : IJob
         if (discordId is null && pushIds.Count == 0) return true;
 
         var t = BotTexts.For(user.Language);
-        var tz = TimezoneHelper.Find(user.Timezone) ?? TimeZoneInfo.Utc;
+        var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
         var date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(deletesAtUtc, DateTimeKind.Utc), tz))
             .ToString(t.Get("date.full"), t.Culture);
 
