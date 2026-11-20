@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -49,12 +48,13 @@ public class BotService : IHostedService
     {
         _client.Log += LogAsync;
         _interactions.Log += LogAsync;
+        _interactions.InteractionExecuted += ActivatorUtilities.CreateInstance<DmPauseNotifier>(_services).OnInteractionExecutedAsync;
+        _interactions.InteractionExecuted += ActivatorUtilities.CreateInstance<ConsentPromptNotifier>(_services).OnInteractionExecutedAsync;
         _interactions.SlashCommandExecuted += OnCommandExecuted;
         _interactions.ComponentCommandExecuted += OnCommandExecuted;
         _interactions.ModalCommandExecuted += OnCommandExecuted;
 
-        // Register interaction modules from this assembly
-        await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+        await _interactions.AddModulesAsync(typeof(BotService).Assembly, _services);
 
         _client.Ready += OnReadyAsync;
         _client.InteractionCreated += OnInteractionAsync;
