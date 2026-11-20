@@ -120,7 +120,7 @@ export class OfflineQueue {
       for (const [index, edit] of queued.entries()) {
         try {
           const { seq: _seq, userId: _user, ...sent } = edit;
-          await send(sent as QueueEdit);
+          await send(sent);
           result.sent++;
         } catch (error) {
           const apiError = asApiError(error);

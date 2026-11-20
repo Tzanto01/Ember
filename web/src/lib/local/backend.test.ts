@@ -574,7 +574,7 @@ describe('LocalBackend through ApiClient', () => {
       expect(past.type).toBe('validation');
       expect(past.problem?.errors).toEqual({ until: ["Can't be before today."] });
       expect(
-        (await rejection(api.pauseHabit(1, 'tomorrow' as never))).problem?.errors,
+        (await rejection(api.pauseHabit(1, 'tomorrow'))).problem?.errors,
       ).toHaveProperty('until');
       expect((await rejection(api.pauseHabit(42, '2026-11-05'))).type).toBe('not_found');
     });
@@ -582,7 +582,7 @@ describe('LocalBackend through ApiClient', () => {
 
   it('lists all habits, let-go ones too, in creation order as GET /habits/:id shows them', async () => {
     await store.replace(
-      seed([localHabit(1), localHabit(2, { kind: 'letGo' } as Partial<LocalHabit>)]),
+      seed([localHabit(1), localHabit(2, { kind: 'letGo' })]),
     );
     await api.setDay(1, today, true);
 

@@ -104,7 +104,7 @@ export async function handleNotificationClick(
   notification.close();
   const target = clickTarget(notification.data);
   const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-  const client = windows.find((c) => new URL(c.url).origin === origin) as WindowClient | undefined;
+  const client = windows.find((c) => new URL(c.url).origin === origin);
   if (!client) {
     await clients.openWindow(target);
     return;

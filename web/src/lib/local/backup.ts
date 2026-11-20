@@ -271,7 +271,7 @@ function parse(text: string): ParsedBackup {
     const mood: LocalMood = {
       id: moods.length + 1,
       label: validName(field(m, 'label'), limits.moodLabel) ?? damaged(),
-      emoji: emoji as string | null,
+      emoji,
       archived,
     };
     moodIds.set(fileId, mood.id);

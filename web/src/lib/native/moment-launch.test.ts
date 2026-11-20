@@ -79,7 +79,7 @@ describe('moment-launch', () => {
       const addListener = vi.fn(async (_event: string, _listener: () => void) => ({
         remove: async () => undefined,
       }));
-      const load = loader({ addListener: addListener as EmberWidgetPlugin['addListener'] });
+      const load = loader({ addListener });
 
       await listenForMoment(true, open, load);
 

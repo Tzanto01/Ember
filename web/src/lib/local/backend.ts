@@ -570,7 +570,7 @@ export class LocalBackend {
           ? d.routines.some((r) => r.id === id)
           : d.habits.some((h) => h.id === id && h.routineId === null);
       };
-      d.profile.todayOrder = [...new Set((order as string[]).filter(valid))];
+      d.profile.todayOrder = [...new Set(order.filter(valid))];
       return d;
     });
     return json(200, { order: data.profile.todayOrder ?? null });

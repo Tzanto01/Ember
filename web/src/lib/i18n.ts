@@ -78,7 +78,7 @@ void i18next.use(initReactI18next).init({
 });
 
 /** Translates outside React components; call it when the text is shown, never at module load. */
-export const t: TFunction = i18next.t.bind(i18next) as TFunction;
+export const t: TFunction = i18next.t.bind(i18next);
 
 /** The language shown now. */
 export function currentLanguage(): Language {

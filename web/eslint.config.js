@@ -39,6 +39,8 @@ export default defineConfig(
       ],
       // Every reject passes on an IndexedDB `error` (DOMException | null) or a caught value; wrapping them would change what callers catch.
       '@typescript-eslint/prefer-promise-reject-errors': 'off',
+      // Its remaining findings are `!` on indexed reads that noUncheckedIndexedAccess makes necessary; turn it back on with that option.
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
     },
   },
   {
@@ -68,7 +70,6 @@ export default defineConfig(
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/restrict-template-expressions': 'off',
-      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/only-throw-error': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
       '@typescript-eslint/no-deprecated': 'off',
