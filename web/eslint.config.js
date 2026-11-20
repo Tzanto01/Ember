@@ -37,6 +37,8 @@ export default defineConfig(
         'error',
         { ignoreArrowShorthand: true, ignoreVoidReturningFunctions: true },
       ],
+      // Every reject passes on an IndexedDB `error` (DOMException | null) or a caught value; wrapping them would change what callers catch.
+      '@typescript-eslint/prefer-promise-reject-errors': 'off',
     },
   },
   {
@@ -67,7 +69,6 @@ export default defineConfig(
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/prefer-promise-reject-errors': 'off',
       '@typescript-eslint/no-meaningless-void-operator': 'off',
       '@typescript-eslint/no-misused-spread': 'off',
       '@typescript-eslint/no-unnecessary-type-conversion': 'off',
