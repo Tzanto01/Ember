@@ -41,13 +41,13 @@ export default defineConfig(
       '@typescript-eslint/prefer-promise-reject-errors': 'off',
       // Its remaining findings are `!` on indexed reads that noUncheckedIndexedAccess makes necessary; turn it back on with that option.
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+      // `!` marks invariants the code relies on (Map lookups by known keys, finds after inserts, in-range indexes); replacing them with runtime checks would change behavior.
+      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
   {
     files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/test-setup.ts', 'src/test-utils.tsx'],
     rules: {
-      // Tests assert fixture presence with `!`; a missing value fails the test anyway.
-      '@typescript-eslint/no-non-null-assertion': 'off',
       // `expect(fake.method)` on vi.fn() fakes is the Vitest idiom and never calls the method unbound.
       '@typescript-eslint/unbound-method': 'off',
       // Async fakes implement Promise-returning interfaces without needing an await.
@@ -68,7 +68,6 @@ export default defineConfig(
     name: 'temporary-todo',
     rules: {
       '@typescript-eslint/require-await': 'off',
-      '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/restrict-template-expressions': 'off',
       '@typescript-eslint/only-throw-error': 'off',
       '@typescript-eslint/no-unnecessary-condition': 'off',
