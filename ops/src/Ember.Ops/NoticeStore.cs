@@ -278,7 +278,7 @@ public sealed class NoticeStore(IOptions<OpsOptions> options, OpsDatabases db, I
         }
     }
 
-    private string? ReadToken(OpsOptions o)
+    private static string? ReadToken(OpsOptions o)
     {
         if (string.IsNullOrWhiteSpace(o.NoticesTokenFile)) return null;
         try
