@@ -883,11 +883,25 @@ public partial class HabitService
     /// first queues one <see cref="LookoutOutbox.UserDelete"/> row per <see cref="LookoutUserRef"/> of the user, so Lookout deletes after every ticket already queued.
     /// Records a deleted account in the <see cref="DeletionLedger"/>.
     /// </summary>
-    public async Task DeleteUserDataAsync(Guid userId)
+    public Task DeleteUserDataAsync(Guid userId) => DeleteUserAsync(userId, onlyUnprotected: false);
+
+    /// <summary>
+    /// Deletes the user like <see cref="DeleteUserDataAsync(Guid)"/>, unless the account has a password or two-step sign-in
+    /// (<see cref="IsProtectedAccountAsync"/>): such an account is deleted only in the web app, which asks for them. The check and the
+    /// delete run in one transaction with the user row locked (PostgreSQL). Returns false, deleting nothing, for a protected account.
+    /// </summary>
+    public Task<bool> DeleteUnprotectedUserDataAsync(Guid userId) => DeleteUserAsync(userId, onlyUnprotected: true);
+
+    /// <summary>Whether the account has a password or two-step sign-in, so deleting it needs the web app's step-up.</summary>
+    public Task<bool> IsProtectedAccountAsync(Guid userId)
+        => _db.Users.AnyAsync(u => u.Id == userId && (u.PasswordHash != null || u.TwoFactorEnabled));
+
+    private async Task<bool> DeleteUserAsync(Guid userId, bool onlyUnprotected)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync();
         if (_db.Database.IsNpgsql())
             await _db.Database.ExecuteSqlAsync($"""SELECT 1 FROM "AspNetUsers" WHERE "Id" = {userId} FOR UPDATE""");
+        if (onlyUnprotected && await IsProtectedAccountAsync(userId)) return false;
 
         var refs = await _db.LookoutUserRefs.Where(r => r.UserId == userId).OrderBy(r => r.CreatedAt).ThenBy(r => r.Ref)
             .Select(r => r.Ref).ToListAsync();
@@ -903,6 +917,7 @@ public partial class HabitService
             .ExecuteDeleteAsync();
         await transaction.CommitAsync();
         if (deleted > 0) _ledger?.Record(DeletionLedger.Account, userId);
+        return true;
     }
 
     /// <summary>How long an email signup may stay unconfirmed before <see cref="DeleteStaleUnconfirmedAccountsAsync"/> removes it.</summary>

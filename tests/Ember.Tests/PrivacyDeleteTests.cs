@@ -57,7 +57,7 @@ public class PrivacyDeleteTests
         var deleted = await host.WithScopeAsync(sp =>
             PrivacyModule.TryDeleteAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1));
 
-        deleted.Should().BeTrue();
+        deleted.Should().Be(PrivacyModule.DeleteOutcome.Deleted);
         (await CountsForAsync(host, 1)).Should().Be((0, 0, 0));
         (await CountsForAsync(host, 2)).Should().Be((1, 2, 4));
         var orphanLogs = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.CountAsync());
@@ -162,7 +162,7 @@ public class PrivacyDeleteTests
         var deleted = await host.WithScopeAsync(sp =>
             PrivacyModule.TryDeleteAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 2));
 
-        deleted.Should().BeFalse();
+        deleted.Should().Be(PrivacyModule.DeleteOutcome.NotYours);
         (await CountsForAsync(host, 1)).Should().Be((1, 2, 4));
         (await CountsForAsync(host, 2)).Should().Be((1, 2, 4));
     }

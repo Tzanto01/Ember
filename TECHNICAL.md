@@ -38,7 +38,7 @@ Most commands open a menu or buttons. Three take an option: `/export`, `/timezon
 | Command | What it does |
 |---|---|
 | `/export [format: csv\|json]` | Get your settings, habits, check-ins, low days and routines as CSV (default) or JSON in your DMs. Day notes, moods and account details are never sent through Discord; the full export is in the web app's Settings |
-| `/privacy delete` | Permanently delete everything Ember stores about you, after you confirm with a button |
+| `/privacy delete` | Permanently delete everything Ember stores about you, after you confirm with a button. An account with a password or two-step sign-in is deleted in the web app's Settings instead, and the bot links there |
 
 ### Other
 
