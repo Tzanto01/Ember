@@ -176,7 +176,7 @@ export class JournalService implements JournalApi {
     const me = this.requireMe();
     if (!me.journal.encrypted || me.journal.turningOff) throw new Error('The private journal is off.');
     const key = this.requireKey();
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('Offline.');
+    if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Offline.');
     const addition = block.trim();
     if (!addition) throw new RangeError('Nothing to add.');
     await this.replayingHeld?.catch(() => undefined);

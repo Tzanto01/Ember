@@ -1196,7 +1196,7 @@ export default function SettingsPage() {
                   <Switch
                     id="offer-habit-note"
                     aria-describedby="offer-habit-note-hint"
-                    checked={offerNote ?? me?.offerHabitNote === true}
+                    checked={offerNote ?? me.offerHabitNote}
                     onCheckedChange={changeOfferNote}
                   />
                 </div>

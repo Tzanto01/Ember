@@ -95,7 +95,7 @@ export function MonthCalendar({
             {weeks.map((week) => (
               <tr key={week[0].date}>
                 {week.map((day, i) => {
-                  const next = week[i + 1];
+                  const next = week.at(i + 1);
                   const keyword = reward?.date === day.date ? reward.keyword : null;
                   return (
                     <td

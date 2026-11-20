@@ -61,7 +61,7 @@ function useSaveCase(): SaveCase {
 }
 
 function problemText(error: unknown): string {
-  if ((error instanceof Error && error.message === 'Offline.') || navigator.onLine === false)
+  if ((error instanceof Error && error.message === 'Offline.') || !navigator.onLine)
     return momentCopy.offline;
   if (error instanceof RangeError) return momentCopy.full;
   return momentCopy.saveFailed;

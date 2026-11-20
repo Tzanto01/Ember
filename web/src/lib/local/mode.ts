@@ -57,7 +57,7 @@ export class LocalMode implements LocalModeApi {
   async init(): Promise<void> {
     const flag = readFlag();
     if (flag === 'upgrading') {
-      if ((await this.store.exists().catch(() => true)) === false) this.leave();
+      if (!(await this.store.exists().catch(() => true))) this.leave();
       else this.mode.set('upgrading');
       return;
     }
