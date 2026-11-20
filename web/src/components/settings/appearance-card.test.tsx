@@ -87,6 +87,23 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     expect(screen.getByRole('switch', { name: 'Calm mode' })).toBeChecked();
   });
 
+  it('keeps calm mode on after on, off, on when only the first save fails', async () => {
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/appearance');
+    const toggle = screen.getByRole('switch', { name: 'Calm mode' });
+
+    await user.click(toggle);
+    await user.click(toggle);
+    await user.click(toggle);
+    (await fetch.next('PATCH', '/api/me')).respond(500, { type: 'internal', title: 'Server error', status: 500 });
+    (await fetch.next('PATCH', '/api/me')).respond(200, { ...me, calmMode: false });
+    (await fetch.next('PATCH', '/api/me')).respond(200, { ...me, calmMode: true });
+
+    await waitFor(() => expect(auth.me.get()?.calmMode).toBe(true));
+    expect(toggle).toBeChecked();
+    expect(document.documentElement).toHaveAttribute('data-calm');
+  });
+
   it('calms this device at once and takes it back when saving calm mode fails', async () => {
     const user = userEvent.setup();
     const { fetch } = await openSettings('/settings/appearance');

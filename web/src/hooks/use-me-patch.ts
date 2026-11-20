@@ -17,15 +17,16 @@ export function useMePatchField<T>(
   save: (value: T) => Promise<ApiError | null>,
   { onError, apply }: MePatchFieldOptions<T>,
 ): readonly [T | null, (value: T) => void] {
-  const latest = useRef<T | null>(null);
+  const latest = useRef<object | null>(null);
   const [pending, setPending] = useState<T | null>(null);
 
   function change(value: T): void {
-    latest.current = value;
+    const call = {};
+    latest.current = call;
     setPending(value);
     const revert = apply?.(value);
     void save(value).then((error) => {
-      if (latest.current !== value) return;
+      if (latest.current !== call) return;
       latest.current = null;
       setPending(null);
       if (!error) return;
