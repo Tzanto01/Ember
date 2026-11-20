@@ -16,7 +16,7 @@ Contents: 1 Tokens, 2 Components, 3 Patterns, 4 What makes Ember feel like Ember
 | --- | --- | --- |
 | Contract | `docs/contracts/design-tokens-v1.md:19-60` | Names every token, its contrast pairs (text 4.5:1, UI 3:1, light and dark) and the rules every theme keeps (no red, no "missed" colour, `docs/contracts/design-tokens-v1.md:68`) |
 | Theme files | `web/src/themes/{hearthlight,fieldnotes,tidepool,marigold}.css` | Each sets all 53 tokens on `:root[data-theme="<id>"]` (light, lines 1-59) and the colour tokens plus `--shadow-card` again on `.dark` (lines about 60-105). Hearthlight also matches `:root:not([data-theme])` (`web/src/themes/hearthlight.css:3`) |
-| Theme index | `web/src/themes/index.css:1-4`, `web/src/themes/index.ts:6-11` | Imports all four theme files and all six font packages |
+| Theme index | `web/src/themes/index.css:1-4`, `web/src/themes/index.ts:2-7` | Imports all four theme files and all six font packages |
 | Tailwind mapping | `web/src/index.css:8-63` | `@theme inline` clears Tailwind's palette (`--color-*: initial`, `web/src/index.css:9`) and maps every colour token to a utility; derives radii, spacing, fonts and default transition from theme tokens |
 | Calm mode | `web/src/calm.css:19-355` | A second hand-written copy of every colour token for every theme and mode, at lower chroma |
 | Checker | `design/contrast.mjs:13` | Reads `web/src/themes/*.css` and fails on a missing token, a failed contrast pair, an unknown reward keyword or a red hue. Holds no colour values of its own |
@@ -84,9 +84,9 @@ The Android `AppTheme` (`mobile/android/app/src/main/res/values/styles.xml:5-10`
 | Tidepool | Lexend | Lexend | 500 | -0.02em | `web/src/themes/tidepool.css:49-52` |
 | Marigold | Figtree | Bricolage Grotesque | 800 | -0.015em | `web/src/themes/marigold.css:49-52` |
 
-Base rules: body 1rem, line height 1.55 (`web/src/index.css:92-93`); h1 to h3 use the display stack, heading weight and tracking, line height 1.2 (`web/src/index.css:96-103`). Fonts are self-hosted Fontsource packages (`web/src/themes/index.ts:6-11`).
+Base rules: body 1rem, line height 1.55 (`web/src/index.css:92-93`); h1 to h3 use the display stack, heading weight and tracking, line height 1.2 (`web/src/index.css:96-103`). Fonts are self-hosted Fontsource packages (`web/src/themes/index.ts:2-7`).
 
-There is no type scale token. Sizes are arbitrary values: 219 `text-[..]` uses in 82 files against 11 uses of `text-base` and none of `text-sm`, `text-lg` and so on. The de facto scale:
+There is no type scale token. Sizes are arbitrary values: `text-[..]` on 219 lines in 82 files against 11 uses of `text-base` and none of `text-sm`, `text-lg` and so on. The de facto scale:
 
 | Size | Use | Example |
 | --- | --- | --- |
@@ -122,7 +122,7 @@ This matches the retired Hearth scale in `web/DESIGN.md:56-64` (13, 14, 16, 18, 
 
 Lines: `web/src/themes/*.css:44-48` (light) and the `--shadow-card` line near the end of each dark rule (`web/src/themes/hearthlight.css:104`).
 
-- Derived radii: `rounded-sm` radius-4, `rounded-md` radius-2, `rounded-lg` radius, `rounded-xl` radius+4, `rounded-cell` (`web/src/index.css:50-54`). Usage: `rounded-md` 39, `rounded-full` 26, `rounded-xl` 24, `rounded-lg` 14, `rounded-cell` 4, `rounded-sm` 2. Cards are `rounded-xl` (`web/src/components/ui/card.tsx:6`), controls `rounded-md`.
+- Derived radii: `rounded-sm` radius-4, `rounded-md` radius-2, `rounded-lg` radius, `rounded-xl` radius+4, `rounded-cell` (`web/src/index.css:50-54`). Usage: `rounded-md` 39, `rounded-full` 28, `rounded-xl` 24, `rounded-lg` 14, `rounded-cell` 4, `rounded-sm` 4. Cards are `rounded-xl` (`web/src/components/ui/card.tsx:6`), controls `rounded-md`.
 - Borders follow the theme where it matters: cards use `border-[length:var(--border-width)]` (`web/src/components/ui/card.tsx:6`); controls use `max(1px, var(--border-width))` so inputs keep an edge in Hearthlight (`web/src/components/ui/input.tsx:8`); checkbox, radio and switch use `max(1.5px, ...)` (`web/src/components/ui/checkbox.tsx:11`).
 - One elevation token. `shadow-card` is used 14 times; outliers are listed in 5.2.
 
@@ -152,7 +152,7 @@ Theme tokens (`web/src/themes/*.css:53-58`):
 | Marigold | 90ms | 160ms | 300ms | `cubic-bezier(0.3, 0.9, 0.3, 1)` | fill |
 
 - Defaults: every bare `transition-*` utility uses `--ember-dur` and `--ember-ease` (`web/src/index.css:61-62`). Buttons press to `scale(0.98)` (`web/src/components/ui/button.tsx:7`).
-- Check-in reward: JS reads the `--ember-reward` keyword (`web/src/components/today/reward.ts:12-16`) and applies `ember-reward-<kind>` classes; the keyframes live in `web/src/components/today/reward.css:100-173` and use `--ember-dur-slow` and `--ember-ease`. Glow is a flame-coloured halo, fill wipes a card-coloured cover off the check and sweeps a done tint across the row, rise lifts a small flame dot.
+- Check-in reward: JS reads the `--ember-reward` keyword (`web/src/components/today/reward.ts:12-16`) and applies `ember-reward-<kind>` classes; the keyframes live in `web/src/components/today/reward.css:100-182` and use `--ember-dur-slow` and `--ember-ease`. Glow is a flame-coloured halo, fill wipes a card-coloured cover off the check and sweeps a done tint across the row, rise lifts a small flame dot.
 - Page arrival: `ember-arrive` (fade up 16px, 500ms, staggered children) on `main[data-arrive]` (`web/src/motion.css:376-393`, keyframe `:521`). Sheets reuse it at `--ember-dur` (`web/src/components/today/note-sheet.tsx:114`).
 - Ambient scene: 12 keyframes in `web/src/motion.css:528-683` (glow, stars, drifting clouds, sparks, campfire flicker, breathing halo), applied in `web/src/motion.css:396-491` with hard-coded durations from 1.9s (flame flicker) to 150s (clouds). Paused when hidden (`web/src/motion.css:501-504`), removed in forced colours (`web/src/motion.css:510-519`).
 - JS motion: `motion` 14.9 (`web/package.json:40`) for the Today ember, the rolling check-in number and the History day panel (`web/src/components/history/day-panel.tsx:62-68`); durations come from the theme tokens via `themeSeconds` (`web/src/components/today/reward.ts:19-24`).
@@ -161,7 +161,7 @@ Theme tokens (`web/src/themes/*.css:53-58`):
 
 ## 2. Components
 
-Stack: Radix through the `radix-ui` umbrella package 1.8 (`web/package.json:41`), `class-variance-authority` (`web/package.json:35`), `cn()` = `twMerge(clsx())` (`web/src/lib/utils.ts:5-7`), lucide-react (`web/package.json:38`). There is no `components.json`; the `ui/` files are shadcn-style by hand, restyled to the token contract. Focus is one global rule, `:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px }` (`web/src/index.css:104-107`); no primitive sets its own ring.
+Stack: Radix through the `radix-ui` umbrella package 1.8 (`web/package.json:41`), `class-variance-authority` (`web/package.json:35`), `cn()` = `twMerge(clsx())` (`web/src/lib/utils.ts:5-7`), lucide-react (`web/package.json:38`). There is no `components.json`; the `ui/` files are shadcn-style by hand, restyled to the token contract. Focus is one global rule, `:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px }` (`web/src/index.css:104-107`); no `ui/` primitive sets its own ring; a few feature components adjust it (5.4).
 
 ### 2.1 Primitives (`web/src/components/ui/`)
 
@@ -211,7 +211,7 @@ All of these are custom. None is from a shadcn registry.
 - One column inside a centred measure (72rem, growing on 21:9), gutters from 8px to 24px (`web/src/components/app-shell.tsx:29-30`). Safe-area insets on header, tab bar and sheets; `scroll-padding` keeps focus clear of the header and tab bar (`web/src/index.css:79-84`).
 - Two page templates. Narrow: `max-w-[40rem] flex-col gap-6` with optional BackLink and PageHeader (`web/src/pages/settings.tsx:235`, `web/src/pages/routines.tsx:199`). Wide: the full measure with a two-column grid at `lg` (Today `web/src/pages/today.tsx:65-66`, History `web/src/pages/history.tsx:313`, habit edit `web/src/pages/habit-edit.tsx:91`, habit new `web/src/pages/habit-new.tsx:212`). Settings uses a rail from `md` (`web/src/pages/settings.tsx:289`).
 - Auth and legal pages use CenteredShell: a 12-column split at `lg` with a brand panel (`web/src/components/centered-shell.tsx:39-82`).
-- Navigation: Today (Flame), Fireside (FlameKindling, when on), History (CalendarDays), Settings (SlidersHorizontal) (`web/src/components/app-shell.tsx:24-26`). Phone tabs are 64px with a 3px top bar in primary when active (`:134-137`); desktop items are pills with `bg-secondary` when active (`:135`).
+- Navigation: Today (Flame), History (CalendarDays), Settings (SlidersHorizontal) (`web/src/components/app-shell.tsx:24-26`), plus Fireside (FlameKindling) after Today when it is on (`web/src/components/fireside/fireside-nav.ts:1,8`). Phone tabs are 64px with a 3px top bar in primary when active (`:134-137`); desktop items are pills with `bg-secondary` when active (`:135`).
 
 ### 3.2 Section headers
 
@@ -272,7 +272,7 @@ Raster only for the landing screenshots, the Open Graph image and the app icons 
 
 ## 4. What makes Ember feel like Ember
 
-These come from the code, not from intent statements, and are what the global system should leave room for rather than absorb.
+These come from the code, not from intent statements. They are the traits the global system could leave to Ember rather than absorb.
 
 1. **A small fire, everywhere and quiet.** The flame is the logo (`web/src/components/flame-mark.tsx`), the Today nav icon (`web/src/components/app-shell.tsx:24`), the streak chip icon, Today's ember that grows with each check-in (`web/src/components/today/todays-ember.tsx:26-27`), the campfire in the ambient scene and the hearth in empty states. `--flame` and `--flame-core` stay warm in every theme, including the cool Tidepool.
 2. **Warm light, not white.** Hearthlight neutrals sit at OKLCH hue 50 to 80 with low chroma: cream paper by day, wood-smoke charcoal by night. Shadows are tinted brown in light mode (`web/src/themes/hearthlight.css:48`). Hearthlight has no borders at all (`--border-width: 0px`); edges come from soft shadow.
@@ -312,13 +312,13 @@ Findings for the system draft. None is fixed in this slice.
 | --- | --- |
 | Sheet content class string, scrim and close button | identical in `web/src/components/today/note-sheet.tsx:110-140`, `web/src/components/letgo/slip-sheet.tsx:98-128`, `web/src/components/guide/guide.tsx:123-151`; SendSheet differs (`web/src/components/fireside/send-sheet.tsx:70-83`) |
 | Day cell look | DayCell, the let-go history cell (`web/src/components/letgo/letgo-history.tsx:73,94-105`) and the year swatch (`web/src/components/year/year-heatmap.tsx:52-66`) |
-| Let-go history | re-implements the History layout, legend, stats and day panel, with the same `day-panel-heading` id (`web/src/components/letgo/letgo-history.tsx:234`, `web/src/components/history/day-panel.tsx:74`) |
+| Let-go history | re-implements the History layout, legend, stats and day panel, (`web/src/components/letgo/letgo-history.tsx:234`) with the same `day-panel-heading` id (`web/src/components/letgo/letgo-history.tsx:290`, `web/src/components/history/day-panel.tsx:74`) |
 | Rows | HabitRow, let-go row, routine card and habit preview are four anatomies for one idea (3.3) |
 | Reorder | up and down buttons on Routines (`web/src/pages/routines.tsx:132-153`), numbered rows (`web/src/components/routines/routine-habits.tsx:78-99`), and a menu plus drag on Today (`web/src/components/today/row-menu.tsx:58-81`) |
 | Edit affordance | pencil icon link (`web/src/components/today/habit-row.tsx:202-206`) against a text "Edit" button (`web/src/pages/routines.tsx:154-158`) |
 | Pills | nav pills, Month/Year switch, mood chips, routine member chips, streak badge, all hand-styled (`web/src/components/history/view-switch.tsx:22`, `web/src/components/journal/day-journal.tsx:295`) |
 | Toggle row | `flex min-h-[44px] items-center justify-between gap-4` in 5 files (`web/src/components/settings/appearance-card.tsx:80`) |
-| Hint text | `text-[0.875rem] text-muted-foreground` typed by hand in about 50 places, while FormField has its own hint |
+| Hint text | `text-[0.875rem] text-muted-foreground` typed by hand about 100 times, while FormField has its own hint |
 | Back links | BackLink and three hand-rolled ArrowLeft links (`web/src/pages/download.tsx:99`, `web/src/pages/legal.tsx:77`, `web/src/pages/whats-new.tsx:70`) |
 | Icon buttons | PasswordInput toggle (`web/src/components/ui/input.tsx:22-30`) and the feedback remove button hand-roll what `Button size="icon"` provides |
 | Unused | the Radix `Select` parts in `web/src/components/ui/select.tsx:8-61` |
@@ -329,6 +329,7 @@ Findings for the system draft. None is fixed in this slice.
 - Icon sizes: 22px for nav and the Settings group list, 18px for the Settings rail and buttons, 20px against 18px for the same chevron (`web/src/pages/today.tsx:689`, `web/src/components/guide/guide.tsx:167`). CalendarDays means History, the "Habits and days" settings group and "yesterday" on Today.
 - Wordmark is 18px in the app header and 22px on auth and landing (`web/src/components/app-shell.tsx:115`, `web/src/components/centered-shell.tsx:44`).
 - Sheet breakpoint is `sm` for two sheets, `md` for SendSheet and `lg` for the guide.
+- Focus rings: the global rule is a 3px `--ring` outline at 2px offset, but several components change it. The feedback picture button sets its own 2px ring with a negative offset (`web/src/components/settings/feedback-form.tsx:304`); Settings group rows and phone tabs inset it (`web/src/pages/settings.tsx:247,267`, `web/src/components/app-shell.tsx:134`); heatmap cells use offset 1 (`web/src/components/year/year-heatmap.tsx:208`); open day cells keep a persistent ring through `aria-expanded:outline-3` (`web/src/components/day-cell.tsx:152`, `web/src/components/letgo/letgo-history.tsx:105`); the new-habit choice uses `focus-visible:border-ring` (`web/src/pages/habit-new.tsx:177`).
 - Day cells shrink to 40px below 360px width (`web/src/components/day-cell.tsx:37`), under the 44px target rule in `docs/contracts/design-tokens-v1.md:64`.
 - Emoji: `web/DESIGN.md:82` says emoji only where the server sends them; the client ships its own in moods, local templates and local weekly headlines (3.7).
 
@@ -346,7 +347,7 @@ Findings for the system draft. None is fixed in this slice.
 
 ## 6. Candidate split (proposal for Nico)
 
-A first cut of what could move to the global library (`@nw/tokens`, `@nw/ui`) and what stays Ember's. This is a proposal, not a decision.
+A first cut of what could move to the planned global library (`@nw/tokens`, `@nw/ui` in `Tzanto01/design`, not created yet) and what stays Ember's. This is a proposal, not a decision.
 
 ### 6.1 Tokens
 
