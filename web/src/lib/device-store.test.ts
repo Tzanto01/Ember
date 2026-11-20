@@ -35,6 +35,9 @@ describe('withDayEdit', () => {
     expect(again.stats.week?.done).toBe(2);
 
     expect(withDayEdit(paused, { habitId: 1, date: '2026-11-01', completed: null }).stats.week?.done).toBe(1);
+
+    const lowDay: Habit = { ...weekly, today: { date: '2026-11-01', state: 'lowday', completed: true, count: 1 } };
+    expect(withDayEdit(lowDay, { habitId: 1, date: '2026-11-01', completed: true }).stats.week?.done).toBe(2);
   });
 
   it('puts a cleared day back to the rest the server shows: paused, low day, off schedule, else open', () => {

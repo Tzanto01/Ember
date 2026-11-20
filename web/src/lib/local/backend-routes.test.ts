@@ -12,14 +12,27 @@ interface Sent {
   path: string;
 }
 
-/** Arguments for the methods that take one object instead of an id and dates. */
-const args: Record<string, unknown[]> = {
-  sendDayEdit: [{ habitId: 1, date: '2026-11-01', completed: true }],
-  dayEdit: [{ habitId: 1, date: '2026-11-01', completed: true }],
-  sendNoteEdit: [{ kind: 'note', date: '2026-11-01', body: null }],
+/**
+ * Argument lists for the methods that take one object instead of an id and dates, or whose branches send to different
+ * endpoints; every other method is called once with an id and two dates.
+ */
+const args: Record<string, unknown[][]> = {
+  sendDayEdit: [[{ habitId: 1, date: '2026-11-01', completed: true }]],
+  dayEdit: [[{ habitId: 1, date: '2026-11-01', completed: true }]],
+  sendNoteEdit: [
+    [{ kind: 'note', date: '2026-11-01', body: null }],
+    [{ kind: 'note', date: '2026-11-01', body: { text: 'Synthetic' } }],
+  ],
+  saveHabitNote: [
+    [1, '2026-11-01', { text: 'Synthetic' }],
+    [1, '2026-11-01', null],
+  ],
 };
 
-/** Every request the {@link ApiClient} methods make to Ember's own API in no-account mode, one call per method. */
+/**
+ * Every request the {@link ApiClient} prototype methods make to Ember's own API in no-account mode (requests marked
+ * `server` go to the server in that mode too and are left out). Methods defined as class fields are not seen.
+ */
 async function clientRequests(): Promise<{ sent: Sent[]; silent: string[] }> {
   const sent: Sent[] = [];
   const silent: string[] = [];
@@ -35,10 +48,12 @@ async function clientRequests(): Promise<{ sent: Sent[]; silent: string[] }> {
   for (const name of Object.getOwnPropertyNames(ApiClient.prototype)) {
     if (name === 'constructor') continue;
     const before = made;
-    try {
-      await client[name].call(api, ...(args[name] ?? [1, '2026-11-01', '2026-11-02']));
-    } catch {
-      // Every call fails once its request is recorded.
+    for (const list of args[name] ?? [[1, '2026-11-01', '2026-11-02']]) {
+      try {
+        await client[name].call(api, ...list);
+      } catch {
+        // Every call fails once its request is recorded.
+      }
     }
     if (made === before) silent.push(name);
   }
