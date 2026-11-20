@@ -57,11 +57,16 @@ public class BotRoutingTests
 
     private static Task<BotReplies> DriveAsync<TModule>(IntegrationTestHost host, Func<HabitService, AccountService, BotReplies, TModule> create,
         Func<TModule, Task> call, ulong user = Owner, bool slash = false) where TModule : IInteractionModuleBase
+        => DriveAsync(host, (h, _, a, r) => create(h, a, r), call, user, slash);
+
+    private static Task<BotReplies> DriveAsync<TModule>(IntegrationTestHost host,
+        Func<HabitService, ReminderService, AccountService, BotReplies, TModule> create, Func<TModule, Task> call, ulong user = Owner,
+        bool slash = false) where TModule : IInteractionModuleBase
         => host.WithScopeAsync(async sp =>
         {
             var replies = new BotReplies();
-            var module = BotHandlers.Attach(create(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<AccountService>(), replies), user,
-                slash: slash);
+            var module = BotHandlers.Attach(create(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(),
+                sp.GetRequiredService<AccountService>(), replies), user, slash: slash);
             await BotHandlers.RunAsync(() => call(module));
             return replies;
         });
@@ -71,7 +76,7 @@ public class BotRoutingTests
         var ids = new List<string>();
         void Add(BotReplies replies) => ids.AddRange(replies.Sent.SelectMany(r => Ids(r.Components)));
 
-        async Task Habit(Func<RecordingHabitModule, Task> call) => Add(await DriveAsync(host, (h, r) => new RecordingHabitModule(h, r), call, slash: true));
+        async Task Habit(Func<RecordingHabitModule, Task> call) => Add(await DriveAsync(host, (h, rem, _, r) => new RecordingHabitModule(h, rem, r), call, slash: true));
         await Habit(m => m.ListAsync());
         await Habit(m => m.CheckInAsync());
         await Habit(m => m.HistoryAsync());
@@ -90,7 +95,7 @@ public class BotRoutingTests
         Add(await DriveAsync(host, (h, r) => new RecordingFrequencyModule(h, r), m => m.ShowMenuAsync(buildId.ToString())));
         Add(await DriveAsync(host, (h, a, r) => new RecordingPrivacyModule(h, a, r), m => m.WithdrawAsync(), slash: true));
         Add(await DriveAsync(host, (h, a, r) => new RecordingPrivacyModule(h, a, r), m => m.DeleteAsync(), slash: true));
-        Add(await DriveAsync(host, (h, r) => new RecordingOnboardingModule(h, r), m => m.OnRegionSelectAsync("1", ["moon"])));
+        Add(await DriveAsync(host, (h, rem, _, r) => new RecordingOnboardingModule(h, rem, r), m => m.OnRegionSelectAsync("1", ["moon"])));
 
         var t = English;
         var days = Enumerable.Range(0, 3).Select(i => new HabitDay(Today.AddDays(-i), DayState.NotDone, null, 0)).ToList();
@@ -196,7 +201,7 @@ public class BotRoutingTests
             await m.SetWeekdaysAsync(b, ["mon"]);
             await m.SetTimesAsync(b, ["4"]);
         }, user: Stranger);
-        await DriveAsync(host, (h, r) => new RecordingReminderSetupModule(h, r), async m =>
+        await DriveAsync(host, (h, rem, _, r) => new RecordingReminderSetupModule(h, rem, r), async m =>
         {
             await m.OnClearReminderAsync(b);
         }, user: Stranger);
@@ -231,7 +236,7 @@ public class BotRoutingTests
             await m.SetTimesAsync("1", ["abc"]);
             await m.ShowMenuAsync("abc");
         });
-        var checkIn = await DriveAsync(host, (h, r) => new RecordingCheckInModule(h, r), async m =>
+        var checkIn = await DriveAsync(host, (h, rem, _, r) => new RecordingCheckInModule(h, rem, r), async m =>
         {
             await m.OnDoneAsync("abc", "100");
             await m.OnSkipAsync("abc", "100");
@@ -264,7 +269,7 @@ public class BotRoutingTests
                 await m.OnConfirmDeleteAsync(id);
                 await m.OnCancelDeleteAsync(id);
             }, user: user)).Sent.Select(r => r.Text));
-            refused.AddRange((await DriveAsync(host, (h, r) => new RecordingDiscordRemindersModule(h, r), async m =>
+            refused.AddRange((await DriveAsync(host, (h, rem, _, r) => new RecordingDiscordRemindersModule(h, rem, r), async m =>
             {
                 await m.OnYesAsync(id);
                 await m.OnNoAsync(id);
@@ -281,7 +286,7 @@ public class BotRoutingTests
                 await m.OnDayAsync(id, buildId.ToString(), date);
                 await m.OnLowDayAsync(id, buildId.ToString(), [date]);
             }, user: user)).Sent.Select(r => r.Text));
-            refused.AddRange((await DriveAsync(host, (h, r) => new RecordingDmRetryModule(h, r), m => m.OnRetryAsync(id), user: user)).Sent.Select(r => r.Text));
+            refused.AddRange((await DriveAsync(host, (h, rem, _, r) => new RecordingDmRetryModule(h, rem, r), m => m.OnRetryAsync(id), user: user)).Sent.Select(r => r.Text));
         }
 
         (await StateAsync(host)).Should().Be(before);

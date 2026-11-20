@@ -24,7 +24,8 @@ public class ReminderButtonDayTests
         time.SetUtcNow(new DateTimeOffset(2027, 1, 11, 16, 0, 0, TimeSpan.Zero));
 
         var (result, day, _) = await host.WithScopeAsync(sp =>
-            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), UserId, habitId, sentUnix, completed: true, null));
+            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(),
+                sp.GetRequiredService<ReminderService>(), UserId, habitId, sentUnix, completed: true, null));
         var days = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitDaysAsync(UserId, habitId, 2));
 
         result.Should().Be(DayEditResult.Saved);
@@ -41,7 +42,8 @@ public class ReminderButtonDayTests
         var sentUnix = new DateTimeOffset(2027, 1, 4, 20, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds().ToString();
 
         var (result, _, _) = await host.WithScopeAsync(sp =>
-            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), UserId, habitId, sentUnix, completed: true, null));
+            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(),
+                sp.GetRequiredService<ReminderService>(), UserId, habitId, sentUnix, completed: true, null));
 
         result.Should().Be(DayEditResult.BeforeHabitStart);
     }
@@ -57,7 +59,8 @@ public class ReminderButtonDayTests
         await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().CheckInAsync(UserId, habitId, new DateOnly(2027, 1, 10), completed: true));
 
         var (result, _, keptDone) = await host.WithScopeAsync(sp =>
-            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), UserId, habitId, sentUnix, completed: false, null));
+            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(),
+                sp.GetRequiredService<ReminderService>(), UserId, habitId, sentUnix, completed: false, null));
         var days = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitDaysAsync(UserId, habitId, 2));
 
         result.Should().Be(DayEditResult.Saved);
@@ -72,7 +75,7 @@ public class ReminderButtonDayTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         var habitId = await AddHabitInLosAngelesAsync(host);
 
-        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SnoozeReminderAsync(UserId, habitId, time.GetUtcNow()));
+        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(UserId, habitId, time.GetUtcNow()));
         var next = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
         snoozed.Should().BeFalse();
@@ -92,8 +95,8 @@ public class ReminderButtonDayTests
         });
         var before = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
-        var stale = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
-            .SnoozeReminderAsync(UserId, habitId, time.GetUtcNow() - HabitService.SnoozeWindow - TimeSpan.FromMinutes(1)));
+        var stale = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>()
+            .SnoozeReminderAsync(UserId, habitId, time.GetUtcNow() - ReminderService.SnoozeWindow - TimeSpan.FromMinutes(1)));
         var after = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
         stale.Should().BeFalse();
@@ -122,7 +125,7 @@ public class ReminderButtonDayTests
             .ExecuteUpdateAsync(s => s.SetProperty(h => h.SecondReminderUtc, time.GetUtcNow().UtcDateTime.AddMinutes(30))));
 
         var (result, _, _) = await host.WithScopeAsync(sp => CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(),
-            UserId, habitId, time.GetUtcNow().ToUnixTimeSeconds().ToString(), completed: false, null));
+            sp.GetRequiredService<ReminderService>(), UserId, habitId, time.GetUtcNow().ToUnixTimeSeconds().ToString(), completed: false, null));
         var second = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId)
             .Select(h => h.SecondReminderUtc).SingleAsync());
 
@@ -141,7 +144,7 @@ public class ReminderButtonDayTests
         time.SetUtcNow(new DateTimeOffset(2027, 1, 12, 7, 30, 0, TimeSpan.Zero));
         var before = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
-        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SnoozeReminderAsync(UserId, habitId, time.GetUtcNow()));
+        var snoozed = await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(UserId, habitId, time.GetUtcNow()));
         var after = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
         snoozed.Should().BeFalse();

@@ -19,10 +19,12 @@ namespace Ember.Bot.Modules;
 public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly ReminderService _reminders;
 
-    public OnboardingModule(HabitService habits)
+    public OnboardingModule(HabitService habits, ReminderService reminders)
     {
         _habits = habits;
+        _reminders = reminders;
     }
 
     // ── Static timezone data ──────────────────────────────────────────────────
@@ -221,7 +223,7 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         await _habits.SetTimezoneAsync(Context.User.Id, tz.Id, Languages.FromLocale(Context.Interaction.UserLocale));
-        await _habits.RescheduleRemindersAsync(Context.User.Id);
+        await _reminders.RescheduleRemindersAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         var embed = new EmbedBuilder()

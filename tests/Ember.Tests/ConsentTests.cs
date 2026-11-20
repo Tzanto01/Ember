@@ -186,7 +186,7 @@ public class ConsentTests
 
         var (habits, routines, secondHabits, secondRoutines, owners) = await host.WithScopeAsync(async sp =>
         {
-            var service = sp.GetRequiredService<HabitService>();
+            var service = sp.GetRequiredService<ReminderService>();
             var db = sp.GetRequiredService<EmberDbContext>();
             var now = Now.UtcDateTime;
             var h = (await service.GetDueReminderHabitsAsync(now)).Select(x => x.Id).ToList();
@@ -306,7 +306,7 @@ public class ConsentTests
         var user = await UserAsync(host, 1);
         (user.ConsentWithdrawnAt, user.DeletionReminderSentAt).Should().Be(((DateTime?)null, (DateTime?)null));
         (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().HasHealthDataConsentAsync(1UL))).Should().BeTrue();
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetDueReminderHabitsAsync(time.GetUtcNow().UtcDateTime)))
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().GetDueReminderHabitsAsync(time.GetUtcNow().UtcDateTime)))
             .Should().ContainSingle();
     }
 

@@ -17,11 +17,13 @@ public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
     internal static string NoticeText(Texts t) => t.Get("dmretry.notice");
 
     private readonly HabitService _habits;
+    private readonly ReminderService _reminders;
     private readonly IDiscordDmSender _discord;
 
-    public DmRetryModule(HabitService habits, IDiscordDmSender discord)
+    public DmRetryModule(HabitService habits, ReminderService reminders, IDiscordDmSender discord)
     {
         _habits = habits;
+        _reminders = reminders;
         _discord = discord;
     }
 
@@ -47,7 +49,7 @@ public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        await _habits.ResumeDmRemindersAsync(userId);
+        await _reminders.ResumeDmRemindersAsync(userId);
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
             m.Content = t.Get("dmretry.worked");

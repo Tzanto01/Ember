@@ -136,11 +136,13 @@ public class CheckInCountTests
         var sentUnix = new DateTimeOffset(2027, 1, 13, 9, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds().ToString();
 
         await host.WithScopeAsync(sp =>
-            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), UserId, habitId, sentUnix, completed: true, null));
+            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(),
+                sp.GetRequiredService<ReminderService>(), UserId, habitId, sentUnix, completed: true, null));
         (await LogsAsync(host, habitId)).Should().Equal((Today, 1, false));
 
         await host.WithScopeAsync(sp =>
-            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), UserId, habitId, sentUnix, completed: true, null));
+            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(),
+                sp.GetRequiredService<ReminderService>(), UserId, habitId, sentUnix, completed: true, null));
         (await LogsAsync(host, habitId)).Should().Equal((Today, 2, true));
     }
 
@@ -158,7 +160,8 @@ public class CheckInCountTests
         });
 
         await host.WithScopeAsync(sp =>
-            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), UserId, habitId, sentUnix, completed: false, null));
+            CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(),
+                sp.GetRequiredService<ReminderService>(), UserId, habitId, sentUnix, completed: false, null));
 
         (await LogsAsync(host, habitId)).Should().Equal((Today, 2, false));
     }

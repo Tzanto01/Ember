@@ -67,10 +67,10 @@ internal static class Race
         var channel = new EditDuringSendChannel();
         await using var host = await HostAsync(time, channel, postgres, db => db.Habits.Add(DueHabit(1, DiscordUser)));
         channel.OnSend = () => host.WithScopeAsync(sp => edit == HabitEdit.Snooze
-            ? sp.GetRequiredService<HabitService>().SnoozeReminderAsync(UserId, 1, Now)
+            ? sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(UserId, 1, Now)
             : sp.GetRequiredService<HabitService>().EditHabitAsync(UserId, 1, newName: null, newReminderTime: null,
                 clearReminder: false, newReminderTimes: [Three]));
-        var edited = edit == HabitEdit.Snooze ? Now.UtcDateTime + HabitService.SnoozeDelay : TodayThreeBerlin;
+        var edited = edit == HabitEdit.Snooze ? Now.UtcDateTime + ReminderService.SnoozeDelay : TodayThreeBerlin;
 
         await RunAsync(host);
         time.Advance(TimeSpan.FromMinutes(1));
@@ -90,14 +90,14 @@ internal static class Race
         var channel = new EditDuringSendChannel();
         await using var host = await HostAsync(time, channel, postgres, db => db.Habits.Add(DueHabit(1, DiscordUser)),
             secondReminderMinutes: 30);
-        channel.OnSend = () => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SnoozeReminderAsync(UserId, 1, Now));
+        channel.OnSend = () => host.WithScopeAsync(sp => sp.GetRequiredService<ReminderService>().SnoozeReminderAsync(UserId, 1, Now));
 
         await RunAsync(host);
         time.Advance(TimeSpan.FromMinutes(31));
         await RunAsync(host);
 
         channel.Sent.Should().ContainSingle();
-        (await NextReminderAsync(host, 1)).Should().Be(Now.UtcDateTime + HabitService.SnoozeDelay);
+        (await NextReminderAsync(host, 1)).Should().Be(Now.UtcDateTime + ReminderService.SnoozeDelay);
     }
 
     public static async Task RoutineEditedDuringSendAsync(string? postgres)

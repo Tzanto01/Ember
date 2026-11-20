@@ -26,25 +26,25 @@ internal static partial class ReminderDestinationEndpoints
 
     public static RouteGroupBuilder MapReminderDestinations(this RouteGroupBuilder api)
     {
-        api.MapGet("/me/reminder-destinations", async (ClaimsPrincipal principal, HabitService habits) =>
-            await habits.GetUserWithDestinationsAsync(principal.UserId()) is { } user
+        api.MapGet("/me/reminder-destinations", async (ClaimsPrincipal principal, ReminderService reminders) =>
+            await reminders.GetUserWithDestinationsAsync(principal.UserId()) is { } user
                 ? Results.Ok(ToDtos(user, AuthSessions.IdOf(principal)))
                 : Problems.Unauthenticated());
 
         api.MapPatch("/me/reminder-destinations/{id}", async (string id, SetDestinationRequest request, ClaimsPrincipal principal,
-            HabitService habits) =>
+            ReminderService reminders) =>
         {
             if (request.Enabled is not { } enabled) return Problems.Validation("enabled", "Required.");
 
             var userId = principal.UserId();
-            if (!await habits.SetReminderDestinationAsync(userId, id, enabled)) return Problems.NotFound();
-            return await habits.GetUserWithDestinationsAsync(userId) is { } user
+            if (!await reminders.SetReminderDestinationAsync(userId, id, enabled)) return Problems.NotFound();
+            return await reminders.GetUserWithDestinationsAsync(userId) is { } user
                 && ToDtos(user, AuthSessions.IdOf(principal)).FirstOrDefault(d => d.Id == id) is { } destination
                     ? Results.Ok(destination)
                     : Problems.NotFound();
         });
 
-        api.MapPost("/me/phones", async (PhoneRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPost("/me/phones", async (PhoneRequest request, ClaimsPrincipal principal, ReminderService reminders) =>
         {
             var errors = new Dictionary<string, string[]>();
             if (request.InstallId is null || !InstallIdPattern().IsMatch(request.InstallId))
@@ -56,7 +56,7 @@ internal static partial class ReminderDestinationEndpoints
             if (sessionId is null) errors["session"] = ["Sign in again to register this phone."];
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            var phone = await habits.SaveReminderPhoneAsync(principal.UserId(), request.InstallId!,
+            var phone = await reminders.SaveReminderPhoneAsync(principal.UserId(), request.InstallId!,
                 label.Length > 0 ? label : FallbackPhoneLabel, sessionId!.Value);
             return Results.Ok(new ReminderDestinationDto(ReminderDestinations.Phone(phone.Id), "phone", phone.Label, phone.Enabled, true));
         });

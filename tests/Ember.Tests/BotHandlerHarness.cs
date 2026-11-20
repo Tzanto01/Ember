@@ -118,7 +118,7 @@ internal sealed class RecordingPrivacyModule(HabitService habits, AccountService
     }
 }
 
-internal sealed class RecordingTimezoneModule(HabitService habits, BotReplies replies) : TimezoneModule(habits)
+internal sealed class RecordingTimezoneModule(HabitService habits, ReminderService reminders, BotReplies replies) : TimezoneModule(habits, reminders)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -129,7 +129,7 @@ internal sealed class RecordingTimezoneModule(HabitService habits, BotReplies re
     }
 }
 
-internal sealed class RecordingOnboardingModule(HabitService habits, BotReplies replies) : OnboardingModule(habits)
+internal sealed class RecordingOnboardingModule(HabitService habits, ReminderService reminders, BotReplies replies) : OnboardingModule(habits, reminders)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -163,7 +163,7 @@ internal sealed class RecordingExportModule(HabitService habits, AccountService 
     }
 }
 
-internal sealed class RecordingHabitModule(HabitService habits, BotReplies replies) : HabitModule(habits, BotHandlers.NoConfig)
+internal sealed class RecordingHabitModule(HabitService habits, ReminderService reminders, BotReplies replies) : HabitModule(habits, reminders, BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -204,7 +204,7 @@ internal sealed class RecordingHistoryModule(HabitService habits, BotReplies rep
     }
 }
 
-internal sealed class RecordingDiscordRemindersModule(HabitService habits, BotReplies replies) : DiscordRemindersModule(habits)
+internal sealed class RecordingDiscordRemindersModule(HabitService habits, ReminderService reminders, BotReplies replies) : DiscordRemindersModule(habits, reminders)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -215,7 +215,7 @@ internal sealed class RecordingDiscordRemindersModule(HabitService habits, BotRe
     }
 }
 
-internal sealed class RecordingReminderSetupModule(HabitService habits, BotReplies replies) : ReminderSetupModule(habits)
+internal sealed class RecordingReminderSetupModule(HabitService habits, ReminderService reminders, BotReplies replies) : ReminderSetupModule(habits, reminders)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -226,7 +226,7 @@ internal sealed class RecordingReminderSetupModule(HabitService habits, BotRepli
     }
 }
 
-internal sealed class RecordingCheckInModule(HabitService habits, BotReplies replies) : CheckInButtonModule(habits, TimeProvider.System, BotHandlers.NoConfig)
+internal sealed class RecordingCheckInModule(HabitService habits, ReminderService reminders, BotReplies replies) : CheckInButtonModule(habits, reminders, TimeProvider.System, BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -245,7 +245,7 @@ internal sealed class RecordingCheckInModule(HabitService habits, BotReplies rep
     }
 }
 
-internal sealed class RecordingDmRetryModule(HabitService habits, BotReplies replies) : DmRetryModule(habits, new TestDiscordDmSender())
+internal sealed class RecordingDmRetryModule(HabitService habits, ReminderService reminders, BotReplies replies) : DmRetryModule(habits, reminders, new TestDiscordDmSender())
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,

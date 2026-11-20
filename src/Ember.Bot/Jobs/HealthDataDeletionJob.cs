@@ -55,7 +55,7 @@ public class HealthDataDeletionJob : IJob
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         using var scope = _services.CreateScope();
-        var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+        var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
         var consent = scope.ServiceProvider.GetRequiredService<ConsentService>();
         var now = _time.GetUtcNow().UtcDateTime;
 
@@ -70,7 +70,7 @@ public class HealthDataDeletionJob : IJob
                 var delivered = false;
                 try
                 {
-                    delivered = await RemindAsync(habits, id, ConsentService.DeletionDueUtc(withdrawnAt, now), cancellationToken);
+                    delivered = await RemindAsync(reminders, id, ConsentService.DeletionDueUtc(withdrawnAt, now), cancellationToken);
                 }
                 finally
                 {
@@ -106,9 +106,9 @@ public class HealthDataDeletionJob : IJob
     }
 
     /// <summary>Sends the notice; false when the user has a target but nothing reached them (true when there is no target at all).</summary>
-    private async Task<bool> RemindAsync(HabitService habits, Guid userId, DateTime deletesAtUtc, CancellationToken cancellationToken)
+    private async Task<bool> RemindAsync(ReminderService reminders, Guid userId, DateTime deletesAtUtc, CancellationToken cancellationToken)
     {
-        if (await habits.GetUserWithDestinationsAsync(userId, cancellationToken) is not { } user) return true;
+        if (await reminders.GetUserWithDestinationsAsync(userId, cancellationToken) is not { } user) return true;
         var pushIds = _push is null ? [] : user.PushSubscriptions.Where(s => s.Enabled).Select(s => s.Id).ToList();
         var discordId = user.DiscordId();
         if (discordId is null && pushIds.Count == 0) return true;

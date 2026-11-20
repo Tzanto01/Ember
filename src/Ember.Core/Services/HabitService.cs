@@ -8,9 +8,6 @@ namespace Ember.Core.Services;
 
 public partial class HabitService
 {
-    /// <summary>How long the Snooze button delays a reminder.</summary>
-    public static readonly TimeSpan SnoozeDelay = TimeSpan.FromMinutes(60);
-
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
     private readonly ConsentService _consent;
@@ -394,82 +391,6 @@ public partial class HabitService
         return (HabitWriteResult.Saved, habit);
     }
 
-    /// <summary>How long a reminder's snooze button stays usable after the reminder was sent.</summary>
-    public static readonly TimeSpan SnoozeWindow = TimeSpan.FromHours(24);
-
-    /// <summary>
-    /// Delays the habit's next reminder by <see cref="SnoozeDelay"/> and drops its pending second reminder. Returns false when the habit isn't the user's, is a let-go habit or has no reminder,
-    /// when the reminder was sent (<paramref name="sentAtUtc"/>) more than <see cref="SnoozeWindow"/> ago, so an old DM can't displace the schedule,
-    /// or when the snoozed reminder would land on a later local day than the one the reminder was sent on.
-    /// </summary>
-    public async Task<bool> SnoozeReminderAsync(Guid userId, int habitId, DateTimeOffset sentAtUtc)
-    {
-        if (_time.GetUtcNow() - sentAtUtc > SnoozeWindow) return false;
-
-        var tz = await GetUserTzAsync(userId);
-        if (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_time.GetUtcNow() + SnoozeDelay, tz).DateTime)
-            != DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(sentAtUtc, tz).DateTime))
-            return false;
-
-        var habit = await _db.Habits
-            .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId && h.Kind == HabitKind.Build && h.ReminderTimes.Count > 0);
-
-        if (habit is null) return false;
-
-        habit.NextReminderUtc = _time.GetUtcNow().UtcDateTime + SnoozeDelay;
-        habit.SecondReminderUtc = null;
-        await _db.SaveChangesAsync();
-        return true;
-    }
-
-    /// <summary>Recomputes every habit and routine reminder of the user from their current timezone. Returns how many habits have a reminder.</summary>
-    public async Task<int> RescheduleRemindersAsync(Guid userId)
-    {
-        var tz = await GetUserTzAsync(userId);
-        var habits = await _db.Habits
-            .Where(h => h.UserId == userId && h.ReminderTimes.Count > 0)
-            .ToListAsync();
-
-        foreach (var habit in habits)
-            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, tz, _time.GetUtcNow().UtcDateTime);
-        foreach (var routine in await _db.Routines.Where(r => r.UserId == userId && r.ReminderTime != null).ToListAsync())
-            routine.NextReminderUtc = HabitRules.NextReminderUtc(routine, tz, _time.GetUtcNow().UtcDateTime);
-
-        await _db.SaveChangesAsync();
-        return habits.Count;
-    }
-
-    /// <summary>
-    /// Marks the "your DM reminders are paused" notice as shown. Returns true only for the one
-    /// call that should show it: the user's DM reminders are paused and they haven't been told yet.
-    /// </summary>
-    public async Task<bool> ClaimDmPauseNoticeAsync(Guid userId)
-    {
-        var now = _time.GetUtcNow().UtcDateTime;
-        return await _db.Users
-            .Where(u => u.Id == userId && u.DmRemindersPausedAt != null && u.DmPauseNoticeSentAt == null)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.DmPauseNoticeSentAt, now)) == 1;
-    }
-
-    /// <summary>Undoes <see cref="ClaimDmPauseNoticeAsync"/> when the notice couldn't be shown, so the next interaction shows it.</summary>
-    public async Task ReleaseDmPauseNoticeAsync(Guid userId)
-    {
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.DmPauseNoticeSentAt, (DateTime?)null));
-    }
-
-    /// <summary>Turns DM reminders back on after Ember could reach the user again.</summary>
-    public async Task ResumeDmRemindersAsync(Guid userId)
-    {
-        await _db.Users
-            .Where(u => u.Id == userId)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(u => u.DmFailureCount, 0)
-                .SetProperty(u => u.DmRemindersPausedAt, (DateTime?)null)
-                .SetProperty(u => u.DmPauseNoticeSentAt, (DateTime?)null));
-    }
-
     /// <summary>
     /// Pauses the habit through the local day <paramref name="pausedUntil"/>, or resumes it when null.
     /// A new pause starts today; extending a running pause keeps its start. Resuming ends the pause yesterday,
@@ -629,70 +550,5 @@ public partial class HabitService
             .AsSplitQuery()
             .Where(u => userIds.Contains(u.Id))
             .ToListAsync(cancellationToken);
-    }
-
-    /// <summary>Id and due time of each habit whose next reminder is due at or before <paramref name="nowUtc"/>, skipping users who withdrew consent.</summary>
-    public async Task<List<(int Id, DateTime DueAt)>> GetDueReminderHabitsAsync(DateTime nowUtc, CancellationToken cancellationToken = default)
-        => (await _db.Habits
-            .Where(h => h.NextReminderUtc != null && h.NextReminderUtc <= nowUtc && h.User.ConsentWithdrawnAt == null)
-            .Select(h => new { h.Id, DueAt = h.NextReminderUtc!.Value })
-            .ToListAsync(cancellationToken))
-            .Select(h => (h.Id, h.DueAt)).ToList();
-
-    /// <summary>
-    /// The habit (tracked) with its routine, its user and the user's logins and push subscriptions, regardless of owner.
-    /// Persist edits with <see cref="SaveChangesAsync"/>.
-    /// </summary>
-    public Task<Habit?> GetHabitWithUserAsync(int habitId, CancellationToken cancellationToken = default)
-        => _db.Habits
-            .Include(h => h.Routine)
-            .Include(h => h.User).ThenInclude(u => u.Logins)
-            .Include(h => h.User).ThenInclude(u => u.PushSubscriptions)
-            .AsSplitQuery()
-            .FirstOrDefaultAsync(h => h.Id == habitId, cancellationToken);
-
-    public Task<bool> IsCompletedOnAsync(int habitId, DateOnly date, CancellationToken cancellationToken = default)
-        => _db.HabitLogs.AnyAsync(l => l.HabitId == habitId && l.Date == date && l.Completed, cancellationToken);
-
-    /// <summary>Completed logs of the habit dated strictly between <paramref name="after"/> and <paramref name="before"/>.</summary>
-    public Task<int> CountCompletedBetweenAsync(int habitId, DateOnly after, DateOnly before, CancellationToken cancellationToken = default)
-        => _db.HabitLogs.CountAsync(l => l.HabitId == habitId && l.Date > after && l.Date < before && l.Completed, cancellationToken);
-
-    /// <summary>Saves pending changes to entities loaded through this service.</summary>
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default) => _db.SaveChangesAsync(cancellationToken);
-
-    /// <summary>
-    /// Moves the habit's next reminder directly in the database to the first occurrence of any of its reminder times after
-    /// <paramref name="nowUtc"/> in the user's timezone, or clears it when the habit has no reminder time.
-    /// </summary>
-    public async Task DeferReminderAsync(int habitId, DateTime nowUtc, CancellationToken cancellationToken = default)
-    {
-        var row = await _db.Habits.Where(h => h.Id == habitId)
-            .Select(h => new { h.ReminderTimes, h.User.Timezone })
-            .FirstOrDefaultAsync(cancellationToken);
-        if (row is null) return;
-
-        var next = TimezoneHelper.NextOccurrenceUtc(row.ReminderTimes, TimezoneHelper.Find(row.Timezone) ?? TimeZoneInfo.Utc, nowUtc);
-        await _db.Habits
-            .Where(h => h.Id == habitId)
-            .ExecuteUpdateAsync(s => s.SetProperty(h => h.NextReminderUtc, next), cancellationToken);
-    }
-
-    /// <summary>
-    /// Saves pending changes and, in the same transaction, moves the habit's next reminder to <paramref name="nextUtc"/> and its
-    /// second reminder to <paramref name="secondUtc"/> directly in the database, but only while the next reminder is still
-    /// <paramref name="dueAtUtc"/>. False when an edit or snooze moved it meanwhile; that change is kept, second reminder included.
-    /// </summary>
-    public async Task<bool> SaveAndAdvanceReminderAsync(int habitId, DateTime dueAtUtc, DateTime? nextUtc, DateTime? secondUtc,
-        CancellationToken cancellationToken = default)
-    {
-        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
-        var advanced = await _db.Habits
-            .Where(h => h.Id == habitId && h.NextReminderUtc == dueAtUtc)
-            .ExecuteUpdateAsync(s => s.SetProperty(h => h.NextReminderUtc, nextUtc).SetProperty(h => h.SecondReminderUtc, secondUtc),
-                cancellationToken) == 1;
-        await transaction.CommitAsync(cancellationToken);
-        return advanced;
     }
 }

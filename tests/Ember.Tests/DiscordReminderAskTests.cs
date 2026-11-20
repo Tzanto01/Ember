@@ -112,7 +112,7 @@ public class DiscordReminderAskTests
         foreach (var habit in unanswered.Habits.Concat(declined.Habits)) habit.NextReminderUtc = Now.UtcDateTime;
         await using var host = await CreateAsync(unanswered, declined);
         var note = (ulong discordId) => host.WithScopeAsync(sp =>
-            ReminderSetupModule.DiscordRemindersNoteAsync(Ember.Bot.BotTexts.English, sp.GetRequiredService<HabitService>(), discordId));
+            ReminderSetupModule.DiscordRemindersNoteAsync(Ember.Bot.BotTexts.English, sp.GetRequiredService<ReminderService>(), discordId));
 
         (await note(10)).Should().BeEmpty();
         (await note(20)).Should().Be(DiscordRemindersModule.OffText(Ember.Bot.BotTexts.English));
@@ -129,13 +129,13 @@ public class DiscordReminderAskTests
     [Fact]
     public async Task Each_run_asks_at_most_twenty_users()
     {
-        await using var host = await CreateAsync(Enumerable.Range(1, HabitService.MaxDiscordAsksPerRun + 5).Select(i => DiscordUser(i)).ToArray());
+        await using var host = await CreateAsync(Enumerable.Range(1, ReminderService.MaxDiscordAsksPerRun + 5).Select(i => DiscordUser(i)).ToArray());
 
         await RunAskAsync(host);
-        host.Discord.Messages.Should().HaveCount(HabitService.MaxDiscordAsksPerRun);
+        host.Discord.Messages.Should().HaveCount(ReminderService.MaxDiscordAsksPerRun);
         await RunAskAsync(host);
 
-        host.Discord.Messages.Select(m => m.UserId).Should().OnlyHaveUniqueItems().And.HaveCount(HabitService.MaxDiscordAsksPerRun + 5);
+        host.Discord.Messages.Select(m => m.UserId).Should().OnlyHaveUniqueItems().And.HaveCount(ReminderService.MaxDiscordAsksPerRun + 5);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class DiscordReminderAskTests
     {
         await using var host = await CreateAsync(DiscordUser(10));
         var answer = (ulong clicker, bool yes) => host.WithScopeAsync(sp =>
-            DiscordRemindersModule.TryAnswerAsync(sp.GetRequiredService<HabitService>(), "10", clicker, yes));
+            DiscordRemindersModule.TryAnswerAsync(sp.GetRequiredService<ReminderService>(), "10", clicker, yes));
 
         (await answer(11, true)).Should().BeFalse();
         (await UserAsync(host, 10)).DiscordReminders.Should().BeNull();
@@ -164,7 +164,8 @@ public class DiscordReminderAskTests
         asked.DiscordRemindersAskedAt = earlier;
         await using var host = await CreateAsync(DiscordUser(20), asked);
         var set = (ulong id, bool on) => host.WithScopeAsync(sp =>
-            DiscordRemindersModule.SetFromCommandAsync(sp.GetRequiredService<HabitService>(), id, on, null));
+            DiscordRemindersModule.SetFromCommandAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), id, on,
+                null));
 
         await set(20, false);
         await set(10, false);
@@ -182,7 +183,8 @@ public class DiscordReminderAskTests
     {
         await using var host = await CreateAsync();
 
-        await host.WithScopeAsync(sp => DiscordRemindersModule.SetFromCommandAsync(sp.GetRequiredService<HabitService>(), 77, false, "de"));
+        await host.WithScopeAsync(sp => DiscordRemindersModule.SetFromCommandAsync(sp.GetRequiredService<HabitService>(),
+            sp.GetRequiredService<ReminderService>(), 77, false, "de"));
 
         var user = await host.WithScopeAsync(async sp =>
         {
@@ -201,7 +203,8 @@ public class DiscordReminderAskTests
         user.Habits.Single().ReminderExclusions = ["browser-9"];
         await using var host = await CreateAsync(user);
 
-        await host.WithScopeAsync(sp => DiscordRemindersModule.SetFromCommandAsync(sp.GetRequiredService<HabitService>(), 10, false, null));
+        await host.WithScopeAsync(sp => DiscordRemindersModule.SetFromCommandAsync(sp.GetRequiredService<HabitService>(),
+            sp.GetRequiredService<ReminderService>(), 10, false, null));
 
         await host.WithScopeAsync(async sp =>
         {

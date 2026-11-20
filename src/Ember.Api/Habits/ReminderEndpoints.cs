@@ -15,11 +15,11 @@ internal static class ReminderEndpoints
 
     public static RouteGroupBuilder MapReminders(this RouteGroupBuilder api)
     {
-        api.MapPost("/reminders/done", async (DoneRequest request, HabitService habits) =>
+        api.MapPost("/reminders/done", async (DoneRequest request, ReminderService reminders) =>
         {
             if (request.Token is not { Length: > 0 and <= MaxTokenLength } token) return Problems.NotFound();
 
-            return await habits.UseReminderActionTokenAsync(token) switch
+            return await reminders.UseReminderActionTokenAsync(token) switch
             {
                 ReminderActionResult.Logged => Results.NoContent(),
                 ReminderActionResult.Expired => Problems.Expired(),

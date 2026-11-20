@@ -110,7 +110,7 @@ public class BotLanguageTests
 
     public static TheoryData<string> Creators => ["consent", "grace", "timezone", "second-reminder", "streaks"];
 
-    private static Task CreateThroughBotAsync(HabitService habits, string creator, ulong discordId, string locale)
+    private static Task CreateThroughBotAsync(HabitService habits, ReminderService reminders, string creator, ulong discordId, string locale)
     {
         var language = Languages.FromLocale(locale);
         return creator switch
@@ -118,7 +118,7 @@ public class BotLanguageTests
             "consent" => ConsentModule.TryAnswerAsync(habits, discordId.ToString(), discordId, agreed: true, language),
             "grace" => habits.SetGraceDaysAsync(discordId, 2, language),
             "timezone" => habits.SetTimezoneAsync(discordId, "Europe/Berlin", language),
-            "second-reminder" => habits.SetSecondReminderMinutesAsync(discordId, 30, language),
+            "second-reminder" => reminders.SetSecondReminderMinutesAsync(discordId, 30, language),
             _ => habits.SetShowStreaksAsync(discordId, true, language),
         };
     }
@@ -129,9 +129,9 @@ public class BotLanguageTests
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false);
 
-        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), creator, 21, "de"));
-        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), creator, 22, "en-US"));
-        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), creator, 21, "en-US"));
+        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), creator, 21, "de"));
+        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), creator, 22, "en-US"));
+        await host.WithScopeAsync(sp => CreateThroughBotAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<ReminderService>(), creator, 21, "en-US"));
 
         var languages = await host.WithScopeAsync(async sp =>
         {

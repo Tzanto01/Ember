@@ -1,6 +1,6 @@
 namespace Ember.Core.Services;
 
-/// <summary>Outcome of using a reminder action token (<see cref="HabitService.UseReminderActionTokenAsync"/>).</summary>
+/// <summary>Outcome of using a reminder action token (<see cref="ReminderService.UseReminderActionTokenAsync"/>).</summary>
 public enum ReminderActionResult
 {
     /// <summary>The check-in was added now, or the token had already been used.</summary>

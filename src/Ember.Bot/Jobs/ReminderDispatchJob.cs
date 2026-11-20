@@ -87,11 +87,11 @@ public class ReminderDispatchJob : IJob
         List<int> dueSecondIds, dueSecondRoutineIds;
         using (var scope = _services.CreateScope())
         {
-            var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-            dueHabits = await habits.GetDueReminderHabitsAsync(now, cancellationToken);
-            dueRoutines = await habits.GetDueReminderRoutinesAsync(now, cancellationToken);
-            dueSecondIds = await habits.GetDueSecondReminderHabitIdsAsync(now, cancellationToken);
-            dueSecondRoutineIds = await habits.GetDueSecondReminderRoutineIdsAsync(now, cancellationToken);
+            var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
+            dueHabits = await reminders.GetDueReminderHabitsAsync(now, cancellationToken);
+            dueRoutines = await reminders.GetDueReminderRoutinesAsync(now, cancellationToken);
+            dueSecondIds = await reminders.GetDueSecondReminderHabitIdsAsync(now, cancellationToken);
+            dueSecondRoutineIds = await reminders.GetDueSecondReminderRoutineIdsAsync(now, cancellationToken);
         }
 
         foreach (var habitId in dueSecondIds)
@@ -108,7 +108,7 @@ public class ReminderDispatchJob : IJob
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Second reminder for habit {HabitId} failed; dropping it.", habitId);
-                await ClearSecondAsync(habits => habits.ClearSecondReminderAsync(habitId, cancellationToken));
+                await ClearSecondAsync(reminders => reminders.ClearSecondReminderAsync(habitId, cancellationToken));
             }
         }
 
@@ -126,7 +126,7 @@ public class ReminderDispatchJob : IJob
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Second reminder for routine {RoutineId} failed; dropping it.", routineId);
-                await ClearSecondAsync(habits => habits.ClearRoutineSecondReminderAsync(routineId, cancellationToken));
+                await ClearSecondAsync(reminders => reminders.ClearRoutineSecondReminderAsync(routineId, cancellationToken));
             }
         }
 
@@ -190,7 +190,7 @@ public class ReminderDispatchJob : IJob
     {
         List<(PushReminder Reminder, string Timezone, bool HabitDone)> open;
         using (var scope = _services.CreateScope())
-            open = await scope.ServiceProvider.GetRequiredService<HabitService>().GetPushRemindersAsync(cancellationToken);
+            open = await scope.ServiceProvider.GetRequiredService<ReminderService>().GetPushRemindersAsync(cancellationToken);
 
         var push = _channels.OfType<WebPushReminderChannel>().FirstOrDefault();
         foreach (var (reminder, timezone, habitDone) in open)
@@ -201,7 +201,7 @@ public class ReminderDispatchJob : IJob
             try
             {
                 using var scope = _services.CreateScope();
-                var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+                var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
                 if (!expired)
                 {
                     User? user = null;
@@ -209,10 +209,10 @@ public class ReminderDispatchJob : IJob
                     var tag = "";
                     if (reminder.HabitId is { } habitId)
                     {
-                        if (await habits.GetHabitWithUserAsync(habitId, cancellationToken) is { } habit)
+                        if (await reminders.GetHabitWithUserAsync(habitId, cancellationToken) is { } habit)
                             (user, exclusions, tag) = (habit.User, habit.ReminderExclusions, WebPushReminderChannel.HabitTag(habitId));
                     }
-                    else if (await habits.GetRoutineWithUserAsync(reminder.RoutineId!.Value, cancellationToken) is { } routine)
+                    else if (await reminders.GetRoutineWithUserAsync(reminder.RoutineId!.Value, cancellationToken) is { } routine)
                     {
                         if (!IsRoutineDone(routine, reminder.Date)) continue;
                         (user, exclusions, tag) = (routine.User, routine.ReminderExclusions, WebPushReminderChannel.RoutineTag(routine.Id));
@@ -221,7 +221,7 @@ public class ReminderDispatchJob : IJob
                         && ReminderDestinations.Resolve(user, exclusions).PushSubscriptionIds is { Count: > 0 } ids)
                         await push.SendClearAsync(user.Id, ids, tag, user.Language, cancellationToken);
                 }
-                await habits.DeletePushReminderAsync(reminder.Id, CancellationToken.None);
+                await reminders.DeletePushReminderAsync(reminder.Id, CancellationToken.None);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -242,7 +242,7 @@ public class ReminderDispatchJob : IJob
     {
         List<(ReminderMessage Message, string Timezone, bool HabitDone, string Language)> open;
         using (var scope = _services.CreateScope())
-            open = await scope.ServiceProvider.GetRequiredService<HabitService>().GetOpenReminderMessagesAsync(cancellationToken);
+            open = await scope.ServiceProvider.GetRequiredService<ReminderService>().GetOpenReminderMessagesAsync(cancellationToken);
 
         foreach (var (message, timezone, habitDone, language) in open)
         {
@@ -252,14 +252,14 @@ public class ReminderDispatchJob : IJob
             try
             {
                 using var scope = _services.CreateScope();
-                var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-                var done = message.HabitId is not null ? habitDone : await IsRoutineDoneAsync(habits, message, cancellationToken);
+                var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
+                var done = message.HabitId is not null ? habitDone : await IsRoutineDoneAsync(reminders, message, cancellationToken);
                 if (!done && !expired) continue;
 
                 await _discord.CloseMessageAsync(message.ChannelId, message.MessageId,
                     done ? DiscordDmReminderChannel.LoggedLine(BotTexts.For(language)) : DiscordDmReminderChannel.ClosedLine(BotTexts.For(language)),
                     cancellationToken);
-                await habits.DeleteReminderMessageAsync(message.Id, CancellationToken.None);
+                await reminders.DeleteReminderMessageAsync(message.Id, CancellationToken.None);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -273,9 +273,9 @@ public class ReminderDispatchJob : IJob
     }
 
     /// <summary>True when the routine still has members and every one of them is done on the message's day.</summary>
-    private static async Task<bool> IsRoutineDoneAsync(HabitService habits, ReminderMessage message, CancellationToken cancellationToken)
+    private static async Task<bool> IsRoutineDoneAsync(ReminderService reminders, ReminderMessage message, CancellationToken cancellationToken)
         => message.RoutineId is { } routineId
-            && await habits.GetRoutineWithUserAsync(routineId, cancellationToken) is { } routine
+            && await reminders.GetRoutineWithUserAsync(routineId, cancellationToken) is { } routine
             && IsRoutineDone(routine, message.Date);
 
     /// <summary>True when the routine has build members and every one of them is done on <paramref name="date"/>. Needs that day's logs loaded.</summary>
@@ -290,8 +290,9 @@ public class ReminderDispatchJob : IJob
     private async Task ProcessSecondAsync(int habitId, DateTime now, CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
+        var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-        var habit = await habits.GetHabitWithUserAsync(habitId, cancellationToken);
+        var habit = await reminders.GetHabitWithUserAsync(habitId, cancellationToken);
         if (habit?.SecondReminderUtc is not { } dueAt || dueAt > now || !_retries.CanAttempt(SecondHabitKind, habitId, dueAt, now)) return;
 
         var user = habit.User;
@@ -308,21 +309,21 @@ public class ReminderDispatchJob : IJob
             && LocalDay(dueAt, tz) == today
             && !HabitRules.IsPausedOn(habit, today)
             && HabitRules.IsScheduledOn(habit, today)
-            && !await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
-            && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
+            && !await reminders.IsCompletedOnAsync(habit.Id, today, cancellationToken)
+            && !await IsWeekDoneAsync(reminders, habit, today, cancellationToken)
             && !await habits.IsLowDayStoredAsync(user.Id, today);
 
         var delivery = Delivery.NotDelivered;
         if (send)
         {
-            var recent = await habits.CountCompletedBetweenAsync(habit.Id, today.AddDays(-7), today, cancellationToken);
+            var recent = await reminders.CountCompletedBetweenAsync(habit.Id, today.AddDays(-7), today, cancellationToken);
             delivery = await DeliverAsync(targets, new Reminder(user.Id, discordId, habit.Id, habit.Name, recent, false, today, Second: true,
                 PushSubscriptionIds: pushIds, Language: user.Language),
                 user, now, (SecondHabitKind, habit.Id, dueAt), cancellationToken);
         }
 
         if (delivery != Delivery.Retry) habit.SecondReminderUtc = null;
-        await habits.SaveChangesAsync(send ? CancellationToken.None : cancellationToken);
+        await reminders.SaveChangesAsync(send ? CancellationToken.None : cancellationToken);
         if (delivery != Delivery.Retry) _retries.Forget(SecondHabitKind, habitId, dueAt);
     }
 
@@ -333,8 +334,9 @@ public class ReminderDispatchJob : IJob
     private async Task ProcessRoutineSecondAsync(int routineId, DateTime now, CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
+        var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-        var routine = await habits.GetRoutineWithUserAsync(routineId, cancellationToken);
+        var routine = await reminders.GetRoutineWithUserAsync(routineId, cancellationToken);
         if (routine?.SecondReminderUtc is not { } dueAt || dueAt > now || !_retries.CanAttempt(SecondRoutineKind, routineId, dueAt, now)) return;
 
         var user = routine.User;
@@ -361,7 +363,7 @@ public class ReminderDispatchJob : IJob
             : Delivery.NotDelivered;
 
         if (delivery != Delivery.Retry) routine.SecondReminderUtc = null;
-        await habits.SaveChangesAsync(send ? CancellationToken.None : cancellationToken);
+        await reminders.SaveChangesAsync(send ? CancellationToken.None : cancellationToken);
         if (delivery != Delivery.Retry) _retries.Forget(SecondRoutineKind, routineId, dueAt);
     }
 
@@ -375,22 +377,22 @@ public class ReminderDispatchJob : IJob
             : null;
 
     /// <summary>True for a weekly habit whose <see cref="Habit.WeeklyTarget"/> is already reached in the Monday–Sunday week of <paramref name="today"/>.</summary>
-    private static async Task<bool> IsWeekDoneAsync(HabitService habits, Habit habit, DateOnly today, CancellationToken cancellationToken)
+    private static async Task<bool> IsWeekDoneAsync(ReminderService reminders, Habit habit, DateOnly today, CancellationToken cancellationToken)
     {
         if (habit.FrequencyType != FrequencyType.Weekly) return false;
         var monday = HabitRules.WeekStart(today);
-        return await habits.CountCompletedBetweenAsync(habit.Id, monday.AddDays(-1), monday.AddDays(7), cancellationToken) >= (habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget);
+        return await reminders.CountCompletedBetweenAsync(habit.Id, monday.AddDays(-1), monday.AddDays(7), cancellationToken) >= (habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget);
     }
 
     private static DateOnly LocalDay(DateTime utc, TimeZoneInfo tz)
         => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), tz));
 
-    private async Task ClearSecondAsync(Func<HabitService, Task> clear)
+    private async Task ClearSecondAsync(Func<ReminderService, Task> clear)
     {
         try
         {
             using var scope = _services.CreateScope();
-            await clear(scope.ServiceProvider.GetRequiredService<HabitService>());
+            await clear(scope.ServiceProvider.GetRequiredService<ReminderService>());
         }
         catch (Exception ex)
         {
@@ -401,8 +403,9 @@ public class ReminderDispatchJob : IJob
     private async Task ProcessAsync(int habitId, DateTime now, CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
+        var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-        var habit = await habits.GetHabitWithUserAsync(habitId, cancellationToken);
+        var habit = await reminders.GetHabitWithUserAsync(habitId, cancellationToken);
         if (habit?.NextReminderUtc is not { } dueAt || dueAt > now) return;
 
         var tz = TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
@@ -418,8 +421,8 @@ public class ReminderDispatchJob : IJob
             && !HabitRules.IsPausedOn(habit, today)
             && HabitRules.IsScheduledOn(habit, today)
             && (letGo
-                || (!await habits.IsCompletedOnAsync(habit.Id, today, cancellationToken)
-                    && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
+                || (!await reminders.IsCompletedOnAsync(habit.Id, today, cancellationToken)
+                    && !await IsWeekDoneAsync(reminders, habit, today, cancellationToken)
                     && !await habits.IsLowDayStoredAsync(user.Id, today)));
 
         DateTime? secondUtc = null;
@@ -432,7 +435,7 @@ public class ReminderDispatchJob : IJob
         else if (send)
         {
             var weekAgo = today.AddDays(-7);
-            var recent = await habits.CountCompletedBetweenAsync(habit.Id, weekAgo, today, cancellationToken);
+            var recent = await reminders.CountCompletedBetweenAsync(habit.Id, weekAgo, today, cancellationToken);
             var snoozed = TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, dueAt.AddTicks(-1)) != dueAt;
             var reminder = new Reminder(user.Id, discordId, habit.Id, habit.Name, recent, snoozed, today, PushSubscriptionIds: pushIds,
                 Language: user.Language);
@@ -446,11 +449,11 @@ public class ReminderDispatchJob : IJob
         if (delivery == Delivery.Retry)
         {
             habit.SecondReminderUtc = null;
-            await habits.SaveChangesAsync(saveToken);
+            await reminders.SaveChangesAsync(saveToken);
             return;
         }
 
-        if (!await habits.SaveAndAdvanceReminderAsync(habit.Id, dueAt, TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now), secondUtc,
+        if (!await reminders.SaveAndAdvanceReminderAsync(habit.Id, dueAt, TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now), secondUtc,
                 saveToken))
             _logger.LogInformation("Reminder for habit {HabitId} changed while it was sent; keeping the change.", habitId);
         _retries.Forget(HabitKind, habitId, dueAt);
@@ -459,8 +462,9 @@ public class ReminderDispatchJob : IJob
     private async Task ProcessRoutineAsync(int routineId, DateTime now, CancellationToken cancellationToken)
     {
         using var scope = _services.CreateScope();
+        var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-        var routine = await habits.GetRoutineWithUserAsync(routineId, cancellationToken);
+        var routine = await reminders.GetRoutineWithUserAsync(routineId, cancellationToken);
         if (routine?.NextReminderUtc is not { } dueAt || dueAt > now) return;
 
         var user = routine.User;
@@ -488,13 +492,13 @@ public class ReminderDispatchJob : IJob
         if (delivery == Delivery.Retry)
         {
             routine.SecondReminderUtc = null;
-            await habits.SaveChangesAsync(saveToken);
+            await reminders.SaveChangesAsync(saveToken);
             return;
         }
 
         var next = routine.ReminderTime is { } reminderTime ? TimezoneHelper.NextOccurrenceUtc(reminderTime, tz, now) : (DateTime?)null;
         var secondUtc = delivery == Delivery.Delivered ? SecondReminderAt(user, tz, today, now) : null;
-        if (!await habits.SaveAndAdvanceRoutineReminderAsync(routine.Id, dueAt, next, secondUtc, saveToken))
+        if (!await reminders.SaveAndAdvanceRoutineReminderAsync(routine.Id, dueAt, next, secondUtc, saveToken))
             _logger.LogInformation("Reminder for routine {RoutineId} changed while it was sent; keeping the change.", routineId);
         _retries.Forget(RoutineKind, routineId, dueAt);
     }
@@ -566,7 +570,7 @@ public class ReminderDispatchJob : IJob
         try
         {
             using var scope = _services.CreateScope();
-            await scope.ServiceProvider.GetRequiredService<HabitService>()
+            await scope.ServiceProvider.GetRequiredService<ReminderService>()
                 .DeferReminderAsync(habitId, now, cancellationToken);
         }
         catch (Exception ex)
@@ -580,7 +584,7 @@ public class ReminderDispatchJob : IJob
         try
         {
             using var scope = _services.CreateScope();
-            await scope.ServiceProvider.GetRequiredService<HabitService>()
+            await scope.ServiceProvider.GetRequiredService<ReminderService>()
                 .DeferRoutineReminderAsync(routineId, now, cancellationToken);
         }
         catch (Exception ex)

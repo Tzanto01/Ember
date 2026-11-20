@@ -49,6 +49,13 @@ public static class ReminderDestinations
     public static List<string> LegacyChannels(ReminderTargets targets)
         => !targets.Any
             ? ["mobile"]
-            : HabitService.ReminderChannelNames((targets.Discord ? ReminderChannels.Discord : ReminderChannels.None)
+            : ReminderChannelNames((targets.Discord ? ReminderChannels.Discord : ReminderChannels.None)
                 | (targets.PushSubscriptionIds.Count > 0 ? ReminderChannels.WebPush : ReminderChannels.None));
+
+    /// <summary>The lowercase names of the set channels (<c>discord</c>, <c>webpush</c>, <c>mobile</c>), in flag order.</summary>
+    private static List<string> ReminderChannelNames(ReminderChannels channels)
+        => Enum.GetValues<ReminderChannels>()
+            .Where(c => c != ReminderChannels.None && channels.HasFlag(c))
+            .Select(c => c.ToString().ToLowerInvariant())
+            .ToList();
 }

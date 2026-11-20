@@ -29,9 +29,10 @@ public class DmPauseNotifier
 
         using var scope = _services.CreateScope();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+        var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
         try
         {
-            if (!await habits.ClaimDmPauseNoticeAsync(context.User.Id))
+            if (!await reminders.ClaimDmPauseNoticeAsync(context.User.Id))
                 return;
         }
         catch (Exception ex)
@@ -51,7 +52,7 @@ public class DmPauseNotifier
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not show the paused-reminders notice to user {UserId}.", context.User.Id);
-            try { await habits.ReleaseDmPauseNoticeAsync(context.User.Id); }
+            try { await reminders.ReleaseDmPauseNoticeAsync(context.User.Id); }
             catch (Exception releaseEx) { _logger.LogWarning(releaseEx, "Could not re-arm the paused-reminders notice for user {UserId}.", context.User.Id); }
         }
     }
