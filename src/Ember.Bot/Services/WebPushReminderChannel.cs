@@ -118,6 +118,8 @@ public sealed class WebPushReminderChannel : IReminderChannel
         }
     }
 
+    private static readonly string[] VapidSettings = ["WebPush:PublicKey", "WebPush:PrivateKey", "WebPush:Subject"];
+
     private const string InvalidConfigMessage =
         "Invalid web push configuration: set all or none of WebPush:PublicKey, WebPush:PrivateKey and WebPush:Subject " +
         "(base64url VAPID keys; subject a mailto: or https: URL).";
@@ -126,8 +128,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
     /// <exception cref="InvalidOperationException">Only some of them are configured.</exception>
     public static bool IsConfigured(IConfiguration config)
     {
-        var set = new[] { "WebPush:PublicKey", "WebPush:PrivateKey", "WebPush:Subject" }
-            .Count(key => !string.IsNullOrWhiteSpace(config[key]));
+        var set = VapidSettings.Count(key => !string.IsNullOrWhiteSpace(config[key]));
         return set switch
         {
             0 => false,
