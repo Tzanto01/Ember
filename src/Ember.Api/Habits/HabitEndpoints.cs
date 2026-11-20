@@ -70,25 +70,16 @@ internal static class HabitEndpoints
             var exclusions = await ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            Habit habit;
-            try
-            {
-                habit = await habits.AddHabitAsync(userId, name!, reminder, frequency!.Value, request.WeeklyTarget,
-                    exclusions, days, timesPerDay, reminderTimes, kind!.Value);
-            }
-            catch (ConsentRequiredException)
-            {
-                return Problems.ConsentRequired();
-            }
-            catch (HabitLimitReachedException)
-            {
-                return Problems.HabitLimit();
-            }
+            var (result, habit) = await habits.AddHabitAsync(userId, name!, reminder, frequency!.Value, request.WeeklyTarget,
+                exclusions, days, timesPerDay, reminderTimes, kind!.Value);
+            if (result == HabitWriteResult.ConsentRequired) return Problems.ConsentRequired();
+            if (result == HabitWriteResult.LimitReached) return Problems.HabitLimit();
 
-            return Results.Created($"/api/habits/{habit.Id}", ToDto(habit, await LoadUserDays(habits, userId)));
+            return Results.Created($"/api/habits/{habit!.Id}", ToDto(habit, await LoadUserDays(habits, userId)));
         });
 
-        api.MapPatch("/habits/{id:int}", async (int id, UpdateHabitRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPatch("/habits/{id:int}", async (int id, UpdateHabitRequest request, ClaimsPrincipal principal, HabitService habits,
+            ConsentService consent) =>
         {
             var userId = principal.UserId();
             var habit = await habits.GetHabitAsync(userId, id);
@@ -114,12 +105,14 @@ internal static class HabitEndpoints
                 ValidateLetGo(frequency, request.TimesPerDay, request.WeeklyTarget, request.Days, request.ReminderTimes?.Length, errors);
             var exclusions = await ParseReminderExclusionsAsync(request.ReminderExclusions, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
-            if (name is not null && name != habit.Name && !await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
+            if (name is not null && name != habit.Name && !await consent.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
 
             if (frequency is not null || request.WeeklyTarget is not null || request.Days is not null || request.TimesPerDay is not null)
                 await habits.SetScheduleAsync(userId, id, newFrequency!.Value, request.WeeklyTarget ?? habit.WeeklyTarget, days, timesPerDay);
-            if (name is not null || reminder is not null || reminderTimes is not null || request.ClearReminder == true || exclusions is not null)
-                await habits.EditHabitAsync(userId, id, name, reminder, request.ClearReminder == true, exclusions, reminderTimes);
+            if ((name is not null || reminder is not null || reminderTimes is not null || request.ClearReminder == true || exclusions is not null)
+                && (await habits.EditHabitAsync(userId, id, name, reminder, request.ClearReminder == true, exclusions, reminderTimes)).Result
+                    == HabitWriteResult.ConsentRequired)
+                return Problems.ConsentRequired();
 
             return await HabitResult(habits, userId, id);
         });

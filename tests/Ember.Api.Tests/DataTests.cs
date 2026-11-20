@@ -70,7 +70,7 @@ public class DataTests(PostgresFixture postgres) : ApiTestBase(postgres)
     {
         var user = await Host.SignedInAsync(consent: false);
 
-        var withoutAge = await (await user.Post("/api/me/consent", new { policyVersion = HabitService.CurrentConsentPolicyVersion }))
+        var withoutAge = await (await user.Post("/api/me/consent", new { policyVersion = ConsentService.CurrentConsentPolicyVersion }))
             .ExpectProblem(HttpStatusCode.BadRequest, "validation");
         withoutAge.GetProperty("errors").TryGetProperty("ageConfirmed", out _).Should().BeTrue();
         await (await user.Post("/api/me/consent", new { policyVersion = "2026-11", ageConfirmed = true })).ExpectProblem(HttpStatusCode.BadRequest, "validation");
@@ -97,7 +97,7 @@ public class DataTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var consent = (await (await user.Get("/api/me")).ExpectJson()).GetProperty("consent");
         consent.GetProperty("given").GetBoolean().Should().BeFalse();
         var withdrawnAt = consent.GetProperty("withdrawnAt").GetDateTimeOffset();
-        consent.GetProperty("deletesAt").GetDateTimeOffset().Should().Be(withdrawnAt + HabitService.WithdrawnDataLifetime);
+        consent.GetProperty("deletesAt").GetDateTimeOffset().Should().Be(withdrawnAt + ConsentService.WithdrawnDataLifetime);
         await (await user.Post("/api/habits", new { name = "Water", frequency = "daily" })).ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
         await (await user.Put($"/api/habits/{habitId}/days/{Host.Today.Iso()}", new { completed = true }))
             .ExpectProblem(HttpStatusCode.Forbidden, "consent_required");

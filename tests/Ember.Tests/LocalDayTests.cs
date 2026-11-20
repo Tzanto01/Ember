@@ -25,7 +25,7 @@ public class LocalDayTests
             db.Users.Add(new User
             {
                 Id = TestUsers.Id(userId), Logins = TestUsers.Discord(userId), Timezone = timezone,
-                HealthDataConsentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ConsentPolicyVersion = Ember.Core.Services.HabitService.CurrentConsentPolicyVersion
+                HealthDataConsentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ConsentPolicyVersion = Ember.Core.Services.ConsentService.CurrentConsentPolicyVersion
             });
             var habit = new Habit { UserId = TestUsers.Id(userId), Name = "Stretch", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
             db.Habits.Add(habit);

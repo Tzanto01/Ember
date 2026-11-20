@@ -499,7 +499,7 @@ public class ReminderDispatchTests
             db.Users.Add(new User { Id = TestUsers.Id(10), DiscordReminders = true, Logins = TestUsers.Discord(10), Timezone = Berlin });
             await db.SaveChangesAsync();
             await sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(10);
-            return await sp.GetRequiredService<HabitService>().AddHabitAsync(10, "Stretch", new TimeOnly(10, 0));
+            return (await sp.GetRequiredService<HabitService>().AddHabitAsync(10, "Stretch", new TimeOnly(10, 0))).Habit!;
         });
         (await NextReminderAsync(host, habit.Id)).Should().Be(new DateTime(2027, 1, 15, 9, 0, 0));
 

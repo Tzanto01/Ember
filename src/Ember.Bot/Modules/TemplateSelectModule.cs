@@ -53,26 +53,23 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
             ? FrequencyType.Weekly
             : FrequencyType.Daily;
 
-        Habit habit;
-        try
-        {
-            habit = await _habits.AddHabitAsync(
-                Context.User.Id,
-                cleanName,
-                reminderTime: null,
-                frequency,
-                template.WeeklyTarget);
-        }
-        catch (ConsentRequiredException)
+        var (result, added) = await _habits.AddHabitAsync(
+            Context.User.Id,
+            cleanName,
+            reminderTime: null,
+            frequency,
+            template.WeeklyTarget);
+        if (result == HabitWriteResult.ConsentRequired)
         {
             await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
             return;
         }
-        catch (HabitLimitReachedException)
+        if (result == HabitWriteResult.LimitReached)
         {
             await RespondAsync(t.Format("habit.limit", Limits.HabitsPerUser), ephemeral: true);
             return;
         }
+        var habit = added!;
 
         var hasTimezone = await _habits.HasTimezoneSetAsync(Context.User.Id);
 

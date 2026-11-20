@@ -23,7 +23,7 @@ public class HabitServiceIntegrationTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(123);
-            var habit = await service.AddHabitAsync(123, "Drink Water", new TimeOnly(9, 0));
+            var habit = (await service.AddHabitAsync(123, "Drink Water", new TimeOnly(9, 0))).Habit!;
             return habit.Id;
         });
 
@@ -50,7 +50,7 @@ public class HabitServiceIntegrationTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(123);
-            var habit = await service.AddHabitAsync(123, "Journal", new TimeOnly(21, 30));
+            var habit = (await service.AddHabitAsync(123, "Journal", new TimeOnly(21, 30))).Habit!;
             await service.EditHabitAsync(123, habit.Id, null, null, clearReminder: true);
             return habit.Id;
         });
@@ -74,7 +74,7 @@ public class HabitServiceIntegrationTests
         var habitId = await host.WithScopeAsync(async sp =>
         {
             await sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(123);
-            return (await sp.GetRequiredService<HabitService>().AddHabitAsync(123, "Journal", null)).Id;
+            return (await sp.GetRequiredService<HabitService>().AddHabitAsync(123, "Journal", null)).Habit!.Id;
         });
 
         var byStranger = await host.WithScopeAsync(sp =>
@@ -105,7 +105,7 @@ public class HabitServiceIntegrationTests
             var db = sp.GetRequiredService<EmberDbContext>();
 
             await service.GiveHealthDataConsentAsync(456);
-            var habit = await service.AddHabitAsync(456, "Read", reminderTime: null);
+            var habit = (await service.AddHabitAsync(456, "Read", reminderTime: null)).Habit!;
             var today = await service.GetLocalTodayAsync(456);
             await service.CheckInAsync(456, habit.Id, today, completed: true, guildId: 100);
             await service.CheckInAsync(456, habit.Id, today, completed: false, guildId: 200);
@@ -131,9 +131,9 @@ public class HabitServiceIntegrationTests
             for (var i = 1; i <= Limits.HabitsPerUser; i++)
                 await service.AddHabitAsync(789, $"Habit {i}", reminderTime: null);
 
-            var add51st = () => service.AddHabitAsync(789, "One more", reminderTime: null, FrequencyType.Weekly, 2);
+            var (result, _) = await service.AddHabitAsync(789, "One more", reminderTime: null, FrequencyType.Weekly, 2);
 
-            await add51st.Should().ThrowAsync<HabitLimitReachedException>();
+            result.Should().Be(HabitWriteResult.LimitReached);
             var userId = await TestUsers.UserIdAsync(sp, 789);
             db.Habits.Count(h => h.UserId == userId).Should().Be(Limits.HabitsPerUser);
         });

@@ -43,12 +43,12 @@ internal static class MeEndpoints
 
     public static RouteGroupBuilder MapMe(this RouteGroupBuilder api)
     {
-        api.MapGet("/me", async (ClaimsPrincipal principal, UserManager<User> users, HabitService habits, JournalService journal,
-            TimeProvider time) =>
-            await LoadMe(principal, users, habits, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
+        api.MapGet("/me", async (ClaimsPrincipal principal, UserManager<User> users, HabitService habits, ConsentService consent,
+            JournalService journal, TimeProvider time) =>
+            await LoadMe(principal, users, habits, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
 
         api.MapPatch("/me", async (JsonElement body, ClaimsPrincipal principal, UserManager<User> users, HabitService habits,
-            JournalService journal, EmberDbContext db, TimeProvider time) =>
+            ConsentService consent, JournalService journal, EmberDbContext db, TimeProvider time) =>
         {
             MePatch? patch;
             try
@@ -85,7 +85,7 @@ internal static class MeEndpoints
                 await habits.RescheduleRemindersAsync(userId);
             }
 
-            return await LoadMe(principal, users, habits, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
+            return await LoadMe(principal, users, habits, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
         });
 
         api.MapPut("/me/today-order", async (TodayOrderRequest request, ClaimsPrincipal principal, HabitService habits) =>
@@ -96,26 +96,26 @@ internal static class MeEndpoints
             return Results.Ok(new TodayOrderDto(await habits.SetTodayOrderAsync(principal.UserId(), request.Order)));
         });
 
-        api.MapPost("/me/consent", async (ConsentRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPost("/me/consent", async (ConsentRequest request, ClaimsPrincipal principal, ConsentService consent) =>
         {
             if (request.AgeConfirmed != true)
                 return Problems.Validation("ageConfirmed", "Confirm that you are at least 16.");
-            if (request.PolicyVersion != HabitService.CurrentConsentPolicyVersion)
+            if (request.PolicyVersion != ConsentService.CurrentConsentPolicyVersion)
                 return Problems.Validation("policyVersion", "Not the current policy version.");
 
-            await habits.GiveHealthDataConsentAsync(principal.UserId());
+            await consent.GiveHealthDataConsentAsync(principal.UserId());
             return Results.NoContent();
         });
 
-        api.MapPost("/me/consent/withdraw", async (ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPost("/me/consent/withdraw", async (ClaimsPrincipal principal, ConsentService consent) =>
         {
-            await habits.WithdrawHealthDataConsentAsync(principal.UserId());
+            await consent.WithdrawHealthDataConsentAsync(principal.UserId());
             return Results.NoContent();
         });
 
-        api.MapPost("/me/consent/decline", async (ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPost("/me/consent/decline", async (ClaimsPrincipal principal, ConsentService consent) =>
         {
-            await habits.DeclineConsentPromptAsync(principal.UserId());
+            await consent.DeclineConsentPromptAsync(principal.UserId());
             return Results.NoContent();
         });
 
@@ -206,7 +206,7 @@ internal static class MeEndpoints
     }
 
     private static async Task<MeDto?> LoadMe(ClaimsPrincipal principal, UserManager<User> users, HabitService habits,
-        JournalService journal, TimeProvider time)
+        ConsentService consent, JournalService journal, TimeProvider time)
     {
         var user = await users.GetUserAsync(principal);
         if (user is null) return null;
@@ -217,9 +217,9 @@ internal static class MeEndpoints
             new DiscordDto(discordId is not null, discordId),
             user.Timezone, await habits.HasTimezoneSetAsync(user.Id), TimezoneHelper.LocalToday(user.Timezone, time),
             user.GraceDaysPerWeek, user.Theme, user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode,
-            new ConsentDto(await habits.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, HabitService.CurrentConsentPolicyVersion,
+            new ConsentDto(await consent.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, ConsentService.CurrentConsentPolicyVersion,
                 user.ConsentWithdrawnAt,
-                user.ConsentWithdrawnAt is { } withdrawn && await habits.HasHealthDataAsync(user.Id) ? HabitService.DeletionDueUtc(withdrawn, user.DeletionReminderSentAt) : null),
+                user.ConsentWithdrawnAt is { } withdrawn && await consent.HasHealthDataAsync(user.Id) ? ConsentService.DeletionDueUtc(withdrawn, user.DeletionReminderSentAt) : null),
             new DmRemindersDto(user.DmRemindersPausedAt is not null),
             await journal.GetJournalStateAsync(user.Id),
             [.. user.TipsSeen], user.TodayOrder?.ToArray(), user.OfferHabitNote);

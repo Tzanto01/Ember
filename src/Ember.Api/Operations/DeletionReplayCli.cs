@@ -4,6 +4,7 @@ using Ember.Core;
 using Ember.Core.Data;
 using Ember.Core.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ember.Api.Operations;
 
@@ -72,13 +73,14 @@ internal static partial class DeletionReplayCli
     /// Repeats the <paramref name="entries"/> at or after <paramref name="since"/> in time order, for accounts that still exist: an
     /// account is deleted the normal way (<see cref="HabitService.DeleteUserDataAsync(Guid)"/>, which queues its Lookout deletion); a
     /// withdrawal or a health-data deletion sets a consent that isn't withdrawn back to withdrawn at the entry's time
-    /// (<see cref="HabitService.RepeatConsentWithdrawalAsync"/>), and a health-data deletion then deletes any health data again
-    /// (<see cref="HabitService.RepeatHealthDataDeletionAsync"/>). Records nothing in the ledger. Prints the counts and returns 0.
+    /// (<see cref="ConsentService.RepeatConsentWithdrawalAsync"/>), and a health-data deletion then deletes any health data again
+    /// (<see cref="ConsentService.RepeatHealthDataDeletionAsync"/>). Records nothing in the ledger. Prints the counts and returns 0.
     /// </summary>
     internal static async Task<int> ReplayAsync(EmberDbContext db, IReadOnlyList<DeletionLedger.Entry> entries, DateTime since, TextWriter output,
         TimeProvider time, CancellationToken cancellationToken = default)
     {
-        var habits = new HabitService(db, time);
+        var consent = new ConsentService(db, time, new DeletionLedger(null, time, NullLogger<DeletionLedger>.Instance));
+        var habits = new HabitService(db, time, consent);
         int accounts = 0, health = 0, withdrawals = 0, done = 0;
         foreach (var entry in entries.Where(e => e.At >= since && e.Kind != DeletionLedger.Start).OrderBy(e => e.At))
         {
@@ -94,12 +96,12 @@ internal static partial class DeletionReplayCli
                 continue;
             }
             var changed = false;
-            if (await habits.RepeatConsentWithdrawalAsync(entry.UserId, entry.At, cancellationToken))
+            if (await consent.RepeatConsentWithdrawalAsync(entry.UserId, entry.At, cancellationToken))
             {
                 withdrawals++;
                 changed = true;
             }
-            if (entry.Kind == DeletionLedger.Health && await habits.RepeatHealthDataDeletionAsync(entry.UserId, cancellationToken))
+            if (entry.Kind == DeletionLedger.Health && await consent.RepeatHealthDataDeletionAsync(entry.UserId, cancellationToken))
             {
                 health++;
                 changed = true;

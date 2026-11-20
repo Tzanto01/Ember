@@ -23,12 +23,12 @@ internal static class LowDayEndpoints
             return Results.Ok(lowDays.Where(d => d >= start && d <= end).Order().ToList());
         });
 
-        api.MapPut("/low-days/{date}", async (string date, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPut("/low-days/{date}", async (string date, ClaimsPrincipal principal, HabitService habits, ConsentService consent) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
             var userId = principal.UserId();
-            if (!await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
+            if (!await consent.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
             if (day > await habits.GetLocalTodayAsync(userId)) return Problems.DayEdit(DayEditResult.InFuture)!;
 
             if (await habits.GetEarliestHabitStartAsync(userId) is not { } start || day < start) return Problems.DayEdit(DayEditResult.BeforeHabitStart)!;

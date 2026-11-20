@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Ember.Core.Models;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,7 +44,7 @@ public class DiscordTests(PostgresFixture postgres) : ApiTestBase(postgres)
     {
         var discordId = ApiHost.NewDiscordId();
         var userId = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
-        await Host.Run(s => s.GiveHealthDataConsentAsync(userId));
+        await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(userId));
         await Host.Service(s => s.AddHabitAsync(userId, "Water", null));
         await Host.Service(s => s.AddHabitAsync(userId, "Read", null));
         var client = Host.NewClient();

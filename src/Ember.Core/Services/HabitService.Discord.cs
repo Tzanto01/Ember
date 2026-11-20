@@ -10,8 +10,8 @@ namespace Ember.Core.Services;
 /// The Discord side of <see cref="HabitService"/>: every user-scoped method keyed on a Discord user ID instead of
 /// the Ember user ID. Each one resolves the Discord ID through <see cref="FindDiscordUserAsync"/> (reads, and
 /// writes that need an existing user) or <see cref="ResolveOrCreateDiscordUserAsync"/> (writes that may create
-/// the user), then calls the <see cref="Guid"/> overload. The lookup is never cached: the API can merge or delete
-/// accounts while the bot runs. The API uses the <see cref="Guid"/> overloads only.
+/// the user), then calls the <see cref="Guid"/> overload (for consent, on <see cref="ConsentService"/>). The lookup is never cached:
+/// the API can merge or delete accounts while the bot runs. The API uses the <see cref="Guid"/> overloads only.
 /// </summary>
 public partial class HabitService
 {
@@ -88,30 +88,30 @@ public partial class HabitService
     }
 
     public async Task<bool> HasHealthDataConsentAsync(ulong discordUserId)
-        => await HasHealthDataConsentAsync(await FindDiscordUserAsync(discordUserId));
+        => await _consent.HasHealthDataConsentAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task GiveHealthDataConsentAsync(ulong discordUserId, string? language = null)
-        => await GiveHealthDataConsentAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language));
+        => await _consent.GiveHealthDataConsentAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language));
 
     public async Task<bool> ClaimConsentPromptAsync(ulong discordUserId)
-        => await ClaimConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
+        => await _consent.ClaimConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task ReleaseConsentPromptAsync(ulong discordUserId)
-        => await ReleaseConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
+        => await _consent.ReleaseConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task<bool> WithdrawHealthDataConsentAsync(ulong discordUserId)
-        => await WithdrawHealthDataConsentAsync(await FindDiscordUserAsync(discordUserId));
+        => await _consent.WithdrawHealthDataConsentAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task<(DateTime WithdrawnAt, DateTime? ReminderSentAt)?> GetConsentWithdrawalAsync(ulong discordUserId)
-        => await GetConsentWithdrawalAsync(await FindDiscordUserAsync(discordUserId));
+        => await _consent.GetConsentWithdrawalAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task DeclineConsentPromptAsync(ulong discordUserId)
-        => await DeclineConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
+        => await _consent.DeclineConsentPromptAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task MarkConsentPromptedAsync(ulong discordUserId)
-        => await MarkConsentPromptedAsync(await FindDiscordUserAsync(discordUserId));
+        => await _consent.MarkConsentPromptedAsync(await FindDiscordUserAsync(discordUserId));
 
-    public async Task<Habit> AddHabitAsync(ulong discordUserId, string name, TimeOnly? reminderTime, FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null)
+    public async Task<(HabitWriteResult Result, Habit? Habit)> AddHabitAsync(ulong discordUserId, string name, TimeOnly? reminderTime, FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null)
         => await AddHabitAsync(await FindDiscordUserAsync(discordUserId), name, reminderTime, frequency, weeklyTarget);
 
     public async Task<Habit?> GetHabitAsync(ulong discordUserId, int habitId)
@@ -150,7 +150,7 @@ public partial class HabitService
     public async Task<bool> DeleteHabitAsync(ulong discordUserId, int habitId)
         => await DeleteHabitAsync(await FindDiscordUserAsync(discordUserId), habitId);
 
-    public async Task<Habit?> EditHabitAsync(ulong discordUserId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder)
+    public async Task<(HabitWriteResult Result, Habit? Habit)> EditHabitAsync(ulong discordUserId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder)
         => await EditHabitAsync(await FindDiscordUserAsync(discordUserId), habitId, newName, newReminderTime, clearReminder);
 
     public async Task<bool> SnoozeReminderAsync(ulong discordUserId, int habitId, DateTimeOffset sentAtUtc)

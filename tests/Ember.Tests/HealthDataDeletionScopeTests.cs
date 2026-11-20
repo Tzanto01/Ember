@@ -1,5 +1,6 @@
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Privacy;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Ember.Tests;
 
-/// <summary>Pins which rows <see cref="HabitService.DeleteHealthDataAsync"/> removes and which it keeps.</summary>
+/// <summary>Pins which rows <see cref="ConsentService.DeleteHealthDataAsync"/> removes and which it keeps.</summary>
 [Collection("Integration")]
 public class HealthDataDeletionScopeTests
 {
@@ -34,7 +35,7 @@ public class HealthDataDeletionScopeTests
                 FiresideEnabled = true,
                 FiresideName = "Sam",
                 HealthDataConsentAt = Now.UtcDateTime.AddDays(-60),
-                ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion,
+                ConsentPolicyVersion = ConsentService.CurrentConsentPolicyVersion,
             };
             var habit = new Habit { Name = "Take meds", CreatedAt = Now.UtcDateTime.AddDays(-60) };
             habit.Logs.Add(new HabitLog { Date = new DateOnly(2027, 1, 10), Completed = true, Count = 1 });
@@ -57,7 +58,7 @@ public class HealthDataDeletionScopeTests
             { TokenHash = [1, 2, 3], UserId = UserId, HabitId = habit.Id, Day = new DateOnly(2027, 1, 14), ExpiresUtc = Now.UtcDateTime.AddDays(1) });
             await db.SaveChangesAsync();
         });
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(UserId))).Should().BeTrue();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(UserId))).Should().BeTrue();
     }
 
     private static Task<Counts> CountsAsync(IntegrationTestHost host)
@@ -78,9 +79,9 @@ public class HealthDataDeletionScopeTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         await SeedAsync(host);
         (await CountsAsync(host)).Should().Be(new Counts(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1));
-        time.Advance(HabitService.WithdrawnDataLifetime);
+        time.Advance(ConsentService.WithdrawnDataLifetime);
 
-        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
+        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>()
             .DeleteHealthDataAsync(UserId, time.GetUtcNow().UtcDateTime));
 
         deleted.Should().BeTrue();
@@ -98,46 +99,21 @@ public class HealthDataDeletionScopeTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         await SeedAsync(host);
 
-        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
+        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>()
             .DeleteHealthDataAsync(UserId, time.GetUtcNow().UtcDateTime.AddMinutes(-1)));
 
         deleted.Should().BeFalse();
         (await CountsAsync(host)).Habits.Should().Be(1);
     }
 
-    /// <summary>Every table the EF model maps; a new entity type must be classified here as emptied by a health-data deletion or kept.</summary>
-    private static readonly Dictionary<string, bool> DeletedOnWithdrawal = new()
-    {
-        [nameof(Habit)] = true, [nameof(HabitLog)] = true, [nameof(HabitSlip)] = true, [nameof(HabitNote)] = true,
-        [nameof(DayMark)] = true, [nameof(DayNote)] = true, [nameof(Mood)] = true, [nameof(UserHelps)] = true,
-        [nameof(ReminderMessage)] = true, [nameof(PushReminder)] = true, [nameof(ReminderActionToken)] = true,
-        [nameof(User)] = false, [nameof(Routine)] = false, [nameof(JournalKey)] = false, [nameof(Ember.Core.Models.PushSubscription)] = false,
-        [nameof(ReminderPhone)] = false, [nameof(AuthSession)] = false, [nameof(Feedback)] = false, [nameof(FeedbackImage)] = false,
-        [nameof(FiresideCode)] = false, [nameof(FiresideLink)] = false, [nameof(Warmth)] = false,
-        [nameof(LookoutUserRef)] = false, [nameof(LookoutOutbox)] = false,
-        ["IdentityUserClaim<Guid>"] = false, ["IdentityUserLogin<Guid>"] = false, ["IdentityUserToken<Guid>"] = false,
-    };
-
-    private static string ModelName(Type type) => type.IsGenericType ? $"{type.Name[..type.Name.IndexOf('`')]}<Guid>" : type.Name;
-
-    [Fact]
-    public async Task EveryEntityTypeIsClassifiedAsDeletedOrKeptOnWithdrawal()
-    {
-        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
-
-        var mapped = await host.WithScopeAsync(sp => Task.FromResult(sp.GetRequiredService<EmberDbContext>().Model.GetEntityTypes()
-            .Select(t => ModelName(t.ClrType)).ToList()));
-
-        mapped.Should().BeEquivalentTo(DeletedOnWithdrawal.Keys, "a new entity type must be classified as health data (emptied on withdrawal) or kept");
-    }
-
     /// <summary>Seeds one withdrawn user with every health table filled, deletes, and asserts every table classified as deleted is empty.</summary>
     internal static async Task AssertWithdrawalEmptiesEveryHealthTableAsync(IntegrationTestHost host, FakeTimeProvider time)
     {
         await SeedAsync(host);
-        time.Advance(HabitService.WithdrawnDataLifetime);
+        time.Advance(ConsentService.WithdrawnDataLifetime);
         var tables = await host.WithScopeAsync(sp => Task.FromResult(sp.GetRequiredService<EmberDbContext>().Model.GetEntityTypes()
-            .Where(t => DeletedOnWithdrawal[ModelName(t.ClrType)]).Select(t => t.GetTableName()!).ToList()));
+            .Where(t => DataLifecycle.Entities.Single(e => e.Entity == t.ClrType).Withdrawal != WithdrawalRule.Kept)
+            .Select(t => t.GetTableName()!).ToList()));
 
         async Task<Dictionary<string, long>> CountRowsAsync() => await host.WithScopeAsync(async sp =>
         {
@@ -154,7 +130,7 @@ public class HealthDataDeletionScopeTests
         });
 
         (await CountRowsAsync()).Should().OnlyContain(c => c.Value > 0, "the seed fills every health table, so the deletion has something to empty");
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().DeleteHealthDataAsync(UserId, time.GetUtcNow().UtcDateTime))).Should().BeTrue();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().DeleteHealthDataAsync(UserId, time.GetUtcNow().UtcDateTime))).Should().BeTrue();
         (await CountRowsAsync()).Should().OnlyContain(c => c.Value == 0);
     }
 

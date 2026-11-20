@@ -20,6 +20,21 @@ public enum MoodWriteResult
 
     /// <summary>The write would leave more than <see cref="JournalService.MaxActiveMoodsPerUser"/> non-archived moods. Nothing was written.</summary>
     LimitReached,
+
+    /// <summary>The user hasn't agreed to the current health-data consent. Nothing was written.</summary>
+    ConsentRequired,
+}
+
+/// <summary>Outcome of writing a day note or a habit note.</summary>
+public enum NoteWriteResult
+{
+    Saved,
+
+    /// <summary>The habit isn't the user's. Nothing was written.</summary>
+    NotFound,
+
+    /// <summary>The user hasn't agreed to the current health-data consent. Nothing was written.</summary>
+    ConsentRequired,
 }
 
 /// <summary>
@@ -30,11 +45,14 @@ public partial class JournalService
 {
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
+    private readonly ConsentService _consent;
 
-    public JournalService(EmberDbContext db, TimeProvider time)
+    /// <param name="consent">Answers whether the user agreed to store health data, which writing notes, own moods and the "What helps me" list needs.</param>
+    public JournalService(EmberDbContext db, TimeProvider time, ConsentService consent)
     {
         _db = db;
         _time = time;
+        _consent = consent;
     }
 
     /// <summary>Most non-archived own moods a single user can have.</summary>
@@ -54,16 +72,19 @@ public partial class JournalService
 
     /// <summary>
     /// Replaces the user's day note for <paramref name="date"/> with plaintext <paramref name="text"/>/<paramref name="mood"/> or,
-    /// when <paramref name="cipher"/> is set, with that blob (clearing the other form). With nothing set the note is deleted and null returned.
-    /// Callers validate the values, the date range and consent.
+    /// when <paramref name="cipher"/> is set, with that blob (clearing the other form). With nothing set the note is deleted and
+    /// <see cref="NoteWriteResult.Saved"/> returned without a note, consent or not; any other write needs the health-data consent
+    /// (<see cref="NoteWriteResult.ConsentRequired"/>). Callers validate the values and the date range.
     /// </summary>
-    public async Task<DayNote?> SetDayNoteAsync(Guid userId, DateOnly date, string? text, string? mood, JournalCipher? cipher)
+    public async Task<(NoteWriteResult Result, DayNote? Note)> SetDayNoteAsync(Guid userId, DateOnly date, string? text, string? mood,
+        JournalCipher? cipher)
     {
         if (text is null && mood is null && cipher is null)
         {
             await DeleteDayNoteAsync(userId, date);
-            return null;
+            return (NoteWriteResult.Saved, null);
         }
+        if (!await _consent.HasHealthDataConsentAsync(userId)) return (NoteWriteResult.ConsentRequired, null);
 
         var note = await _db.DayNotes.FirstOrDefaultAsync(n => n.UserId == userId && n.Date == date);
         var isNew = note is null;
@@ -81,7 +102,7 @@ public partial class JournalService
             ApplyDayNote(note, text, mood, cipher);
             await _db.SaveChangesAsync();
         }
-        return note;
+        return (NoteWriteResult.Saved, note);
     }
 
     /// <summary>Deletes the user's day note for <paramref name="date"/>, if there is one.</summary>
@@ -101,12 +122,15 @@ public partial class JournalService
 
     /// <summary>
     /// Replaces the note on the user's habit <paramref name="habitId"/> for <paramref name="date"/> with plaintext <paramref name="text"/>
-    /// or, when <paramref name="cipher"/> is set, with that blob (clearing the other form). Null when the habit isn't the user's.
-    /// Callers validate the values, the date range and consent.
+    /// or, when <paramref name="cipher"/> is set, with that blob (clearing the other form). Needs the health-data consent
+    /// (<see cref="NoteWriteResult.ConsentRequired"/>); <see cref="NoteWriteResult.NotFound"/> when the habit isn't the user's.
+    /// Callers validate the values and the date range.
     /// </summary>
-    public async Task<HabitNote?> SetHabitNoteAsync(Guid userId, int habitId, DateOnly date, string? text, JournalCipher? cipher)
+    public async Task<(NoteWriteResult Result, HabitNote? Note)> SetHabitNoteAsync(Guid userId, int habitId, DateOnly date, string? text,
+        JournalCipher? cipher)
     {
-        if (!await _db.Habits.AnyAsync(h => h.Id == habitId && h.UserId == userId)) return null;
+        if (!await _consent.HasHealthDataConsentAsync(userId)) return (NoteWriteResult.ConsentRequired, null);
+        if (!await _db.Habits.AnyAsync(h => h.Id == habitId && h.UserId == userId)) return (NoteWriteResult.NotFound, null);
 
         var note = await _db.HabitNotes.FirstOrDefaultAsync(n => n.HabitId == habitId && n.Date == date);
         var isNew = note is null;
@@ -122,13 +146,13 @@ public partial class JournalService
             note = await _db.HabitNotes.FirstOrDefaultAsync(n => n.HabitId == habitId && n.Date == date);
             if (note is null)
             {
-                if (!await _db.Habits.AnyAsync(h => h.Id == habitId && h.UserId == userId)) return null;
+                if (!await _db.Habits.AnyAsync(h => h.Id == habitId && h.UserId == userId)) return (NoteWriteResult.NotFound, null);
                 throw;
             }
             ApplyHabitNote(note, text, cipher);
             await _db.SaveChangesAsync();
         }
-        return note;
+        return (NoteWriteResult.Saved, note);
     }
 
     /// <summary>Deletes the note on the user's habit for <paramref name="date"/>, if there is one. False when the habit isn't the user's.</summary>
@@ -148,10 +172,14 @@ public partial class JournalService
     public Task<Mood?> GetMoodAsync(Guid userId, int moodId)
         => _db.Moods.AsNoTracking().FirstOrDefaultAsync(m => m.Id == moodId && m.UserId == userId);
 
-    /// <summary>Creates an own mood, plaintext (<paramref name="label"/>, <paramref name="emoji"/>) or encrypted (<paramref name="cipher"/>).</summary>
+    /// <summary>
+    /// Creates an own mood, plaintext (<paramref name="label"/>, <paramref name="emoji"/>) or encrypted (<paramref name="cipher"/>).
+    /// Needs the health-data consent (<see cref="MoodWriteResult.ConsentRequired"/>).
+    /// </summary>
     public async Task<(MoodWriteResult Result, Mood? Mood)> AddMoodAsync(Guid userId, string? label, string? emoji, JournalCipher? cipher,
         bool archived)
     {
+        if (!await _consent.HasHealthDataConsentAsync(userId)) return (MoodWriteResult.ConsentRequired, null);
         if (!archived && await CountActiveMoodsAsync(userId) >= MaxActiveMoodsPerUser)
             return (MoodWriteResult.LimitReached, null);
 
@@ -164,11 +192,13 @@ public partial class JournalService
 
     /// <summary>
     /// Edits the user's own mood. A non-null <paramref name="label"/> stores it as plaintext with <paramref name="emoji"/>; a non-null
-    /// <paramref name="cipher"/> stores it encrypted; with neither, only <paramref name="archived"/> (when set) changes.
+    /// <paramref name="cipher"/> stores it encrypted; with neither, only <paramref name="archived"/> (when set) changes. Needs the
+    /// health-data consent (<see cref="MoodWriteResult.ConsentRequired"/>), checked before the mood is looked up.
     /// </summary>
     public async Task<(MoodWriteResult Result, Mood? Mood)> EditMoodAsync(Guid userId, int moodId, string? label, string? emoji,
         JournalCipher? cipher, bool? archived)
     {
+        if (!await _consent.HasHealthDataConsentAsync(userId)) return (MoodWriteResult.ConsentRequired, null);
         var mood = await _db.Moods.FirstOrDefaultAsync(m => m.Id == moodId && m.UserId == userId);
         if (mood is null) return (MoodWriteResult.NotFound, null);
         if (archived == false && mood.Archived && await CountActiveMoodsAsync(userId) >= MaxActiveMoodsPerUser)

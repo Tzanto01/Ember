@@ -39,7 +39,7 @@ public class PauseServiceTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Id;
+            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
         });
 
         time.Advance(TimeSpan.FromDays(5));
@@ -63,7 +63,7 @@ public class PauseServiceTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
-            var habit = await service.AddHabitAsync(UserId, "Stretch", null);
+            var habit = (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!;
             await service.PauseHabitAsync(UserId, habit.Id, new DateOnly(2027, 1, 10));
             return await service.PauseHabitAsync(UserId, habit.Id, null);
         });
@@ -80,7 +80,7 @@ public class PauseServiceTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Id;
+            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
         });
         return (host, time, habitId);
     }

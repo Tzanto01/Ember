@@ -141,7 +141,7 @@ public class PostgresBehaviorTests(PostgresFixture postgres)
                     Id = TestUsers.Id(discordId),
                     Logins = TestUsers.Discord(discordId),
                     HealthDataConsentAt = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion,
+                    ConsentPolicyVersion = ConsentService.CurrentConsentPolicyVersion,
                 },
                 Name = "Stretch",
                 CreatedAt = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc),

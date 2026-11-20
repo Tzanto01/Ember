@@ -63,7 +63,7 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
         var name = NewName(prefix);
         await Host.Db(db => db.Users.Where(u => u.Id == id).ExecuteUpdateAsync(s => s
             .SetProperty(u => u.FiresideEnabled, true).SetProperty(u => u.FiresideName, name)));
-        await Host.Run(s => s.GiveHealthDataConsentAsync(id));
+        await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(id));
         return new Seeded(id, name);
     }
 
@@ -595,7 +595,7 @@ public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(po
     {
         var discordId = ApiHost.NewDiscordId();
         var id = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
-        await Host.Run(s => s.GiveHealthDataConsentAsync(id));
+        await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(id));
         await Host.Db(db => db.Users.Where(u => u.Id == id).ExecuteUpdateAsync(s => s
             .SetProperty(u => u.FiresideEnabled, true).SetProperty(u => u.FiresideName, prefix).SetProperty(u => u.FiresideNotify, true)
             .SetProperty(u => u.FiresideConsentAt, new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc))

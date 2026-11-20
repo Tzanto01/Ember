@@ -46,8 +46,8 @@ public class BotRoutingTests
             await service.GiveHealthDataConsentAsync(Owner);
             if (timezone) await service.SetTimezoneAsync(Owner, "Europe/Berlin");
             var userId = await service.FindDiscordUserAsync(Owner);
-            var build = await service.AddHabitAsync(userId, "Walk", new TimeOnly(9, 0));
-            var letGo = await service.AddHabitAsync(userId, "Smoking", null, kind: HabitKind.LetGo);
+            var build = (await service.AddHabitAsync(userId, "Walk", new TimeOnly(9, 0))).Habit!;
+            var letGo = (await service.AddHabitAsync(userId, "Smoking", null, kind: HabitKind.LetGo)).Habit!;
             return (build.Id, letGo.Id);
         });
 

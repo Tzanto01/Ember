@@ -50,7 +50,7 @@ public partial class HabitService
         if (habit.Kind != HabitKind.LetGo) return SlipResult.NotLetGo;
         if (date > TimezoneHelper.LocalToday(habit.User.Timezone, _time)) return SlipResult.InFuture;
         if (date < HabitRules.StartDate(habit, TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc)) return SlipResult.BeforeHabitStart;
-        if (!await HasHealthDataConsentAsync(userId)) return SlipResult.ConsentRequired;
+        if (!await _consent.HasHealthDataConsentAsync(userId)) return SlipResult.ConsentRequired;
 
         var now = _time.GetUtcNow().UtcDateTime;
         var existing = await _db.HabitSlips.FirstOrDefaultAsync(s => s.HabitId == habitId && s.Date == date);

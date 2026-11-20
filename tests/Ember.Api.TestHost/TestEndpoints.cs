@@ -64,7 +64,8 @@ public static class TestEndpoints
                 ? Results.Ok(latest)
                 : Results.NotFound());
 
-        test.MapPost("/users/bot-only", async (BotOnlyRequest request, HabitService habits, EmberDbContext db, TimeProvider time) =>
+        test.MapPost("/users/bot-only", async (BotOnlyRequest request, HabitService habits, ConsentService consent, EmberDbContext db,
+            TimeProvider time) =>
         {
             if (!ulong.TryParse(request.DiscordId, NumberStyles.None, CultureInfo.InvariantCulture, out var discordId))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["discordId"] = ["Must be a Discord user ID."] });
@@ -80,8 +81,8 @@ public static class TestEndpoints
                 return Results.Conflict();
 
             var userId = await habits.ResolveOrCreateDiscordUserAsync(discordId);
-            await habits.GiveHealthDataConsentAsync(userId);
-            var habit = await habits.AddHabitAsync(userId, "Water", null);
+            await consent.GiveHealthDataConsentAsync(userId);
+            var habit = (await habits.AddHabitAsync(userId, "Water", null)).Habit!;
             if (startDate < DateOnly.FromDateTime(now))
             {
                 var createdAt = startDate.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc);

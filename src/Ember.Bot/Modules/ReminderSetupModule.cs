@@ -144,7 +144,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
         if (!int.TryParse(habitIdStr, out var habitId) || !TimeOnly.TryParseExact(time, "HH:mm", out var reminderTime))
             return null;
 
-        return await habits.EditHabitAsync(userId, habitId, newName: null, reminderTime, clearReminder: false);
+        return (await habits.EditHabitAsync(userId, habitId, newName: null, reminderTime, clearReminder: false)).Habit;
     }
 
     // ── "Not now" button ──────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        var habit = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: null, newReminderTime: null, clearReminder: true);
+        var (_, habit) = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: null, newReminderTime: null, clearReminder: true);
 
         if (habit is null)
         {
@@ -225,7 +225,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
         }
 
         var replaced = (await _habits.GetHabitAsync(Context.User.Id, habitId))?.ReminderTimes.ToList() ?? [];
-        var habit = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: null, parsed, clearReminder: false);
+        var (_, habit) = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: null, parsed, clearReminder: false);
 
         if (habit is null)
         {

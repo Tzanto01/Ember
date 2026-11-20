@@ -46,7 +46,7 @@ public partial class HabitService
 
         var now = _time.GetUtcNow().UtcDateTime;
         if (row.ExpiresUtc <= now) return ReminderActionResult.Expired;
-        if (!await HasHealthDataConsentAsync(row.UserId)) return ReminderActionResult.ConsentRequired;
+        if (!await _consent.HasHealthDataConsentAsync(row.UserId)) return ReminderActionResult.ConsentRequired;
 
         var claimed = await _db.ReminderActionTokens
             .Where(t => t.Id == row.Id && t.UsedUtc == null)

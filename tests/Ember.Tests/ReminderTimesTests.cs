@@ -61,7 +61,7 @@ public class ReminderTimesTests
                 Timezone = "Europe/Berlin",
                 SecondReminderMinutes = secondReminderMinutes,
                 HealthDataConsentAt = Now.UtcDateTime,
-                ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion,
+                ConsentPolicyVersion = ConsentService.CurrentConsentPolicyVersion,
             });
             db.Habits.AddRange(habits);
             await db.SaveChangesAsync();

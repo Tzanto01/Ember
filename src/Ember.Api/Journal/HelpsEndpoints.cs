@@ -19,10 +19,10 @@ internal static class HelpsEndpoints
                 ? Results.Ok(new HelpsDto(helps.Encrypted, helps.Version))
                 : Problems.NotFound());
 
-        api.MapPut("/me/helps", async (HelpsRequest request, ClaimsPrincipal principal, HabitService habits, JournalService journal) =>
+        api.MapPut("/me/helps", async (HelpsRequest request, ClaimsPrincipal principal, ConsentService consent, JournalService journal) =>
         {
             var userId = principal.UserId();
-            if (!await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
+            if (!await consent.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
 
             var errors = new Dictionary<string, string[]>();
             if (request.Encrypted is not { Length: > 0 and <= UserHelps.MaxEncryptedLength })
@@ -35,6 +35,7 @@ internal static class HelpsEndpoints
             {
                 HelpsWriteResult.Saved => Results.Ok(new HelpsVersionDto(version)),
                 HelpsWriteResult.JournalOff => Problems.Conflict("The private journal is off or turning off."),
+                HelpsWriteResult.ConsentRequired => Problems.ConsentRequired(),
                 _ => Problems.Conflict("Another device saved this list meanwhile. Reload and try again."),
             };
         });

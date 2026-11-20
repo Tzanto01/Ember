@@ -2,6 +2,7 @@ using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
@@ -18,10 +19,10 @@ public class ConsentGateMatrixTests
 
     private static readonly Dictionary<string, Func<HabitService, int, int, Task<string>>> Operations = new()
     {
-        ["AddHabit"] = (s, _, _) => Outcome(() => s.AddHabitAsync(UserId, "Take meds", null)),
-        ["AddLetGoHabit"] = (s, _, _) => Outcome(() => s.AddHabitAsync(UserId, "Smoking", null, kind: HabitKind.LetGo)),
-        ["EditHabitRename"] = (s, b, _) => Outcome(() => s.EditHabitAsync(UserId, b, "Renamed", null, false)),
-        ["EditHabitReminder"] = (s, b, _) => Outcome(async () => (await s.EditHabitAsync(UserId, b, null, new TimeOnly(7, 0), false))!.ReminderTime),
+        ["AddHabit"] = (s, _, _) => Outcome(async () => (await s.AddHabitAsync(UserId, "Take meds", null)).Result),
+        ["AddLetGoHabit"] = (s, _, _) => Outcome(async () => (await s.AddHabitAsync(UserId, "Smoking", null, kind: HabitKind.LetGo)).Result),
+        ["EditHabitRename"] = (s, b, _) => Outcome(async () => (await s.EditHabitAsync(UserId, b, "Renamed", null, false)).Result),
+        ["EditHabitReminder"] = (s, b, _) => Outcome(async () => (await s.EditHabitAsync(UserId, b, null, new TimeOnly(7, 0), false)).Habit!.ReminderTime),
         ["Import"] = (s, _, _) => Outcome(() => s.ImportAsync(UserId, EmptyImport)),
         ["CheckIn"] = (s, b, _) => Outcome(() => s.CheckInAsync(UserId, b, Today, true)),
         ["AddCheckIn"] = (s, b, _) => Outcome(() => s.AddCheckInAsync(UserId, b, Today)),
@@ -39,17 +40,22 @@ public class ConsentGateMatrixTests
             await s.UseReminderActionTokenAsync(await s.CreateReminderActionTokenAsync(UserId, b, Today, Now.UtcDateTime.AddHours(5)))),
     };
 
-    private static async Task<string> Outcome<T>(Func<Task<T>> call)
+    private static readonly Dictionary<string, Func<JournalService, int, int, Task<string>>> JournalOperations = new()
     {
-        try
-        {
-            return Convert.ToString(await call(), System.Globalization.CultureInfo.InvariantCulture) ?? "null";
-        }
-        catch (ConsentRequiredException)
-        {
-            return "ConsentRequiredException";
-        }
-    }
+        ["SetDayNote"] = (j, _, _) => Outcome(async () => (await j.SetDayNoteAsync(UserId, Today, "Changed", null, null)).Result),
+        ["SetNewDayNote"] = (j, _, _) => Outcome(async () => (await j.SetDayNoteAsync(UserId, Today.AddDays(-1), null, "good", null)).Result),
+        ["SetHabitNote"] = (j, b, _) => Outcome(async () => (await j.SetHabitNoteAsync(UserId, b, Today, "Changed", null)).Result),
+        ["AddMood"] = (j, _, _) => Outcome(async () => (await j.AddMoodAsync(UserId, "Calm", null, null, false)).Result),
+        ["EditMood"] = (j, _, m) => Outcome(async () => (await j.EditMoodAsync(UserId, m, "Changed", null, null, true)).Result),
+        ["PutHelps"] = (j, _, _) => Outcome(async () => (await j.PutHelpsAsync(UserId, "changed", 1)).Result),
+        ["ClearDayNote"] = (j, _, _) => Outcome(async () => (await j.SetDayNoteAsync(UserId, Today, null, null, null)).Result),
+        ["DeleteDayNote"] = (j, _, _) => Outcome(async () => { await j.DeleteDayNoteAsync(UserId, Today); return "done"; }),
+        ["DeleteHabitNote"] = (j, b, _) => Outcome(() => j.DeleteHabitNoteAsync(UserId, b, Today)),
+        ["DeleteHelps"] = (j, _, _) => Outcome(async () => { await j.DeleteHelpsAsync(UserId); return "done"; }),
+    };
+
+    private static async Task<string> Outcome<T>(Func<Task<T>> call)
+        => Convert.ToString(await call(), System.Globalization.CultureInfo.InvariantCulture) ?? "null";
 
     private static async Task<(int BuildId, int LetGoId)> SeedWithoutConsentAsync(IntegrationTestHost host)
         => await host.WithScopeAsync(async sp =>
@@ -66,10 +72,10 @@ public class ConsentGateMatrixTests
         });
 
     [Theory]
-    [InlineData("AddHabit", "ConsentRequiredException")]
-    [InlineData("AddLetGoHabit", "ConsentRequiredException")]
-    [InlineData("EditHabitRename", "ConsentRequiredException")]
-    [InlineData("Import", "ConsentRequiredException")]
+    [InlineData("AddHabit", "ConsentRequired")]
+    [InlineData("AddLetGoHabit", "ConsentRequired")]
+    [InlineData("EditHabitRename", "ConsentRequired")]
+    [InlineData("Import", "ConsentRequired")]
     [InlineData("CheckIn", "ConsentRequired")]
     [InlineData("AddCheckIn", "ConsentRequired")]
     [InlineData("SetCount", "ConsentRequired")]
@@ -92,6 +98,56 @@ public class ConsentGateMatrixTests
         var outcome = await host.WithScopeAsync(sp => Operations[operation](sp.GetRequiredService<HabitService>(), buildId, letGoId));
 
         outcome.Should().Be(expected);
+    }
+
+    /// <summary>A day note and a habit note for today, an own mood and a "What helps me" list for the user without consent.</summary>
+    private static async Task<int> SeedJournalAsync(IntegrationTestHost host, int buildId)
+        => await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var mood = new Mood { UserId = UserId, Label = "Tired", CreatedAt = Now.UtcDateTime };
+            db.Moods.Add(mood);
+            db.DayNotes.Add(new DayNote { UserId = UserId, Date = Today, Text = "A note" });
+            db.HabitNotes.Add(new HabitNote { HabitId = buildId, Date = Today, Text = "A habit note" });
+            db.UserHelps.Add(new UserHelps { UserId = UserId, Encrypted = "stored", Version = 1, UpdatedAt = Now.UtcDateTime });
+            await db.SaveChangesAsync();
+            return mood.Id;
+        });
+
+    private static Task<string> JournalSnapshotAsync(IntegrationTestHost host)
+        => host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var dayNotes = await db.DayNotes.OrderBy(n => n.Date).Select(n => $"{n.Date}:{n.Text}:{n.Mood}").ToListAsync();
+            var habitNotes = await db.HabitNotes.OrderBy(n => n.Date).Select(n => $"{n.HabitId}:{n.Date}:{n.Text}").ToListAsync();
+            var moods = await db.Moods.OrderBy(m => m.Id).Select(m => $"{m.Label}:{m.Archived}").ToListAsync();
+            var helps = await db.UserHelps.Select(h => $"{h.Encrypted}:{h.Version}").ToListAsync();
+            return string.Join("|", dayNotes.Concat(habitNotes).Concat(moods).Concat(helps));
+        });
+
+    [Theory]
+    [InlineData("SetDayNote", "ConsentRequired")]
+    [InlineData("SetNewDayNote", "ConsentRequired")]
+    [InlineData("SetHabitNote", "ConsentRequired")]
+    [InlineData("AddMood", "ConsentRequired")]
+    [InlineData("EditMood", "ConsentRequired")]
+    [InlineData("PutHelps", "ConsentRequired")]
+    [InlineData("ClearDayNote", "Saved")]
+    [InlineData("DeleteDayNote", "done")]
+    [InlineData("DeleteHabitNote", "True")]
+    [InlineData("DeleteHelps", "done")]
+    public async Task WithoutConsent_EachJournalWrite_IsRefusedWritingNothing_OrAllowedAsPinned(string operation, string expected)
+    {
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
+        var (buildId, _) = await SeedWithoutConsentAsync(host);
+        var moodId = await SeedJournalAsync(host, buildId);
+        var before = await JournalSnapshotAsync(host);
+
+        var outcome = await host.WithScopeAsync(sp => JournalOperations[operation](sp.GetRequiredService<JournalService>(), buildId, moodId));
+
+        outcome.Should().Be(expected);
+        if (expected == "ConsentRequired") (await JournalSnapshotAsync(host)).Should().Be(before);
+        else (await JournalSnapshotAsync(host)).Should().NotBe(before, "a deletion without consent still deletes");
     }
 
     [Fact]

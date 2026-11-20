@@ -87,14 +87,14 @@ public class User : IdentityUser<Guid>
 
     /// <summary>
     /// The user's local day on which Ember last asked for consent, so it asks at most once per day. After a "No thanks" it holds the
-    /// last day of the back-off instead (<see cref="Services.HabitService.ConsentDeclineBackoffDays"/>), so the next ask comes after it.
+    /// last day of the back-off instead (<see cref="Services.ConsentService.ConsentDeclineBackoffDays"/>), so the next ask comes after it.
     /// </summary>
     public DateOnly? ConsentPromptedOn { get; set; }
 
     /// <summary>
     /// When (UTC) the health-data consent was withdrawn or declined, or, for an account that held health data without ever agreeing,
     /// when that rule shipped; null otherwise. While set, nothing new is saved and reminders stop; after
-    /// <see cref="Services.HabitService.WithdrawnDataLifetime"/> the health data is deleted. Agreeing again clears it.
+    /// <see cref="Services.ConsentService.WithdrawnDataLifetime"/> the health data is deleted. Agreeing again clears it.
     /// </summary>
     public DateTime? ConsentWithdrawnAt { get; set; }
 

@@ -35,7 +35,7 @@ public class BotHandlerFlowTests
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(User);
             var userId = await service.FindDiscordUserAsync(User);
-            var habit = await service.AddHabitAsync(userId, name, null, kind: kind);
+            var habit = (await service.AddHabitAsync(userId, name, null, kind: kind)).Habit!;
             if (!consent) await service.WithdrawHealthDataConsentAsync(User);
             return habit.Id;
         });
@@ -131,7 +131,7 @@ public class BotHandlerFlowTests
         var buildId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            return (await service.AddHabitAsync(await service.FindDiscordUserAsync(User), "Walk", null)).Id;
+            return (await service.AddHabitAsync(await service.FindDiscordUserAsync(User), "Walk", null)).Habit!.Id;
         });
 
         var fromList = await HabitActionAsync(host, m => m.OnListSlipAsync(letGoId.ToString()));
@@ -194,7 +194,7 @@ public class BotHandlerFlowTests
         var skipId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            return (await service.AddHabitAsync(await service.FindDiscordUserAsync(User), "Read", null)).Id;
+            return (await service.AddHabitAsync(await service.FindDiscordUserAsync(User), "Read", null)).Habit!.Id;
         });
 
         await HabitActionAsync(host, m => m.OnCheckinDoneAsync(doneId.ToString()));
@@ -294,7 +294,7 @@ public class BotHandlerFlowTests
         var letGoId = await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            return (await service.AddHabitAsync(await service.FindDiscordUserAsync(User), "Smoking", null, kind: HabitKind.LetGo)).Id;
+            return (await service.AddHabitAsync(await service.FindDiscordUserAsync(User), "Smoking", null, kind: HabitKind.LetGo)).Habit!.Id;
         });
 
         var build = await FrequencyAsync(host, m => m.ShowMenuAsync(buildId.ToString()));

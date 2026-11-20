@@ -42,7 +42,7 @@ public class HealthDataDeletionTests
                 Timezone = "UTC",
                 GraceDaysPerWeek = 2,
                 HealthDataConsentAt = Now.UtcDateTime.AddDays(-60),
-                ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion,
+                ConsentPolicyVersion = ConsentService.CurrentConsentPolicyVersion,
             };
             var habit = new Habit { Name = "Take meds", CreatedAt = Now.UtcDateTime.AddDays(-60) };
             habit.Logs.Add(new HabitLog { Date = new DateOnly(2027, 1, 10), Completed = true });
@@ -61,7 +61,7 @@ public class HealthDataDeletionTests
             db.Users.Add(user);
             await db.SaveChangesAsync();
         });
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(TestUsers.Id(id))))
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(TestUsers.Id(id))))
             .Should().BeTrue();
     }
 
@@ -225,7 +225,7 @@ public class HealthDataDeletionTests
         time.Advance(TimeSpan.FromDays(27));
         await RunJobAsync(host);
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(TestUsers.Id(12)));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(TestUsers.Id(12)));
         time.Advance(TimeSpan.FromDays(10));
         await RunJobAsync(host);
 
@@ -240,10 +240,10 @@ public class HealthDataDeletionTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         await SeedWithdrawnUserAsync(host, 13);
         time.Advance(TimeSpan.FromDays(40));
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(TestUsers.Id(13)));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(TestUsers.Id(13)));
 
-        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
-            .DeleteHealthDataAsync(TestUsers.Id(13), time.GetUtcNow().UtcDateTime - HabitService.WithdrawnDataLifetime));
+        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>()
+            .DeleteHealthDataAsync(TestUsers.Id(13), time.GetUtcNow().UtcDateTime - ConsentService.WithdrawnDataLifetime));
 
         deleted.Should().BeFalse();
         (await CountsAsync(host, 13)).Habits.Should().Be(1);

@@ -72,12 +72,12 @@ public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(p
     {
         var user = await Host.SignedInAsync(consent: false);
         await Rec("me.get.no-consent", "/api/me", user.Get("/api/me"));
-        await Rec("consent.age-not-confirmed", "/api/me/consent", user.Post("/api/me/consent", new { policyVersion = HabitService.CurrentConsentPolicyVersion, ageConfirmed = false }));
+        await Rec("consent.age-not-confirmed", "/api/me/consent", user.Post("/api/me/consent", new { policyVersion = ConsentService.CurrentConsentPolicyVersion, ageConfirmed = false }));
         await Rec("consent.old-policy", "/api/me/consent", user.Post("/api/me/consent", new { policyVersion = "2000-01-01", ageConfirmed = true }));
         await Rec("consent.habits.consent-required", "/api/habits", user.Post("/api/habits", new { name = "Water", frequency = "daily" }));
         await Rec("consent.decline.no-content", "/api/me/consent/decline", user.Post("/api/me/consent/decline"));
         await Rec("me.get.declined", "/api/me", user.Get("/api/me"));
-        await Rec("consent.give.no-content", "/api/me/consent", user.Post("/api/me/consent", new { policyVersion = HabitService.CurrentConsentPolicyVersion, ageConfirmed = true }));
+        await Rec("consent.give.no-content", "/api/me/consent", user.Post("/api/me/consent", new { policyVersion = ConsentService.CurrentConsentPolicyVersion, ageConfirmed = true }));
 
         await user.CreateHabitAsync("Water");
         await Rec("consent.withdraw.no-content", "/api/me/consent/withdraw", user.Post("/api/me/consent/withdraw"));
@@ -196,8 +196,8 @@ public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(p
 
         var discordId = ApiHost.NewDiscordId();
         var botId = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
-        await Host.Run(s => s.GiveHealthDataConsentAsync(botId));
-        var habit = await Host.Service(s => s.AddHabitAsync(botId, "Stretch", null));
+        await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(botId));
+        var habit = (await Host.Service(s => s.AddHabitAsync(botId, "Stretch", null))).Habit!;
         await Host.Run(s => s.CheckInAsync(botId, habit.Id, Host.Today, true));
         await Host.DiscordAsync(user, "/api/auth/discord/link", discordId);
         await Rec("merge.get.ok", route, user.Get(route));

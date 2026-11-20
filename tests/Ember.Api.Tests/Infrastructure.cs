@@ -302,7 +302,7 @@ public sealed partial class ApiClient
     }
 
     public async Task GiveConsentAsync()
-        => await (await Post("/api/me/consent", new { policyVersion = HabitService.CurrentConsentPolicyVersion, ageConfirmed = true })).Expect(HttpStatusCode.NoContent);
+        => await (await Post("/api/me/consent", new { policyVersion = ConsentService.CurrentConsentPolicyVersion, ageConfirmed = true })).Expect(HttpStatusCode.NoContent);
 
     public async Task<Guid> IdAsync()
         => Guid.Parse((await (await Get("/api/me")).ExpectJson()).GetProperty("id").GetString()!);

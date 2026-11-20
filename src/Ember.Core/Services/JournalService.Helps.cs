@@ -13,6 +13,9 @@ public enum HelpsWriteResult
 
     /// <summary>The private journal is off or turning off. Nothing was written.</summary>
     JournalOff,
+
+    /// <summary>The user hasn't agreed to the current health-data consent. Nothing was written.</summary>
+    ConsentRequired,
 }
 
 /// <summary>The "What helps me" list, stored only as client-side ciphertext while the private journal is on.</summary>
@@ -25,10 +28,12 @@ public partial class JournalService
     /// <summary>
     /// Stores <paramref name="encrypted"/> when the stored version is <paramref name="expectedVersion"/> (0 when there is none) and the
     /// private journal is on and not turning off; the journal key row is locked meanwhile so a turn-off can't slip in. Returns the
-    /// new version on <see cref="HelpsWriteResult.Saved"/>. Callers validate the value and consent.
+    /// new version on <see cref="HelpsWriteResult.Saved"/>. Needs the health-data consent (<see cref="HelpsWriteResult.ConsentRequired"/>).
+    /// Callers validate the value.
     /// </summary>
     public async Task<(HelpsWriteResult Result, int Version)> PutHelpsAsync(Guid userId, string encrypted, int expectedVersion)
     {
+        if (!await _consent.HasHealthDataConsentAsync(userId)) return (HelpsWriteResult.ConsentRequired, 0);
         await using var transaction = await _db.Database.BeginTransactionAsync();
         var keyOn = await _db.Database
             .SqlQuery<int>($"""SELECT 1 AS "Value" FROM "JournalKeys" WHERE "UserId" = {userId} AND NOT "TurningOff" FOR UPDATE""")

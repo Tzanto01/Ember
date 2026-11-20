@@ -25,6 +25,9 @@ public enum ImportResult
 
     /// <summary>The file has a journal key and the account already has one. Nothing was written.</summary>
     JournalKeyExists,
+
+    /// <summary>The user hasn't agreed to the current health-data consent. Nothing was written.</summary>
+    ConsentRequired,
 }
 
 /// <summary>Import of an export file into an empty account.</summary>
@@ -40,11 +43,10 @@ public partial class HabitService
     /// Writes <paramref name="data"/> into the user's account in one transaction, all or nothing, with new ids. Reminders are
     /// scheduled in the user's timezone; an imported journal key starts at version 1 and not turning off.
     /// </summary>
-    /// <exception cref="ConsentRequiredException">The user hasn't agreed to the current health-data consent.</exception>
     public async Task<ImportResult> ImportAsync(Guid userId, ImportData data)
     {
-        if (!await HasHealthDataConsentAsync(userId))
-            throw new ConsentRequiredException();
+        if (!await _consent.HasHealthDataConsentAsync(userId))
+            return ImportResult.ConsentRequired;
 
         await using var transaction = await _db.Database.BeginTransactionAsync();
         await _db.Database.ExecuteSqlAsync($"""SELECT 1 FROM "AspNetUsers" WHERE "Id" = {userId} FOR UPDATE""");
