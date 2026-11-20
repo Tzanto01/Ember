@@ -1,6 +1,7 @@
 package app.ember.habits.widget
 
 import android.content.Context
+import app.ember.habits.DeviceZone
 import app.ember.habits.InMemoryContext
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -83,6 +84,34 @@ class WidgetStoreSnapshotTest {
         save(timeZone = elsewhere.id)
 
         assertNull(WidgetStore.current(context))
+    }
+
+    @Test
+    fun aZoneThisDeviceDoesNotKnowIsJudgedInTheDevicesOwnZone() {
+        val device = DeviceZone()
+        device.use {
+            save(date = device.today, timeZone = "Mars/Olympus_Mons")
+            val current = WidgetStore.current(context)
+            assertEquals(device.today, current?.getString("date"))
+            assertEquals("Mars/Olympus_Mons", current!!.getString("timeZone"))
+
+            save(date = device.utcToday, timeZone = "Mars/Olympus_Mons")
+            assertNull(WidgetStore.current(context))
+        }
+    }
+
+    @Test
+    fun utcAndGmtAreJudgedInUtcNotTheDevicesZone() {
+        val device = DeviceZone()
+        device.use {
+            for (id in listOf("UTC", "Etc/UTC", "GMT")) {
+                save(date = device.utcToday, timeZone = id)
+                assertEquals(id, device.utcToday, WidgetStore.current(context)?.getString("date"))
+
+                save(date = device.today, timeZone = id)
+                assertNull(id, WidgetStore.current(context))
+            }
+        }
     }
 
     @Test

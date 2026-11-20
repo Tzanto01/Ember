@@ -69,7 +69,7 @@ class TodayHost {
         JSONObject().put("id", id).put("name", name).put("state", state).put("count", count).put("timesPerDay", timesPerDay)
 
     /** Stores today's snapshot for "user-1" the way the app pushes it. */
-    fun today(vararg habits: JSONObject, more: Int = 0, date: String = today) {
+    fun today(vararg habits: JSONObject, more: Int = 0, date: String = today, zone: String = this.zone) {
         WidgetStore.save(context, "user-1", date, zone, JSONArray(habits.toList()), more, null, null, null)
     }
 

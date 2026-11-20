@@ -23,6 +23,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowAlarmManager
 
 /** The widget receiver: background check-ins from a keyed tap, tap validation for the app, and the midnight redraw. */
 @RunWith(RobolectricTestRunner::class)
@@ -153,19 +154,24 @@ class TodayWidgetTest {
         for (intent in rejected) assertNull(intent.toString(), TodayWidget.validTap(host.context, intent))
     }
 
+    /** Asserts the widget's next redraw is set for just after the coming midnight in [zone], and returns it. */
+    @Suppress("DEPRECATION")
+    private fun assertMidnightAlarm(zone: ZoneId): ShadowAlarmManager.ScheduledAlarm {
+        val alarm = shadowOf(host.context.getSystemService(AlarmManager::class.java)).nextScheduledAlarm
+        assertNotNull(alarm)
+        val midnight = ZonedDateTime.now(zone).toLocalDate().plusDays(1).atTime(0, 0, 5).atZone(zone)
+        assertEquals(AlarmManager.RTC, alarm!!.getType())
+        assertEquals(midnight.toInstant().toEpochMilli(), alarm.getTriggerAtMs())
+        return alarm
+    }
+
     @Test
     @Suppress("DEPRECATION")
     fun theWidgetRedrawsJustAfterMidnightInTheAccountsZone() {
         host.today(host.habit(1, "Water"))
         host.view(250f, 296f)
 
-        val alarms = shadowOf(host.context.getSystemService(AlarmManager::class.java))
-        val alarm = alarms.nextScheduledAlarm
-        assertNotNull(alarm)
-        val zone = ZoneId.of(host.zone)
-        val midnight = ZonedDateTime.now(zone).toLocalDate().plusDays(1).atTime(0, 0, 5).atZone(zone)
-        assertEquals(AlarmManager.RTC, alarm!!.getType())
-        assertEquals(midnight.toInstant().toEpochMilli(), alarm.getTriggerAtMs())
+        val alarm = assertMidnightAlarm(ZoneId.of(host.zone))
         val intent = shadowOf(alarm.operation!!).savedIntent
         assertEquals("app.ember.habits.WIDGET_MIDNIGHT", intent.action)
         assertEquals(TodayWidget::class.java.name, intent.component!!.className)
@@ -176,5 +182,27 @@ class TodayWidgetTest {
         val manager = android.appwidget.AppWidgetManager.getInstance(host.context)
         val view: View = shadowOf(manager).getViewFor(host.id)
         assertEquals(listOf("Walk"), view.names())
+    }
+
+    @Test
+    fun aZoneThisDeviceDoesNotKnowRedrawsJustAfterMidnightInTheDevicesOwnZone() {
+        val device = DeviceZone()
+        device.use {
+            host.today(host.habit(1, "Water"), date = device.today, zone = "Mars/Olympus_Mons")
+
+            assertEquals(listOf("Water"), host.view(250f, 296f).names())
+            assertMidnightAlarm(ZoneId.of(device.id))
+        }
+    }
+
+    @Test
+    fun aUtcAccountRedrawsJustAfterUtcMidnightWhateverTheDevicesZone() {
+        val device = DeviceZone()
+        device.use {
+            host.today(host.habit(1, "Water"), date = device.utcToday, zone = "UTC")
+            host.view(250f, 296f)
+
+            assertMidnightAlarm(ZoneId.of("UTC"))
+        }
     }
 }
