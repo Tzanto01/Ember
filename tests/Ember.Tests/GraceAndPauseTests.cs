@@ -135,4 +135,105 @@ public class PauseServiceTests
         resumed!.PausedFrom.Should().BeNull();
         resumed.PausedUntil.Should().BeNull();
     }
+
+    private static async Task<(IntegrationTestHost Host, FakeTimeProvider Time, int HabitId)> HostWithHabitAsync(DateTimeOffset now)
+    {
+        var time = new FakeTimeProvider(now);
+        var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
+        var habitId = await host.WithScopeAsync(async sp =>
+        {
+            var service = sp.GetRequiredService<HabitService>();
+            await service.GiveHealthDataConsentAsync(UserId);
+            return (await service.AddHabitAsync(UserId, "Stretch", null)).Id;
+        });
+        return (host, time, habitId);
+    }
+
+    private static Task<Habit?> PauseAsync(IntegrationTestHost host, int habitId, DateOnly? until)
+        => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(UserId, habitId, until));
+
+    [Fact]
+    public async Task PausingAgainWhilePaused_KeepsTheOriginalStart_AndMovesTheEnd()
+    {
+        var (host, time, habitId) = await HostWithHabitAsync(new DateTimeOffset(2027, 1, 10, 12, 0, 0, TimeSpan.Zero));
+        await using var _ = host;
+        await PauseAsync(host, habitId, new DateOnly(2027, 1, 12));
+        time.Advance(TimeSpan.FromDays(1));
+
+        var extended = await PauseAsync(host, habitId, new DateOnly(2027, 1, 20));
+
+        (extended!.PausedFrom, extended.PausedUntil).Should().Be((new DateOnly(2027, 1, 10), new DateOnly(2027, 1, 20)));
+    }
+
+    [Fact]
+    public async Task PausingAfterAnEarlierPauseEnded_StartsANewRangeToday()
+    {
+        var (host, time, habitId) = await HostWithHabitAsync(new DateTimeOffset(2027, 1, 10, 12, 0, 0, TimeSpan.Zero));
+        await using var _ = host;
+        await PauseAsync(host, habitId, new DateOnly(2027, 1, 12));
+        time.Advance(TimeSpan.FromDays(5));
+
+        var again = await PauseAsync(host, habitId, new DateOnly(2027, 1, 18));
+
+        (again!.PausedFrom, again.PausedUntil).Should().Be((new DateOnly(2027, 1, 15), new DateOnly(2027, 1, 18)));
+    }
+
+    [Fact]
+    public async Task ResumingAfterThePauseAlreadyEnded_KeepsTheRecordedRange()
+    {
+        var (host, time, habitId) = await HostWithHabitAsync(new DateTimeOffset(2027, 1, 10, 12, 0, 0, TimeSpan.Zero));
+        await using var _ = host;
+        await PauseAsync(host, habitId, new DateOnly(2027, 1, 12));
+        time.Advance(TimeSpan.FromDays(5));
+
+        var resumed = await PauseAsync(host, habitId, null);
+
+        (resumed!.PausedFrom, resumed.PausedUntil).Should().Be((new DateOnly(2027, 1, 10), new DateOnly(2027, 1, 12)));
+    }
+
+    [Fact]
+    public async Task ResumingAHabitThatWasNeverPaused_ChangesNothing()
+    {
+        var (host, _, habitId) = await HostWithHabitAsync(new DateTimeOffset(2027, 1, 10, 12, 0, 0, TimeSpan.Zero));
+        await using var _ = host;
+
+        var resumed = await PauseAsync(host, habitId, null);
+
+        (resumed!.PausedFrom, resumed.PausedUntil).Should().Be(((DateOnly?)null, (DateOnly?)null));
+    }
+
+    [Fact]
+    public async Task PausingAnotherUsersHabit_ReturnsNull()
+    {
+        var (host, _, habitId) = await HostWithHabitAsync(new DateTimeOffset(2027, 1, 10, 12, 0, 0, TimeSpan.Zero));
+        await using var _ = host;
+
+        var paused = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(UserId + 1, habitId, new DateOnly(2027, 1, 12)));
+
+        paused.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task PausedDays_AreProtectedInTheStreak_AndResumingKeepsThemProtected()
+    {
+        var (host, time, habitId) = await HostWithHabitAsync(new DateTimeOffset(2027, 1, 10, 12, 0, 0, TimeSpan.Zero));
+        await using var _ = host;
+        time.Advance(TimeSpan.FromDays(1));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().CheckInAsync(UserId, habitId, new DateOnly(2027, 1, 11), true));
+        time.Advance(TimeSpan.FromDays(1));
+        await PauseAsync(host, habitId, new DateOnly(2027, 1, 14));
+        time.Advance(TimeSpan.FromDays(4));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().CheckInAsync(UserId, habitId, new DateOnly(2027, 1, 16), true));
+        var today = new DateOnly(2027, 1, 16);
+
+        async Task<(int Streak, int GraceUsed)> StreakAsync() => await host.WithScopeAsync(async sp =>
+        {
+            var habit = (await sp.GetRequiredService<HabitService>().GetHabitAsync(UserId, habitId))!;
+            return HabitService.ConsecutiveStreak(habit, today, graceDays: 0);
+        });
+
+        (await StreakAsync()).Should().Be((2, 0));
+        await PauseAsync(host, habitId, null);
+        (await StreakAsync()).Should().Be((2, 0));
+    }
 }
