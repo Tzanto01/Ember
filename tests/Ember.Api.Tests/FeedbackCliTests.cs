@@ -9,7 +9,6 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Ember.Api.Tests;
 
 /// <summary>The operator verbs run as the real process, as they do in the container: the tar goes to the process's stdout.</summary>
-[Collection("Postgres")]
 public class FeedbackCliTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private Task<(int Exit, byte[] Out, string Err)> Cli(params string[] args)

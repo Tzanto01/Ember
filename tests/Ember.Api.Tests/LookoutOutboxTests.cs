@@ -158,7 +158,6 @@ internal sealed class SenderRig : IAsyncDisposable
     }
 }
 
-[Collection("Postgres")]
 public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static readonly TimeSpan Zero = TimeSpan.Zero;

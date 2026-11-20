@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class FeedbackImageApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string Url = "/api/feedback";
@@ -189,7 +188,6 @@ public class FeedbackImageApiTests(PostgresFixture postgres) : ApiTestBase(postg
     }
 }
 
-[Collection("Postgres")]
 public class FeedbackImageDigestTests(PostgresFixture postgres) : FeedbackDigestTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Feedback:DigestTo"] = Recipient };
@@ -249,7 +247,6 @@ public class FeedbackImageDigestTests(PostgresFixture postgres) : FeedbackDigest
     }
 }
 
-[Collection("Postgres")]
 public class FeedbackBigBodyRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:FeedbackPerHour"] = "2" };

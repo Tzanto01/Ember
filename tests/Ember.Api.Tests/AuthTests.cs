@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class AuthTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string LoginUrl = "/api/auth/login?useCookies=true";

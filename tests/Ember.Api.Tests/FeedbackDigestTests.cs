@@ -44,7 +44,6 @@ public abstract class FeedbackDigestTestBase(PostgresFixture postgres) : ApiTest
             .ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 }
 
-[Collection("Postgres")]
 public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Feedback:DigestTo"] = Recipient };
@@ -212,7 +211,6 @@ public class FeedbackDigestTests(PostgresFixture postgres) : FeedbackDigestTestB
     }
 }
 
-[Collection("Postgres")]
 public class FeedbackDigestWithoutRecipientTests(PostgresFixture postgres) : FeedbackDigestTestBase(postgres)
 {
     [DockerFact]

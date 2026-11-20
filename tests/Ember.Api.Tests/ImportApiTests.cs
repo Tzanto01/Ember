@@ -11,7 +11,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary><c>POST /api/me/import</c> (contract "Export format v2").</summary>
-[Collection("Postgres")]
 public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static string B64(int bytes) => Convert.ToBase64String(Enumerable.Repeat((byte)7, bytes).ToArray());

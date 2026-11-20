@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>Notes on habits (contract "Today order and habit notes v1.23": <c>/api/habit-notes</c>, <c>/api/habits/{id}/notes/{date}</c>).</summary>
-[Collection("Postgres")]
 public class HabitNoteApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static string B64(int bytes) => Convert.ToBase64String(Enumerable.Repeat((byte)7, bytes).ToArray());

@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>A new account's language comes from the sign-up request's <c>language</c>, else its <c>Accept-Language</c>, and its emails use it.</summary>
-[Collection("Postgres")]
 public class LanguageSignupTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string DiscordLoginUrl = "/api/auth/discord/login";

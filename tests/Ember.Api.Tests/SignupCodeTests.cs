@@ -12,7 +12,6 @@ namespace Ember.Api.Tests;
 public sealed record CodeRequest(string? Email, string? Code, string? SignupKey, string? Password, string? UserId);
 
 /// <summary><c>POST /api/auth/confirm-email-code</c>: the emailed sign-up code confirms the email and signs in.</summary>
-[Collection("Postgres")]
 public class SignupCodeTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string CookieUrl = "/api/auth/confirm-email-code?useCookies=true";

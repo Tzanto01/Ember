@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>Weekdays schedules, times per day and the day stats (contract "Features v1.6").</summary>
-[Collection("Postgres")]
 public class ScheduleApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private static async Task ExpectFieldError(HttpResponseMessage response, string field)

@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Tests;
 
 /// <summary>Fireside v1.22: friends by code and the five warmth messages, through the real HTTP pipeline on Postgres.</summary>
-[Collection("Postgres")]
 public partial class FiresideApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string Fireside = "/api/fireside";

@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class WidgetCheckInApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string WidgetKey = "/api/me/widget-key";
@@ -221,7 +220,6 @@ public class WidgetCheckInApiTests(PostgresFixture postgres) : ApiTestBase(postg
     }
 }
 
-[Collection("Postgres")]
 public class WidgetCheckInRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new()

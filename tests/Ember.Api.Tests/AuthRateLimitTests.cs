@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class AuthRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new()
@@ -74,7 +73,6 @@ public class AuthRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres
     }
 }
 
-[Collection("Postgres")]
 public class AuthOtherRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:AuthOtherPerIpPerMinute"] = "3" };
@@ -101,7 +99,6 @@ public class AuthOtherRateLimitTests(PostgresFixture postgres) : ApiTestBase(pos
     }
 }
 
-[Collection("Postgres")]
 public class TrustedProxyNetworkRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new()

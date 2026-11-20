@@ -3,7 +3,6 @@ using FluentAssertions;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class RateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:MailPerEmailPerHour"] = "2" };
@@ -47,7 +46,6 @@ public abstract class MailRateLimitTestBase(PostgresFixture postgres) : ApiTestB
     }
 }
 
-[Collection("Postgres")]
 public class MailPerIpRateLimitTests(PostgresFixture postgres) : MailRateLimitTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:MailPerIpPerHour"] = "2" };
@@ -63,7 +61,6 @@ public class MailPerIpRateLimitTests(PostgresFixture postgres) : MailRateLimitTe
     }
 }
 
-[Collection("Postgres")]
 public class MailPerDayRateLimitTests(PostgresFixture postgres) : MailRateLimitTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:MailPerDay"] = "2" };
@@ -78,7 +75,6 @@ public class MailPerDayRateLimitTests(PostgresFixture postgres) : MailRateLimitT
     }
 }
 
-[Collection("Postgres")]
 public class MailPerEmailAndIpRateLimitTests(PostgresFixture postgres) : MailRateLimitTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new()

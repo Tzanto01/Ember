@@ -8,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Ember.Api.Tests.Contract;
 
 /// <summary>Discord sign-in (web and native), the second step for two-factor accounts, linking, unlinking and deleting a Discord-only account.</summary>
-[Collection("Postgres")]
 [ContractArea("discord")]
 public class DiscordContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {

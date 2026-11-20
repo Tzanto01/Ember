@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private const string MergeUrl = "/api/account/merge";

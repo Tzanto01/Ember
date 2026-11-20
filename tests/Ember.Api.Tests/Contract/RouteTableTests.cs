@@ -2,7 +2,6 @@ using FluentAssertions;
 
 namespace Ember.Api.Tests.Contract;
 
-[Collection("Postgres")]
 public class RouteTableTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     /// <summary>Endpoints no exchange has to cover. Each needs a reason.</summary>

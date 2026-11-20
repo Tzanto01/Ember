@@ -11,7 +11,6 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Ember.Api.Tests;
 
-[Collection("Postgres")]
 public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(postgres), IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("ember-ledger-").FullName;
