@@ -1,4 +1,5 @@
 using System.Net;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +13,7 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
     [DockerFact]
     public async Task Saving_for_a_user_id_that_no_longer_exists_stores_the_feedback_without_a_user()
     {
-        await Host.Run(s => s.SaveFeedbackAsync(Guid.NewGuid(), "web", "1.0", "from a deleted account"));
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(Guid.NewGuid(), "web", "1.0", "from a deleted account"));
 
         var item = (await Stored()).Should().ContainSingle().Subject;
         (item.UserId, item.Text).Should().Be(((Guid?)null, "from a deleted account"));
@@ -23,7 +24,7 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
     {
         var discordUser = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(ApiHost.NewDiscordId()));
 
-        await Host.Run(s => s.SaveFeedbackAsync(discordUser, "discord", null, "hello"));
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(discordUser, "discord", null, "hello"));
 
         var item = (await Stored()).Should().ContainSingle().Subject;
         (item.UserId, item.Platform, item.Version).Should().Be((discordUser, "discord", (string?)null));
@@ -34,9 +35,9 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
     {
         var doomed = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(ApiHost.NewDiscordId()));
         var other = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(ApiHost.NewDiscordId()));
-        await Host.Run(s => s.SaveFeedbackAsync(doomed, "discord", null, "doomed"));
-        await Host.Run(s => s.SaveFeedbackAsync(other, "discord", null, "other"));
-        await Host.Run(s => s.SaveFeedbackAsync(null, "web", null, "anonymous"));
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(doomed, "discord", null, "doomed"));
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(other, "discord", null, "other"));
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(null, "web", null, "anonymous"));
 
         await Host.Run(s => s.DeleteUserDataAsync(doomed));
 
@@ -50,8 +51,8 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
         var userId = await user.IdAsync();
         var discordId = ApiHost.NewDiscordId();
         var botUser = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
-        await Host.Run(s => s.SaveFeedbackAsync(botUser, "discord", null, "from the bot"));
-        await Host.Run(s => s.SaveFeedbackAsync(userId, "web", "1.0", "from the app"));
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(botUser, "discord", null, "from the bot"));
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(userId, "web", "1.0", "from the app"));
         (await Host.DiscordAsync(user, "/api/auth/discord/link", discordId)).Should().Be("/link/merge");
 
         await (await user.Post("/api/account/merge")).Expect(HttpStatusCode.NoContent);
@@ -75,7 +76,7 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
     {
         await SeedRows(300, TimeSpan.FromHours(2));
 
-        var saved = await Host.Service(s => s.SaveFeedbackAsync(null, "discord", null, "one too many"));
+        var saved = await Host.Service<FeedbackService, bool>(s => s.SaveFeedbackAsync(null, "discord", null, "one too many"));
         var response = await Host.NewClient().Post("/api/feedback", new { text = "one too many", platform = "web" });
 
         saved.Should().BeFalse();
@@ -88,7 +89,7 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
     {
         await SeedRows(300, TimeSpan.FromHours(25));
 
-        var saved = await Host.Service(s => s.SaveFeedbackAsync(null, "discord", null, "fine"));
+        var saved = await Host.Service<FeedbackService, bool>(s => s.SaveFeedbackAsync(null, "discord", null, "fine"));
 
         saved.Should().BeTrue();
         (await Stored()).Should().HaveCount(301);
@@ -99,6 +100,6 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
     {
         await SeedRows(299, TimeSpan.FromHours(2));
 
-        (await Host.Service(s => s.SaveFeedbackAsync(null, "discord", null, "last one"))).Should().BeTrue();
+        (await Host.Service<FeedbackService, bool>(s => s.SaveFeedbackAsync(null, "discord", null, "last one"))).Should().BeTrue();
     }
 }

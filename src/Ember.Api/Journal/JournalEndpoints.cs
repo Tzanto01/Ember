@@ -38,7 +38,8 @@ internal static class JournalEndpoints
 
     public static RouteGroupBuilder MapJournal(this RouteGroupBuilder api)
     {
-        api.MapGet("/day-notes", async (string? from, string? to, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapGet("/day-notes", async (string? from, string? to, ClaimsPrincipal principal, HabitService habits,
+            JournalService journal) =>
         {
             var userId = principal.UserId();
             var today = await habits.GetLocalTodayAsync(userId);
@@ -49,10 +50,11 @@ internal static class JournalEndpoints
             if (errors.Count == 0 && end.DayNumber - start.DayNumber >= MaxRangeDays) errors["from"] = [$"At most {MaxRangeDays} days."];
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            return Results.Ok((await habits.GetDayNotesAsync(userId, start, end)).Select(ToDto).ToList());
+            return Results.Ok((await journal.GetDayNotesAsync(userId, start, end)).Select(ToDto).ToList());
         });
 
-        api.MapPut("/day-notes/{date}", async (string date, DayNoteRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPut("/day-notes/{date}", async (string date, DayNoteRequest request, ClaimsPrincipal principal, HabitService habits,
+            JournalService journal) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
@@ -60,36 +62,37 @@ internal static class JournalEndpoints
             if (!await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
             var today = await habits.GetLocalTodayAsync(userId);
             if (day > today) return Problems.DayEdit(DayEditResult.InFuture)!;
-            if (day != today && (await habits.GetDayNotesAsync(userId, day, day)).Count == 0
+            if (day != today && (await journal.GetDayNotesAsync(userId, day, day)).Count == 0
                 && (await habits.GetEarliestHabitStartAsync(userId) is not { } start || day < start))
                 return Problems.DayEdit(DayEditResult.BeforeHabitStart)!;
 
             var errors = new Dictionary<string, string[]>();
             var cipher = WriteForm(request.Encrypted, request.Text is not null || request.Mood is not null, true,
-                await habits.GetJournalKeyAsync(userId), errors);
+                await journal.GetJournalKeyAsync(userId), errors);
             string? text = null, mood = null;
             if (request.Encrypted is null)
             {
                 text = ValidText(request.Text, errors);
                 mood = request.Mood;
-                if (mood is not null && !await IsAllowedMoodAsync(userId, day, mood, habits))
+                if (mood is not null && !await IsAllowedMoodAsync(userId, day, mood, journal))
                     errors["mood"] = ["Must be low, meh, okay, good, great or one of your own active moods."];
             }
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            var note = await habits.SetDayNoteAsync(userId, day, text, mood, cipher);
+            var note = await journal.SetDayNoteAsync(userId, day, text, mood, cipher);
             return Results.Ok(note is null ? new { date = day, text = (string?)null, mood = (string?)null } : ToDto(note));
         });
 
-        api.MapDelete("/day-notes/{date}", async (string date, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapDelete("/day-notes/{date}", async (string date, ClaimsPrincipal principal, JournalService journal) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
-            await habits.DeleteDayNoteAsync(principal.UserId(), day);
+            await journal.DeleteDayNoteAsync(principal.UserId(), day);
             return Results.NoContent();
         });
 
-        api.MapGet("/habit-notes", async (string? from, string? to, int? habitId, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapGet("/habit-notes", async (string? from, string? to, int? habitId, ClaimsPrincipal principal, HabitService habits,
+            JournalService journal) =>
         {
             var userId = principal.UserId();
             var today = await habits.GetLocalTodayAsync(userId);
@@ -100,11 +103,11 @@ internal static class JournalEndpoints
             if (errors.Count == 0 && end.DayNumber - start.DayNumber >= MaxRangeDays) errors["from"] = [$"At most {MaxRangeDays} days."];
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            return Results.Ok((await habits.GetHabitNotesAsync(userId, start, end, habitId)).Select(ToDto).ToList());
+            return Results.Ok((await journal.GetHabitNotesAsync(userId, start, end, habitId)).Select(ToDto).ToList());
         });
 
         api.MapPut("/habits/{id:int}/notes/{date}", async (int id, string date, HabitNoteRequest request, ClaimsPrincipal principal,
-            HabitService habits) =>
+            HabitService habits, JournalService journal) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
@@ -114,11 +117,11 @@ internal static class JournalEndpoints
             var today = await habits.GetLocalTodayAsync(userId);
             if (day > today) return Problems.DayEdit(DayEditResult.InFuture)!;
             if (day != today && day < HabitRules.StartDate(habit, await habits.GetUserTzAsync(userId))
-                && (await habits.GetHabitNotesAsync(userId, day, day, id)).Count == 0)
+                && (await journal.GetHabitNotesAsync(userId, day, day, id)).Count == 0)
                 return Problems.DayEdit(DayEditResult.BeforeHabitStart)!;
 
             var errors = new Dictionary<string, string[]>();
-            var cipher = WriteForm(request.Encrypted, request.Text is not null, true, await habits.GetJournalKeyAsync(userId), errors,
+            var cipher = WriteForm(request.Encrypted, request.Text is not null, true, await journal.GetJournalKeyAsync(userId), errors,
                 MaxHabitNoteCipherTextLength);
             string? text = null;
             if (request.Encrypted is null)
@@ -128,27 +131,27 @@ internal static class JournalEndpoints
             }
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            return await habits.SetHabitNoteAsync(userId, id, day, text, cipher) is { } note ? Results.Ok(ToDto(note)) : Problems.NotFound();
+            return await journal.SetHabitNoteAsync(userId, id, day, text, cipher) is { } note ? Results.Ok(ToDto(note)) : Problems.NotFound();
         });
 
-        api.MapDelete("/habits/{id:int}/notes/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapDelete("/habits/{id:int}/notes/{date}", async (int id, string date, ClaimsPrincipal principal, JournalService journal) =>
         {
             if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
 
-            return await habits.DeleteHabitNoteAsync(principal.UserId(), id, day) ? Results.NoContent() : Problems.NotFound();
+            return await journal.DeleteHabitNoteAsync(principal.UserId(), id, day) ? Results.NoContent() : Problems.NotFound();
         });
 
-        api.MapGet("/moods", async (ClaimsPrincipal principal, HabitService habits) =>
-            (await habits.GetMoodsAsync(principal.UserId())).Select(ToDto).ToList());
+        api.MapGet("/moods", async (ClaimsPrincipal principal, JournalService journal) =>
+            (await journal.GetMoodsAsync(principal.UserId())).Select(ToDto).ToList());
 
-        api.MapPost("/moods", async (MoodRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPost("/moods", async (MoodRequest request, ClaimsPrincipal principal, HabitService habits, JournalService journal) =>
         {
             var userId = principal.UserId();
             if (!await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
 
             var errors = new Dictionary<string, string[]>();
             var cipher = WriteForm(request.Encrypted, request.Label is not null || request.Emoji is not null, true,
-                await habits.GetJournalKeyAsync(userId), errors);
+                await journal.GetJournalKeyAsync(userId), errors);
             string? label = null, emoji = null;
             if (request.Encrypted is null)
             {
@@ -157,11 +160,12 @@ internal static class JournalEndpoints
             }
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            var (result, mood) = await habits.AddMoodAsync(userId, label, emoji, cipher, request.Archived == true);
+            var (result, mood) = await journal.AddMoodAsync(userId, label, emoji, cipher, request.Archived == true);
             return result == MoodWriteResult.Saved ? Results.Created($"/api/moods/{mood!.Id}", ToDto(mood)) : MoodLimit();
         });
 
-        api.MapPatch("/moods/{id:int}", async (int id, JsonElement body, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPatch("/moods/{id:int}", async (int id, JsonElement body, ClaimsPrincipal principal, HabitService habits,
+            JournalService journal) =>
         {
             MoodRequest? request;
             try
@@ -177,11 +181,11 @@ internal static class JournalEndpoints
 
             var userId = principal.UserId();
             if (!await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
-            if (await habits.GetMoodAsync(userId, id) is not { } existing) return Problems.NotFound();
+            if (await journal.GetMoodAsync(userId, id) is not { } existing) return Problems.NotFound();
 
             var errors = new Dictionary<string, string[]>();
             var plaintextGiven = request.Label is not null || emojiGiven;
-            var cipher = WriteForm(request.Encrypted, plaintextGiven, plaintextGiven, await habits.GetJournalKeyAsync(userId), errors);
+            var cipher = WriteForm(request.Encrypted, plaintextGiven, plaintextGiven, await journal.GetJournalKeyAsync(userId), errors);
             string? label = null, emoji = null;
             if (request.Encrypted is null && plaintextGiven)
             {
@@ -191,7 +195,7 @@ internal static class JournalEndpoints
             }
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            var (result, mood) = await habits.EditMoodAsync(userId, id, label, emoji, cipher, request.Archived);
+            var (result, mood) = await journal.EditMoodAsync(userId, id, label, emoji, cipher, request.Archived);
             return result switch
             {
                 MoodWriteResult.Saved => Results.Ok(ToDto(mood!)),
@@ -200,11 +204,11 @@ internal static class JournalEndpoints
             };
         });
 
-        api.MapGet("/me/journal-key", async (ClaimsPrincipal principal, HabitService habits) =>
-            await habits.GetJournalKeyAsync(principal.UserId()) is { } key ? Results.Ok(ToDto(key)) : Problems.NotFound());
+        api.MapGet("/me/journal-key", async (ClaimsPrincipal principal, JournalService journal) =>
+            await journal.GetJournalKeyAsync(principal.UserId()) is { } key ? Results.Ok(ToDto(key)) : Problems.NotFound());
 
         api.MapPut("/me/journal-key", async (JournalKeyRequest request, ClaimsPrincipal principal, UserManager<User> users,
-            SignInManager<User> signIn, HabitService habits) =>
+            SignInManager<User> signIn, JournalService journal) =>
         {
             var errors = new Dictionary<string, string[]>();
             var material = ValidKey(request, errors);
@@ -214,29 +218,29 @@ internal static class JournalEndpoints
             if (user is null) return Problems.Unauthenticated();
             if (await PasswordProblem(user, request.Password, users, signIn) is { } problem) return problem;
 
-            return await habits.PutJournalKeyAsync(user.Id, material!, request.IfVersion) is { } key
+            return await journal.PutJournalKeyAsync(user.Id, material!, request.IfVersion) is { } key
                 ? Results.Ok(ToDto(key))
                 : Problems.Conflict("The journal key was changed meanwhile. Reload and try again.");
         }).RequireRateLimiting(RateLimits.AuthPolicy);
 
         api.MapPost("/me/journal-key/turn-off", async (PasswordRequest? request, ClaimsPrincipal principal, UserManager<User> users,
-            SignInManager<User> signIn, HabitService habits) =>
+            SignInManager<User> signIn, JournalService journal) =>
         {
             var user = await users.GetUserAsync(principal);
             if (user is null) return Problems.Unauthenticated();
             if (await PasswordProblem(user, request?.Password, users, signIn) is { } problem) return problem;
 
-            return await habits.TurnOffJournalAsync(user.Id) is { } key ? Results.Ok(ToDto(key)) : Problems.NotFound();
+            return await journal.TurnOffJournalAsync(user.Id) is { } key ? Results.Ok(ToDto(key)) : Problems.NotFound();
         }).RequireRateLimiting(RateLimits.AuthPolicy);
 
         api.MapDelete("/me/journal-key", async ([FromBody] DeleteJournalKeyRequest? request, ClaimsPrincipal principal,
-            UserManager<User> users, SignInManager<User> signIn, HabitService habits) =>
+            UserManager<User> users, SignInManager<User> signIn, JournalService journal) =>
         {
             var user = await users.GetUserAsync(principal);
             if (user is null) return Problems.Unauthenticated();
             if (await PasswordProblem(user, request?.Password, users, signIn) is { } problem) return problem;
 
-            return await habits.DeleteJournalKeyAsync(user.Id, request?.DiscardEncrypted == true)
+            return await journal.DeleteJournalKeyAsync(user.Id, request?.DiscardEncrypted == true)
                 ? Results.NoContent()
                 : Problems.Conflict("Some journal entries or moods are still encrypted. Finish turning the private journal off first.");
         }).RequireRateLimiting(RateLimits.AuthPolicy);
@@ -245,7 +249,7 @@ internal static class JournalEndpoints
     }
 
     private static IResult MoodLimit()
-        => Problems.Conflict($"You already have {HabitService.MaxActiveMoodsPerUser} active moods. Archive one to add another.");
+        => Problems.Conflict($"You already have {JournalService.MaxActiveMoodsPerUser} active moods. Archive one to add another.");
 
     /// <summary>A 400 on <c>password</c> when the account has a login password and <paramref name="password"/> isn't it (counts toward lockout), else null.</summary>
     internal static async Task<IResult?> PasswordProblem(User user, string? password, UserManager<User> users, SignInManager<User> signIn)
@@ -281,13 +285,13 @@ internal static class JournalEndpoints
         return null;
     }
 
-    private static async Task<bool> IsAllowedMoodAsync(Guid userId, DateOnly day, string mood, HabitService habits)
+    private static async Task<bool> IsAllowedMoodAsync(Guid userId, DateOnly day, string mood, JournalService journal)
     {
         if (BuiltInMoods.Contains(mood)) return true;
         if (!TryParseCustomMood(mood, out var id)) return false;
-        var stored = await habits.GetDayNoteAsync(userId, day);
+        var stored = await journal.GetDayNoteAsync(userId, day);
         if (stored?.Mood == mood) return true;
-        return await habits.GetMoodAsync(userId, id) is { CipherVersion: null } own && (!own.Archived || stored?.CipherVersion is not null);
+        return await journal.GetMoodAsync(userId, id) is { CipherVersion: null } own && (!own.Archived || stored?.CipherVersion is not null);
     }
 
     /// <summary>The id of a <c>custom:&lt;id&gt;</c> mood key in its canonical form.</summary>

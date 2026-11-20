@@ -1,11 +1,21 @@
+using Ember.Core.Data;
 using Ember.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
 
 /// <summary>In-app feedback, sent from the API (web, Android) and the bot (Discord).</summary>
-public partial class HabitService
+public class FeedbackService
 {
+    private readonly EmberDbContext _db;
+    private readonly TimeProvider _time;
+
+    public FeedbackService(EmberDbContext db, TimeProvider time)
+    {
+        _db = db;
+        _time = time;
+    }
+
     /// <summary>Most characters (UTF-16 code units) a feedback text can have after trimming.</summary>
     public const int MaxFeedbackLength = 2000;
 

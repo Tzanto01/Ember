@@ -213,7 +213,7 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
         var account = await UserWithHabit();
         var health = await UserWithHabit();
         var emptied = await UserWithHabit();
-        await Host.Run(s => s.SaveFeedbackAsync(account, "web", "1.0", "text", default, "title", []));
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(account, "web", "1.0", "text", default, "title", []));
         var userRef = await Host.Db(db => db.LookoutUserRefs.Where(r => r.UserId == account).Select(r => r.Ref).SingleAsync());
         await Host.Db(db => db.Habits.Where(h => h.UserId == emptied).ExecuteDeleteAsync());
         var since = new DateTime(2026, 10, 30, 3, 0, 0, DateTimeKind.Utc);

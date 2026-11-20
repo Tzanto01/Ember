@@ -179,7 +179,7 @@ public class PostgresTransactionTests(PostgresFixture postgres)
         failure.Arm("DELETE", "UserHelps");
 
         await AssertRolledBackAsync(host, failure, before, () => host.WithScopeAsync(sp =>
-            sp.GetRequiredService<HabitService>().DeleteJournalKeyAsync(TestUsers.Id(8), discardEncrypted: true)));
+            sp.GetRequiredService<JournalService>().DeleteJournalKeyAsync(TestUsers.Id(8), discardEncrypted: true)));
     }
 
     [DockerFact]

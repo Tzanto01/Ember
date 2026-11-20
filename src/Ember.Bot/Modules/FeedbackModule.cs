@@ -29,12 +29,14 @@ public class FeedbackModule : InteractionModuleBase<SocketInteractionContext>
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromSeconds(15);
 
     private readonly HabitService _habits;
+    private readonly FeedbackService _feedback;
     private readonly FeedbackCooldown _cooldown;
     private readonly IHttpClientFactory _httpClients;
 
-    public FeedbackModule(HabitService habits, FeedbackCooldown cooldown, IHttpClientFactory httpClients)
+    public FeedbackModule(HabitService habits, FeedbackService feedback, FeedbackCooldown cooldown, IHttpClientFactory httpClients)
     {
         _habits = habits;
+        _feedback = feedback;
         _cooldown = cooldown;
         _httpClients = httpClients;
     }
@@ -67,9 +69,9 @@ public class FeedbackModule : InteractionModuleBase<SocketInteractionContext>
             .WithCustomId(FeedbackIds.Modal)
             .AddTextDisplay(t.Get("feedback.modal.health"))
             .AddTextInput(t.Get("feedback.modal.feedback-title"), "feedback_title", TextInputStyle.Short,
-                minLength: 1, maxLength: HabitService.MaxFeedbackTitleLength, required: true)
+                minLength: 1, maxLength: FeedbackService.MaxFeedbackTitleLength, required: true)
             .AddTextInput(t.Get("feedback.modal.text"), "feedback_text", TextInputStyle.Paragraph,
-                minLength: 1, maxLength: HabitService.MaxFeedbackLength, required: true)
+                minLength: 1, maxLength: FeedbackService.MaxFeedbackLength, required: true)
             .AddFileUpload(t.Get("feedback.modal.pictures"), "feedback_pictures", 0, FeedbackImages.MaxCount, false,
                 description: t.Get("feedback.modal.pictures-hint"))
             .AddSelectMenu(t.Get("feedback.modal.identity"), identity)
@@ -82,7 +84,7 @@ public class FeedbackModule : InteractionModuleBase<SocketInteractionContext>
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         var title = modal.FeedbackTitle.Trim();
         var text = modal.Text.Trim();
-        if (HabitService.FeedbackTitleError(title) is not null || HabitService.FeedbackTextError(text) is not null)
+        if (FeedbackService.FeedbackTitleError(title) is not null || FeedbackService.FeedbackTextError(text) is not null)
         {
             await RespondAsync(t.Get("feedback.invalid"), ephemeral: true);
             return;
@@ -133,7 +135,7 @@ public class FeedbackModule : InteractionModuleBase<SocketInteractionContext>
 
         Guid? userId = null;
         if (modal.Identity != AnonymousValue && await _habits.FindDiscordUserAsync(Context.User.Id) is var found && found != Guid.Empty) userId = found;
-        var saved = await _habits.SaveFeedbackAsync(userId, "discord", null, text, default, title, images);
+        var saved = await _feedback.SaveFeedbackAsync(userId, "discord", null, text, default, title, images);
         var reply = t.Get(saved ? "feedback.thanks" : "feedback.daily-limit");
         if (Context.Interaction.HasResponded) await FollowupAsync(reply, ephemeral: true);
         else await RespondAsync(reply, ephemeral: true);
@@ -174,11 +176,11 @@ public class FeedbackModal : IModal
     public string Title => "Send feedback";
 
     [InputLabel("Title")]
-    [ModalTextInput("feedback_title", TextInputStyle.Short, minLength: 1, maxLength: HabitService.MaxFeedbackTitleLength)]
+    [ModalTextInput("feedback_title", TextInputStyle.Short, minLength: 1, maxLength: FeedbackService.MaxFeedbackTitleLength)]
     public string FeedbackTitle { get; set; } = "";
 
     [InputLabel("What would make Ember better?")]
-    [ModalTextInput("feedback_text", TextInputStyle.Paragraph, minLength: 1, maxLength: HabitService.MaxFeedbackLength)]
+    [ModalTextInput("feedback_text", TextInputStyle.Paragraph, minLength: 1, maxLength: FeedbackService.MaxFeedbackLength)]
     public string Text { get; set; } = "";
 
     [InputLabel("Pictures (optional)", "Up to 5 JPEG, PNG or WebP pictures, 10 MB together")]

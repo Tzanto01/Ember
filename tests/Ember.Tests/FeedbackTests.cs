@@ -97,7 +97,7 @@ public class FeedbackCooldownBytesTests
     {
         var time = new FakeTimeProvider(Start);
         var cooldown = new FeedbackCooldown(time);
-        cooldown.TryRecordBytes(1, HabitService.MaxFeedbackImageBytesPerUserPerDay);
+        cooldown.TryRecordBytes(1, FeedbackService.MaxFeedbackImageBytesPerUserPerDay);
 
         time.Advance(TimeSpan.FromHours(23));
         cooldown.TryRecordBytes(1, 1).Should().BeFalse();
@@ -117,7 +117,7 @@ public class FeedbackTextValidationTests
     [InlineData("isolate \u2066 x")]
     [InlineData("isolate \u2069 x")]
     public void Text_that_cannot_be_kept_gets_an_error(string text)
-        => HabitService.FeedbackTextError(text).Should().NotBeNull();
+        => FeedbackService.FeedbackTextError(text).Should().NotBeNull();
 
     [Theory]
     [InlineData("plain")]
@@ -125,7 +125,7 @@ public class FeedbackTextValidationTests
     [InlineData("emoji \U0001F525 pair")]
     [InlineData("Umlaute äöü ß and 日本語")]
     public void Ordinary_text_has_no_error(string text)
-        => HabitService.FeedbackTextError(text).Should().BeNull();
+        => FeedbackService.FeedbackTextError(text).Should().BeNull();
 
     [Theory]
     [InlineData(0xD800)]
@@ -135,15 +135,15 @@ public class FeedbackTextValidationTests
     {
         var lone = ((char)codeUnit).ToString();
 
-        HabitService.FeedbackTextError("bad " + lone + " text").Should().NotBeNull();
-        HabitService.FeedbackTextError("ends with " + lone).Should().NotBeNull();
+        FeedbackService.FeedbackTextError("bad " + lone + " text").Should().NotBeNull();
+        FeedbackService.FeedbackTextError("ends with " + lone).Should().NotBeNull();
     }
 
     [Fact]
     public void The_length_limit_is_2000_code_units()
     {
-        HabitService.FeedbackTextError(new string('x', 2000)).Should().BeNull();
-        HabitService.FeedbackTextError(new string('x', 2001)).Should().NotBeNull();
+        FeedbackService.FeedbackTextError(new string('x', 2000)).Should().BeNull();
+        FeedbackService.FeedbackTextError(new string('x', 2001)).Should().NotBeNull();
     }
 }
 
@@ -156,9 +156,8 @@ public class FeedbackBotStorageTests
     private static Task SubmitAsDiscordUserAsync(IntegrationTestHost host, ulong discordId, string text)
         => host.WithScopeAsync(async sp =>
         {
-            var habits = sp.GetRequiredService<HabitService>();
-            var userId = await habits.FindDiscordUserAsync(discordId);
-            await habits.SaveFeedbackAsync(userId == Guid.Empty ? null : userId, "discord", null, text);
+            var userId = await sp.GetRequiredService<HabitService>().FindDiscordUserAsync(discordId);
+            await sp.GetRequiredService<FeedbackService>().SaveFeedbackAsync(userId == Guid.Empty ? null : userId, "discord", null, text);
         });
 
     [Fact]

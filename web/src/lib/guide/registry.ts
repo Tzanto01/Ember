@@ -388,7 +388,7 @@ export const guides: Record<GuideScreen, Guide> = {
         target: 'helps',
         covers: [
           'web/src/components/settings/helps-settings.tsx',
-          'src/Ember.Core/Services/HabitService.Helps.cs',
+          'src/Ember.Core/Services/JournalService.Helps.cs',
           'web/src/pages/moment.tsx',
         ],
       },

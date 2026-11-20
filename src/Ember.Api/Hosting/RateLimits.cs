@@ -45,7 +45,7 @@ internal static class RateLimits
             {
                 FeedbackDayKey => new FixedWindowRateLimiterOptions { PermitLimit = settings.FeedbackPerDay, Window = MailDayWindow },
                 _ when key.StartsWith(FeedbackBytesPrefix, StringComparison.Ordinal)
-                    => new FixedWindowRateLimiterOptions { PermitLimit = (int)HabitService.MaxFeedbackImageBytesPerUserPerDay, Window = MailDayWindow },
+                    => new FixedWindowRateLimiterOptions { PermitLimit = (int)FeedbackService.MaxFeedbackImageBytesPerUserPerDay, Window = MailDayWindow },
                 _ when key.StartsWith(FeedbackUserPrefix, StringComparison.Ordinal) || key.StartsWith(FeedbackIpPrefix, StringComparison.Ordinal)
                     || key.StartsWith(FeedbackBigBodyPrefix, StringComparison.Ordinal)
                     => new FixedWindowRateLimiterOptions { PermitLimit = settings.FeedbackPerHour, Window = MailWindow },
@@ -98,7 +98,7 @@ internal static class RateLimits
 
     /// <summary>
     /// The limiter key of a signed-in user's picture bytes, one permit per decoded byte, at most
-    /// <see cref="HabitService.MaxFeedbackImageBytesPerUserPerDay"/> per day; taken after <see cref="FeedbackKeys"/>.
+    /// <see cref="FeedbackService.MaxFeedbackImageBytesPerUserPerDay"/> per day; taken after <see cref="FeedbackKeys"/>.
     /// </summary>
     internal static string FeedbackBytesKey(Guid userId) => FeedbackBytesPrefix + userId.ToString("N");
 

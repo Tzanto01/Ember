@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Ember.Core.Models;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -167,7 +168,7 @@ public class FeedbackImageApiTests(PostgresFixture postgres) : ApiTestBase(postg
     {
         var picture = new FeedbackImage { ContentType = "image/jpeg", Data = SyntheticImages.Jpeg() };
 
-        (await Host.Service(s => s.SaveFeedbackAsync(Guid.NewGuid(), "web", "1.0", "It closes", default, "Crash", [picture]))).Should().BeTrue();
+        (await Host.Service<FeedbackService, bool>(s => s.SaveFeedbackAsync(Guid.NewGuid(), "web", "1.0", "It closes", default, "Crash", [picture]))).Should().BeTrue();
 
         var item = (await Stored()).Should().ContainSingle().Subject;
         (item.UserId, item.Title, item.Text).Should().Be(((Guid?)null, "Crash", "It closes"));
@@ -193,7 +194,7 @@ public class FeedbackImageDigestTests(PostgresFixture postgres) : FeedbackDigest
     protected override Dictionary<string, string?>? Settings => new() { ["Feedback:DigestTo"] = Recipient };
 
     private Task Report(string title, int pictures, Guid? userId = null)
-        => Host.Run(s => s.SaveFeedbackAsync(userId, "web", "1.0", "body of " + title, default, title,
+        => Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(userId, "web", "1.0", "body of " + title, default, title,
             Enumerable.Range(0, pictures).Select(_ => new FeedbackImage { ContentType = "image/jpeg", Data = SyntheticImages.Jpeg() }).ToList()));
 
     private Task<List<FeedbackImage>> Pictures() => Host.Db(db => db.FeedbackImages.AsNoTracking().OrderBy(i => i.Id).ToListAsync());

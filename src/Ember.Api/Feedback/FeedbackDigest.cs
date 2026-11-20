@@ -15,7 +15,7 @@ internal sealed class FeedbackDigest(
     EmberDbContext db, IEmailTransport transport, IConfiguration configuration, TimeProvider time, ILogger<FeedbackDigest> logger)
 {
     /// <summary>Most feedback one email carries, oldest first; the rest waits for the next run.</summary>
-    public const int MaxItems = HabitService.MaxFeedbackPerDay;
+    public const int MaxItems = FeedbackService.MaxFeedbackPerDay;
 
     /// <summary>How long feedback is kept after it was submitted.</summary>
     public const int RetentionMonths = 12;

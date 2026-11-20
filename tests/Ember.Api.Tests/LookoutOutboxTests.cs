@@ -6,6 +6,7 @@ using Ember.Api.Hosting;
 using Ember.Api.Lookout;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -165,7 +166,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
     private async Task Report(Guid? userId, string platform, string title, params byte[][] pictures)
     {
         Host.Time.Advance(TimeSpan.FromMinutes(1));
-        await Host.Run(s => s.SaveFeedbackAsync(userId, platform, "1.2.3", "text of " + title, default, title,
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(userId, platform, "1.2.3", "text of " + title, default, title,
             pictures.Select(p => new FeedbackImage { ContentType = p[0] == 0xFF ? "image/jpeg" : "image/png", Data = p }).ToList()));
     }
 

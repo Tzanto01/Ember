@@ -34,8 +34,8 @@ internal static class ImportEndpoints
 
     public static RouteGroupBuilder MapImport(this RouteGroupBuilder api)
     {
-        api.MapPost("/me/import", async (JsonElement body, ClaimsPrincipal principal, HabitService habits, TimeProvider time,
-            UserManager<User> users, SignInManager<User> signIn) =>
+        api.MapPost("/me/import", async (JsonElement body, ClaimsPrincipal principal, HabitService habits, JournalService journal,
+            TimeProvider time, UserManager<User> users, SignInManager<User> signIn) =>
         {
             var userId = principal.UserId();
             if (!await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
@@ -61,11 +61,11 @@ internal static class ImportEndpoints
             if (doc.Habits?.Count > Limits.HabitsPerUser) return Problems.HabitLimit();
             if (doc.Routines?.Count > Limits.RoutinesPerUser)
                 return Problems.Conflict($"The file has more than {Limits.RoutinesPerUser} routines, the most Ember can hold.");
-            if (doc.Moods?.Count(m => m?.Archived != true) > HabitService.MaxActiveMoodsPerUser)
-                return Problems.Conflict($"The file has more than {HabitService.MaxActiveMoodsPerUser} active moods, the most Ember can hold.");
+            if (doc.Moods?.Count(m => m?.Archived != true) > JournalService.MaxActiveMoodsPerUser)
+                return Problems.Conflict($"The file has more than {JournalService.MaxActiveMoodsPerUser} active moods, the most Ember can hold.");
 
             var errors = new Dictionary<string, string[]>();
-            var data = Validate(doc, await habits.GetJournalKeyAsync(userId), await habits.GetUserTzAsync(userId),
+            var data = Validate(doc, await journal.GetJournalKeyAsync(userId), await habits.GetUserTzAsync(userId),
                 await habits.GetLocalTodayAsync(userId), time.GetUtcNow().UtcDateTime, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 

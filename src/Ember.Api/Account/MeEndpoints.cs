@@ -43,11 +43,12 @@ internal static class MeEndpoints
 
     public static RouteGroupBuilder MapMe(this RouteGroupBuilder api)
     {
-        api.MapGet("/me", async (ClaimsPrincipal principal, UserManager<User> users, HabitService habits, TimeProvider time) =>
-            await LoadMe(principal, users, habits, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
+        api.MapGet("/me", async (ClaimsPrincipal principal, UserManager<User> users, HabitService habits, JournalService journal,
+            TimeProvider time) =>
+            await LoadMe(principal, users, habits, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
 
         api.MapPatch("/me", async (JsonElement body, ClaimsPrincipal principal, UserManager<User> users, HabitService habits,
-            EmberDbContext db, TimeProvider time) =>
+            JournalService journal, EmberDbContext db, TimeProvider time) =>
         {
             MePatch? patch;
             try
@@ -84,7 +85,7 @@ internal static class MeEndpoints
                 await habits.RescheduleRemindersAsync(userId);
             }
 
-            return await LoadMe(principal, users, habits, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
+            return await LoadMe(principal, users, habits, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
         });
 
         api.MapPut("/me/today-order", async (TodayOrderRequest request, ClaimsPrincipal principal, HabitService habits) =>
@@ -204,7 +205,8 @@ internal static class MeEndpoints
             errors["language"] = ["Must be en or de."];
     }
 
-    private static async Task<MeDto?> LoadMe(ClaimsPrincipal principal, UserManager<User> users, HabitService habits, TimeProvider time)
+    private static async Task<MeDto?> LoadMe(ClaimsPrincipal principal, UserManager<User> users, HabitService habits,
+        JournalService journal, TimeProvider time)
     {
         var user = await users.GetUserAsync(principal);
         if (user is null) return null;
@@ -219,7 +221,7 @@ internal static class MeEndpoints
                 user.ConsentWithdrawnAt,
                 user.ConsentWithdrawnAt is { } withdrawn && await habits.HasHealthDataAsync(user.Id) ? HabitService.DeletionDueUtc(withdrawn, user.DeletionReminderSentAt) : null),
             new DmRemindersDto(user.DmRemindersPausedAt is not null),
-            await habits.GetJournalStateAsync(user.Id),
+            await journal.GetJournalStateAsync(user.Id),
             [.. user.TipsSeen], user.TodayOrder?.ToArray(), user.OfferHabitNote);
     }
 }

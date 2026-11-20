@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Formats.Tar;
 using Ember.Api.Hosting;
 using Ember.Core.Models;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,13 +32,12 @@ public class FeedbackCliTests(PostgresFixture postgres) : ApiTestBase(postgres)
         return (process.ExitCode, stdout.ToArray(), err);
     }
 
-    private Task Report(string title, bool signedIn, params byte[][] pictures)
-        => Host.Run(async s =>
-        {
-            var userId = signedIn ? (Guid?)(await s.ResolveOrCreateDiscordUserAsync(123456789012345678)) : null;
-            await s.SaveFeedbackAsync(userId, "web", "1.0", "text of " + title, default, title,
-                pictures.Select(p => new FeedbackImage { ContentType = "image/png", Data = p }).ToList());
-        });
+    private async Task Report(string title, bool signedIn, params byte[][] pictures)
+    {
+        var userId = signedIn ? (Guid?)await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(123456789012345678)) : null;
+        await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(userId, "web", "1.0", "text of " + title, default, title,
+            pictures.Select(p => new FeedbackImage { ContentType = "image/png", Data = p }).ToList()));
+    }
 
     [Fact]
     public void Quoting_splits_on_every_line_ending_so_user_text_cannot_fake_a_listing_header()

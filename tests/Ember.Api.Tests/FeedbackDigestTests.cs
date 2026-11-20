@@ -1,4 +1,5 @@
 using Ember.Api.Email;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,7 +35,7 @@ public abstract class FeedbackDigestTestBase(PostgresFixture postgres) : ApiTest
 
     protected Task Submit(string text, Guid? userId = null, string platform = "web", string? version = "1.0", string? title = null,
         IReadOnlyList<Ember.Core.Models.FeedbackImage>? images = null)
-        => Host.Run(s => s.SaveFeedbackAsync(userId, platform, version, text, title: title, images: images));
+        => Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(userId, platform, version, text, title: title, images: images));
 
     protected Task<List<Ember.Core.Models.Feedback>> Stored()
         => Host.Db(db => db.Feedback.AsNoTracking().OrderBy(f => f.Id).ToListAsync());

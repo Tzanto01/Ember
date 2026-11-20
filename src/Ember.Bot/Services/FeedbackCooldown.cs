@@ -4,7 +4,7 @@ namespace Ember.Bot.Services;
 
 /// <summary>
 /// In-memory limit of <see cref="MaxPerWindow"/> <c>/feedback</c> submissions per Discord user in any <see cref="Window"/>, and
-/// of <see cref="HabitService.MaxFeedbackImageBytesPerUserPerDay"/> picture bytes per Discord user in any <see cref="BytesWindow"/>.
+/// of <see cref="FeedbackService.MaxFeedbackImageBytesPerUserPerDay"/> picture bytes per Discord user in any <see cref="BytesWindow"/>.
 /// A restart resets it.
 /// </summary>
 public sealed class FeedbackCooldown(TimeProvider time)
@@ -41,7 +41,7 @@ public sealed class FeedbackCooldown(TimeProvider time)
 
     /// <summary>
     /// Counts <paramref name="bytes"/> picture bytes by the user now and returns true, or returns false without counting when they
-    /// would take the user over <see cref="HabitService.MaxFeedbackImageBytesPerUserPerDay"/>.
+    /// would take the user over <see cref="FeedbackService.MaxFeedbackImageBytesPerUserPerDay"/>.
     /// </summary>
     public bool TryRecordBytes(ulong discordUserId, long bytes)
     {
@@ -50,7 +50,7 @@ public sealed class FeedbackCooldown(TimeProvider time)
             var now = time.GetUtcNow();
             if (!_bytes.TryGetValue(discordUserId, out var sent)) _bytes[discordUserId] = sent = new Queue<(DateTimeOffset, long)>();
             while (sent.Count > 0 && now - sent.Peek().At >= BytesWindow) sent.Dequeue();
-            if (sent.Sum(s => s.Bytes) + bytes > HabitService.MaxFeedbackImageBytesPerUserPerDay)
+            if (sent.Sum(s => s.Bytes) + bytes > FeedbackService.MaxFeedbackImageBytesPerUserPerDay)
             {
                 if (sent.Count == 0) _bytes.Remove(discordUserId);
                 return false;

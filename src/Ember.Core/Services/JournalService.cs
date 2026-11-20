@@ -1,3 +1,4 @@
+using Ember.Core.Data;
 using Ember.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,13 +18,25 @@ public enum MoodWriteResult
     /// <summary>The mood isn't the user's. Nothing was written.</summary>
     NotFound,
 
-    /// <summary>The write would leave more than <see cref="HabitService.MaxActiveMoodsPerUser"/> non-archived moods. Nothing was written.</summary>
+    /// <summary>The write would leave more than <see cref="JournalService.MaxActiveMoodsPerUser"/> non-archived moods. Nothing was written.</summary>
     LimitReached,
 }
 
-/// <summary>The journal for the day, own moods and the private-journal key. Never shown by the bot, notifications or the weekly summary.</summary>
-public partial class HabitService
+/// <summary>
+/// The journal for the day, own moods, the private-journal key and the "What helps me" list. Never shown by the bot, notifications or
+/// the weekly summary.
+/// </summary>
+public partial class JournalService
 {
+    private readonly EmberDbContext _db;
+    private readonly TimeProvider _time;
+
+    public JournalService(EmberDbContext db, TimeProvider time)
+    {
+        _db = db;
+        _time = time;
+    }
+
     /// <summary>Most non-archived own moods a single user can have.</summary>
     public const int MaxActiveMoodsPerUser = 20;
 

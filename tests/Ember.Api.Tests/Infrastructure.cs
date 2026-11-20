@@ -193,13 +193,18 @@ public sealed class ApiHost : WebApplicationFactory<Program>
     }
 
     /// <summary>Runs <paramref name="action"/> against Core's <see cref="HabitService"/> (what the bot uses), in its own scope.</summary>
-    public async Task<T> Service<T>(Func<HabitService, Task<T>> action)
+    public Task<T> Service<T>(Func<HabitService, Task<T>> action) => Service<HabitService, T>(action);
+
+    /// <summary>Runs <paramref name="action"/> against the Core service <typeparamref name="TService"/>, in its own scope.</summary>
+    public async Task<T> Service<TService, T>(Func<TService, Task<T>> action) where TService : notnull
     {
         using var scope = Services.CreateScope();
-        return await action(scope.ServiceProvider.GetRequiredService<HabitService>());
+        return await action(scope.ServiceProvider.GetRequiredService<TService>());
     }
 
-    public Task Run(Func<HabitService, Task> action) => Service(async service =>
+    public Task Run(Func<HabitService, Task> action) => Run<HabitService>(action);
+
+    public Task Run<TService>(Func<TService, Task> action) where TService : notnull => Service<TService, int>(async service =>
     {
         await action(service);
         return 0;
