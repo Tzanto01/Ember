@@ -191,7 +191,4 @@ public partial class HabitService
 
     public async Task<User?> GetUserForExportAsync(ulong discordUserId)
         => await GetUserForExportAsync(await FindDiscordUserAsync(discordUserId));
-
-    public async Task<bool> UserExistsAsync(ulong discordUserId, CancellationToken cancellationToken = default)
-        => await UserExistsAsync(await FindDiscordUserAsync(discordUserId, cancellationToken), cancellationToken);
 }
