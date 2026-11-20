@@ -1,7 +1,7 @@
+using System.Text.Json;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using FluentAssertions;
-using System.Text.Json;
 
 namespace Ember.Tests;
 

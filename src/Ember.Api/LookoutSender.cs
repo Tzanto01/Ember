@@ -1,6 +1,6 @@
+using Ember.Core;
 using Ember.Core.Data;
 using Ember.Core.Models;
-using Ember.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api;

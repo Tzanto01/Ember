@@ -1,9 +1,9 @@
+using System.Text;
 using Discord;
 using Discord.Interactions;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
-using System.Text;
 
 namespace Ember.Bot.Modules;
 

@@ -1,7 +1,7 @@
 using System.Globalization;
-using Ember.Core.Localization;
 using Discord;
 using Discord.Interactions;
+using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;

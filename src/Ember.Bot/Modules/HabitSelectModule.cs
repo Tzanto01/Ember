@@ -1,8 +1,8 @@
 using Discord;
-using Ember.Core.Localization;
 using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
+using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Services;
 

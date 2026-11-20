@@ -1,8 +1,8 @@
+using System.Reflection;
 using Discord;
 using Ember.Bot;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Reflection;
 
 namespace Ember.Tests;
 
