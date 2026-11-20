@@ -217,8 +217,8 @@ internal static class ImportEndpoints
             else if (date > today) local["date"] = ["Can't be after today."];
             else if (habit is not null && date < HabitRules.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
             else if (habit is not null && !madeIt.Add((habit, date))) local["date"] = ["Only one made-it entry per habit and day."];
-            else if (habit is not null && slipped.Contains((habit, date))) local["date"] = ["That day has a slip in this file."];
-            habit?.MadeItDays.Add(new MadeItDay { Date = m.Date ?? default, CreatedAt = now });
+            if (habit is not null && !slipped.Contains((habit, m.Date ?? default)))
+                habit.MadeItDays.Add(new MadeItDay { Date = m.Date ?? default, CreatedAt = now });
             Nest(errors, path, local);
         }
 

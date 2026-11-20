@@ -245,16 +245,16 @@ function parse(text: string): ParsedBackup {
   });
 
   const markedDays = new Set<string>();
-  const madeIt = list(field(doc, 'made_it_days')).map((raw): LocalMadeItDay => {
+  const madeIt = list(field(doc, 'made_it_days')).flatMap((raw): LocalMadeItDay[] => {
     const m = record(raw);
     const habit = habitIds.get(field(m, 'habit_id') as number) ?? damaged();
     if (habit.kind !== 'letGo') damaged();
     const date = optionalDate(field(m, 'date')) ?? damaged();
     if (date > today || date < habitStartDate(habit, timezone)) damaged();
     const key = `${habit.id}|${date}`;
-    if (markedDays.has(key) || slipDays.has(key)) damaged();
+    if (markedDays.has(key)) damaged();
     markedDays.add(key);
-    return { habitId: habit.id, date };
+    return slipDays.has(key) ? [] : [{ habitId: habit.id, date }];
   });
 
   const lowDays = new Set<string>();

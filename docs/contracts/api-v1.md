@@ -812,7 +812,7 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 ### Data
 
 - New table `MadeItDays`: `Id`, `HabitId` (FK, cascade), `Date` (user-local `DateOnly`, one row per habit and date, unique index), `CreatedAt` (UTC). Health data like slips: the write needs the health-data consent, a withdrawal deletes it with the habit, both exports carry it, a merge moves it with its habit.
-- A slip and a mark exclude each other on a day: noting a slip removes that day's mark; removing slips doesn't bring it back.
+- A slip and a mark exclude each other on a day: noting a slip removes that day's mark, and removing slips removes it too, so it never comes back.
 - `LetGoDay.MadeIt` is true only on a `free` day that has a mark. A mark on a day that later became paused (or one that arrived with a slip) is kept but reads false. Marks change no stat (`docs/contracts/fixtures/letgo-v1.json` proves it in Core and the client).
 
 ### API
@@ -821,7 +821,7 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 - `GET /api/habits/{id}/made-it?from&to` → `[{ date }]`, oldest first, same range rules as `/slips` (`[]` for a build habit).
 - `PUT /api/habits/{id}/made-it/{date}` → 200 `Habit`. Marks the day; marking a marked day again is fine. Checks in this order: date format (400 `validation` on `date`), the habit is the caller's (404), a build habit (400 on `kind`), after the user's local today, before the habit's start, a paused day, a day with a slip (each 400 on `date`), then consent (403 `consent_required`).
 - `DELETE /api/habits/{id}/made-it/{date}` → 200 `Habit`. Removes the mark (undo); fine when there is none. Not consent-gated.
-- Export (format version stays 2): JSON `made_it_days: [{ habit_id, date }]` in the web and the Discord export; CSV rows `made_it` with `habit_id` and `date`. Import takes optional `made_it_days`: each must name a let-go habit of the file, a date from that habit's start to today, at most one per habit and day, and not a day the file has a slip for (400 `validation` on the item otherwise).
+- Export (format version stays 2): JSON `made_it_days: [{ habit_id, date }]` in the web and the Discord export; CSV rows `made_it` with `habit_id` and `date`. Import takes optional `made_it_days`: each must name a let-go habit of the file, a date from that habit's start to today, and at most one per habit and day (400 `validation` on the item otherwise). A mark on a day the file has a slip for is skipped, so an account's own export always imports.
 - No-account mode (`web/src/lib/local/backend.ts`) supports the same routes, its backup carries the marks, and moving device data into an account sends them along.
 
 ### Clients

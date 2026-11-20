@@ -261,8 +261,20 @@ describe('BackupService', () => {
       expect(parsed(backup.parseBackup(fileText(doc))).data.madeIt).toEqual([]);
     });
 
+    it('skips a mark on a day the file has a slip for and keeps the rest', () => {
+      const data = withLetGo();
+      data.madeIt = [
+        { habitId: 4, date: '2026-10-12' },
+        { habitId: 4, date: '2026-10-13' },
+      ];
+
+      const restored = parsed(backup.parseBackup(fileText(exportDocument(data)))).data;
+
+      expect(restored.madeIt?.map((mark) => mark.date)).toEqual(['2026-10-13']);
+      expect(restored.slips?.map((slip) => slip.date)).toContain('2026-10-12');
+    });
+
     it.each([
-      ['a mark on a day with a slip', (mark: Record<string, unknown>) => (mark['date'] = '2026-10-12')],
       ['a mark on a build habit', (mark: Record<string, unknown>) => (mark['habit_id'] = 1)],
       ['a mark before the habit started', (mark: Record<string, unknown>) => (mark['date'] = '2026-09-30')],
       ['a mark in the future', (mark: Record<string, unknown>) => (mark['date'] = '2999-01-01')],

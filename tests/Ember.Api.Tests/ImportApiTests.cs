@@ -213,22 +213,34 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
     public async Task Import_refuses_made_it_days_that_are_not_on_a_free_day_of_a_let_go_habit_and_writes_nothing()
     {
         var user = await Host.SignedInAsync();
-        object Slip(string date) => new { habit_id = 1, date, count = 1, reasons = Array.Empty<string>() };
 
         var onBuild = await ErrorsAsync(await Import(user, WithMadeItDays(Doc(habits: [HabitItem(1)]), new { habit_id = 1, date = "2026-10-25" })));
-        var bad = await ErrorsAsync(await Import(user, WithMadeItDays(WithSlips(Doc(habits: [LetGoItem(1)]), Slip("2026-10-26")),
+        var bad = await ErrorsAsync(await Import(user, WithMadeItDays(Doc(habits: [LetGoItem(1)]),
             new { habit_id = 1, date = "2026-10-25" },
             new { habit_id = 1, date = "2026-10-25" },
-            new { habit_id = 1, date = "2026-10-26" },
             new { habit_id = 1, date = "2026-10-19" },
             new { habit_id = 1, date = "2026-12-25" },
             new { habit_id = 9, date = "2026-10-27" })));
 
         onBuild.Has("made_it_days[0].habit_id").Should().BeTrue();
         bad.EnumerateObject().Select(e => e.Name).Should().BeEquivalentTo(
-            "made_it_days[1].date", "made_it_days[2].date", "made_it_days[3].date", "made_it_days[4].date", "made_it_days[5].habit_id");
+            "made_it_days[1].date", "made_it_days[2].date", "made_it_days[3].date", "made_it_days[4].habit_id");
         (await HabitCountAsync(await user.IdAsync())).Should().Be(0);
         (await Host.Db(db => db.MadeItDays.CountAsync())).Should().Be(0);
+    }
+
+    [DockerFact]
+    public async Task A_made_it_day_on_a_day_the_file_has_a_slip_for_is_skipped_and_the_rest_imports()
+    {
+        var user = await Host.SignedInAsync();
+        var doc = WithMadeItDays(WithSlips(Doc(habits: [LetGoItem(1)]), new { habit_id = 1, date = "2026-10-26", count = 1, reasons = Array.Empty<string>() }),
+            new { habit_id = 1, date = "2026-10-26" },
+            new { habit_id = 1, date = "2026-10-25" });
+
+        await (await Import(user, doc)).Expect(HttpStatusCode.NoContent);
+
+        (await Host.Db(db => db.HabitSlips.Select(s => s.Date).ToListAsync())).Should().Equal(new DateOnly(2026, 10, 26));
+        (await Host.Db(db => db.MadeItDays.Select(m => m.Date).ToListAsync())).Should().Equal(new DateOnly(2026, 10, 25));
     }
 
     [DockerFact]

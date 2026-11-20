@@ -812,6 +812,7 @@ export class LocalBackend {
     const data = await this.update((d) => {
       this.slipHabit(d, id, date, false);
       d.slips = (d.slips ?? []).filter((slip) => slip.habitId !== id || slip.date !== date);
+      d.madeIt = withoutMark(d, id, date);
       return d;
     });
     return this.habitResult(data, id);

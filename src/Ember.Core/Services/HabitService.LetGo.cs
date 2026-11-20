@@ -108,7 +108,10 @@ public partial class HabitService
         return SlipResult.Saved;
     }
 
-    /// <summary>Removes the let-go habit's slips on the local <paramref name="date"/> (undo); a day without slips is a no-op that still returns <see cref="SlipResult.Saved"/>.</summary>
+    /// <summary>
+    /// Removes the let-go habit's slips on the local <paramref name="date"/> (undo), and any made-it mark of that day; a day without
+    /// slips is a no-op that still returns <see cref="SlipResult.Saved"/>.
+    /// </summary>
     public async Task<SlipResult> RemoveSlipsAsync(Guid userId, int habitId, DateOnly date)
     {
         var kind = await _db.Habits.Where(h => h.Id == habitId && h.UserId == userId).Select(h => (HabitKind?)h.Kind).FirstOrDefaultAsync();
@@ -116,6 +119,7 @@ public partial class HabitService
         if (kind != HabitKind.LetGo) return SlipResult.NotLetGo;
 
         await _db.HabitSlips.Where(s => s.HabitId == habitId && s.Date == date).ExecuteDeleteAsync();
+        await RemoveMadeItDayAsync(habitId, date);
         return SlipResult.Saved;
     }
 
@@ -136,6 +140,8 @@ public partial class HabitService
     /// <summary>
     /// Marks the let-go habit's local <paramref name="date"/> as made it: any free day from the habit's start to the user's local
     /// today, never a paused day or one with a slip. Marking a marked day again is a no-op that returns <see cref="MadeItResult.Saved"/>.
+    /// Once saved, the day is checked for a slip again, so a slip noted at the same time removes the mark and the result is
+    /// <see cref="MadeItResult.Slipped"/>.
     /// </summary>
     public async Task<MadeItResult> MarkMadeItAsync(Guid userId, int habitId, DateOnly date)
     {
@@ -147,20 +153,28 @@ public partial class HabitService
         if (date > TimezoneHelper.LocalToday(habit.User.Timezone, _time)) return MadeItResult.InFuture;
         if (date < HabitRules.StartDate(habit, TimezoneHelper.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc)) return MadeItResult.BeforeHabitStart;
         if (HabitRules.IsPausedOn(habit, date)) return MadeItResult.Paused;
-        if (await _db.HabitSlips.AnyAsync(s => s.HabitId == habitId && s.Date == date && s.Count > 0)) return MadeItResult.Slipped;
+        if (await HasSlipOnAsync(habitId, date)) return MadeItResult.Slipped;
         if (!await _consent.HasHealthDataConsentAsync(userId)) return MadeItResult.ConsentRequired;
 
-        if (await _db.MadeItDays.AnyAsync(m => m.HabitId == habitId && m.Date == date)) return MadeItResult.Saved;
-        var mark = new MadeItDay { HabitId = habitId, Date = date, CreatedAt = _time.GetUtcNow().UtcDateTime };
-        _db.MadeItDays.Add(mark);
-        try
+        if (!await _db.MadeItDays.AnyAsync(m => m.HabitId == habitId && m.Date == date))
         {
-            await _db.SaveChangesAsync();
+            var mark = new MadeItDay { HabitId = habitId, Date = date, CreatedAt = _time.GetUtcNow().UtcDateTime };
+            _db.MadeItDays.Add(mark);
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                _db.Entry(mark).State = EntityState.Detached;
+                if (!await _db.MadeItDays.AnyAsync(m => m.HabitId == habitId && m.Date == date)) throw;
+            }
         }
-        catch (DbUpdateException)
+
+        if (await HasSlipOnAsync(habitId, date))
         {
-            _db.Entry(mark).State = EntityState.Detached;
-            if (!await _db.MadeItDays.AnyAsync(m => m.HabitId == habitId && m.Date == date)) throw;
+            await RemoveMadeItDayAsync(habitId, date);
+            return MadeItResult.Slipped;
         }
         return MadeItResult.Saved;
     }
@@ -189,6 +203,9 @@ public partial class HabitService
             .OrderBy(m => m.Date)
             .ToListAsync();
     }
+
+    private Task<bool> HasSlipOnAsync(int habitId, DateOnly date)
+        => _db.HabitSlips.AnyAsync(s => s.HabitId == habitId && s.Date == date && s.Count > 0);
 
     private Task<int> RemoveMadeItDayAsync(int habitId, DateOnly date)
         => _db.MadeItDays.Where(m => m.HabitId == habitId && m.Date == date).ExecuteDeleteAsync();

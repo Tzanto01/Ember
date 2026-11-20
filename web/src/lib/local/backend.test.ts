@@ -550,6 +550,20 @@ describe('LocalBackend through ApiClient', () => {
       expect(await api.getMadeIt(1, '2026-10-20', today)).toEqual([{ date: '2026-10-30' }]);
     });
 
+    it('clearing slips also clears a mark left on that day', async () => {
+      const data = seed([letGo(1)]);
+      data.slips = [{ habitId: 1, date: '2026-10-30', count: 1, reasons: [] }];
+      data.madeIt = [
+        { habitId: 1, date: '2026-10-30' },
+        { habitId: 1, date: '2026-10-29' },
+      ];
+      await store.replace(data);
+
+      await api.clearSlips(1, '2026-10-30');
+
+      expect((await store.load())?.madeIt).toEqual([{ habitId: 1, date: '2026-10-29' }]);
+    });
+
     it('exports the marks and drops them with the habit', async () => {
       const data = seed([letGo(1), letGo(2)]);
       data.madeIt = [
