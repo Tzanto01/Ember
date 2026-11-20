@@ -13,7 +13,7 @@ describe('legal texts', () => {
     );
     expect(
       changed,
-      "Changed legal texts: set each one's **Stand:** to today's date, then run `bun run legal:stamp`",
+      "Changed legal texts: set each one's **Stand:** to today's date, then run `bun run legal:stamp` and re-capture that page's visual baselines (e2e/visual.spec.ts)",
     ).toEqual([]);
   });
 });
