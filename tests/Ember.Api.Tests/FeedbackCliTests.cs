@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Formats.Tar;
+using Ember.Api.Hosting;
 using Ember.Core.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;

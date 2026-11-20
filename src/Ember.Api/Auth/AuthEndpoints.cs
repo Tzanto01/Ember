@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Ember.Api.Email;
+using Ember.Api.Habits;
+using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -15,7 +17,7 @@ using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ember.Api;
+namespace Ember.Api.Auth;
 
 /// <summary>Identity's API endpoints with Ember's deviations, plus antiforgery and logout.</summary>
 internal static class AuthEndpoints

@@ -5,7 +5,7 @@ using Ember.Core.Data;
 using Ember.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ember.Api;
+namespace Ember.Api.Feedback;
 
 /// <summary>
 /// Operator commands on the stored feedback, run inside the API container (<c>docker compose exec -T api dotnet Ember.Api.dll

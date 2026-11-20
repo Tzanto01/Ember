@@ -1,4 +1,5 @@
 using System.Net;
+using Ember.Api.Hosting.Metrics;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 

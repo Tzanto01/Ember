@@ -1,5 +1,6 @@
 using AspNet.Security.OAuth.Discord;
 using Ember.Api.Email;
+using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

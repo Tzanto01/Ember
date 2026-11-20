@@ -1,4 +1,4 @@
-namespace Ember.Api;
+namespace Ember.Api.Hosting;
 
 /// <summary>Limits from <c>Ember:RateLimits</c>.</summary>
 internal sealed class RateLimitSettings

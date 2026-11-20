@@ -14,7 +14,7 @@ public class FeedbackImageApiTests(PostgresFixture postgres) : ApiTestBase(postg
     private static object Body(string?[]? images = null, bool? anonymous = null, string? title = "Crash on start", string? text = "It closes right away")
         => new { title, text, platform = "web", version = "1.2.3", images, anonymous };
 
-    private Task<List<Feedback>> Stored() => Host.Db(db => db.Feedback.AsNoTracking().Include(f => f.Images).OrderBy(f => f.Id).ToListAsync());
+    private Task<List<Ember.Core.Models.Feedback>> Stored() => Host.Db(db => db.Feedback.AsNoTracking().Include(f => f.Images).OrderBy(f => f.Id).ToListAsync());
 
     private static string B64(byte[] data) => SyntheticImages.Base64(data);
 

@@ -1,9 +1,10 @@
 using System.Globalization;
 using System.Security.Claims;
+using Ember.Api.Hosting;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.DataProtection;
 
-namespace Ember.Api;
+namespace Ember.Api.Fireside;
 
 /// <summary>
 /// Fireside: friends by single-use codes and the five fixed warmth messages. Every id in a route is the caller's own link or warmth

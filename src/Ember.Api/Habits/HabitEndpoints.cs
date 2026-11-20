@@ -1,9 +1,10 @@
 using System.Security.Claims;
+using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
 
-namespace Ember.Api;
+namespace Ember.Api.Habits;
 
 /// <summary>Habits, their days and the habit templates.</summary>
 internal static class HabitEndpoints

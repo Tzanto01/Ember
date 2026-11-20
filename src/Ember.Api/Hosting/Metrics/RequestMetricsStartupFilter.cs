@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting.Metrics;
 
 /// <summary>Times every request as the outermost middleware and files it under its endpoint's route template; the health check is left out.</summary>
 public sealed class RequestMetricsStartupFilter(RequestMetrics metrics, IConfiguration configuration) : IStartupFilter

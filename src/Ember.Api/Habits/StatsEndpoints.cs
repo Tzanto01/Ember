@@ -1,9 +1,10 @@
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Ember.Core.Services;
 
-namespace Ember.Api;
+namespace Ember.Api.Habits;
 
 /// <summary>The weekly summary the bot sends as a DM, as plain data, and the per-day stats for the year view.</summary>
 internal static partial class StatsEndpoints

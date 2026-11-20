@@ -1,11 +1,12 @@
 using System.Threading.RateLimiting;
+using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Features;
 
-namespace Ember.Api;
+namespace Ember.Api.Feedback;
 
 /// <summary>In-app feedback from the web and Android apps, signed in or not.</summary>
 internal static class FeedbackEndpoints

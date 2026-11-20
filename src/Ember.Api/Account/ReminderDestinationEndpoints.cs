@@ -3,10 +3,12 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
+using Ember.Api.Auth;
+using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Ember.Core.Services;
 
-namespace Ember.Api;
+namespace Ember.Api.Account;
 
 /// <summary>Where Ember reminds the signed-in user: Discord DMs, each browser and each phone, with their on/off switch.</summary>
 internal static partial class ReminderDestinationEndpoints

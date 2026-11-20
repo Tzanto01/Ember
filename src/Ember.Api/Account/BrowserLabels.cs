@@ -1,4 +1,4 @@
-namespace Ember.Api;
+namespace Ember.Api.Account;
 
 /// <summary>Readable browser names ("Firefox on Linux") from a User-Agent header.</summary>
 internal static class BrowserLabels

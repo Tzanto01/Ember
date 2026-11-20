@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using Ember.Api.Auth;
+using Ember.Api.Hosting;
 using Ember.Core.Services;
 
-namespace Ember.Api;
+namespace Ember.Api.Account;
 
 /// <summary>Web push: the VAPID public key and the signed-in user's browser subscriptions.</summary>
 internal static class PushEndpoints

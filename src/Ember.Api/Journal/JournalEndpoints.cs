@@ -3,12 +3,13 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Ember.Api;
+namespace Ember.Api.Journal;
 
 /// <summary>The journal for the day, own moods and the private-journal key (contract "Journal for the day", "Private journal").</summary>
 internal static class JournalEndpoints

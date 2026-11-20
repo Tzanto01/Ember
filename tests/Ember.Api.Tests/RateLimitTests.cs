@@ -1,4 +1,5 @@
 using System.Net;
+using Ember.Api.Hosting;
 using FluentAssertions;
 
 namespace Ember.Api.Tests;

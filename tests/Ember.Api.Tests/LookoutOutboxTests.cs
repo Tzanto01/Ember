@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Ember.Api.Hosting;
+using Ember.Api.Lookout;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
@@ -544,7 +546,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
     private Task<int> Seed(string title, FeedbackStatus status, DateTime createdAt, DateTime? resolvedAt = null, Guid? userId = null, byte[]? picture = null)
         => Host.Db(async db =>
         {
-            var feedback = new Feedback
+            var feedback = new Ember.Core.Models.Feedback
             {
                 UserId = userId,
                 Platform = "web",

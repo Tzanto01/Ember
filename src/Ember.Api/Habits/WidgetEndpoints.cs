@@ -1,11 +1,12 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ember.Api;
+namespace Ember.Api.Habits;
 
 /// <summary>
 /// The home screen widget's check-in, authorized by the <c>Widget</c> key of a live session alone (issued by

@@ -1,3 +1,4 @@
+using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;

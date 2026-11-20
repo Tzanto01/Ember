@@ -5,7 +5,7 @@ using Ember.Core.Data;
 using Ember.Core.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ember.Api;
+namespace Ember.Api.Operations;
 
 /// <summary>
 /// <c>--replay-deletions &lt;since&gt;</c>: after restoring a backup taken at <c>since</c> (UTC ISO 8601 with <c>Z</c> or an offset),

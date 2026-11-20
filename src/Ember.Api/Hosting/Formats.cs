@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting;
 
 /// <summary>The contract's wire formats: local dates as <c>yyyy-MM-dd</c>, times of day as <c>HH:mm</c>.</summary>
 internal static class Formats

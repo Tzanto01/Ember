@@ -1,9 +1,11 @@
+using Ember.Api.Auth;
+using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Identity;
 
-namespace Ember.Api;
+namespace Ember.Api.Account;
 
 /// <summary>Confirming or cancelling the merge of a bot-only account found while linking Discord.</summary>
 internal static class MergeEndpoints

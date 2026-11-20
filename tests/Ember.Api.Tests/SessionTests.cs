@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Json;
+using Ember.Api.Auth;
 using Ember.Api.TestHost;
 using Ember.Core.Data;
 using Ember.Core.Models;

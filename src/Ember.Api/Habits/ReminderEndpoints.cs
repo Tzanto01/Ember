@@ -1,6 +1,7 @@
+using Ember.Api.Hosting;
 using Ember.Core.Services;
 
-namespace Ember.Api;
+namespace Ember.Api.Habits;
 
 /// <summary>The anonymous "Done" action of a web push reminder, authorized by its one-time token alone.</summary>
 internal static class ReminderEndpoints

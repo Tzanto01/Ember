@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting;
 
 internal static class CurrentUser
 {

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
-namespace Ember.Api;
+namespace Ember.Api.Auth;
 
 /// <summary>
 /// Password sign-in that reveals nothing about an account until the password matched: an unknown user or an account without

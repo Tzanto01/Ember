@@ -3,10 +3,9 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Ember.Core.Data;
-using Ember.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ember.Api;
+namespace Ember.Api.Lookout;
 
 /// <summary>
 /// The client side of Lookout's ingest API (<c>PUT tickets/{key}</c>, <c>DELETE users/{userRef}</c>), shared by
@@ -127,7 +126,7 @@ internal static class LookoutIngest
     /// The UTF-8 JSON <c>TicketInput</c> of <paramref name="feedback"/> (with its <see cref="Feedback.Images"/> in id order); the
     /// same input gives the same bytes.
     /// </summary>
-    public static byte[] TicketBody(Feedback feedback, string? userRef, TicketImport? import = null)
+    public static byte[] TicketBody(Ember.Core.Models.Feedback feedback, string? userRef, TicketImport? import = null)
         => JsonSerializer.SerializeToUtf8Bytes(new TicketInput("feedback", feedback.Title, feedback.Text, feedback.Platform, feedback.Version,
             Utc(feedback.CreatedAt), userRef, [.. feedback.Images.OrderBy(i => i.Id).Select(i => new TicketImage(i.ContentType, i.Data))], import), Json);
 

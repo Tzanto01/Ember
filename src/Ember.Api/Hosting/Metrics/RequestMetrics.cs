@@ -1,4 +1,4 @@
-namespace Ember.Api;
+namespace Ember.Api.Hosting.Metrics;
 
 /// <summary>The last 24 hours of request timings, per minute and route template. At most 1,440 minutes times the app's route templates.</summary>
 public sealed class RequestMetrics(TimeProvider time)

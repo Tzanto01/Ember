@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting.Metrics;
 
 /// <summary>The key in a file (at least 32 bytes), kept in memory and read again only when a bearer does not match it.</summary>
 public sealed class MetricsKey(string? keyFile)

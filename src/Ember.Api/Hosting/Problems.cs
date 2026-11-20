@@ -1,6 +1,6 @@
 using Ember.Core.Services;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting;
 
 /// <summary>Every problem response of the API, with the contract's <c>type</c> codes.</summary>
 internal static class Problems

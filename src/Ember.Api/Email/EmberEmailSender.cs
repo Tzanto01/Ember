@@ -3,6 +3,7 @@ using System.Net;
 using System.Resources;
 using System.Security.Cryptography;
 using System.Text;
+using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;

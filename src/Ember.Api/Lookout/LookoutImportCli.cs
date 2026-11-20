@@ -5,7 +5,7 @@ using Ember.Core.Data;
 using Ember.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ember.Api;
+namespace Ember.Api.Lookout;
 
 /// <summary>
 /// <c>--lookout-import &lt;board.json|-&gt;</c>: the one-time import of the reports stored before the outbox into Lookout, run inside

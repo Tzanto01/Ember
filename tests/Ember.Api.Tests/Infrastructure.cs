@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Ember.Api.Auth;
 using Ember.Api.Email;
 using Ember.Api.TestHost;
 using Ember.Core.Data;

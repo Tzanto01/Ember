@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using Ember.Api.Hosting;
+using Ember.Api.Journal;
 using Ember.Core.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace Ember.Api;
+namespace Ember.Api.Auth;
 
 /// <summary>
 /// Two-factor sign-in (TOTP) of the signed-in account. Every endpoint that takes a code or the password is under the per-IP

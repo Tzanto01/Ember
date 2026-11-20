@@ -2,7 +2,7 @@ using Ember.Core.Localization;
 using Ember.Core.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace Ember.Api;
+namespace Ember.Api.Auth;
 
 /// <summary>
 /// Identity's user validation, except that an account without an email (bot-only or Discord-only) stays valid, so

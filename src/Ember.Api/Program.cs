@@ -1,4 +1,9 @@
 using Ember.Api;
+using Ember.Api.Feedback;
+using Ember.Api.Hosting;
+using Ember.Api.Hosting.Metrics;
+using Ember.Api.Lookout;
+using Ember.Api.Operations;
 
 if (args is ["--healthcheck"])
 {

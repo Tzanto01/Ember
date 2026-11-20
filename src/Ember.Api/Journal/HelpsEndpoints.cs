@@ -1,8 +1,9 @@
 using System.Security.Claims;
+using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Ember.Core.Services;
 
-namespace Ember.Api;
+namespace Ember.Api.Journal;
 
 /// <summary>The end-to-end encrypted "What helps me" list (contract "Companion extras v1.17").</summary>
 internal static class HelpsEndpoints

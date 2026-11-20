@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace Ember.Api;
+namespace Ember.Api.Auth;
 
 /// <summary>
 /// Server-side sign-in sessions (<see cref="AuthSession"/>). Every sign-in starts one and carries its ID in the

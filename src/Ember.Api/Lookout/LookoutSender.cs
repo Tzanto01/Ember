@@ -1,3 +1,4 @@
+using Ember.Api.Lookout;
 using Ember.Core;
 using Ember.Core.Data;
 using Ember.Core.Models;

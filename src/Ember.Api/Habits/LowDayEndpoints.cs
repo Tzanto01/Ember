@@ -1,7 +1,8 @@
 using System.Security.Claims;
+using Ember.Api.Hosting;
 using Ember.Core.Services;
 
-namespace Ember.Api;
+namespace Ember.Api.Habits;
 
 /// <summary>The user's low days, which protect all their habits.</summary>
 internal static class LowDayEndpoints

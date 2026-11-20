@@ -8,7 +8,7 @@ using Ember.Core.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting;
 
 /// <summary>
 /// Per client IP on the credential endpoints of <c>/api/auth</c> (the strict <see cref="AuthPolicy"/> policy) and on every

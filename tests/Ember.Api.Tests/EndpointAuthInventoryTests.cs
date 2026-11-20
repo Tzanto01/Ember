@@ -1,4 +1,5 @@
 using System.Net;
+using Ember.Api.Auth;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;

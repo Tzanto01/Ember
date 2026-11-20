@@ -1,12 +1,15 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Ember.Api.Habits;
+using Ember.Api.Hosting;
+using Ember.Api.Journal;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Ember.Api;
+namespace Ember.Api.Account;
 
 /// <summary><c>POST /api/me/import</c>: a JSON export (format v2) into an empty account (contract "Export format v2").</summary>
 internal static class ImportEndpoints

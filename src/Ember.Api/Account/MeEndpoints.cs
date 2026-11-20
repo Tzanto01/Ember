@@ -3,6 +3,9 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Ember.Api.Auth;
+using Ember.Api.Habits;
+using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -11,7 +14,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ember.Api;
+namespace Ember.Api.Account;
 
 /// <summary>The signed-in account: settings, consent, export and deletion.</summary>
 internal static class MeEndpoints

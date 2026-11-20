@@ -1,6 +1,12 @@
 using System.Buffers;
 using System.Net;
+using Ember.Api.Account;
+using Ember.Api.Auth;
 using Ember.Api.Email;
+using Ember.Api.Feedback;
+using Ember.Api.Fireside;
+using Ember.Api.Habits;
+using Ember.Api.Journal;
 using Ember.Core;
 using Ember.Core.Data;
 using Ember.Core.Models;
@@ -15,7 +21,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting;
 
 /// <summary>
 /// Composition of the Ember API. <see cref="CreateBuilder"/> registers every service (tests and the test host replace

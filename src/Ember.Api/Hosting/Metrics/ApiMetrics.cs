@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting.Metrics;
 
 /// <summary>
 /// Request timings for Ember ops: per minute and route template (never a raw path, id or query value) the request count, the 5xx count and

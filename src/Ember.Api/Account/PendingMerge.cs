@@ -3,7 +3,7 @@ using System.Text.Json;
 using Ember.Core.Models;
 using Microsoft.AspNetCore.DataProtection;
 
-namespace Ember.Api;
+namespace Ember.Api.Account;
 
 /// <summary>
 /// A Discord link that found a bot-only account, waiting for the user to confirm the merge. Stored in a data-protected,

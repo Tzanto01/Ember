@@ -1,7 +1,8 @@
+using Ember.Api.Auth;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Net.Http.Headers;
 
-namespace Ember.Api;
+namespace Ember.Api.Hosting;
 
 /// <summary>
 /// CORS by request origin: the web origin (<see cref="ApiApp.WebOrigin"/>) with credentials and any header, the native app
