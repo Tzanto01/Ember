@@ -196,6 +196,22 @@ public class ReminderDestinationsApiTests(PostgresFixture postgres) : ApiTestBas
     }
 
     [DockerFact]
+    public async Task Registering_an_eleventh_phone_keeps_the_ten_most_recently_registered()
+    {
+        var user = await Host.SignedInAsync();
+        var userId = await user.IdAsync();
+        var installs = Enumerable.Range(1, 11).Select(_ => InstallId()).ToList();
+        foreach (var install in installs)
+        {
+            await (await user.Post("/api/me/phones", new { installId = install })).ExpectJson();
+            Host.Time.Advance(TimeSpan.FromMinutes(1));
+        }
+
+        (await Host.Db(db => db.ReminderPhones.Where(p => p.UserId == userId).Select(p => p.InstallId).ToListAsync()))
+            .Should().BeEquivalentTo(installs.Skip(1));
+    }
+
+    [DockerFact]
     public async Task Ending_every_other_session_removes_the_phones_it_registered()
     {
         var phoneDevice = await Host.SignedInAsync();

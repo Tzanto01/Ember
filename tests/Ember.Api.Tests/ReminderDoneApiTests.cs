@@ -228,6 +228,33 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
     }
 
     [DockerFact]
+    public async Task A_token_used_from_another_users_session_checks_in_only_the_tokens_habit()
+    {
+        var (_, ownerId, ownerHabit) = await HabitAsync();
+        var (other, _, otherHabit) = await HabitAsync();
+        var token = await TokenAsync(ownerId, ownerHabit);
+
+        await (await other.Post(Done, new { token })).Expect(HttpStatusCode.NoContent);
+
+        (await CountAsync(ownerHabit, Host.Today)).Should().Be(1);
+        (await CountAsync(otherHabit, Host.Today)).Should().BeNull();
+    }
+
+    [DockerFact]
+    public async Task A_token_whose_user_does_not_own_its_habit_answers_404_writes_no_log_and_stays_unused()
+    {
+        var (_, _, habitId) = await HabitAsync();
+        var (_, strangerId, strangerHabit) = await HabitAsync();
+        var token = await TokenAsync(strangerId, habitId);
+
+        await (await Host.NewClient().Post(Done, new { token })).ExpectProblem(HttpStatusCode.NotFound, "not_found");
+
+        (await Host.Db(db => db.HabitLogs.CountAsync())).Should().Be(0);
+        (await Host.Db(db => db.ReminderActionTokens.SingleAsync())).UsedUtc.Should().BeNull();
+        (await CountAsync(strangerHabit, Host.Today)).Should().BeNull();
+    }
+
+    [DockerFact]
     public async Task Deleting_the_habit_deletes_its_tokens()
     {
         var (user, userId, habitId) = await HabitAsync();
