@@ -15,13 +15,20 @@ interface Screen {
   name: string;
   path: string;
   heading: RegExp | string;
+  /** Text drawn with system emoji fonts, which differ between machines. */
+  mask?: string;
 }
 
 const screens: Screen[] = [
   { name: 'today', path: '/today', heading: 'Today' },
   { name: 'history', path: '/history/1', heading: 'History' },
   { name: 'settings', path: '/settings', heading: /^(Settings|Account & security)$/ },
-  { name: 'habit-new', path: '/habits/new', heading: /new habit/i },
+  {
+    name: 'habit-new',
+    path: '/habits/new',
+    heading: /new habit/i,
+    mask: 'main li button > span:first-child',
+  },
   { name: 'moment', path: '/moment', heading: /^You're here/ },
   { name: 'privacy', path: '/legal/privacy', heading: /^Datenschutzerklärung/ },
   { name: 'terms', path: '/legal/terms', heading: /^Nutzungsbedingungen/ },
@@ -62,10 +69,10 @@ for (const { name: size, ...viewport } of sizes) {
           await page.goto(screen.path);
           await expect(page.getByRole('heading', { level: 1, name: screen.heading })).toBeVisible();
           await settled(page);
-          await expect(page).toHaveScreenshot(
-            `${screen.name}-${size}-${colorScheme}.png`,
-            comparison,
-          );
+          await expect(page).toHaveScreenshot(`${screen.name}-${size}-${colorScheme}.png`, {
+            ...comparison,
+            mask: screen.mask ? [page.locator(screen.mask)] : [],
+          });
         });
       }
 
