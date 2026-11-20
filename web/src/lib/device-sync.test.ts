@@ -6,6 +6,7 @@ import { AuthService } from './auth';
 import { DeviceStore } from './device-store';
 import { DeviceSync } from './device-sync';
 import { Http } from './http';
+import { reminderNames } from './native/reminder-names';
 import { Reminders } from './native/reminders';
 import { TokenStore } from './native/token-store';
 import { OfflineQueue } from './offline-queue';
@@ -18,7 +19,12 @@ const native = vi.hoisted(() => ({
 }));
 
 vi.mock('@capacitor/app', () => ({
-  App: { addListener: async () => ({ remove: async () => undefined }) },
+  App: {
+    addListener: async (event: string, listener: (event: unknown) => void) => {
+      native.listeners.set(event, listener);
+      return { remove: async () => undefined };
+    },
+  },
 }));
 
 vi.mock('@capacitor/local-notifications', () => ({
@@ -95,7 +101,12 @@ describe('DeviceSync', () => {
     auth.setMe(me);
     rebuild.mockClear();
 
-    const withdrawn = { ...me.consent, given: false, withdrawnAt: '2026-11-19T10:00:00Z', deletesAt: '2026-12-19T10:00:00Z' };
+    const withdrawn = {
+      ...me.consent,
+      given: false,
+      withdrawnAt: '2026-11-19T10:00:00Z',
+      deletesAt: '2026-12-19T10:00:00Z',
+    };
     auth.setMe({ ...me, consent: withdrawn });
     expect(pause).toHaveBeenCalledTimes(1);
     expect(rebuild).not.toHaveBeenCalled();
@@ -126,6 +137,111 @@ describe('DeviceSync', () => {
     expect(rebuild).toHaveBeenCalledWith('u1', me.timezone, 0, ['h:2', 'r:1']);
   });
 
+  describe('syncing the queue', () => {
+    const edit = { habitId: 1, date: '2026-11-01', completed: true };
+    const putUrl = '/api/habits/1/days/2026-11-01';
+
+    async function setup(nativeBuild: boolean) {
+      (globalThis as unknown as { indexedDB: unknown }).indexedDB = new IDBFactory();
+      native.listeners.clear();
+      const fetch = mockFetch();
+      const http = new Http({ native: nativeBuild, apiBase: '' });
+      const device = new DeviceStore();
+      const queue = new OfflineQueue(device);
+      const api = new ApiClient(http, queue);
+      const reminders = nativeBuild ? new Reminders(api, device) : null;
+      const rebuild = reminders ? vi.spyOn(reminders, 'rebuild').mockResolvedValue() : null;
+      const auth = new AuthService(
+        api,
+        queue,
+        null,
+        reminders ? { tokens: new TokenStore(http, memorySecureStore().store), reminders } : null,
+      );
+      const sync = new DeviceSync(auth, api, queue, reminders);
+      sync.start();
+      return { fetch, queue, auth, sync, rebuild };
+    }
+
+    async function queueFailedEdit(ctx: Awaited<ReturnType<typeof setup>>) {
+      ctx.auth.setMe(me);
+      await ctx.queue.add(edit);
+      (await ctx.fetch.next('PUT', putUrl)).fail();
+      await vi.waitFor(() => expect(ctx.queue.pending.get()).toBe(1));
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      localStorage.clear();
+      reminderNames.set(false);
+    });
+
+    it('replays a waiting edit when the browser comes back online', async () => {
+      const ctx = await setup(false);
+      await queueFailedEdit(ctx);
+
+      window.dispatchEvent(new Event('online'));
+
+      (await ctx.fetch.next('PUT', putUrl)).respond(200, habit);
+      await vi.waitFor(() => expect(ctx.queue.pending.get()).toBe(0));
+    });
+
+    it('reloads me and replays a waiting edit when the app resumes', async () => {
+      const ctx = await setup(true);
+      await vi.waitFor(() => expect(native.listeners.has('resume')).toBe(true));
+      await queueFailedEdit(ctx);
+
+      native.listeners.get('resume')?.(undefined);
+
+      (await ctx.fetch.next('GET', '/api/me')).respond(200, me);
+      (await ctx.fetch.next('PUT', putUrl)).respond(200, habit);
+      await vi.waitFor(() => expect(ctx.queue.pending.get()).toBe(0));
+    });
+
+    it('counts an edit the server refuses as dropped, bumps synced and clears the queue', async () => {
+      const ctx = await setup(false);
+      ctx.auth.setMe(me);
+      await ctx.queue.add(edit);
+
+      (await ctx.fetch.next('PUT', putUrl)).respond(404, { title: 'Not found', status: 404 });
+
+      await vi.waitFor(() => expect(ctx.sync.dropped.get()).toBe(1));
+      expect(ctx.sync.synced.get()).toBe(1);
+      expect(ctx.queue.pending.get()).toBe(0);
+    });
+
+    it('does nothing when nobody is signed in', async () => {
+      const ctx = await setup(true);
+      ctx.rebuild?.mockClear();
+
+      await ctx.sync.sync();
+
+      expect(ctx.fetch.all).toEqual([]);
+      expect(ctx.rebuild).not.toHaveBeenCalled();
+    });
+
+    it('still rebuilds the reminders and resolves when the replay itself fails', async () => {
+      const ctx = await setup(true);
+      ctx.auth.setMe(me);
+      ctx.rebuild?.mockClear();
+      vi.spyOn(ctx.queue, 'replay').mockRejectedValue(new Error('storage unavailable'));
+
+      await expect(ctx.sync.sync()).resolves.toBeUndefined();
+
+      expect(ctx.rebuild).toHaveBeenCalledTimes(1);
+      expect(ctx.sync.synced.get()).toBe(0);
+    });
+
+    it('rebuilds the reminders when the habit-name setting changes', async () => {
+      const ctx = await setup(true);
+      ctx.auth.setMe(me);
+      ctx.rebuild?.mockClear();
+
+      reminderNames.set(true);
+
+      expect(ctx.rebuild).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('automatic time zone', () => {
     function setup(timeZone = 'America/Halifax') {
       (globalThis as unknown as { indexedDB: unknown }).indexedDB = new IDBFactory();
@@ -146,7 +262,8 @@ describe('DeviceSync', () => {
       localStorage.clear();
     });
 
-    const patches = (fetch: ReturnType<typeof mockFetch>) => fetch.all.filter((call) => call.method === 'PATCH');
+    const patches = (fetch: ReturnType<typeof mockFetch>) =>
+      fetch.all.filter((call) => call.method === 'PATCH');
 
     it("sends the device's zone once when the account's zone was never set, and keeps the answer", async () => {
       const { fetch, auth } = setup();
@@ -174,7 +291,10 @@ describe('DeviceSync', () => {
     it('claims only once per user on this device, so a UTC the user saved later is kept', async () => {
       const first = setup();
       first.auth.setMe({ ...me, timezone: 'UTC', timezoneSet: false });
-      (await first.fetch.next('PATCH', '/api/me')).respond(200, { ...me, timezone: 'America/Halifax' });
+      (await first.fetch.next('PATCH', '/api/me')).respond(200, {
+        ...me,
+        timezone: 'America/Halifax',
+      });
       await vi.waitFor(() => expect(first.auth.me.get()?.timezone).toBe('America/Halifax'));
       vi.unstubAllGlobals();
       vi.restoreAllMocks();
@@ -183,6 +303,35 @@ describe('DeviceSync', () => {
       next.auth.setMe({ ...me, timezone: 'UTC', timezoneSet: false });
       await new Promise((resolve) => setTimeout(resolve, 20));
       expect(patches(next.fetch)).toHaveLength(0);
+    });
+
+    it('tries again at the next app start when the server refused the first claim', async () => {
+      const first = setup();
+      first.auth.setMe({ ...me, timezone: 'UTC', timezoneSet: false });
+      (await first.fetch.next('PATCH', '/api/me')).respond(500, { title: 'Server error' });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(first.auth.me.get()?.timezone).toBe('UTC');
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+
+      const next = setup();
+      next.auth.setMe({ ...me, timezone: 'UTC', timezoneSet: false });
+      expect((await next.fetch.next('PATCH', '/api/me')).body).toEqual({
+        timezone: 'America/Halifax',
+      });
+    });
+
+    it('does not put the claimed account over a different user who signed in meanwhile', async () => {
+      const { fetch, auth } = setup();
+      auth.setMe({ ...me, timezone: 'UTC', timezoneSet: false });
+      const patch = await fetch.next('PATCH', '/api/me');
+
+      auth.setMe({ ...me, id: 'u2', timezoneSet: true });
+      patch.respond(200, { ...me, timezone: 'America/Halifax' });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(auth.me.get()?.id).toBe('u2');
+      expect(auth.me.get()?.timezone).toBe(me.timezone);
     });
 
     it.each(['UTC', 'Etc/UTC'])('does not claim when the device reports %s', async (zone) => {
@@ -196,7 +345,11 @@ describe('DeviceSync', () => {
 
   describe('check-in from a reminder or the widget', () => {
     const today = { userId: 'u1', habitId: 1, date: '2026-11-01' };
-    const twice = { ...habit, timesPerDay: 2, today: { ...habit.today, count: 1, state: 'partial' as const } };
+    const twice = {
+      ...habit,
+      timesPerDay: 2,
+      today: { ...habit.today, count: 1, state: 'partial' as const },
+    };
 
     async function setup(issued = true) {
       (globalThis as unknown as { indexedDB: unknown }).indexedDB = new IDBFactory();
@@ -209,7 +362,10 @@ describe('DeviceSync', () => {
       const reminders = new Reminders(api, device);
       const rebuild = vi.spyOn(reminders, 'rebuild').mockResolvedValue();
       vi.spyOn(reminders, 'wasIssued').mockImplementation((id) => issued && id === 1);
-      const auth = new AuthService(api, queue, null, { tokens: new TokenStore(http, memorySecureStore().store), reminders });
+      const auth = new AuthService(api, queue, null, {
+        tokens: new TokenStore(http, memorySecureStore().store),
+        reminders,
+      });
       const sync = new DeviceSync(auth, api, queue, reminders);
       auth.setMe(me);
       const paths: string[] = [];
@@ -222,7 +378,10 @@ describe('DeviceSync', () => {
     afterEach(() => setNavigator(null));
 
     const done = (extra: unknown) =>
-      native.listeners.get('localNotificationActionPerformed')?.({ actionId: 'done', notification: { id: 1, extra } });
+      native.listeners.get('localNotificationActionPerformed')?.({
+        actionId: 'done',
+        notification: { id: 1, extra },
+      });
 
     it('adds one to the habit through PUT { count }, opens Today and confirms', async () => {
       const { fetch, sync, paths } = await setup();
@@ -247,7 +406,9 @@ describe('DeviceSync', () => {
       (await fetch.next('PUT', '/api/habits/1/days/2026-11-01')).fail();
 
       await vi.waitFor(() => expect(paths).toEqual(['/today']));
-      expect(await device.edits('u1')).toMatchObject([{ habitId: 1, date: '2026-11-01', count: 2 }]);
+      expect(await device.edits('u1')).toMatchObject([
+        { habitId: 1, date: '2026-11-01', count: 2 },
+      ]);
       expect(sync.nativeCheckIn.get()).toEqual({ name: 'Walk' });
     });
 
@@ -346,7 +507,10 @@ describe('DeviceSync', () => {
     it("opens Today at the habit on a plain tap on its reminder, and plain Today for a routine's or another user's", async () => {
       const { fetch, paths } = await setup();
       const tap = (extra: unknown) =>
-        native.listeners.get('localNotificationActionPerformed')?.({ actionId: 'tap', notification: { id: 1, extra } });
+        native.listeners.get('localNotificationActionPerformed')?.({
+          actionId: 'tap',
+          notification: { id: 1, extra },
+        });
 
       tap(today);
       await vi.waitFor(() => expect(paths).toEqual(['/today?habit=1']));
