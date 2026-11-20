@@ -1,14 +1,10 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderPage } from '@/test/test-utils';
-import { env } from '@/lib/env';
-import i18n from '@/lib/i18n';
-import { reminderNames } from '@/lib/native/reminder-names';
-import type { ReminderDestination } from '@/lib/models';
-import { applyCalm, applyGentleMotion, gentleMotion } from '@/lib/theme';
-import { auth, deviceSync, localMode, push } from '@/lib/services';
-import { type FetchMock, me, mockFetch } from '@/test/test-support';
+import { auth, localMode, push } from '@/lib/services';
+import { me, mockFetch } from '@/test/test-support';
+import { openPatches, openSettings, resetSettings, setWide, settingsPath, settle, stubSettingsMedia } from '@/test/settings-page';
 import SettingsPage from './settings';
 
 vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));
@@ -31,65 +27,19 @@ vi.mock('@/lib/services', async (original) => {
   };
 });
 
-const loadPage = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/navigation', async (original) => ({ ...(await original<typeof import('@/lib/navigation')>()), loadPage }));
-
-const notificationPermission = vi.hoisted(() => ({ display: 'granted' }));
-vi.mock('@capacitor/local-notifications', () => ({
-  LocalNotifications: { checkPermissions: async () => ({ ...notificationPermission }) },
-}));
-
-const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 20));
-
-let wide = false;
-
-async function open(url: string) {
-  auth.setMe(me);
-  const fetch = mockFetch();
-  const router = renderPage('/settings/:group?', SettingsPage, url);
-  (await fetch.next('GET', '/api/me')).respond(200, me);
-  await screen.findByRole('heading', { level: 1 });
-  return { fetch, router };
-}
-
-function path(router: ReturnType<typeof renderPage>) {
-  return router.state.location.pathname + router.state.location.search + router.state.location.hash;
-}
-
-function openPatches(fetch: FetchMock) {
-  return fetch.pending.filter((call) => call.method === 'PATCH');
-}
-
 describe('SettingsPage', { timeout: 15_000 }, () => {
   beforeEach(() => {
-    wide = false;
-    window.matchMedia = (query: string) =>
-      ({
-        matches: query === '(min-width: 48rem)' && wide,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      }) as unknown as MediaQueryList;
+    stubSettingsMedia();
   });
 
   afterEach(() => {
     exactAlarms.beta = false;
-    vi.unstubAllGlobals();
-    delete (navigator as { serviceWorker?: unknown }).serviceWorker;
-    auth.clearSession();
-    localStorage.clear();
-    document.documentElement.removeAttribute('data-theme');
-    applyCalm(false);
-    env.native = false;
-    reminderNames.set(false);
-    localMode.mode.set('account');
-    push.available.set(false);
-    document.documentElement.classList.remove('dark');
-    notificationPermission.display = 'granted';
+    resetSettings();
   });
 
   it('Account & security starts with who is signed in, then two-step and Discord, and sends a change-password link', async () => {
     const user = userEvent.setup();
-    const { fetch } = await open('/settings/account');
+    const { fetch } = await openSettings('/settings/account');
 
     const cards = document.querySelectorAll('section');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Account & security');
@@ -108,22 +58,11 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
   it('in the beta app, Account & security ends with App updates and its check button', async () => {
     exactAlarms.beta = true;
-    await open('/settings/account');
+    await openSettings('/settings/account');
 
     const cards = document.querySelectorAll('section');
     expect([...cards].map((card) => card.getAttribute('id'))).toEqual(['account', 'two-factor', 'discord', 'app-updates']);
     expect(within(cards[3] as HTMLElement).getByRole('button', { name: 'Check for updates' })).toBeInTheDocument();
-  });
-
-  it('for a Discord-only account, says so and offers no password change', async () => {
-    const discordOnly = { ...me, email: null, hasPassword: false, discord: { linked: true, id: '42' } };
-    auth.setMe(discordOnly);
-    const fetch = mockFetch();
-    renderPage('/settings/:group?', SettingsPage, '/settings/account');
-    (await fetch.next('GET', '/api/me')).respond(200, discordOnly);
-
-    expect(await screen.findByText('Signed in with Discord')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Change password' })).toBeNull();
   });
 
   it('opens the group of an older /settings#push link, scrolls to that card and focuses its heading', async () => {
@@ -140,7 +79,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     (await fetch.next('GET', '/api/me')).respond(200, { ...me });
     await settle();
 
-    expect(path(router)).toBe('/settings/reminders#push');
+    expect(settingsPath(router)).toBe('/settings/reminders#push');
     expect(router.state.historyAction).toBe('REPLACE');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Reminders');
     expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
@@ -150,16 +89,16 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
   });
 
   it('opens the group holding the card in the hash, even from another group', async () => {
-    const { router } = await open('/settings/habits#journal');
+    const { router } = await openSettings('/settings/habits#journal');
 
-    await waitFor(() => expect(path(router)).toBe('/settings/privacy#journal'));
+    await waitFor(() => expect(settingsPath(router)).toBe('/settings/privacy#journal'));
     expect(screen.getByRole('region', { name: 'Private journal' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
   });
 
   it('on a phone, lists the groups, opens one, and goes back to the list through history', async () => {
     const user = userEvent.setup();
-    const { router } = await open('/settings');
+    const { router } = await openSettings('/settings');
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Settings');
     expect(document.querySelectorAll('section')).toHaveLength(0);
@@ -194,7 +133,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
   it('on a phone, a group opened directly goes back to the list without leaving Settings', async () => {
     const user = userEvent.setup();
-    const { router } = await open('/settings/habits');
+    const { router } = await openSettings('/settings/habits');
 
     await user.click(screen.getByRole('link', { name: 'Back to Settings' }));
     expect(router.state.location.pathname).toBe('/settings');
@@ -202,9 +141,9 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
   });
 
   it('from md, docks the groups in a side rail, opens the first one and marks the current group', async () => {
-    wide = true;
+    setWide(true);
     const user = userEvent.setup();
-    const { router } = await open('/settings');
+    const { router } = await openSettings('/settings');
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/settings/account'));
     const rail = within(screen.getByRole('navigation', { name: 'Settings' }));
@@ -240,7 +179,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
   it('without an account, leaves out the Reminders group and sends its address back to the list', async () => {
     localMode.mode.set('local');
-    const { router } = await open('/settings');
+    const { router } = await openSettings('/settings');
 
     const list = within(screen.getByRole('navigation', { name: 'Settings groups' }));
     expect(list.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
@@ -259,63 +198,9 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(screen.queryByRole('combobox', { name: 'Second reminder' })).toBeNull();
   });
 
-  it('switches between light, dark and the system setting on this device', async () => {
-    const user = userEvent.setup();
-    await open('/settings/appearance');
-
-    expect(screen.getByRole('radio', { name: 'System' })).toBeChecked();
-    await user.click(screen.getByRole('radio', { name: 'Dark' }));
-    expect(document.documentElement).toHaveClass('dark');
-    expect(localStorage.getItem('ember.colorScheme')).toBe('dark');
-
-    await user.click(screen.getByRole('radio', { name: 'System' }));
-    expect(document.documentElement).not.toHaveClass('dark');
-    expect(localStorage.getItem('ember.colorScheme')).toBeNull();
-  });
-
-  it('on the phone, says how to turn notifications back on when they are off for Ember', async () => {
-    env.native = true;
-    notificationPermission.display = 'denied';
-    await open('/settings/reminders');
-
-    expect(
-      await screen.findByText("Notifications are off for Ember on this phone. You can turn them on in your phone's settings."),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Allow on-time reminders' })).toBeNull();
-  });
-
-  it('in the beta app, offers on-time reminders while exact alarms are off, and hides the offer once allowed', async () => {
-    env.native = true;
-    exactAlarms.beta = true;
-    exactAlarms.allowed = false;
-    exactAlarms.allowExact.mockResolvedValue(true);
-    const user = userEvent.setup();
-    await open('/settings/reminders');
-
-    await user.click(await screen.findByRole('button', { name: 'Allow on-time reminders' }));
-
-    expect(exactAlarms.allowExact).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Allow on-time reminders' })).toBeNull());
-  });
-
-  it('on the phone, the reminder names switch is off by default and turns the per-device setting on', async () => {
-    env.native = true;
-    const user = userEvent.setup();
-    await open('/settings/reminders');
-
-    const names = screen.getByRole('switch', { name: 'Show habit names in reminders' });
-    expect(names).not.toBeChecked();
-    expect(names).toHaveAccessibleDescription(/lock screen/);
-    await user.click(names);
-
-    expect(reminderNames.get()).toBe(true);
-    expect(localStorage.getItem('ember.reminderNames')).toBe('1');
-    expect(names).toBeChecked();
-  });
-
   it('sends quick successive grace changes one PATCH at a time, in order', async () => {
     const user = userEvent.setup();
-    const { fetch } = await open('/settings/habits');
+    const { fetch } = await openSettings('/settings/habits');
     const select = screen.getByLabelText('Grace days per week');
 
     await user.selectOptions(select, '2 days a week');
@@ -335,116 +220,8 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(screen.getByText('Saved.')).toBeInTheDocument();
   });
 
-  it('turns streaks off through PATCH /api/me, hiding the grace days at once and keeping them hidden once saved', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/habits');
-    const toggle = screen.getByRole('switch', { name: 'Show streaks' });
-    expect(toggle).toBeChecked();
-    expect(screen.getByRole('heading', { name: 'Grace days' })).toBeInTheDocument();
-
-    await user.click(toggle);
-
-    const sent = await fetch.next('PATCH', '/api/me');
-    expect(sent.body).toEqual({ showStreaks: false });
-    expect(toggle).not.toBeChecked();
-    expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
-    sent.respond(200, { ...me, showStreaks: false });
-
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    expect(toggle).not.toBeChecked();
-    expect(screen.queryByLabelText('Grace days per week')).toBeNull();
-  });
-
-  it('puts the switch back when turning streaks on fails', async () => {
-    const off = { ...me, showStreaks: false };
-    const user = userEvent.setup();
-    auth.setMe(off);
-    const fetch = mockFetch();
-    renderPage('/settings/:group?', SettingsPage, '/settings/habits');
-    (await fetch.next('GET', '/api/me')).respond(200, off);
-    const toggle = await screen.findByRole('switch', { name: 'Show streaks' });
-    expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
-
-    await user.click(toggle);
-    const sent = await fetch.next('PATCH', '/api/me');
-    expect(sent.body).toEqual({ showStreaks: true });
-    sent.respond(500, { type: 'internal', title: 'Server error', status: 500 });
-
-    await waitFor(() => expect(toggle).not.toBeChecked());
-    expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
-  });
-
-  it('turns calm mode on through PATCH /api/me from Appearance', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/appearance');
-    const toggle = screen.getByRole('switch', { name: 'Calm mode' });
-    expect(toggle).not.toBeChecked();
-    expect(toggle).toHaveAccessibleDescription('No motion, softer colors and fewer decorations. Breathing shows text only.');
-
-    await user.click(toggle);
-
-    const sent = await fetch.next('PATCH', '/api/me');
-    expect(sent.body).toEqual({ calmMode: true });
-    sent.respond(200, { ...me, calmMode: true });
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    expect(toggle).toBeChecked();
-  });
-
-  it('calms this device at once and takes it back when saving calm mode fails', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/appearance');
-    const toggle = screen.getByRole('switch', { name: 'Calm mode' });
-
-    await user.click(toggle);
-
-    const sent = await fetch.next('PATCH', '/api/me');
-    expect(document.documentElement).toHaveAttribute('data-calm');
-    sent.respond(500, { type: 'internal', title: 'Server error', status: 500 });
-
-    await waitFor(() => expect(toggle).not.toBeChecked());
-    expect(document.documentElement).not.toHaveAttribute('data-calm');
-  });
-
-  it('offers a note after check-in only once turned on, saving it to the account', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/habits');
-    const toggle = screen.getByRole('switch', { name: 'Offer a note after check-in' });
-    expect(toggle).not.toBeChecked();
-    expect(toggle).toHaveAccessibleDescription(/Off, Ember never asks/);
-
-    await user.click(toggle);
-
-    const sent = await fetch.next('PATCH', '/api/me');
-    expect(sent.body).toEqual({ offerHabitNote: true });
-    sent.respond(200, { ...me, offerHabitNote: true });
-    expect(await screen.findByText('Saved.')).toBeInTheDocument();
-    expect(toggle).toBeChecked();
-    expect(auth.me.get()?.offerHabitNote).toBe(true);
-  });
-
-  it('in the app, "Gentle motion" is on by default and turns off on this device only; the web has no such switch', async () => {
-    const user = userEvent.setup();
-    await open('/settings/appearance');
-    expect(screen.queryByRole('switch', { name: 'Gentle motion' })).toBeNull();
-    cleanup();
-
-    env.native = true;
-    const { fetch } = await open('/settings/appearance');
-    const toggle = screen.getByRole('switch', { name: 'Gentle motion' });
-    expect(toggle).toBeChecked();
-    expect(toggle).toHaveAccessibleDescription(/calm mode/);
-
-    await user.click(toggle);
-
-    expect(toggle).not.toBeChecked();
-    expect(gentleMotion.get()).toBe(false);
-    expect(localStorage.getItem('ember.gentleMotion')).toBe('0');
-    expect(fetch.all.some((c) => c.method === 'PATCH')).toBe(false);
-    applyGentleMotion(true);
-  });
-
   it('Help right now shows the crisis lines and sends nothing', async () => {
-    const { fetch } = await open('/settings/help');
+    const { fetch } = await openSettings('/settings/help');
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Help right now');
     const lines = within(screen.getByRole('region', { name: 'Crisis lines' }));
@@ -455,192 +232,10 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(fetch.pending).toHaveLength(0);
   });
 
-  describe('where Ember reminds you', () => {
-    const discord: ReminderDestination = { id: 'discord', kind: 'discord', label: 'Discord DMs', enabled: true, current: false };
-    const laptop: ReminderDestination = {
-      id: 'browser-3',
-      kind: 'browser',
-      label: 'Firefox on Linux',
-      enabled: true,
-      current: true,
-    };
-    const phone: ReminderDestination = { id: 'phone-5', kind: 'phone', label: 'Pixel 8', enabled: false, current: false };
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-      enablePhone.mockReset();
-    });
-
-    it('lists every destination with its switch, marks this browser, and turns one off', async () => {
-      const user = userEvent.setup();
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, laptop, phone]);
-
-      const here = await screen.findByRole('switch', { name: 'Firefox on Linux, This browser' });
-      expect(here).toBeChecked();
-      expect(screen.getByRole('switch', { name: 'Discord DMs' })).toBeChecked();
-      expect(screen.getByRole('switch', { name: 'Pixel 8' })).not.toBeChecked();
-
-      await user.click(here);
-      const patch = await fetch.next('PATCH', '/api/me/reminder-destinations/browser-3');
-      expect(patch.body).toEqual({ enabled: false });
-      expect(here).not.toBeChecked();
-      patch.respond(200, { ...laptop, enabled: false });
-
-      expect(await screen.findByText('Saved.')).toBeInTheDocument();
-      expect(here).not.toBeChecked();
-      expect(screen.queryByRole('button', { name: 'Turn on reminders in this browser' })).toBeNull();
-    });
-
-    it('in a browser with reminders on, the names switch is off by default and saves names for this browser', async () => {
-      const setShowNames = vi.spyOn(push, 'setShowNames').mockImplementation(async (on) => push.showNames.set(on));
-      const user = userEvent.setup();
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, laptop]);
-
-      const names = await screen.findByRole('switch', { name: 'Show habit names in reminders' });
-      expect(names).not.toBeChecked();
-      await user.click(names);
-
-      expect(setShowNames).toHaveBeenCalledWith(true);
-      expect(await screen.findByText('Saved.')).toBeInTheDocument();
-      expect(names).toBeChecked();
-      expect(reminderNames.get()).toBe(false);
-      push.showNames.set(false);
-    });
-
-    it('offers no names switch for browser reminders while this browser is not a destination', async () => {
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, { ...laptop, current: false }]);
-
-      await screen.findByRole('switch', { name: 'Firefox on Linux' });
-      expect(screen.queryByRole('switch', { name: 'Show habit names in reminders' })).toBeNull();
-    });
-
-    it('puts the switch back and says so gently when the change fails', async () => {
-      const user = userEvent.setup();
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord]);
-
-      await user.click(await screen.findByRole('switch', { name: 'Discord DMs' }));
-      (await fetch.next('PATCH', '/api/me/reminder-destinations/discord')).respond(500, { type: 'internal' });
-
-      expect(await screen.findByRole('switch', { name: 'Discord DMs' })).toBeChecked();
-      expect(
-        await within(screen.getByRole('region', { name: 'Where Ember reminds you' })).findByRole('alert'),
-      ).toHaveTextContent("That didn't save, so Discord DMs is still on. Try again in a moment.");
-    });
-
-    it('saves two destinations at once and confirms each row', async () => {
-      const user = userEvent.setup();
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, laptop, phone]);
-
-      await user.click(await screen.findByRole('switch', { name: 'Discord DMs' }));
-      await user.click(screen.getByRole('switch', { name: 'Pixel 8' }));
-      const first = await fetch.next('PATCH', '/api/me/reminder-destinations/discord');
-      const second = await fetch.next('PATCH', '/api/me/reminder-destinations/phone-5');
-      expect(second.body).toEqual({ enabled: true });
-
-      second.respond(200, { ...phone, enabled: true });
-      first.respond(200, { ...discord, enabled: false });
-
-      await waitFor(() => expect(screen.getAllByText('Saved.')).toHaveLength(2));
-      expect(screen.getByRole('switch', { name: 'Discord DMs' })).not.toBeChecked();
-      expect(screen.getByRole('switch', { name: 'Pixel 8' })).toBeChecked();
-    });
-
-    it('turns reminders on in this browser when it is not listed yet, then shows its row', async () => {
-      push.available.set(true);
-      vi.spyOn(push, 'check').mockResolvedValue();
-      const subscribe = vi.spyOn(push, 'subscribe').mockResolvedValue();
-      const user = userEvent.setup();
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord]);
-
-      await user.click(await screen.findByRole('button', { name: 'Turn on reminders in this browser' }));
-      expect(subscribe).toHaveBeenCalledTimes(1);
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, laptop]);
-
-      expect(await screen.findByRole('switch', { name: 'Firefox on Linux, This browser' })).toBeChecked();
-      expect(screen.queryByRole('button', { name: 'Turn on reminders in this browser' })).toBeNull();
-    });
-
-    it('in the app, turns this phone on and rebuilds its reminders, or says notifications are off when refused', async () => {
-      env.native = true;
-      const rebuild = vi.spyOn(deviceSync, 'rebuildReminders').mockImplementation(() => undefined);
-      enablePhone.mockResolvedValueOnce(null);
-      const user = userEvent.setup();
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord]);
-
-      await user.click(await screen.findByRole('button', { name: 'Turn on reminders on this phone' }));
-      expect(
-        await screen.findByText("Notifications are off for Ember on this phone. You can turn them on in your phone's settings."),
-      ).toBeInTheDocument();
-      rebuild.mockClear();
-
-      const mine = { ...phone, enabled: true, current: true };
-      enablePhone.mockResolvedValueOnce(mine);
-      await user.click(screen.getByRole('button', { name: 'Turn on reminders on this phone' }));
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, mine]);
-
-      expect(await screen.findByRole('switch', { name: 'Pixel 8, This phone' })).toBeChecked();
-      expect(rebuild).toHaveBeenCalled();
-    });
-
-    it('in the app, switching this phone off rebuilds its reminders', async () => {
-      env.native = true;
-      const rebuild = vi.spyOn(deviceSync, 'rebuildReminders').mockImplementation(() => undefined);
-      const mine = { ...phone, enabled: true, current: true };
-      const user = userEvent.setup();
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [mine]);
-
-      await user.click(await screen.findByRole('switch', { name: 'Pixel 8, This phone' }));
-      rebuild.mockClear();
-      (await fetch.next('PATCH', '/api/me/reminder-destinations/phone-5')).respond(200, { ...mine, enabled: false });
-
-      await waitFor(() => expect(rebuild).toHaveBeenCalled());
-      expect(screen.getByRole('switch', { name: 'Pixel 8, This phone' })).not.toBeChecked();
-    });
-
-    it('in the app, switching Discord off rebuilds this phone\'s reminders too', async () => {
-      env.native = true;
-      const rebuild = vi.spyOn(deviceSync, 'rebuildReminders').mockImplementation(() => undefined);
-      const user = userEvent.setup();
-      const { fetch } = await open('/settings/reminders');
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, { ...phone, current: true }]);
-
-      await user.click(await screen.findByRole('switch', { name: 'Discord DMs' }));
-      rebuild.mockClear();
-      (await fetch.next('PATCH', '/api/me/reminder-destinations/discord')).respond(200, { ...discord, enabled: false });
-
-      await waitFor(() => expect(rebuild).toHaveBeenCalled());
-    });
-  });
-
-  it('saves the second reminder choice to the account', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/reminders');
-    const select = screen.getByRole('combobox', { name: 'Second reminder' });
-    expect(select).toHaveDisplayValue('Off');
-    expect(select).toHaveAccessibleDescription("If you haven't checked in yet, Ember nudges you once more.");
-
-    await user.selectOptions(select, '1 hour');
-
-    const patch = await fetch.next('PATCH', '/api/me');
-    expect(patch.body).toEqual({ secondReminderMinutes: 60 });
-    patch.respond(200, { ...me, secondReminderMinutes: 60 });
-    await waitFor(() => expect(auth.me.get()?.secondReminderMinutes).toBe(60));
-    expect(select).toHaveDisplayValue('1 hour');
-    expect(screen.getByText('Saved.')).toBeInTheDocument();
-  });
-
   it('waits for the grace PATCH before sending the theme one, across groups', async () => {
-    wide = true;
+    setWide(true);
     const user = userEvent.setup();
-    const { fetch } = await open('/settings/habits');
+    const { fetch } = await openSettings('/settings/habits');
 
     await user.selectOptions(screen.getByLabelText('Grace days per week'), '2 days a week');
     await user.click(screen.getByRole('link', { name: 'Appearance' }));
@@ -662,205 +257,6 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(screen.queryByText(/leaderboard/i)).not.toBeInTheDocument();
   });
 
-  it('applies a chosen theme at once and saves it to the account', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/appearance');
-
-    await user.click(screen.getByRole('radio', { name: 'Fieldnotes' }));
-
-    expect(document.documentElement.dataset['theme']).toBe('fieldnotes');
-    expect(localStorage.getItem('ember.theme')).toBe('fieldnotes');
-    const patch = await fetch.next('PATCH', '/api/me');
-    expect(patch.body).toEqual({ theme: 'fieldnotes' });
-    patch.respond(200, { ...me, theme: 'fieldnotes' });
-    await waitFor(() => expect(auth.me.get()?.theme).toBe('fieldnotes'));
-    expect(localStorage.getItem('ember.accountTheme')).toBe('fieldnotes');
-    expect(screen.getByRole('radio', { name: 'Fieldnotes' })).toBeChecked();
-  });
-
-  it('keeps the chosen theme on this device and says so gently when saving it fails', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/appearance');
-
-    await user.click(screen.getByRole('radio', { name: 'Tidepool' }));
-    (await fetch.next('PATCH', '/api/me')).fail();
-
-    const status = await screen.findByText(/couldn't save it to your account/);
-    expect(status.closest('[role="status"]')).not.toBeNull();
-    expect(document.documentElement.dataset['theme']).toBe('tidepool');
-    expect(localStorage.getItem('ember.theme')).toBe('tidepool');
-    expect(screen.getByRole('radio', { name: 'Tidepool' })).toBeChecked();
-  });
-
-  it('switches to German on picking Deutsch: saves it to the account, remembers it on the device and sets <html lang>', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/appearance');
-
-    await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
-
-    const patch = await fetch.next('PATCH', '/api/me');
-    expect(patch.body).toEqual({ language: 'de' });
-    patch.respond(200, { ...me, language: 'de' });
-    expect(await screen.findByRole('heading', { level: 1, name: 'Darstellung' })).toBeInTheDocument();
-    expect(screen.getByText('Sprache')).toBeInTheDocument();
-    expect(document.documentElement.lang).toBe('de');
-    expect(localStorage.getItem('ember.language')).toBe('de');
-    expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
-  });
-
-  it('goes back to English and says the language was not saved when saving it fails', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/appearance');
-
-    await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
-    (await fetch.next('PATCH', '/api/me')).fail();
-
-    const status = await screen.findByText("Your language couldn't be saved. Try again in a moment.");
-    expect(status.closest('[role="status"]')).not.toBeNull();
-    expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
-    expect(document.documentElement.lang).toBe('en');
-    expect(localStorage.getItem('ember.language')).toBeNull();
-  });
-
-  it('asks for LÖSCHEN on a German screen, refuses DELETE there and still sends DELETE to the API', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/privacy');
-    await act(() => i18n.changeLanguage('de'));
-
-    await user.type(screen.getByLabelText('Dein Passwort', { exact: true }), 'synthetic-secret-1');
-    const confirm = screen.getByLabelText('Gib zur Bestätigung LÖSCHEN ein');
-    await user.type(confirm, 'DELETE');
-    await user.click(screen.getByRole('button', { name: 'Mein Konto löschen' }));
-    expect(await screen.findByText('Gib zur Bestätigung LÖSCHEN in Großbuchstaben ein.')).toBeInTheDocument();
-    expect(fetch.pending.some((call) => call.url.endsWith('/api/me/delete'))).toBe(false);
-
-    await user.clear(confirm);
-    await user.type(confirm, ' LÖSCHEN ');
-    await user.click(screen.getByRole('button', { name: 'Mein Konto löschen' }));
-
-    const remove = await fetch.next('POST', '/api/me/delete');
-    expect(remove.body).toEqual({ password: 'synthetic-secret-1', confirm: 'DELETE' });
-  });
-
-  it('deletes the account with the password and lands on /login?reason=deleted', async () => {
-    const user = userEvent.setup();
-    const { fetch, router } = await open('/settings/privacy');
-
-    await user.type(screen.getByLabelText('Your password', { exact: true }), 'synthetic-secret-1');
-    await user.type(screen.getByLabelText('Type DELETE to confirm'), 'DELETE');
-    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
-
-    const remove = await fetch.next('POST', '/api/me/delete');
-    expect(remove.body).toEqual({ password: 'synthetic-secret-1', confirm: 'DELETE' });
-    remove.respond(204);
-    (await fetch.next('GET', '/api/auth/antiforgery')).respond(204);
-
-    await waitFor(() =>
-      expect(router.state.location.pathname + router.state.location.search).toBe('/login?reason=deleted'),
-    );
-    expect(auth.me.get()).toBeNull();
-  });
-
-  it('signs out everywhere only after the confirmation, and ends signed out', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/account');
-
-    await user.click(screen.getByRole('button', { name: 'Sign out everywhere' }));
-    expect(screen.getByText('This signs you out on every device, including this one.')).toHaveFocus();
-    await user.click(screen.getByRole('button', { name: 'Yes, sign out everywhere' }));
-    (await fetch.next('POST', '/api/auth/logout-everywhere')).respond(204);
-    (await fetch.next('GET', '/api/auth/antiforgery')).respond(204);
-
-    await waitFor(() => expect(auth.me.get()).toBeNull());
-    expect(fetch.all.some((call) => call.url === '/api/auth/logout')).toBe(false);
-  });
-
-  it('withdraws consent only after the confirmation, reloads me and lands on /consent', async () => {
-    const user = userEvent.setup();
-    const { fetch, router } = await open('/settings/privacy');
-    const card = within(screen.getByRole('region', { name: 'Privacy' }));
-
-    await user.click(card.getByRole('button', { name: 'Withdraw consent' }));
-    expect(card.getByText(/Ember then saves nothing new, your reminders stop/)).toHaveFocus();
-    await user.click(card.getByRole('button', { name: 'Keep it' }));
-    expect(card.getByRole('button', { name: 'Withdraw consent' })).toHaveFocus();
-    await settle();
-    expect(fetch.all.some((call) => call.url === '/api/me/consent/withdraw')).toBe(false);
-
-    await user.click(card.getByRole('button', { name: 'Withdraw consent' }));
-    await user.click(card.getByRole('button', { name: 'Withdraw' }));
-    (await fetch.next('POST', '/api/me/consent/withdraw')).respond(204);
-    (await fetch.next('GET', '/api/me')).respond(200, {
-      ...me,
-      consent: { ...me.consent, given: false, withdrawnAt: '2026-11-01T09:00:00Z', deletesAt: '2026-12-01T09:00:00Z' },
-    });
-
-    await waitFor(() => expect(router.state.location.pathname).toBe('/consent'));
-  });
-
-  it('while consent is withdrawn, shows the deletion date and a way to give it again', async () => {
-    const withdrawn = {
-      ...me,
-      timezone: 'Europe/Berlin',
-      consent: { ...me.consent, given: false, withdrawnAt: '2026-11-01T09:00:00Z', deletesAt: '2026-12-01T09:00:00Z' },
-    };
-    auth.setMe(withdrawn);
-    const fetch = mockFetch();
-    renderPage('/settings/:group?', SettingsPage, '/settings/privacy');
-    (await fetch.next('GET', '/api/me')).respond(200, withdrawn);
-    const card = within(await screen.findByRole('region', { name: 'Privacy' }));
-
-    expect(card.getByText('You withdrew your consent. Ember deletes your data on December 1, 2026.')).toBeInTheDocument();
-    expect(card.getByRole('link', { name: 'Give consent' })).toHaveAttribute('href', '/consent');
-    expect(card.queryByRole('button', { name: 'Withdraw consent' })).toBeNull();
-  });
-
-  it('cancelling sign out everywhere sends nothing and keeps the session', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/account');
-
-    await user.click(screen.getByRole('button', { name: 'Sign out everywhere' }));
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(screen.queryByText('This signs you out on every device, including this one.')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Sign out everywhere' })).toHaveFocus();
-    await settle();
-    expect(fetch.all.some((call) => call.url.startsWith('/api/auth/logout'))).toBe(false);
-    expect(auth.me.get()).not.toBeNull();
-  });
-
-  it('says it could not sign out and stays when the server cannot end the session', async () => {
-    const user = userEvent.setup();
-    const { fetch, router } = await open('/settings/account');
-
-    await user.click(screen.getByRole('button', { name: 'Sign out' }));
-    (await fetch.next('POST', '/api/auth/logout')).respond(503);
-
-    expect(
-      await screen.findByText("Ember couldn't sign you out. Check your connection and try again."),
-    ).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/settings/account');
-    expect(auth.me.get()).not.toBeNull();
-  });
-
-  it('offers no browser reminders when the server answers 501 for the push key', async () => {
-    const registration = { pushManager: { getSubscription: async () => null } };
-    vi.stubGlobal('PushManager', class {});
-    Object.defineProperty(navigator, 'serviceWorker', {
-      configurable: true,
-      value: { getRegistration: async () => registration, ready: Promise.resolve(registration) },
-    });
-    const { fetch } = await open('/settings/reminders');
-
-    (await fetch.next('GET', '/api/push/vapid-public-key')).respond(501);
-    (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, []);
-    await settle();
-
-    expect(await screen.findByText(/Nothing can remind you yet/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Turn on reminders in this browser' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Second reminder' })).toBeInTheDocument();
-  });
-
   it('shows the Discord linked notice in its group, reloads me and drops the query from the address', async () => {
     auth.setMe(me);
     const fetch = mockFetch();
@@ -872,40 +268,13 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     (await fetch.next('GET', '/api/me')).respond(200, { ...me, discord: { linked: true, id: '42' } });
 
     expect(await screen.findByRole('button', { name: 'Unlink Discord' })).toBeInTheDocument();
-    expect(path(router)).toBe('/settings/account');
+    expect(settingsPath(router)).toBe('/settings/account');
     expect(notice).toBeInTheDocument();
-  });
-
-  it('links Discord only after the password: a wrong one is an inline error, the right one goes to Discord', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await open('/settings/account');
-    const card = within(screen.getByRole('region', { name: 'Discord' }));
-
-    await user.click(card.getByRole('button', { name: 'Link Discord' }));
-    const field = card.getByLabelText('Your password', { exact: true });
-    expect(field).toHaveFocus();
-
-    await user.type(field, 'wrong-synthetic-1');
-    await user.click(card.getByRole('button', { name: 'Continue to Discord' }));
-    const wrong = await fetch.next('POST', '/api/auth/discord/link/start');
-    expect(wrong.body).toEqual({ password: 'wrong-synthetic-1' });
-    wrong.respond(400, { status: 400, errors: { password: ['The password is not correct.'] } });
-
-    await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
-    expect(field).toHaveAccessibleDescription(expect.stringContaining("That password doesn't match. Try again."));
-    expect(field).toHaveFocus();
-    expect(loadPage).not.toHaveBeenCalled();
-
-    await user.clear(field);
-    await user.type(field, 'synthetic-secret-1');
-    await user.click(card.getByRole('button', { name: 'Continue to Discord' }));
-    (await fetch.next('POST', '/api/auth/discord/link/start')).respond(204);
-    await waitFor(() => expect(loadPage).toHaveBeenCalledWith('/api/auth/discord/link'));
   });
 
   it('without an account, shows the device card first and no sign-out, Discord, two-step or private journal', async () => {
     localMode.mode.set('local');
-    const { router } = await open('/settings/account');
+    const { router } = await openSettings('/settings/account');
 
     const cards = document.querySelectorAll('section');
     expect(cards).toHaveLength(1);
@@ -928,7 +297,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
   it('sends feedback from its own Settings group with an account', async () => {
     const user = userEvent.setup();
-    const { fetch } = await open('/settings/feedback');
+    const { fetch } = await openSettings('/settings/feedback');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Send feedback');
     await user.type(screen.getByRole('textbox', { name: /Title/ }), 'Hi');
     await user.type(screen.getByRole('textbox', { name: /Description/ }), 'Hello');
@@ -939,7 +308,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
   it('shows the feedback form without an account too', async () => {
     localMode.mode.set('local');
-    await open('/settings/feedback');
+    await openSettings('/settings/feedback');
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Send feedback');
     expect(screen.getByRole('textbox', { name: /Description/ })).toBeInTheDocument();
@@ -947,7 +316,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
   it('links to routines', async () => {
     const user = userEvent.setup();
-    const { router } = await open('/settings/habits');
+    const { router } = await openSettings('/settings/habits');
 
     await user.click(screen.getByRole('link', { name: 'Your routines' }));
     expect(router.state.location.pathname).toBe('/routines');
