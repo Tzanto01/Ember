@@ -166,7 +166,7 @@ dotnet build
 dotnet test
 ```
 
-`Ember.slnx` is the solution. Many API tests and the PostgreSQL migration tests need Docker. Without Docker they are skipped locally. Set `CI=true` to force them to run.
+`Ember.slnx` is the solution, including the ops dashboard projects under `ops/`. Many API tests and the PostgreSQL migration tests need Docker. Without Docker they are skipped locally. Set `CI=true` to force them to run.
 
 Web (from `web/`, using Bun 1.3.14):
 
@@ -175,6 +175,8 @@ Web (from `web/`, using Bun 1.3.14):
 | Install | `bun install --frozen-lockfile` |
 | Dev server on port 4200 | `bun --bun run dev` |
 | Unit tests | `bun --bun run test` |
+| Lint (ESLint, config `eslint.config.js`) | `bun --bun run lint` |
+| Local check before pushing: typecheck, lint and unit tests | `bun --bun run check` |
 | Production build (output `dist/ember-web/browser`) | `bun --bun run build` |
 | Mobile build (output `dist/ember-mobile/browser`) | `bun --bun run build:mobile` |
 | Sync the Android project | `bunx --bun cap sync android` |
@@ -183,9 +185,11 @@ The dev server proxies `/api` to an API on port 5081.
 
 Android (from `mobile/android`): run `./gradlew assembleDebug` to build a debug APK (on Windows, `gradlew.bat assembleDebug`). Before that, run the mobile build and the Capacitor sync in `web/` (the two commands in the table above, in that order). Release signing and Play upload steps are in [mobile/STORE.md](mobile/STORE.md).
 
+Android tests and lint (from `mobile/android`, after the same two `web/` steps; Gradle finds the Android SDK through `ANDROID_HOME` or `sdk.dir` in `local.properties`): `./gradlew testBetaDebugUnitTest testPlayDebugUnitTest` runs the JVM unit tests, and `./gradlew lintBetaDebug lintPlayDebug` runs Android lint, which reports only issues missing from `app/lint-baseline.xml`. New tests go in Kotlin under `app/src/test/kotlin` (beta-only ones in `app/src/testBeta`). They run against Android's stub `android.jar` with default return values, use the real `org.json` library, and use `InMemoryContext` for code that reads SharedPreferences. After fixing a baselined lint issue, regenerate the baseline with `./gradlew updateLintBaselineBetaDebug` and keep its paths relative.
+
 The HTTP API is described in [docs/contracts/api-v1.md](docs/contracts/api-v1.md).
 
-CI (`.github/workflows/ci.yml`) runs on every push. For .NET it restores, checks for vulnerable packages, builds and runs the tests. For the web it runs the unit tests and both builds. A third job runs the end-to-end tests below and uploads the Playwright report, traces and test host log when they fail.
+CI (`.github/workflows/ci.yml`) runs on every push. For .NET it restores, checks for vulnerable packages, builds and runs the tests, the ops suite included. For the web it runs the unit tests and both builds. An Android job runs the JVM unit tests. A third job runs the end-to-end tests below and uploads the Playwright report, traces and test host log when they fail.
 
 ### End-to-end tests
 
