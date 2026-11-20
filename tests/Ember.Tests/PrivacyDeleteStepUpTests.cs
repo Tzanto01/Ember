@@ -60,4 +60,12 @@ public class PrivacyDeleteStepUpTests
 
         PrivacyModule.WebAppDeleteText(BotTexts.For(language), config).Should().Contain("https://ember.example.test/settings#delete");
     }
+
+    [Fact]
+    public void ProtectedAccountReply_WithoutAWebOrigin_PointsToTheWebAppSettings()
+    {
+        var reply = PrivacyModule.WebAppDeleteText(BotTexts.For("en"), new ConfigurationBuilder().Build());
+
+        reply.Should().Contain("Settings").And.NotContain("{0}");
+    }
 }

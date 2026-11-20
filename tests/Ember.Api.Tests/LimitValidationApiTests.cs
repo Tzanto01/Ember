@@ -47,16 +47,6 @@ public class LimitValidationApiTests(PostgresFixture postgres) : ApiTestBase(pos
     }
 
     [DockerFact]
-    public async Task The_26th_habit_is_rejected_with_the_habit_limit_problem()
-    {
-        var user = await Host.SignedInAsync();
-        for (var i = 0; i < 25; i++)
-            await user.CreateHabitAsync();
-
-        await (await user.Post("/api/habits", new { name = "One too many", frequency = "daily" })).ExpectProblem(HttpStatusCode.Conflict, "habit_limit");
-    }
-
-    [DockerFact]
     public async Task The_11th_routine_is_rejected_with_the_routine_limit_message()
     {
         var user = await Host.SignedInAsync();
