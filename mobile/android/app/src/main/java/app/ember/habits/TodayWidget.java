@@ -20,13 +20,6 @@ import android.view.View;
 import android.widget.RemoteViews;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Calendar;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,13 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -62,12 +48,7 @@ public class TodayWidget extends AppWidgetProvider {
     static final String ACTION_OPEN_TODAY = "app.ember.habits.WIDGET_OPEN_TODAY";
     static final String ACTION_OPEN_HABIT = "app.ember.habits.WIDGET_OPEN_HABIT";
     private static final String ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT";
-    private static final int TIMEOUT_MS = 4000;
     private static final long BUDGET_MS = 8000;
-    private static final long MIN_REQUEST_MS = 1000;
-    private static final int MAX_ANSWER = 4096;
-    private static final ExecutorService NETWORK = Executors.newSingleThreadExecutor();
-    private static final ExecutorService CALLS = Executors.newCachedThreadPool();
     private static final float DEFAULT_WIDTH = 250;
     private static final float DEFAULT_HEIGHT = 392;
 
@@ -94,9 +75,9 @@ public class TodayWidget extends AppWidgetProvider {
 
     /**
      * Checks in a validated open or partial row: the stored row moves to {@code min(count + 1, timesPerDay)} and a
-     * pending entry for that count is saved before the POST, so a failed or killed request is replayed by JS. The
-     * request must finish within {@link #BUDGET_MS} of the tap, or it is dropped and stays pending. Any other tap
-     * only redraws.
+     * pending entry for that count is saved before the POST ({@link CheckInClient#send}), so a failed or killed request
+     * is replayed by JS. The request must finish within {@link #BUDGET_MS} of the tap, or it is dropped and stays
+     * pending. Any other tap only redraws.
      */
     private void checkIn(Context context, Intent intent) {
         long deadline = SystemClock.elapsedRealtime() + BUDGET_MS;
@@ -138,10 +119,10 @@ public class TodayWidget extends AppWidgetProvider {
             refresh(context);
             result = goAsync();
             PendingResult async = result;
-            NETWORK.execute(() -> {
+            CheckInClient.queue(() -> {
                 try {
                     try {
-                        send(app, apiBase, key, token, userId, habitId, date, deadline);
+                        CheckInClient.send(app, apiBase, key, token, userId, habitId, date, deadline);
                     } finally {
                         WidgetStore.inFlight(userId, habitId, date, -1);
                     }
@@ -154,113 +135,6 @@ public class TodayWidget extends AppWidgetProvider {
             WidgetStore.inFlight(userId, habitId, date, -1);
             if (result != null) result.finish();
             throw e;
-        }
-    }
-
-    /**
-     * Runs {@link #post} on its own thread and waits for it until {@code deadline}, disconnecting on timeout; skips
-     * it when less than {@link #MIN_REQUEST_MS} is left. A valid answer settles the pending entry and updates the row
-     * while the snapshot is unchanged and no other request for that row is in flight or queued. Callers hold this
-     * request's in-flight mark.
-     */
-    static void send(
-        Context context,
-        String apiBase,
-        String key,
-        String token,
-        String userId,
-        long habitId,
-        String date,
-        long deadline
-    ) {
-        long remaining = deadline - SystemClock.elapsedRealtime();
-        if (remaining < MIN_REQUEST_MS) return;
-        AtomicReference<HttpURLConnection> open = new AtomicReference<>();
-        Future<JSONObject> call = CALLS.submit(() -> post(context, apiBase, key, habitId, date, deadline, open));
-        JSONObject answer;
-        try {
-            answer = call.get(remaining, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException | TimeoutException | InterruptedException e) {
-            call.cancel(true);
-            HttpURLConnection connection = open.get();
-            if (connection != null) connection.disconnect();
-            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
-            return;
-        }
-        if (answer == null) return;
-        String state = answer.optString("state");
-        int count = answer.optInt("count");
-        int timesPerDay = answer.optInt("timesPerDay");
-        synchronized (WidgetStore.LOCK) {
-            if (WidgetStore.inFlightCount(userId, habitId, date) <= 1) {
-                WidgetStore.editRow(context, token, date, habitId, row -> {
-                    row.put("state", state).put("count", Math.min(count, timesPerDay)).put("timesPerDay", timesPerDay);
-                    return true;
-                });
-            }
-            WidgetStore.settlePending(context, userId, habitId, date, count);
-        }
-    }
-
-    /**
-     * POSTs one check-in with the widget key, each timeout capped by what is left until {@code deadline}, and
-     * publishes the connection in {@code open} so a timed-out caller can disconnect it. Returns a validated 200
-     * answer, else null; a 401 erases the key.
-     */
-    private static JSONObject post(
-        Context context,
-        String apiBase,
-        String key,
-        long habitId,
-        String date,
-        long deadline,
-        AtomicReference<HttpURLConnection> open
-    ) {
-        HttpURLConnection connection = null;
-        try {
-            byte[] body = new JSONObject().put("habitId", habitId).put("date", date).toString().getBytes(StandardCharsets.UTF_8);
-            connection = (HttpURLConnection) new URL(apiBase + "/api/widget/check-in").openConnection();
-            open.set(connection);
-            int timeout = (int) Math.max(1, Math.min(TIMEOUT_MS, deadline - SystemClock.elapsedRealtime()));
-            connection.setConnectTimeout(timeout);
-            connection.setReadTimeout(timeout);
-            connection.setInstanceFollowRedirects(false);
-            connection.setUseCaches(false);
-            connection.setRequestMethod("POST");
-            connection.setDoOutput(true);
-            connection.setFixedLengthStreamingMode(body.length);
-            connection.setRequestProperty("Authorization", "Widget " + key);
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Accept", "application/json");
-            try (OutputStream out = connection.getOutputStream()) {
-                out.write(body);
-            }
-            int status = connection.getResponseCode();
-            if (status == HttpURLConnection.HTTP_UNAUTHORIZED) WidgetKey.erase(context, key);
-            if (status != HttpURLConnection.HTTP_OK) return null;
-            JSONObject answer = new JSONObject(read(connection.getInputStream()));
-            String state = answer.getString("state");
-            int count = answer.getInt("count");
-            int timesPerDay = answer.getInt("timesPerDay");
-            if (!WidgetStore.STATES.contains(state) || count < 0 || timesPerDay < 1) return null;
-            return answer;
-        } catch (IOException | JSONException | RuntimeException e) {
-            return null;
-        } finally {
-            if (connection != null) connection.disconnect();
-        }
-    }
-
-    private static String read(InputStream in) throws IOException {
-        try (InputStream body = in) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buffer = new byte[1024];
-            int n;
-            while ((n = body.read(buffer)) != -1) {
-                out.write(buffer, 0, n);
-                if (out.size() > MAX_ANSWER) throw new IOException("answer too large");
-            }
-            return out.toString("UTF-8");
         }
     }
 

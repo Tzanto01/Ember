@@ -48,7 +48,7 @@ class CheckInClientTest {
         val base = server.url("/").toString().removeSuffix("/")
         WidgetStore.inFlight("user-1", 5, host.today, 1 + alsoInFlight)
         try {
-            TodayWidget.send(host.context, base, key, host.token, "user-1", 5, host.today, deadline)
+            CheckInClient.send(host.context, base, key, host.token, "user-1", 5, host.today, deadline)
         } finally {
             WidgetStore.inFlight("user-1", 5, host.today, -1 - alsoInFlight)
         }
