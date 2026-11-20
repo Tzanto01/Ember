@@ -1,149 +1,69 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronRight, Sparkles } from 'lucide-react';
-import {
-  type SubmitEvent,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
-import { flushSync } from 'react-dom';
-import { Trans, useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronRight, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { BusyButton, TapLink } from '@/components/auth/busy-button';
+import { TapLink } from '@/components/auth/busy-button';
 import { BackLink } from '@/components/back-link';
-import { useField, type Validator, validateAll } from '@/components/auth/use-field';
 import { FiresideSettings } from '@/components/fireside/fireside-settings';
-import { FormField, focusFirstInvalid } from '@/components/form-field';
-import { DestinationName, reminderDestinationsKey } from '@/components/habits/device-reminders';
+import { reminderDestinationsKey } from '@/components/habits/device-reminders';
 import { MoodManager } from '@/components/journal/mood-manager';
 import { CrisisLines } from '@/components/moment/crisis-lines';
-import { DeleteDeviceData, DeviceDataSettings } from '@/components/local/device-data-settings';
+import { DeviceDataSettings } from '@/components/local/device-data-settings';
 import { PageHeader } from '@/components/page-header';
+import { AccountCard } from '@/components/settings/account-card';
+import { AppearanceCard } from '@/components/settings/appearance-card';
 import { AppUpdatesSettings } from '@/components/settings/app-updates-settings';
-import { ColorSchemePicker } from '@/components/settings/color-scheme-picker';
-import { LanguagePicker } from '@/components/settings/language-picker';
+import { ConsentCard } from '@/components/settings/consent-card';
+import { DeleteCard } from '@/components/settings/delete-card';
+import { DiscordCard } from '@/components/settings/discord-card';
+import { DmRemindersCard } from '@/components/settings/dm-reminders-card';
+import { ExportCard } from '@/components/settings/export-card';
 import { FeedbackForm } from '@/components/settings/feedback-form';
+import { GraceCard } from '@/components/settings/grace-card';
+import { HabitNotesCard } from '@/components/settings/habit-notes-card';
 import { HelpsSettings } from '@/components/settings/helps-settings';
 import { JournalSettings } from '@/components/settings/journal-settings';
-import { ReminderNamesSetting } from '@/components/settings/reminder-names-setting';
+import { PhoneRemindersCard } from '@/components/settings/phone-reminders-card';
+import { PushCard } from '@/components/settings/push-card';
+import { SecondReminderCard } from '@/components/settings/second-reminder-card';
+import { SettingsCard } from '@/components/settings/settings-card';
+import {
+  type SettingsMessage,
+  SettingsStatusProvider,
+  useSettingsStatusState,
+} from '@/components/settings/settings-status';
 import { settingsGroupOf, settingsGroups } from '@/components/settings/settings-groups';
-import { ConfirmForm, TwoFactorSettings } from '@/components/settings/two-factor-settings';
-import { ThemePicker } from '@/components/theme-picker';
+import { StreaksCard } from '@/components/settings/streaks-card';
+import { TimezoneCard } from '@/components/settings/timezone-card';
+import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
 import { Button } from '@/components/ui/button';
-import { cardVariants } from '@/components/ui/card';
-import { Input, PasswordInput } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Notice, type NoticeTone } from '@/components/ui/notice';
-import { NativeSelect } from '@/components/ui/select';
+import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
-import { saveFile } from '@/lib/browser-download';
+import { useMePatchField } from '@/hooks/use-me-patch';
 import { env } from '@/lib/env';
-import { browserTimeZone, formatInstantDate, isValidTimeZone, timeZoneLabel } from '@/lib/local-date';
-import {
-  type ExportFormat,
-  graceOptions,
-  type MePatch,
-  type ReminderDestination,
-  secondReminderChoices,
-  type SecondReminderMinutes,
-} from '@/lib/models';
-import { openOnWeb } from '@/lib/native/browser';
 import { updaterAvailable } from '@/lib/native/updater';
-import { loadPage } from '@/lib/navigation';
-import { ApiError, asApiError, problemToMessage } from '@/lib/problem';
-import { api, auth, deviceSync, localMode, push, reminders } from '@/lib/services';
+import { api, auth, localMode, push } from '@/lib/services';
+import type { SecondReminderMinutes } from '@/lib/models';
 import { useStore } from '@/lib/store';
-import { applyLanguage, currentLanguage, heldLanguage, holdLanguage, type Language, rememberDeviceLanguage, storedLanguage, t } from '@/lib/i18n';
-import {
-  applyCalm,
-  applyGentleMotion,
-  calmMode,
-  gentleMotion,
-  rememberAccountTheme,
-  type ThemeId,
-} from '@/lib/theme';
+import { applyCalm, calmMode } from '@/lib/theme';
+import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-
-type Section =
-  | 'timezone'
-  | 'grace'
-  | 'streaks'
-  | 'habitNotes'
-  | 'calm'
-  | 'second'
-  | 'discord'
-  | 'dm'
-  | 'push'
-  | 'appearance'
-  | 'export'
-  | 'consent'
-  | 'password'
-  | 'signout'
-  | 'everywhere'
-  | 'delete';
-
-interface Message {
-  tone: NoticeTone;
-  text: string;
-}
 
 const discordOutcomes = {
   linked: 'success',
   conflict: 'notice',
   error: 'notice',
   password: 'notice',
-} as const satisfies Record<string, NoticeTone>;
+} as const satisfies Record<string, SettingsMessage['tone']>;
 
 type DiscordOutcome = keyof typeof discordOutcomes;
 
-function discordMessage(outcome: DiscordOutcome): Message {
+function discordMessage(outcome: DiscordOutcome): SettingsMessage {
   return { tone: discordOutcomes[outcome], text: t(`settings.discord.outcome.${outcome}`) };
 }
 
-const zones = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
-
-function secondReminderLabel(minutes: SecondReminderMinutes): string {
-  if (minutes === 0) return t('settings.second.off');
-  return minutes % 60 === 0
-    ? t('settings.second.hours', { count: minutes / 60 })
-    : t('settings.second.minutes', { count: minutes });
-}
-
-const exportFormats: ExportFormat[] = ['json', 'csv'];
-const scrollMargin = 'scroll-mt-[calc(56px+env(safe-area-inset-top)+1.5rem)]';
 const wideQuery = '(min-width: 48rem)';
-
-function zoneError(value: string): string | null {
-  const zone = value.trim();
-  if (!zone) return t('settings.timezone.empty');
-  return isValidTimeZone(zone) ? null : t('settings.timezone.unknown');
-}
-
-const passwordRequired: Validator = (value) => (value ? null : t('settings.passwordRequired'));
-const noPassword: Validator = () => null;
-const deleteWord: Validator = (value) => {
-  const word = value.trim().normalize('NFC');
-  const expected = t('delete.word');
-  if (!word) return t('settings.delete.typeDelete', { word: expected });
-  return word === expected ? null : t('settings.delete.typeDeleteCaps', { word: expected });
-};
-
-function isIos(): boolean {
-  return (
-    // eslint-disable-next-line @typescript-eslint/no-deprecated -- iPadOS reports MacIntel here and Safari has no replacement API
-    /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  );
-}
-
-function isStandalone(): boolean {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
 
 function subscribeWide(change: () => void): () => void {
   const query = window.matchMedia(wideQuery);
@@ -154,31 +74,6 @@ function subscribeWide(change: () => void): () => void {
 /** Whether the screen is `md` or wider, where Settings docks its groups in a side rail. */
 function useWide(): boolean {
   return useSyncExternalStore(subscribeWide, () => window.matchMedia(wideQuery).matches);
-}
-
-function SettingsCard({
-  id,
-  title,
-  farewell,
-  children,
-}: {
-  id: string;
-  title: string;
-  farewell?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      aria-labelledby={`${id}-heading`}
-      className={cardVariants({ variant: farewell ? 'farewell' : 'default', className: scrollMargin })}
-    >
-      <h2 id={`${id}-heading`} tabIndex={-1} className="text-[1.375rem] focus:outline-none">
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
 }
 
 /** Scrolls to a settings card and focuses its heading. */
@@ -204,440 +99,51 @@ export default function SettingsPage() {
   const me = useStore(auth.me);
   const local = useStore(localMode.mode) === 'local';
   const pushAvailable = useStore(push.available);
-  const browserNames = useStore(push.showNames);
-  const queryClient = useQueryClient();
+  const status = useSettingsStatusState();
+  const { message, fail, patch } = status;
 
-  const busyRef = useRef<Section | null>(null);
-  const chain = useRef<Promise<unknown>>(Promise.resolve());
-  const graceRef = useRef<number | null>(null);
-  const streaksRef = useRef<boolean | null>(null);
-  const offerNoteRef = useRef<boolean | null>(null);
-  const calmRef = useRef<boolean | null>(null);
-  const secondRef = useRef<SecondReminderMinutes | null>(null);
   const scrolled = useRef<string | null>(null);
-  const tzForm = useRef<HTMLFormElement>(null);
-  const deleteForm = useRef<HTMLFormElement>(null);
-  const everywhereButton = useRef<HTMLButtonElement>(null);
-  const everywhereText = useRef<HTMLParagraphElement>(null);
-  const linkDiscordButton = useRef<HTMLButtonElement>(null);
-  const withdrawButton = useRef<HTMLButtonElement>(null);
-  const withdrawText = useRef<HTMLParagraphElement>(null);
   const claimed = useRef<Promise<void> | null>(null);
 
-  const [busy, setBusy] = useState<Section | null>(null);
-  const [saved, setSaved] = useState<Section | null>(null);
-  const [message, setMessage] = useState<(Message & { section: Section }) | null>(null);
-  const [exporting, setExporting] = useState<ExportFormat | null>(null);
-  const [grace, setGrace] = useState<number | null>(null);
-  const [streaks, setStreaks] = useState<boolean | null>(null);
-  const [offerNote, setOfferNote] = useState<boolean | null>(null);
-  const gentle = useStore(gentleMotion);
-  const [calm, setCalm] = useState<boolean | null>(null);
-  const [second, setSecond] = useState<SecondReminderMinutes | null>(null);
-  const [zone, setZone] = useState<string | null>(null);
-  const [zoneTouched, setZoneTouched] = useState(false);
-  const [zoneServerError, setZoneServerError] = useState<string | null>(null);
-  const [confirmEverywhere, setConfirmEverywhere] = useState(false);
-  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
-  const [linkingDiscord, setLinkingDiscord] = useState(false);
-  const [deleteErrors, setDeleteErrors] = useState<{ password?: string; confirm?: string }>({});
-  const [notificationsOff, setNotificationsOff] = useState(false);
-  const [remindersLate, setRemindersLate] = useState(false);
-  const togglingRef = useRef(new Set<string>());
-  const [toggling, setToggling] = useState<Partial<Record<string, boolean>>>({});
-  const [toggled, setToggled] = useState<Partial<Record<string, { error: string | null }>>>({});
-  const [browserZone] = useState(browserTimeZone);
-  const [showIosHint] = useState(() => isIos() && !isStandalone());
   const [discordOutcome] = useState<DiscordOutcome | null>(() => {
     const outcome = new URLSearchParams(location.search).get('discord');
     return outcome && Object.hasOwn(discordOutcomes, outcome) ? (outcome as DiscordOutcome) : null;
   });
   const discordNotice = discordOutcome && discordMessage(discordOutcome);
 
-  const password = useField(me?.hasPassword ? passwordRequired : noPassword);
-  const confirm = useField(deleteWord);
+  const [claimOnEntry] = useState(!local);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const linked = params.get('discord') === 'linked';
+    const linked = discordOutcome === 'linked';
     void (linked ? auth.refreshAntiforgery() : Promise.resolve()).then(() => auth.loadMe(true)).catch(() => null);
-    if (!local) claimed.current = push.claim();
-    if (env.native) {
-      void import('@capacitor/local-notifications')
-        .then(({ LocalNotifications }) => LocalNotifications.checkPermissions())
-        .then((status) => setNotificationsOff(status.display === 'denied'), () => undefined);
-    }
-    if (updaterAvailable()) void reminders?.exactAllowed().then((exact) => setRemindersLate(!exact));
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; adding deps would rerun it
-  }, []);
+  }, [discordOutcome]);
 
-  function start(section: Section): void {
-    busyRef.current = section;
-    setBusy(section);
-    setSaved(null);
-    setMessage(null);
-  }
+  useEffect(() => {
+    if (claimOnEntry) claimed.current = push.claim();
+  }, [claimOnEntry]);
 
-  function finish(): void {
-    busyRef.current = null;
-    setBusy(null);
-  }
-
-  function show(section: Section, next: Message): void {
-    setMessage({ ...next, section });
-  }
-
-  function fail(section: Section, error: ApiError): void {
-    if (!error.handled) show(section, { tone: 'notice', text: problemToMessage(error).message });
-  }
-
-  function outcome(section: Section): ReactNode {
-    return message?.section === section ? (
-      <Notice tone={message.tone}>
-        <p>{message.text}</p>
-      </Notice>
-    ) : null;
-  }
-
-  function savedStatus(section: Section): ReactNode {
-    return (
-      <p role="status" className="inline-flex items-center gap-1.5 font-medium text-foreground">
-        {saved === section && (
-          <>
-            <Check aria-hidden className="size-[18px] text-primary" />
-            {t('settings.saved')}
-          </>
-        )}
-      </p>
-    );
-  }
-
-  function patch(section: Section, body: MePatch): Promise<ApiError | null> {
-    const run = chain.current.then(async () => {
-      start(section);
-      try {
-        auth.setMe(await api.updateMe(body));
-        setSaved(section);
-        return null;
-      } catch (error) {
-        return asApiError(error);
-      } finally {
-        finish();
-      }
-    });
-    chain.current = run;
-    return run;
-  }
-
-  function changeGrace(value: number): void {
-    graceRef.current = value;
-    setGrace(value);
-    void patch('grace', { graceDaysPerWeek: value }).then((error) => {
-      if (graceRef.current !== value) return;
-      graceRef.current = null;
-      setGrace(null);
-      if (error) fail('grace', error);
-    });
-  }
-
-  function changeStreaks(value: boolean): void {
-    streaksRef.current = value;
-    setStreaks(value);
-    void patch('streaks', { showStreaks: value }).then((error) => {
-      if (streaksRef.current !== value) return;
-      streaksRef.current = null;
-      setStreaks(null);
-      if (error) fail('streaks', error);
-    });
-  }
-
-  function changeOfferNote(value: boolean): void {
-    offerNoteRef.current = value;
-    setOfferNote(value);
-    void patch('habitNotes', { offerHabitNote: value }).then((error) => {
-      if (offerNoteRef.current !== value) return;
-      offerNoteRef.current = null;
-      setOfferNote(null);
-      if (error) fail('habitNotes', error);
-    });
-  }
-
-  function changeCalm(value: boolean): void {
-    const before = calmMode.get();
-    calmRef.current = value;
-    setCalm(value);
-    applyCalm(value);
-    void patch('calm', { calmMode: value }).then((error) => {
-      if (calmRef.current !== value) return;
-      calmRef.current = null;
-      setCalm(null);
-      if (!error) return;
-      applyCalm(before);
-      fail('calm', error);
-    });
-  }
-
-  function changeSecond(value: SecondReminderMinutes): void {
-    secondRef.current = value;
-    setSecond(value);
-    void patch('second', { secondReminderMinutes: value }).then((error) => {
-      if (secondRef.current !== value) return;
-      secondRef.current = null;
-      setSecond(null);
-      if (error) fail('second', error);
-    });
-  }
-
-  function saveTheme(theme: ThemeId): void {
-    if (!auth.signedIn()) return;
-    void patch('appearance', { theme }).then((error) => {
-      if (!error) rememberAccountTheme(theme);
-      else if (!error.handled) show('appearance', { tone: 'info', text: t('settings.appearance.notSaved') });
-    });
-  }
-
-  function saveLanguage(language: Language): void {
-    const before = currentLanguage();
-    const stored = storedLanguage();
-    holdLanguage(language);
-    rememberDeviceLanguage(language);
-    applyLanguage(language);
-    void patch('appearance', { language }).then((error) => {
-      if (heldLanguage() !== language) return;
-      holdLanguage(null);
-      if (!error) return;
-      rememberDeviceLanguage(stored);
-      applyLanguage(before);
-      if (!error.handled) show('appearance', { tone: 'info', text: t('language.notSaved') });
-    });
-  }
-
-  async function saveTimezone(chosen?: string): Promise<void> {
-    if (busyRef.current) return;
-    let next = chosen;
-    if (next === undefined) {
-      flushSync(() => setZoneTouched(true));
-      if (zoneError(zoneValue)) {
-        focusFirstInvalid(tzForm.current);
-        return;
-      }
-      next = zoneValue.trim();
-    }
-    setZoneServerError(null);
-    const error = await patch('timezone', { timezone: next });
-    if (!error) {
-      setZone(null);
-      setZoneTouched(false);
-    } else if (error.status === 400) {
-      setZoneServerError(t('settings.timezone.unknown'));
-    } else {
-      fail('timezone', error);
-    }
-  }
-
-  async function act(section: Section, action: () => Promise<Message>): Promise<void> {
-    if (busyRef.current) return;
-    start(section);
-    try {
-      show(section, await action());
-    } catch (error) {
-      fail(section, asApiError(error));
-    } finally {
-      finish();
-    }
-  }
-
-  const unlinkDiscord = () =>
-    act('discord', async () => {
-      await api.unlinkDiscord();
-      await auth.refreshAntiforgery();
-      await auth.loadMe(true);
-      return { tone: 'success', text: t('settings.discord.unlinked') };
-    });
-
-  async function linkDiscord(password: string): Promise<void> {
-    await api.startDiscordLink(password);
-    loadPage(api.discordLinkUrl());
-  }
-
-  function cancelLinkDiscord(): void {
-    flushSync(() => setLinkingDiscord(false));
-    linkDiscordButton.current?.focus();
-  }
-
-  const resumeDms = () =>
-    act('dm', async () => {
-      await api.resumeDmReminders();
-      await auth.loadMe(true);
-      return { tone: 'success', text: t('settings.dm.resumed') };
-    });
-
-  async function toggleDestination(destination: ReminderDestination, enabled: boolean): Promise<void> {
-    const { id } = destination;
-    if (togglingRef.current.has(id)) return;
-    togglingRef.current.add(id);
-    setToggling((t) => ({ ...t, [id]: enabled }));
-    setToggled((t) => ({ ...t, [id]: undefined }));
-    try {
-      const updated = await api.setReminderDestination(id, enabled);
-      queryClient.setQueryData<ReminderDestination[]>(reminderDestinationsKey, (list) =>
-        list?.map((d) => (d.id === updated.id ? updated : d)),
-      );
-      if (env.native) deviceSync.rebuildReminders();
-      setToggled((t) => ({ ...t, [id]: { error: null } }));
-    } catch (error) {
-      if (!asApiError(error).handled) {
-        const text = destination.enabled
-          ? t('settings.push.stillOn', { name: destination.label })
-          : t('settings.push.stillOff', { name: destination.label });
-        setToggled((t) => ({ ...t, [id]: { error: text } }));
-      }
-    } finally {
-      togglingRef.current.delete(id);
-      setToggling((t) => ({ ...t, [id]: undefined }));
-    }
-  }
-
-  const enablePhone = () =>
-    act('push', async () => {
-      const phone = (await reminders?.enablePhone()) ?? null;
-      if (!phone) return { tone: 'info', text: t('settings.phone.notificationsOff') };
-      await queryClient.invalidateQueries({ queryKey: reminderDestinationsKey });
-      deviceSync.rebuildReminders();
-      return { tone: 'success', text: t('settings.phone.on') };
-    });
-
-  async function enablePush(): Promise<void> {
-    if (busyRef.current) return;
-    start('push');
-    try {
-      await push.subscribe();
-      await queryClient.invalidateQueries({ queryKey: reminderDestinationsKey });
-      show('push', { tone: 'success', text: t('settings.push.on') });
-    } catch (error) {
-      if (error instanceof ApiError) fail('push', error);
-      else if (push.isDenied() || (error instanceof DOMException && error.name === 'NotAllowedError'))
-        show('push', { tone: 'notice', text: t('settings.push.denied') });
-      else
-        show('push', { tone: 'notice', text: t('settings.push.failed') });
-    } finally {
-      finish();
-    }
-  }
-
-  async function changeBrowserNames(on: boolean): Promise<void> {
-    if (busyRef.current) return;
-    start('push');
-    try {
-      await push.setShowNames(on);
-      setSaved('push');
-    } catch (error) {
-      fail('push', asApiError(error));
-    } finally {
-      finish();
-    }
-  }
-
-  async function exportAs(format: ExportFormat): Promise<void> {
-    if (busyRef.current) return;
-    start('export');
-    setExporting(format);
-    try {
-      saveFile(await api.exportData(format));
-    } catch (error) {
-      fail('export', asApiError(error));
-    } finally {
-      setExporting(null);
-      finish();
-    }
-  }
-
-  const changePassword = (email: string) =>
-    act('password', async () => {
-      await api.forgotPassword(email);
-      return {
-        tone: 'success',
-        text: t('settings.account.passwordSent', { email }),
-      };
-    });
-
-  async function signOut(): Promise<void> {
-    if (busyRef.current) return;
-    start('signout');
-    if (await auth.logout()) return;
-    finish();
-    show('signout', { tone: 'notice', text: t('settings.account.signOutFailed') });
-  }
-
-  function askEverywhere(open: boolean): void {
-    flushSync(() => setConfirmEverywhere(open));
-    (open ? everywhereText : everywhereButton).current?.focus();
-  }
-
-  async function signOutEverywhere(): Promise<void> {
-    if (busyRef.current) return;
-    start('everywhere');
-    if (await auth.logout(true)) return;
-    finish();
-    show('everywhere', {
-      tone: 'notice',
-      text: t('settings.account.everywhereFailed'),
-    });
-  }
-
-  function askWithdraw(open: boolean): void {
-    flushSync(() => setConfirmWithdraw(open));
-    (open ? withdrawText : withdrawButton).current?.focus();
-  }
-
-  async function withdrawConsent(): Promise<void> {
-    if (busyRef.current) return;
-    start('consent');
-    try {
-      await api.withdrawConsent();
-      await auth.loadMe(true);
-    } catch (error) {
-      fail('consent', asApiError(error));
-      finish();
-      return;
-    }
-    finish();
-    await navigate('/consent');
-  }
-
-  async function deleteAccount(event: SubmitEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    if (busyRef.current || !me) return;
-    if (!validateAll(deleteForm.current, me.hasPassword ? [password, confirm] : [confirm])) return;
-    start('delete');
-    setDeleteErrors({});
-    try {
-      await api.deleteAccount(
-        me.hasPassword ? { password: password.value, confirm: 'DELETE' } : { confirm: 'DELETE' },
-      );
-    } catch (error) {
-      const apiError = asApiError(error);
-      if (apiError.status === 400) {
-        flushSync(() =>
-          setDeleteErrors(
-            me.hasPassword
-              ? { password: t('settings.passwordMismatch') }
-              : { confirm: t('settings.delete.typeDeleteCaps', { word: t('delete.word') }) },
-          ),
-        );
-        focusFirstInvalid(deleteForm.current);
-      } else {
-        fail('delete', apiError);
-      }
-      finish();
-      return;
-    }
-    await push.forgetDevice();
-    await auth.wipeDevice();
-    auth.clearSession();
-    await auth.refreshAntiforgery();
-    await navigate('/login?reason=deleted');
-  }
+  const [streaks, changeStreaks] = useMePatchField((value: boolean) => patch('streaks', { showStreaks: value }), {
+    onError: (error) => fail('streaks', error),
+  });
+  const [calm, changeCalm] = useMePatchField((value: boolean) => patch('calm', { calmMode: value }), {
+    onError: (error) => fail('calm', error),
+    apply: (value) => {
+      const before = calmMode.get();
+      applyCalm(value);
+      return () => applyCalm(before);
+    },
+  });
+  const [offerNote, changeOfferNote] = useMePatchField(
+    (value: boolean) => patch('habitNotes', { offerHabitNote: value }),
+    { onError: (error) => fail('habitNotes', error) },
+  );
+  const [grace, changeGrace] = useMePatchField((value: number) => patch('grace', { graceDaysPerWeek: value }), {
+    onError: (error) => fail('grace', error),
+  });
+  const [second, changeSecond] = useMePatchField(
+    (value: SecondReminderMinutes) => patch('second', { secondReminderMinutes: value }),
+    { onError: (error) => fail('second', error) },
+  );
 
   const showDm = !local && !!me && (me.dmReminders.paused || message?.section === 'dm');
   const showSecond = !local || env.native;
@@ -706,8 +212,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (redirect) void navigate(redirect, { replace: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- navigates only when the redirect changes
-  }, [redirect]);
+  }, [navigate, redirect]);
 
   useEffect(() => {
     const id = location.hash.slice(1);
@@ -718,12 +223,6 @@ export default function SettingsPage() {
     });
     return () => cancelAnimationFrame(frame);
   }, [me, pushAvailable, location.hash, redirect]);
-
-  const zoneValue = zone ?? me?.timezone ?? '';
-  const zoneMessage = (zoneTouched ? zoneError(zoneValue) : null) ?? zoneServerError;
-  const suggestZone = !!me && isValidTimeZone(browserZone) && (!me.timezoneSet || me.timezone !== browserZone);
-  const graceShown = grace ?? me?.graceDaysPerWeek ?? 0;
-  const secondShown = second ?? me?.secondReminderMinutes ?? 0;
 
   const notice = discordNotice && (
     <Notice tone={discordNotice.tone}>
@@ -786,809 +285,193 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className={cn('flex flex-col gap-6', wide && 'grid grid-cols-[14rem_minmax(0,40rem)] items-start gap-8 2xl:mx-auto')}>
-      {wide && (
-        <nav
-          aria-labelledby="settings-rail-label"
-          className="sticky top-[calc(56px+env(safe-area-inset-top)+1.5rem)] flex flex-col gap-2"
-        >
-          <p id="settings-rail-label" className="px-3 text-[0.875rem] font-semibold text-muted-foreground">
-            {t('title.settings')}
-          </p>
-          <ul className="flex flex-col gap-1">
-            {groups.map((group) => (
-              <li key={group.slug}>
+    <SettingsStatusProvider status={status}>
+      <div className={cn('flex flex-col gap-6', wide && 'grid grid-cols-[14rem_minmax(0,40rem)] items-start gap-8 2xl:mx-auto')}>
+        {wide && (
+          <nav
+            aria-labelledby="settings-rail-label"
+            className="sticky top-[calc(56px+env(safe-area-inset-top)+1.5rem)] flex flex-col gap-2"
+          >
+            <p id="settings-rail-label" className="px-3 text-[0.875rem] font-semibold text-muted-foreground">
+              {t('title.settings')}
+            </p>
+            <ul className="flex flex-col gap-1">
+              {groups.map((group) => (
+                <li key={group.slug}>
+                  <Link
+                    to={`/settings/${group.slug}`}
+                    aria-current={group.slug === current.slug ? 'page' : undefined}
+                    className={cn(
+                      'flex min-h-[44px] items-center gap-3 rounded-md px-3 text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground',
+                      group.slug === current.slug &&
+                        'bg-secondary font-semibold text-secondary-foreground hover:bg-secondary hover:text-secondary-foreground',
+                    )}
+                  >
+                    <group.icon aria-hidden className="size-[18px] shrink-0" />
+                    {t(group.nameKey)}
+                  </Link>
+                </li>
+              ))}
+              <li>
                 <Link
-                  to={`/settings/${group.slug}`}
-                  aria-current={group.slug === current.slug ? 'page' : undefined}
-                  className={cn(
-                    'flex min-h-[44px] items-center gap-3 rounded-md px-3 text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground',
-                    group.slug === current.slug &&
-                      'bg-secondary font-semibold text-secondary-foreground hover:bg-secondary hover:text-secondary-foreground',
-                  )}
+                  to="/whats-new"
+                  className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground"
                 >
-                  <group.icon aria-hidden className="size-[18px] shrink-0" />
-                  {t(group.nameKey)}
+                  <Sparkles aria-hidden className="size-[18px] shrink-0" />
+                  {t('title.whatsNew')}
                 </Link>
               </li>
-            ))}
-            <li>
-              <Link
-                to="/whats-new"
-                className="flex min-h-[44px] items-center gap-3 rounded-md px-3 text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground"
-              >
-                <Sparkles aria-hidden className="size-[18px] shrink-0" />
-                {t('title.whatsNew')}
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      )}
-
-      <div className="flex min-w-0 flex-col gap-6">
-        {!wide && (
-          <BackLink to="/settings" label={t('title.settings')} name={t('settings.backToList')} viaHistory={fromList} />
+            </ul>
+          </nav>
         )}
-        <PageHeader title={t(current.nameKey)} />
-        {notice}
-        {me ? (
-          <>
-            {shown('device') && (
-              <SettingsCard id="device" title={title('device')}>
-                <DeviceDataSettings />
-              </SettingsCard>
-            )}
 
-            {shown('account') && (
-              <SettingsCard id="account" title={title('account')}>
-                <p>
-                  {me.email ? (
-                    <Trans
-                      i18nKey="settings.account.signedInAs"
-                      values={{ email: me.email }}
-                      components={{ strong: <strong className="[overflow-wrap:anywhere]" /> }}
-                    />
-                  ) : (
-                    t('settings.account.signedInDiscord')
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {me.email && me.hasPassword && (
-                    <BusyButton
-                      type="button"
-                      variant="secondary"
-                      busy={busy === 'password'}
-                      busyLabel={t('settings.account.sending')}
-                      onClick={() => void changePassword(me.email ?? '')}
-                    >
-                      {t('settings.account.changePassword')}
-                    </BusyButton>
-                  )}
-                  <BusyButton
-                    type="button"
-                    variant="secondary"
-                    busy={busy === 'signout'}
-                    busyLabel={t('nav.signingOut')}
-                    onClick={() => void signOut()}
-                  >
-                    {t('nav.signOut')}
-                  </BusyButton>
-                  {!confirmEverywhere && (
-                    <Button
-                      ref={everywhereButton}
-                      type="button"
-                      variant="ghost"
-                      onClick={() => askEverywhere(true)}
-                    >
-                      {t('settings.account.everywhere')}
-                    </Button>
-                  )}
-                </div>
-                {confirmEverywhere && (
-                  <div className="flex flex-col gap-3 rounded-md border-[length:var(--border-width)] border-border p-3">
-                    <p ref={everywhereText} tabIndex={-1} className="focus:outline-none">
-                      {t('settings.account.everywhereConfirm')}
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      <BusyButton
-                        type="button"
-                        variant="secondary"
-                        busy={busy === 'everywhere'}
-                        busyLabel={t('nav.signingOut')}
-                        onClick={() => void signOutEverywhere()}
-                      >
-                        {t('settings.account.everywhereYes')}
-                      </BusyButton>
-                      <Button type="button" variant="ghost" onClick={() => askEverywhere(false)}>
-                        {t('settings.cancel')}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {outcome('password')}
-                {outcome('signout')}
-                {outcome('everywhere')}
-              </SettingsCard>
-            )}
+        <div className="flex min-w-0 flex-col gap-6">
+          {!wide && (
+            <BackLink to="/settings" label={t('title.settings')} name={t('settings.backToList')} viaHistory={fromList} />
+          )}
+          <PageHeader title={t(current.nameKey)} />
+          {notice}
+          {me ? (
+            <>
+              {shown('device') && (
+                <SettingsCard id="device" title={title('device')}>
+                  <DeviceDataSettings />
+                </SettingsCard>
+              )}
 
-            {shown('appearance') && (
-              <SettingsCard id="appearance" title={title('appearance')}>
-                <p id="appearance-hint">
-                  {local ? t('settings.appearance.hintLocal') : t('settings.appearance.hintAccount')}
-                </p>
-                <LanguagePicker local={local} onChoose={saveLanguage} />
-                <ColorSchemePicker />
-                <ThemePicker labelledBy="appearance-heading" describedBy="appearance-hint" onChoose={saveTheme} />
-                {outcome('appearance')}
-                <div className="flex min-h-[44px] items-center justify-between gap-4">
-                  <Label htmlFor="calm-mode" className="min-w-0 font-normal">
-                    {t('settings.calm.label')}
-                  </Label>
-                  <Switch
-                    id="calm-mode"
-                    aria-describedby="calm-mode-hint"
-                    checked={calm ?? me?.calmMode === true}
-                    onCheckedChange={changeCalm}
-                  />
-                </div>
-                <p id="calm-mode-hint" className="text-[0.875rem] text-muted-foreground">
-                  {t('settings.calm.hint')}
-                </p>
-                {savedStatus('calm')}
-                {outcome('calm')}
-                {env.native && (
-                  <>
-                    <div className="flex min-h-[44px] items-center justify-between gap-4">
-                      <Label htmlFor="gentle-motion" className="min-w-0 font-normal">
-                        {t('settings.gentleMotion.label')}
-                      </Label>
-                      <Switch
-                        id="gentle-motion"
-                        aria-describedby="gentle-motion-hint"
-                        checked={gentle}
-                        onCheckedChange={applyGentleMotion}
-                      />
-                    </div>
-                    <p id="gentle-motion-hint" className="text-[0.875rem] text-muted-foreground">
-                      {t('settings.gentleMotion.hint')}
-                    </p>
-                  </>
-                )}
-              </SettingsCard>
-            )}
+              {shown('account') && <AccountCard title={title('account')} me={me} />}
 
-            {shown('push') && (
-              <SettingsCard id="push" title={title('push')}>
-                {destinations.data ? (
-                  destinations.data.length > 0 ? (
-                    <>
-                      <p>{t('settings.push.intro')}</p>
-                      <ul className="flex flex-col divide-y divide-border">
-                        {destinations.data.map((destination) => (
-                          <li key={destination.id} className="flex flex-col py-2 first:pt-0 last:pb-0">
-                            <div className="flex min-h-[44px] items-center justify-between gap-4">
-                              <Label
-                                htmlFor={`destination-${destination.id}`}
-                                className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-normal"
-                              >
-                                <DestinationName destination={destination} />
-                              </Label>
-                              <Switch
-                                id={`destination-${destination.id}`}
-                                checked={toggling[destination.id] ?? destination.enabled}
-                                aria-disabled={toggling[destination.id] !== undefined || undefined}
-                                onCheckedChange={(checked) => void toggleDestination(destination, checked)}
-                              />
-                            </div>
-                            <p role="status" className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                              {toggled[destination.id]?.error === null && (
-                                <>
-                                  <Check aria-hidden className="size-[18px] text-primary" />
-                                  {t('settings.saved')}
-                                </>
-                              )}
-                            </p>
-                            {toggled[destination.id]?.error && (
-                              <Notice tone="notice" className="mt-2">
-                                <p>{toggled[destination.id]?.error}</p>
-                              </Notice>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      {t('settings.push.none')}
-                      {!(env.native || pushAvailable) && (
-                        <>
-                          {' '}
-                          <Trans
-                            i18nKey="settings.push.noneDiscord"
-                            components={{
-                              anchor: (
-                                <Link
-                                  to={{ pathname: '/settings', hash: 'discord' }}
-                                  className="text-primary underline underline-offset-4"
-                                />
-                              ),
-                            }}
-                          />
-                        </>
-                      )}
-                    </p>
-                  )
-                ) : destinations.isError ? (
-                  !asApiError(destinations.error).handled && (
-                    <Notice tone="notice">
-                      <p>{problemToMessage(asApiError(destinations.error)).message}</p>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        aria-disabled={destinations.isFetching || undefined}
-                        onClick={() => void destinations.refetch()}
-                      >
-                        {t('settings.tryAgain')}
-                      </Button>
-                    </Notice>
-                  )
-                ) : (
-                  <>
-                    <p role="status" className="sr-only">
-                      {t('settings.push.loading')}
-                    </p>
-                    <Skeleton className="h-[7rem] rounded-md" />
-                  </>
-                )}
-                {destinations.data &&
-                  !destinations.data.some((d) => d.current) &&
-                  (env.native ? (
-                    <div>
-                      <BusyButton
-                        type="button"
-                        busy={busy === 'push'}
-                        busyLabel={t('settings.turningOn')}
-                        onClick={() => void enablePhone()}
-                      >
-                        {t('settings.phone.turnOn')}
-                      </BusyButton>
-                    </div>
-                  ) : (
-                    pushAvailable && (
-                      <>
-                        <p className="text-muted-foreground">{t('settings.push.browserHint')}</p>
-                        {showIosHint && (
-                          <p className="text-muted-foreground">{t('settings.push.iosHint')}</p>
-                        )}
-                        <div>
-                          <BusyButton
-                            type="button"
-                            busy={busy === 'push'}
-                            busyLabel={t('settings.turningOn')}
-                            onClick={() => void enablePush()}
-                          >
-                            {t('settings.push.turnOn')}
-                          </BusyButton>
-                        </div>
-                      </>
-                    )
-                  ))}
-                {!env.native && destinations.data?.some((d) => d.current && d.kind === 'browser') && (
-                  <>
-                    <ReminderNamesSetting
-                      checked={browserNames}
-                      onCheckedChange={(on) => void changeBrowserNames(on)}
-                    />
-                    {savedStatus('push')}
-                  </>
-                )}
-                {outcome('push')}
-              </SettingsCard>
-            )}
+              {shown('appearance') && (
+                <AppearanceCard
+                  title={title('appearance')}
+                  local={local}
+                  calm={calm ?? me.calmMode === true}
+                  onCalmChange={changeCalm}
+                />
+              )}
 
-            {shown('dm-reminders') && (
-              <SettingsCard id="dm-reminders" title={title('dm-reminders')}>
-                {me.dmReminders.paused && (
-                  <>
-                    <p>{t('settings.dm.paused')}</p>
-                    <div>
-                      <BusyButton
-                        type="button"
-                        variant="secondary"
-                        busy={busy === 'dm'}
-                        busyLabel={t('settings.dm.resuming')}
-                        onClick={() => void resumeDms()}
-                      >
-                        {t('settings.dm.resume')}
-                      </BusyButton>
-                    </div>
-                  </>
-                )}
-                {outcome('dm')}
-              </SettingsCard>
-            )}
+              {shown('push') && <PushCard title={title('push')} destinations={destinations} />}
 
-            {shown('phone-reminders') && (
-              <SettingsCard id="phone-reminders" title={title('phone-reminders')}>
-                <p>{local ? t('settings.phone.introLocal') : t('settings.phone.intro')}</p>
-                <ReminderNamesSetting />
-                {remindersLate && (
-                  <Notice tone="info">
-                    <p>{t('settings.phone.late')}</p>
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        void reminders?.allowExact().then((exact) => {
-                          setRemindersLate(!exact);
-                          if (exact) deviceSync.rebuildReminders();
-                        })
-                      }
-                    >
-                      {t('settings.phone.allowExact')}
-                    </Button>
-                  </Notice>
-                )}
-                {notificationsOff && (
-                  <Notice tone="info">
-                    <p>{t('settings.phone.notificationsOff')}</p>
-                  </Notice>
-                )}
-              </SettingsCard>
-            )}
+              {shown('dm-reminders') && <DmRemindersCard title={title('dm-reminders')} me={me} />}
 
-            {shown('second-reminder') && (
-              <SettingsCard id="second-reminder" title={title('second-reminder')}>
-                <FormField label={t('settings.card.secondReminder')} hint={t('settings.second.hint')}>
-                  {(field) => (
-                    <NativeSelect
-                      {...field}
-                      value={String(secondShown)}
-                      onChange={(event) => changeSecond(Number(event.target.value) as SecondReminderMinutes)}
-                    >
-                      {secondReminderChoices.map((n) => (
-                        <option key={n} value={n}>
-                          {secondReminderLabel(n)}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  )}
-                </FormField>
-                {savedStatus('second')}
-                {outcome('second')}
-              </SettingsCard>
-            )}
+              {shown('phone-reminders') && <PhoneRemindersCard title={title('phone-reminders')} local={local} />}
 
-            {shown('routines') && (
-              <SettingsCard id="routines" title={title('routines')}>
-                <p>{t('settings.routines.intro')}</p>
-                <div>
-                  <Button asChild variant="secondary">
-                    <Link to="/routines">{t('settings.routines.link')}</Link>
-                  </Button>
-                </div>
-              </SettingsCard>
-            )}
+              {shown('second-reminder') && (
+                <SecondReminderCard
+                  title={title('second-reminder')}
+                  value={second ?? me.secondReminderMinutes}
+                  onChange={changeSecond}
+                />
+              )}
 
-            {shown('streaks') && (
-              <SettingsCard id="streaks" title={title('streaks')}>
-                <div className="flex min-h-[44px] items-center justify-between gap-4">
-                  <Label htmlFor="show-streaks" className="min-w-0 font-normal">
-                    {t('settings.streaks.label')}
-                  </Label>
-                  <Switch
-                    id="show-streaks"
-                    aria-describedby="show-streaks-hint"
-                    checked={streaksShown}
-                    onCheckedChange={changeStreaks}
-                  />
-                </div>
-                <p id="show-streaks-hint" className="text-[0.875rem] text-muted-foreground">
-                  {t('settings.streaks.hint')}
-                </p>
-                {savedStatus('streaks')}
-                {outcome('streaks')}
-              </SettingsCard>
-            )}
-
-            {shown('habit-notes') && (
-              <SettingsCard id="habit-notes" title={title('habit-notes')}>
-                <div className="flex min-h-[44px] items-center justify-between gap-4">
-                  <Label htmlFor="offer-habit-note" className="min-w-0 font-normal">
-                    {t('settings.habitNotes.label')}
-                  </Label>
-                  <Switch
-                    id="offer-habit-note"
-                    aria-describedby="offer-habit-note-hint"
-                    checked={offerNote ?? me.offerHabitNote}
-                    onCheckedChange={changeOfferNote}
-                  />
-                </div>
-                <p id="offer-habit-note-hint" className="text-[0.875rem] text-muted-foreground">
-                  {t('settings.habitNotes.hint')}
-                </p>
-                {savedStatus('habitNotes')}
-                {outcome('habitNotes')}
-              </SettingsCard>
-            )}
-
-            {shown('grace') && (
-              <SettingsCard id="grace" title={title('grace')}>
-                <FormField
-                  label={t('settings.grace.label')}
-                  hint={t('settings.grace.hint')}
-                >
-                  {(field) => (
-                    <NativeSelect
-                      {...field}
-                      value={String(graceShown)}
-                      onChange={(event) => changeGrace(Number(event.target.value))}
-                    >
-                      {graceOptions.map((n) => (
-                        <option key={n} value={n}>
-                          {n === 0 ? t('settings.grace.none') : t('settings.grace.perWeek', { count: n })}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  )}
-                </FormField>
-                <p className="text-[0.875rem] text-muted-foreground">{t('settings.grace.note')}</p>
-                {savedStatus('grace')}
-                {outcome('grace')}
-              </SettingsCard>
-            )}
-
-            {shown('timezone') && (
-              <SettingsCard id="timezone" title={title('timezone')}>
-                {me.timezoneSet ? (
-                  <p>
-                    <Trans
-                      i18nKey="settings.timezone.follows"
-                      values={{ zone: timeZoneLabel(me.timezone) }}
-                      components={{ strong: <strong /> }}
-                    />
-                  </p>
-                ) : (
-                  <p>
-                    <Trans
-                      i18nKey="settings.timezone.notSet"
-                      values={{ zone: timeZoneLabel(me.timezone) }}
-                      components={{ strong: <strong /> }}
-                    />
-                  </p>
-                )}
-                {suggestZone && (
+              {shown('routines') && (
+                <SettingsCard id="routines" title={title('routines')}>
+                  <p>{t('settings.routines.intro')}</p>
                   <div>
-                    <Button
-                      type="button"
-                      aria-disabled={busy !== null || undefined}
-                      onClick={() => void saveTimezone(browserZone)}
-                    >
-                      {t('settings.timezone.use', { zone: browserZone })}
+                    <Button asChild variant="secondary">
+                      <Link to="/routines">{t('settings.routines.link')}</Link>
                     </Button>
                   </div>
-                )}
-                <form
-                  ref={tzForm}
-                  noValidate
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void saveTimezone();
-                  }}
-                  className="flex flex-col gap-3"
-                >
-                  <FormField
-                    label={t('settings.timezone.label')}
-                    hint={t('settings.timezone.hint')}
-                    error={zoneMessage}
-                  >
-                    {(field) => (
-                      <Input
-                        {...field}
-                        type="text"
-                        list="timezone-list"
-                        autoComplete="off"
-                        spellCheck={false}
-                        value={zoneValue}
-                        onChange={(event) => setZone(event.target.value)}
-                        onBlur={() => setZoneTouched(true)}
-                      />
-                    )}
-                  </FormField>
-                  <datalist id="timezone-list">
-                    {zones.map((name) => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <BusyButton
-                      type="submit"
-                      variant="secondary"
-                      busy={busy === 'timezone'}
-                      busyLabel={t('settings.saving')}
-                    >
-                      {t('settings.timezone.save')}
-                    </BusyButton>
-                    {savedStatus('timezone')}
+                </SettingsCard>
+              )}
+
+              {shown('streaks') && (
+                <StreaksCard title={title('streaks')} checked={streaksShown} onCheckedChange={changeStreaks} />
+              )}
+
+              {shown('habit-notes') && (
+                <HabitNotesCard
+                  title={title('habit-notes')}
+                  checked={offerNote ?? me.offerHabitNote}
+                  onCheckedChange={changeOfferNote}
+                />
+              )}
+
+              {shown('grace') && (
+                <GraceCard title={title('grace')} value={grace ?? me.graceDaysPerWeek} onChange={changeGrace} />
+              )}
+
+              {shown('timezone') && <TimezoneCard title={title('timezone')} me={me} />}
+
+              {shown('moods') && (
+                <SettingsCard id="moods" title={title('moods')}>
+                  <MoodManager />
+                </SettingsCard>
+              )}
+
+              {shown('fireside') && (
+                <SettingsCard id="fireside" title={title('fireside')}>
+                  <FiresideSettings />
+                </SettingsCard>
+              )}
+
+              {shown('two-factor') && (
+                <SettingsCard id="two-factor" title={title('two-factor')}>
+                  <TwoFactorSettings me={me} />
+                </SettingsCard>
+              )}
+
+              {shown('discord') && <DiscordCard title={title('discord')} me={me} />}
+
+              {shown('app-updates') && (
+                <SettingsCard id="app-updates" title={title('app-updates')}>
+                  <AppUpdatesSettings />
+                </SettingsCard>
+              )}
+
+              {shown('journal') && (
+                <SettingsCard id="journal" title={title('journal')}>
+                  <JournalSettings me={me} />
+                </SettingsCard>
+              )}
+
+              {shown('moments') && (
+                <SettingsCard id="moments" title={title('moments')}>
+                  <p>{t('settings.moments.intro')}</p>
+                  <div>
+                    <TapLink to="/moments">{t('settings.moments.open')}</TapLink>
                   </div>
-                </form>
-                {outcome('timezone')}
-              </SettingsCard>
-            )}
+                </SettingsCard>
+              )}
 
-            {shown('moods') && (
-              <SettingsCard id="moods" title={title('moods')}>
-                <MoodManager />
-              </SettingsCard>
-            )}
+              {shown('helps') && (
+                <SettingsCard id="helps" title={title('helps')}>
+                  <HelpsSettings />
+                </SettingsCard>
+              )}
 
-            {shown('fireside') && (
-              <SettingsCard id="fireside" title={title('fireside')}>
-                <FiresideSettings />
-              </SettingsCard>
-            )}
+              {shown('consent') && <ConsentCard title={title('consent')} me={me} />}
 
-            {shown('two-factor') && (
-              <SettingsCard id="two-factor" title={title('two-factor')}>
-                <TwoFactorSettings me={me} />
-              </SettingsCard>
-            )}
+              {shown('export') && <ExportCard title={title('export')} />}
 
-            {shown('discord') && (
-              <SettingsCard id="discord" title={title('discord')}>
-                {me.discord.linked ? (
-                  <>
-                    <p>{t('settings.discord.linkedText')}</p>
-                    <div>
-                      <BusyButton
-                        type="button"
-                        variant="secondary"
-                        busy={busy === 'discord'}
-                        busyLabel={t('settings.discord.unlinking')}
-                        onClick={() => void unlinkDiscord()}
-                      >
-                        {t('settings.discord.unlink')}
-                      </BusyButton>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p>{t('settings.discord.intro')}</p>
-                    {linkingDiscord ? (
-                      <ConfirmForm
-                        kind="password"
-                        email={me.email}
-                        hint={t('settings.discord.passwordHint')}
-                        submitLabel={t('settings.discord.continue')}
-                        busyLabel={t('settings.checking')}
-                        onSubmit={linkDiscord}
-                        onCancel={cancelLinkDiscord}
-                      />
-                    ) : (
-                      <div>
-                        {env.native ? (
-                          <Button type="button" variant="secondary" onClick={() => void openOnWeb('/settings/account#discord')}>
-                            {t('settings.discord.linkOnWeb')}
-                          </Button>
-                        ) : me.hasPassword ? (
-                          <Button
-                            ref={linkDiscordButton}
-                            type="button"
-                            variant="secondary"
-                            onClick={() => setLinkingDiscord(true)}
-                          >
-                            {t('settings.discord.link')}
-                          </Button>
-                        ) : (
-                          <Button asChild variant="secondary">
-                            <a href={api.discordLinkUrl()}>{t('settings.discord.link')}</a>
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    {env.native && (
-                      <p className="text-[0.875rem] text-muted-foreground">{t('settings.discord.nativeHint')}</p>
-                    )}
-                  </>
-                )}
-                {outcome('discord')}
-              </SettingsCard>
-            )}
+              {shown('delete') && <DeleteCard title={title('delete')} me={me} local={local} />}
 
-            {shown('app-updates') && (
-              <SettingsCard id="app-updates" title={title('app-updates')}>
-                <AppUpdatesSettings />
-              </SettingsCard>
-            )}
+              {shown('feedback') && (
+                <SettingsCard id="feedback" title={title('feedback')}>
+                  <FeedbackForm />
+                </SettingsCard>
+              )}
 
-            {shown('journal') && (
-              <SettingsCard id="journal" title={title('journal')}>
-                <JournalSettings me={me} />
-              </SettingsCard>
-            )}
-
-            {shown('moments') && (
-              <SettingsCard id="moments" title={title('moments')}>
-                <p>{t('settings.moments.intro')}</p>
-                <div>
-                  <TapLink to="/moments">{t('settings.moments.open')}</TapLink>
-                </div>
-              </SettingsCard>
-            )}
-
-            {shown('helps') && (
-              <SettingsCard id="helps" title={title('helps')}>
-                <HelpsSettings />
-              </SettingsCard>
-            )}
-
-            {shown('consent') && me && (
-              <SettingsCard id="consent" title={title('consent')}>
-                {me.consent.given ? (
-                  <>
-                    <p>{t('settings.privacy.given')}</p>
-                    {!confirmWithdraw && (
-                      <div>
-                        <Button ref={withdrawButton} type="button" variant="secondary" onClick={() => askWithdraw(true)}>
-                          {t('settings.privacy.withdraw')}
-                        </Button>
-                      </div>
-                    )}
-                    {confirmWithdraw && (
-                      <div className="flex flex-col gap-3 rounded-md border-[length:var(--border-width)] border-border p-3">
-                        <p ref={withdrawText} tabIndex={-1} className="focus:outline-none">
-                          {t('settings.privacy.withdrawConfirm')}
-                        </p>
-                        <div className="flex flex-wrap gap-3">
-                          <BusyButton
-                            type="button"
-                            variant="destructive"
-                            busy={busy === 'consent'}
-                            busyLabel={t('auth.saving')}
-                            onClick={() => void withdrawConsent()}
-                          >
-                            {t('settings.privacy.withdrawYes')}
-                          </BusyButton>
-                          <Button type="button" variant="ghost" onClick={() => askWithdraw(false)}>
-                            {t('settings.privacy.withdrawNo')}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <p>
-                      {!me.consent.withdrawnAt
-                        ? t('settings.privacy.missing')
-                        : me.consent.deletesAt
-                          ? t('settings.privacy.withdrawn', { date: formatInstantDate(me.consent.deletesAt, me.timezone) })
-                          : t('settings.privacy.withdrawnNoData')}
-                    </p>
-                    <div>
-                      <TapLink to="/consent">{t('settings.privacy.give')}</TapLink>
-                    </div>
-                  </>
-                )}
-                {outcome('consent')}
-              </SettingsCard>
-            )}
-
-            {shown('export') && (
-              <SettingsCard id="export" title={title('export')}>
-                <p>{t('export.intro')}</p>
-                <div className="flex flex-wrap gap-2">
-                  {env.native ? (
-                    <Button type="button" variant="secondary" onClick={() => void openOnWeb('/settings/privacy#export')}>
-                      {t('export.onWeb')}
-                    </Button>
-                  ) : (
-                    exportFormats.map((format) => (
-                      <BusyButton
-                        key={format}
-                        type="button"
-                        variant="secondary"
-                        busy={exporting === format}
-                        busyLabel={t('settings.preparing')}
-                        onClick={() => void exportAs(format)}
-                      >
-                        {t('export.download', { format: format.toUpperCase() })}
-                      </BusyButton>
-                    ))
-                  )}
-                </div>
-                {outcome('export')}
-              </SettingsCard>
-            )}
-
-            {shown('delete') && (
-              <SettingsCard id="delete" title={title('delete')} farewell>
-                {local ? (
-                  <DeleteDeviceData />
-                ) : (
-                  <>
-                    <p>{t('settings.delete.intro')}</p>
-                    <form
-                      ref={deleteForm}
-                      noValidate
-                      onSubmit={(event) => void deleteAccount(event)}
-                      className="flex flex-col gap-3"
-                    >
-                      {me.hasPassword && (
-                        <>
-                          <input
-                            className="sr-only"
-                            type="email"
-                            name="username"
-                            autoComplete="username"
-                            value={me.email ?? ''}
-                            readOnly
-                            tabIndex={-1}
-                            aria-hidden="true"
-                          />
-                          <FormField label={t('settings.yourPassword')} error={password.error ?? deleteErrors.password ?? null}>
-                            {(field) => (
-                              <PasswordInput {...field} {...password.input} autoComplete="current-password" />
-                            )}
-                          </FormField>
-                        </>
-                      )}
-                      <FormField
-                        label={t('settings.delete.confirmLabel', { word: t('delete.word') })}
-                        error={confirm.error ?? deleteErrors.confirm ?? null}
-                      >
-                        {(field) => (
-                          <Input
-                            {...field}
-                            {...confirm.input}
-                            type="text"
-                            autoComplete="off"
-                            autoCapitalize="characters"
-                            spellCheck={false}
-                          />
-                        )}
-                      </FormField>
-                      {outcome('delete')}
-                      <div>
-                        <BusyButton
-                          type="submit"
-                          variant="destructive"
-                          busy={busy === 'delete'}
-                          busyLabel={t('settings.delete.deleting')}
-                        >
-                          {t('settings.delete.submit')}
-                        </BusyButton>
-                      </div>
-                    </form>
-                  </>
-                )}
-              </SettingsCard>
-            )}
-
-            {shown('feedback') && (
-              <SettingsCard id="feedback" title={title('feedback')}>
-                <FeedbackForm />
-              </SettingsCard>
-            )}
-
-            {shown('help') && (
-              <SettingsCard id="help" title={title('help')}>
-                <CrisisLines />
-                <p>
-                  <TapLink to="/about">{t('about.link')}</TapLink>
-                </p>
-              </SettingsCard>
-            )}
-          </>
-        ) : (
-          <>
-            <p role="status" className="sr-only">
-              {t('settings.loading')}
-            </p>
-            <Skeleton className="h-[12rem] rounded-xl" />
-            <Skeleton className="h-[8rem] rounded-xl" />
-          </>
-        )}
+              {shown('help') && (
+                <SettingsCard id="help" title={title('help')}>
+                  <CrisisLines />
+                  <p>
+                    <TapLink to="/about">{t('about.link')}</TapLink>
+                  </p>
+                </SettingsCard>
+              )}
+            </>
+          ) : (
+            <>
+              <p role="status" className="sr-only">
+                {t('settings.loading')}
+              </p>
+              <Skeleton className="h-[12rem] rounded-xl" />
+              <Skeleton className="h-[8rem] rounded-xl" />
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </SettingsStatusProvider>
   );
 }

@@ -33,6 +33,7 @@ const dispatch = 'src/Ember.Bot/Jobs/ReminderDispatchJob.cs';
 const plan = 'web/src/lib/native/reminder-plan.ts';
 const settingsPage = 'web/src/pages/settings.tsx';
 const groups = 'web/src/components/settings/settings-groups.ts';
+const appearanceCard = 'web/src/components/settings/appearance-card.tsx';
 const deviceData = 'web/src/components/local/device-data-settings.tsx';
 const journalSettings = 'web/src/components/settings/journal-settings.tsx';
 
@@ -226,13 +227,13 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'settings-streaks',
         questionKey: 'guide.settings.streaks.q',
         answerKey: 'guide.settings.streaks.a',
-        covers: [groups, settingsPage],
+        covers: [groups, settingsPage, 'web/src/components/settings/streaks-card.tsx'],
       },
       {
         id: 'settings-looks',
         questionKey: 'guide.settings.looks.q',
         answerKey: 'guide.settings.looks.a',
-        covers: [groups, settingsPage],
+        covers: [groups, appearanceCard],
       },
       {
         id: 'settings-help-right-now',
@@ -307,7 +308,7 @@ export const guides: Record<GuideScreen, Guide> = {
         answerKey: 'guide.habitsDays.grace.a',
         values: { max: Math.max(...graceOptions) },
         target: 'grace',
-        covers: [core, 'web/src/lib/models.ts', settingsPage],
+        covers: [core, 'web/src/lib/models.ts', 'web/src/components/settings/grace-card.tsx'],
       },
       {
         id: 'habits-days-kinds',
@@ -343,7 +344,7 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.appearance.themes.q',
         answerKey: 'guide.appearance.themes.a',
         target: 'appearance',
-        covers: ['web/src/lib/theme.ts', settingsPage],
+        covers: ['web/src/lib/theme.ts', appearanceCard],
       },
       {
         id: 'appearance-light-dark',
@@ -357,7 +358,7 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.appearance.calm.q',
         answerKey: 'guide.appearance.calm.a',
         target: 'calm-mode',
-        covers: ['web/src/calm.css', 'web/src/components/moment/breathing-player.tsx', settingsPage],
+        covers: ['web/src/calm.css', 'web/src/components/moment/breathing-player.tsx', appearanceCard],
       },
     ],
   },
@@ -394,14 +395,14 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.privacy.export.q',
         answerKey: 'guide.privacy.export.a',
         target: 'export',
-        covers: [settingsPage, deviceData, 'src/Ember.Core/Services/ExportBuilder.cs'],
+        covers: ['web/src/components/settings/export-card.tsx', deviceData, 'src/Ember.Core/Services/ExportBuilder.cs'],
       },
       {
         id: 'privacy-delete',
         questionKey: 'guide.privacy.delete.q',
         answerKey: 'guide.privacy.delete.a',
         target: 'delete',
-        covers: [settingsPage, deviceData],
+        covers: ['web/src/components/settings/delete-card.tsx', 'web/src/components/settings/consent-card.tsx', deviceData],
       },
     ],
   },

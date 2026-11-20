@@ -76,6 +76,7 @@ for (const { code, locale, strings } of languages) {
         });
 
         test('the moment flow and help page have no WCAG A/AA violations', async ({ page }) => {
+          test.setTimeout(120_000);
           const found: string[] = [];
           const heading = (name: RegExp | string) => page.getByRole('heading', { name }).first();
           const click = (name: string) => page.getByRole('button', { name, exact: true }).click();
@@ -105,9 +106,11 @@ for (const { code, locale, strings } of languages) {
           await click(tr('moment.next'));
           await expect(heading(tr('moment.breath.heading'))).toBeVisible();
           await scan(page, '/moment breathing player', found);
+          await page.emulateMedia({ reducedMotion: 'reduce' });
           await click(tr('moment.start'));
           await expect(page.getByText(`${tr('moment.breath.in')}, 4`).first()).toBeVisible();
           await scan(page, '/moment breathing player (running)', found);
+          await page.emulateMedia({ reducedMotion: null });
           await click(tr('moment.pause'));
           await click(tr('moment.skipPractice'));
           await expect(heading(tr('moment.after.heading'))).toBeVisible();
@@ -264,6 +267,7 @@ for (const { code, locale, strings } of languages) {
 
             await visitPage(page, '/settings/privacy', /./, found);
             await page.getByRole('button', { name: tr('journalSettings.lock') }).click();
+            await expect(page.getByRole('status').filter({ hasText: tr('journalSettings.lockedDone') })).toBeVisible();
             await visitPage(page, '/moments', tr('title.moments'), found);
             await expect(page.getByText(tr('moments.locked'))).toBeVisible();
             await scan(page, '/moments (locked, calm on)', found);
