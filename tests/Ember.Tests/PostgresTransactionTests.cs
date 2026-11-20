@@ -143,6 +143,30 @@ public class PostgresTransactionTests(PostgresFixture postgres)
     }
 
     [DockerFact]
+    public async Task Merge_failing_while_moving_the_sources_Fireside_friends_leaves_both_accounts_and_the_friendship_untouched()
+    {
+        var (host, failure) = await HostAsync();
+        await using var _ = host;
+        var source = Consented(new User { Id = TestUsers.Id(5), Logins = TestUsers.Discord(5), Timezone = "UTC", FiresideEnabled = true, FiresideName = "Bo" });
+        source.Habits.Add(new Habit { Name = "Walk", CreatedAt = Now.UtcDateTime.AddDays(-20) });
+        var target = Consented(new User { Id = TestUsers.Id(6), UserName = "web@example.test", NormalizedUserName = "WEB@EXAMPLE.TEST", Email = "web@example.test" });
+        var friend = new User { Id = TestUsers.Id(30), Logins = TestUsers.Discord(30), Timezone = "UTC", FiresideEnabled = true, FiresideName = "Kit" };
+        await SeedAsync(host, db =>
+        {
+            db.Users.AddRange(source, target, friend);
+            db.FiresideLinks.AddRange(
+                new FiresideLink { OwnerId = source.Id, FriendId = friend.Id, KnownName = "Kit", CreatedAt = Now.UtcDateTime.AddDays(-3) },
+                new FiresideLink { OwnerId = friend.Id, FriendId = source.Id, KnownName = "Bo", CreatedAt = Now.UtcDateTime.AddDays(-3) });
+            db.Warmth.Add(new Warmth { FromUserId = friend.Id, ToUserId = source.Id, Message = "hug", SentAtUtc = Now.UtcDateTime.AddDays(-1) });
+        });
+        var before = await SnapshotAsync(host);
+        failure.Arm("UPDATE", "FiresideLinks");
+
+        await AssertRolledBackAsync(host, failure, before, () => host.WithScopeAsync(sp =>
+            sp.GetRequiredService<HabitService>().MergeBotOnlyAccountAsync(TestUsers.Id(6), TestUsers.Id(5), 5)));
+    }
+
+    [DockerFact]
     public async Task Import_failing_on_the_final_settings_update_leaves_the_account_empty()
     {
         var (host, failure) = await HostAsync();
