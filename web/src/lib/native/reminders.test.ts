@@ -24,6 +24,8 @@ describe('Reminders', () => {
   let reminders: Reminders;
   let schedule: Mock<(options: ScheduleOptions) => Promise<unknown>>;
   let getPending: Mock;
+  let delivered: Array<{ id: number; extra: unknown }>;
+  let removeDelivered: Mock<(delivered: { notifications: Array<{ id: number }> }) => Promise<void>>;
   let cancel: Mock;
   let checkPermissions: Mock;
   let requestPermissions: Mock;
@@ -40,6 +42,8 @@ describe('Reminders', () => {
     device = new DeviceStore();
     schedule = vi.fn<(options: ScheduleOptions) => Promise<unknown>>(async () => ({}));
     getPending = vi.fn(async () => ({ notifications: [] }));
+    delivered = [];
+    removeDelivered = vi.fn<(delivered: { notifications: Array<{ id: number }> }) => Promise<void>>(async () => undefined);
     cancel = vi.fn(async () => undefined);
     checkPermissions = vi.fn(async () => ({ display: 'granted' }));
     requestPermissions = vi.fn(async () => ({ display: 'granted' }));
@@ -51,6 +55,13 @@ describe('Reminders', () => {
       changeExactNotificationSetting: changeExact,
       createChannel: async () => undefined,
       getPending,
+      getDeliveredNotifications: async () => ({
+        notifications: delivered.map(({ id }) => ({ id, title: 'Ember', body: reminderBody(), data: {} })),
+      }),
+      getByIds: async ({ ids }: { ids: number[] }) => ({
+        notifications: delivered.filter(({ id }) => ids.includes(id)),
+      }),
+      removeDeliveredNotifications: removeDelivered,
       cancel,
       checkPermissions,
       requestPermissions,
@@ -268,6 +279,54 @@ describe('Reminders', () => {
     expect(first.extra).toEqual({ userId: 'u1', habitId: 1, date: '2026-11-01' });
     expect(JSON.stringify(first)).not.toContain('Walk');
     expect(reminders.wasIssued(first.id, first.extra)).toBe(true);
+  });
+
+  describe('delivered reminders', () => {
+    const deliver = (...entries: Array<[number, Record<string, unknown>]>) => {
+      delivered = entries.map(([id, extra]) => ({ id, extra }));
+    };
+    const removed = () =>
+      removeDelivered.mock.calls.flatMap(([{ notifications }]) => notifications.map(({ id }) => id));
+    const doneToday = { date: '2026-11-01', state: 'done', completed: true, count: 1 } as const;
+
+    it("removes a done habit's and a finished routine's reminder for that day, even when the plan is unchanged", async () => {
+      const morning: Habit = { ...reminded, reminderTime: '08:30' };
+      const reading: Habit = {
+        ...reminded,
+        id: 2,
+        name: 'Read',
+        timesPerDay: 3,
+        today: { date: '2026-11-01', state: 'partial', completed: null, count: 1 },
+      };
+      const stretch: Habit = { ...reminded, id: 3, name: 'Stretch', today: doneToday };
+      const routine: Routine = { id: 4, name: 'Start', reminderTime: '08:00', reminderChannels: ['mobile'], habitIds: [3] };
+      await rebuildOnline([morning, reading, stretch], [routine]);
+      deliver(
+        [11, { userId: 'u1', habitId: 1, date: '2026-11-01' }],
+        [12, { userId: 'u1', habitId: 1, date: '2026-10-31' }],
+        [13, { userId: 'u1', habitId: 2, date: '2026-11-01' }],
+        [14, { userId: 'u1', routineId: 4, date: '2026-11-01' }],
+        [15, { userId: 'u2', habitId: 1, date: '2026-11-01' }],
+      );
+
+      await rebuildOnline([{ ...morning, today: doneToday }, reading, stretch], [routine]);
+
+      expect(schedule).toHaveBeenCalledTimes(1);
+      expect(removed()).toEqual([11, 14]);
+    });
+
+    it("removes a weekly habit's reminders from earlier that week once its target is met", async () => {
+      deliver(
+        [21, { userId: 'u1', habitId: 1, date: '2026-10-30' }],
+        [22, { userId: 'u1', habitId: 1, date: '2026-10-25' }],
+      );
+
+      await rebuildOnline([
+        { ...reminded, frequency: 'weekly', weeklyTarget: 3, stats: { ...reminded.stats, week: { done: 3, target: 3 } } },
+      ]);
+
+      expect(removed()).toEqual([21]);
+    });
   });
 
   it('names the habit with a Done action, and the routine without one, while "Show habit names" is on', async () => {
