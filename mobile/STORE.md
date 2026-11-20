@@ -149,7 +149,7 @@ Do not submit. Kept for when iOS starts.
 ## 4. Open items
 
 - Public URLs for the policy and the deletion page (section 0).
-- The open points in `docs/legal/README.md`, including that no Google push is active (the Gradle file only applies the Google Services plugin when a `google-services.json` exists; the repo has none).
+- The open points in `docs/legal/README.md`, including that no Google push is active (the build does not apply the Google Services plugin and has no Firebase dependency).
 - Play account type, identity checks, trader status, support email, listing language. TODO (Nico).
 - Health apps category and the Discord sharing answer (sections 2.1 and 2.2). TODO (Nico).
 - Play target API level at upload: the app targets API 36. TODO: check the Console's current requirement.
