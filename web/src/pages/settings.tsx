@@ -39,6 +39,7 @@ import { Notice, type NoticeTone } from '@/components/ui/notice';
 import { NativeSelect } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { useMePatchField } from '@/hooks/use-me-patch';
 import { saveFile } from '@/lib/browser-download';
 import { env } from '@/lib/env';
 import { browserTimeZone, formatInstantDate, isValidTimeZone, timeZoneLabel } from '@/lib/local-date';
@@ -209,11 +210,6 @@ export default function SettingsPage() {
 
   const busyRef = useRef<Section | null>(null);
   const chain = useRef<Promise<unknown>>(Promise.resolve());
-  const graceRef = useRef<number | null>(null);
-  const streaksRef = useRef<boolean | null>(null);
-  const offerNoteRef = useRef<boolean | null>(null);
-  const calmRef = useRef<boolean | null>(null);
-  const secondRef = useRef<SecondReminderMinutes | null>(null);
   const scrolled = useRef<string | null>(null);
   const tzForm = useRef<HTMLFormElement>(null);
   const deleteForm = useRef<HTMLFormElement>(null);
@@ -228,12 +224,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState<Section | null>(null);
   const [message, setMessage] = useState<(Message & { section: Section }) | null>(null);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
-  const [grace, setGrace] = useState<number | null>(null);
-  const [streaks, setStreaks] = useState<boolean | null>(null);
-  const [offerNote, setOfferNote] = useState<boolean | null>(null);
   const gentle = useStore(gentleMotion);
-  const [calm, setCalm] = useState<boolean | null>(null);
-  const [second, setSecond] = useState<SecondReminderMinutes | null>(null);
   const [zone, setZone] = useState<string | null>(null);
   const [zoneTouched, setZoneTouched] = useState(false);
   const [zoneServerError, setZoneServerError] = useState<string | null>(null);
@@ -329,64 +320,28 @@ export default function SettingsPage() {
     return run;
   }
 
-  function changeGrace(value: number): void {
-    graceRef.current = value;
-    setGrace(value);
-    void patch('grace', { graceDaysPerWeek: value }).then((error) => {
-      if (graceRef.current !== value) return;
-      graceRef.current = null;
-      setGrace(null);
-      if (error) fail('grace', error);
-    });
-  }
-
-  function changeStreaks(value: boolean): void {
-    streaksRef.current = value;
-    setStreaks(value);
-    void patch('streaks', { showStreaks: value }).then((error) => {
-      if (streaksRef.current !== value) return;
-      streaksRef.current = null;
-      setStreaks(null);
-      if (error) fail('streaks', error);
-    });
-  }
-
-  function changeOfferNote(value: boolean): void {
-    offerNoteRef.current = value;
-    setOfferNote(value);
-    void patch('habitNotes', { offerHabitNote: value }).then((error) => {
-      if (offerNoteRef.current !== value) return;
-      offerNoteRef.current = null;
-      setOfferNote(null);
-      if (error) fail('habitNotes', error);
-    });
-  }
-
-  function changeCalm(value: boolean): void {
-    const before = calmMode.get();
-    calmRef.current = value;
-    setCalm(value);
-    applyCalm(value);
-    void patch('calm', { calmMode: value }).then((error) => {
-      if (calmRef.current !== value) return;
-      calmRef.current = null;
-      setCalm(null);
-      if (!error) return;
-      applyCalm(before);
-      fail('calm', error);
-    });
-  }
-
-  function changeSecond(value: SecondReminderMinutes): void {
-    secondRef.current = value;
-    setSecond(value);
-    void patch('second', { secondReminderMinutes: value }).then((error) => {
-      if (secondRef.current !== value) return;
-      secondRef.current = null;
-      setSecond(null);
-      if (error) fail('second', error);
-    });
-  }
+  const [grace, changeGrace] = useMePatchField((value: number) => patch('grace', { graceDaysPerWeek: value }), {
+    onError: (error) => fail('grace', error),
+  });
+  const [streaks, changeStreaks] = useMePatchField((value: boolean) => patch('streaks', { showStreaks: value }), {
+    onError: (error) => fail('streaks', error),
+  });
+  const [offerNote, changeOfferNote] = useMePatchField(
+    (value: boolean) => patch('habitNotes', { offerHabitNote: value }),
+    { onError: (error) => fail('habitNotes', error) },
+  );
+  const [calm, changeCalm] = useMePatchField((value: boolean) => patch('calm', { calmMode: value }), {
+    onError: (error) => fail('calm', error),
+    apply: (value) => {
+      const before = calmMode.get();
+      applyCalm(value);
+      return () => applyCalm(before);
+    },
+  });
+  const [second, changeSecond] = useMePatchField(
+    (value: SecondReminderMinutes) => patch('second', { secondReminderMinutes: value }),
+    { onError: (error) => fail('second', error) },
+  );
 
   function saveTheme(theme: ThemeId): void {
     if (!auth.signedIn()) return;

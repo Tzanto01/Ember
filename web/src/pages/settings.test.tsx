@@ -6,7 +6,7 @@ import { env } from '@/lib/env';
 import i18n from '@/lib/i18n';
 import { reminderNames } from '@/lib/native/reminder-names';
 import type { ReminderDestination } from '@/lib/models';
-import { applyGentleMotion, gentleMotion } from '@/lib/theme';
+import { applyCalm, applyGentleMotion, gentleMotion } from '@/lib/theme';
 import { auth, deviceSync, localMode, push } from '@/lib/services';
 import { type FetchMock, me, mockFetch } from '@/test/test-support';
 import SettingsPage from './settings';
@@ -78,6 +78,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     auth.clearSession();
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
+    applyCalm(false);
     env.native = false;
     reminderNames.set(false);
     localMode.mode.set('account');
@@ -387,6 +388,21 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     sent.respond(200, { ...me, calmMode: true });
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
     expect(toggle).toBeChecked();
+  });
+
+  it('calms this device at once and takes it back when saving calm mode fails', async () => {
+    const user = userEvent.setup();
+    const { fetch } = await open('/settings/appearance');
+    const toggle = screen.getByRole('switch', { name: 'Calm mode' });
+
+    await user.click(toggle);
+
+    const sent = await fetch.next('PATCH', '/api/me');
+    expect(document.documentElement).toHaveAttribute('data-calm');
+    sent.respond(500, { type: 'internal', title: 'Server error', status: 500 });
+
+    await waitFor(() => expect(toggle).not.toBeChecked());
+    expect(document.documentElement).not.toHaveAttribute('data-calm');
   });
 
   it('offers a note after check-in only once turned on, saving it to the account', async () => {
