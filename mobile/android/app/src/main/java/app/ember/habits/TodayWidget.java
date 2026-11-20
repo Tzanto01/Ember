@@ -398,7 +398,7 @@ public class TodayWidget extends AppWidgetProvider {
         return userId + "\n" + habitId + "\n" + date;
     }
 
-    private static void inFlight(String userId, long habitId, String date, int change) {
+    static void inFlight(String userId, long habitId, String date, int change) {
         synchronized (TodayWidget.class) {
             IN_FLIGHT.merge(pendingKey(userId, habitId, date), change, (a, b) -> a + b > 0 ? a + b : null);
         }

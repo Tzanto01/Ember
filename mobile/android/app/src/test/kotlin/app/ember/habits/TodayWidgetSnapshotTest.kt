@@ -1,5 +1,6 @@
 package app.ember.habits
 
+import android.content.Context
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -8,8 +9,10 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
@@ -138,5 +141,51 @@ class TodayWidgetSnapshotTest {
             assertNotNull(case, current)
             assertEquals(case, "Kept", current!!.getJSONArray("habits").getJSONObject(0).getString("name"))
         }
+    }
+
+    private val prefs get() = context.getSharedPreferences("ember_widget", Context.MODE_PRIVATE)
+
+    @Test
+    fun snapshotStoredByTheInstalledVersionIsShown() {
+        val stored = JSONObject()
+            .put("date", zone.today)
+            .put("habits", rows(habit(3, name = "Walk")))
+            .put("more", 0)
+            .put("done", 0)
+            .put("total", 1)
+            .put("userId", "user-1")
+            .put("timeZone", zone.id)
+            .put("token", "0".repeat(32))
+        prefs.edit().putString("snapshot", stored.toString()).commit()
+
+        val current = TodayWidget.current(context)
+        assertNotNull(current)
+        assertEquals("Walk", current!!.getJSONArray("habits").getJSONObject(0).getString("name"))
+        assertEquals("0".repeat(32), current.getString("token"))
+    }
+
+    @Test
+    fun everySavedSnapshotGetsAFreshTapToken() {
+        save()
+        val first = TodayWidget.current(context)!!.getString("token")
+        save()
+        val second = TodayWidget.current(context)!!.getString("token")
+
+        assertTrue(first, Regex("[0-9a-f]{32}").matches(first))
+        assertTrue(second, Regex("[0-9a-f]{32}").matches(second))
+        assertNotEquals(first, second)
+    }
+
+    @Test
+    fun signingOutKeepsOnlyTheStyle() {
+        TodayWidget.setStyle(context, "ember", true, "dark")
+        save()
+        TodayWidget.addPending(context, "user-1", 1, zone.today, 1)
+        prefs.edit().putString("widgetKey", "sealed").putString("widgetKeyIv", "iv").putString("apiBase", "https://api.example.test").commit()
+
+        TodayWidget.clear(context)
+
+        assertEquals(mapOf("theme" to "ember", "colorScheme" to "dark", "motion" to true), prefs.all)
+        assertNull(TodayWidget.current(context))
     }
 }

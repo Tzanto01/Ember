@@ -3,6 +3,7 @@ package app.ember.habits;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import android.content.Context;
 import org.junit.Test;
 
 public class WidgetKeyOriginTest {
@@ -56,5 +57,21 @@ public class WidgetKeyOriginTest {
         assertNull(WidgetKey.origin("https:api.example.test"));
         assertNull(WidgetKey.origin("not a url"));
         assertNull(WidgetKey.origin("//api.example.test"));
+    }
+
+    @Test
+    public void storedOriginIsCheckedAgainWhenRead() {
+        InMemoryContext context = new InMemoryContext();
+        assertNull(WidgetKey.apiBase(context));
+        String[][] cases = {
+            { "https://api.example.test/", "https://api.example.test" },
+            { "http://api.example.test", null },
+            { "https://api.example.test/api", null },
+            { "https://user@api.example.test", null },
+        };
+        for (String[] stored : cases) {
+            context.getSharedPreferences("ember_widget", Context.MODE_PRIVATE).edit().putString("apiBase", stored[0]).commit();
+            assertEquals(stored[0], stored[1], WidgetKey.apiBase(context));
+        }
     }
 }
