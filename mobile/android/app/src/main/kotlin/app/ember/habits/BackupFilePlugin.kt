@@ -67,7 +67,7 @@ class BackupFilePlugin : Plugin() {
             true
         } catch (e: IOException) {
             false
-        } catch (e: SecurityException) {
+        } catch (e: RuntimeException) {
             false
         }
 
