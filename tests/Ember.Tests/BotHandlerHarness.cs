@@ -107,7 +107,7 @@ internal sealed class RecordingFrequencyModule(HabitService habits, BotReplies r
     }
 }
 
-internal sealed class RecordingPrivacyModule(HabitService habits, BotReplies replies) : PrivacyModule(habits)
+internal sealed class RecordingPrivacyModule(HabitService habits, BotReplies replies) : PrivacyModule(habits, BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
