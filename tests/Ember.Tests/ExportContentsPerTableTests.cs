@@ -78,7 +78,7 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
                 FiresideEnabled = true,
                 FiresideName = "Sam",
                 HealthDataConsentAt = Now.UtcDateTime.AddDays(-60),
-                ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion,
+                ConsentPolicyVersion = ConsentService.CurrentConsentPolicyVersion,
             };
             var habit = new Habit { Name = "Take meds", CreatedAt = Now.UtcDateTime.AddDays(-60) };
             habit.Logs.Add(new HabitLog { Date = new DateOnly(2027, 1, 10), Completed = true, Count = 1 });

@@ -1,5 +1,6 @@
 using System.Net;
 using Ember.Core.Models;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,7 +15,7 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
     {
         var discordId = ApiHost.NewDiscordId();
         var userId = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
-        await Host.Run(s => s.GiveHealthDataConsentAsync(userId));
+        await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(userId));
         foreach (var name in habitNames)
         {
             var habit = await Host.Service(s => s.AddHabitAsync(userId, name, null));

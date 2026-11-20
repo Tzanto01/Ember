@@ -2,7 +2,7 @@ namespace Ember.Core.Services;
 
 /// <summary>
 /// Thrown when a user tries to create a habit without having agreed to the current
-/// health-data consent (<see cref="HabitService.CurrentConsentPolicyVersion"/>).
+/// health-data consent (<see cref="ConsentService.CurrentConsentPolicyVersion"/>).
 /// </summary>
 public sealed class ConsentRequiredException : InvalidOperationException
 {

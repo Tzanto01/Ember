@@ -9,7 +9,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Ember.Tests;
 
-/// <summary>Pins which rows <see cref="HabitService.DeleteHealthDataAsync"/> removes and which it keeps.</summary>
+/// <summary>Pins which rows <see cref="ConsentService.DeleteHealthDataAsync"/> removes and which it keeps.</summary>
 [Collection("Integration")]
 public class HealthDataDeletionScopeTests
 {
@@ -35,7 +35,7 @@ public class HealthDataDeletionScopeTests
                 FiresideEnabled = true,
                 FiresideName = "Sam",
                 HealthDataConsentAt = Now.UtcDateTime.AddDays(-60),
-                ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion,
+                ConsentPolicyVersion = ConsentService.CurrentConsentPolicyVersion,
             };
             var habit = new Habit { Name = "Take meds", CreatedAt = Now.UtcDateTime.AddDays(-60) };
             habit.Logs.Add(new HabitLog { Date = new DateOnly(2027, 1, 10), Completed = true, Count = 1 });
@@ -58,7 +58,7 @@ public class HealthDataDeletionScopeTests
             { TokenHash = [1, 2, 3], UserId = UserId, HabitId = habit.Id, Day = new DateOnly(2027, 1, 14), ExpiresUtc = Now.UtcDateTime.AddDays(1) });
             await db.SaveChangesAsync();
         });
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(UserId))).Should().BeTrue();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().WithdrawHealthDataConsentAsync(UserId))).Should().BeTrue();
     }
 
     private static Task<Counts> CountsAsync(IntegrationTestHost host)
@@ -79,9 +79,9 @@ public class HealthDataDeletionScopeTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         await SeedAsync(host);
         (await CountsAsync(host)).Should().Be(new Counts(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1));
-        time.Advance(HabitService.WithdrawnDataLifetime);
+        time.Advance(ConsentService.WithdrawnDataLifetime);
 
-        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
+        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>()
             .DeleteHealthDataAsync(UserId, time.GetUtcNow().UtcDateTime));
 
         deleted.Should().BeTrue();
@@ -99,7 +99,7 @@ public class HealthDataDeletionScopeTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time);
         await SeedAsync(host);
 
-        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
+        var deleted = await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>()
             .DeleteHealthDataAsync(UserId, time.GetUtcNow().UtcDateTime.AddMinutes(-1)));
 
         deleted.Should().BeFalse();
@@ -110,7 +110,7 @@ public class HealthDataDeletionScopeTests
     internal static async Task AssertWithdrawalEmptiesEveryHealthTableAsync(IntegrationTestHost host, FakeTimeProvider time)
     {
         await SeedAsync(host);
-        time.Advance(HabitService.WithdrawnDataLifetime);
+        time.Advance(ConsentService.WithdrawnDataLifetime);
         var tables = await host.WithScopeAsync(sp => Task.FromResult(sp.GetRequiredService<EmberDbContext>().Model.GetEntityTypes()
             .Where(t => DataLifecycle.Entities.Single(e => e.Entity == t.ClrType).Withdrawal != WithdrawalRule.Kept)
             .Select(t => t.GetTableName()!).ToList()));
@@ -130,7 +130,7 @@ public class HealthDataDeletionScopeTests
         });
 
         (await CountRowsAsync()).Should().OnlyContain(c => c.Value > 0, "the seed fills every health table, so the deletion has something to empty");
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().DeleteHealthDataAsync(UserId, time.GetUtcNow().UtcDateTime))).Should().BeTrue();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().DeleteHealthDataAsync(UserId, time.GetUtcNow().UtcDateTime))).Should().BeTrue();
         (await CountRowsAsync()).Should().OnlyContain(c => c.Value == 0);
     }
 

@@ -487,7 +487,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
         await using var rig = await SenderRig.StartAsync(Host);
         var bot = await NewUser();
         var botDiscordId = await Host.Db(db => db.UserLogins.Where(l => l.UserId == bot).Select(l => l.ProviderKey).SingleAsync());
-        await Host.Run(s => s.GiveHealthDataConsentAsync(bot));
+        await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(bot));
         await Report(bot, "discord", "From the bot");
         var botRef = await RefOf(bot);
         var user = await Host.SignedInAsync();

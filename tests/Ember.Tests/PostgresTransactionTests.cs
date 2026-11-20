@@ -115,7 +115,7 @@ public class PostgresTransactionTests(PostgresFixture postgres)
     private static User Consented(User user)
     {
         user.HealthDataConsentAt = Now.UtcDateTime.AddDays(-30);
-        user.ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion;
+        user.ConsentPolicyVersion = ConsentService.CurrentConsentPolicyVersion;
         return user;
     }
 

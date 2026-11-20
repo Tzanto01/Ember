@@ -138,7 +138,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var deletesOn = (await _habits.GetLocalTodayAsync(userId)).AddDays(HabitService.WithdrawnDataLifetime.Days);
+        var deletesOn = (await _habits.GetLocalTodayAsync(userId)).AddDays(ConsentService.WithdrawnDataLifetime.Days);
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
             m.Content = t.Format("privacy.withdraw.done", deletesOn.ToString(t.Get("date.full"), t.Culture));

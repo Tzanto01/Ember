@@ -52,8 +52,8 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
 
     /// <summary>
     /// Applies the owner's answer only when the person clicking is that owner: agreeing records consent, declining holds back the next
-    /// automatic prompt (<see cref="HabitService.ConsentDeclineBackoffDays"/>) and withdraws, so the health data is deleted after
-    /// <see cref="HabitService.WithdrawnDataLifetime"/>. Returns whether the clicker is the owner.
+    /// automatic prompt (<see cref="ConsentService.ConsentDeclineBackoffDays"/>) and withdraws, so the health data is deleted after
+    /// <see cref="ConsentService.WithdrawnDataLifetime"/>. Returns whether the clicker is the owner.
     /// An account created by agreeing gets <paramref name="language"/>.
     /// </summary>
     internal static async Task<bool> TryAnswerAsync(HabitService habits, string ownerIdStr, ulong clickerId, bool agreed, string? language = null)
@@ -84,12 +84,12 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
 
     /// <summary>
     /// The answer to "No thanks": <c>consent.declined</c>, or for a user whose consent was already withdrawn (<paramref name="withdrawn"/>),
-    /// <c>privacy.withdraw.done</c> with the deletion day (<see cref="HabitService.DeletionDueUtc"/>) in <paramref name="tz"/>.
+    /// <c>privacy.withdraw.done</c> with the deletion day (<see cref="ConsentService.DeletionDueUtc"/>) in <paramref name="tz"/>.
     /// </summary>
     internal static string DeclinedText(Texts t, (DateTime WithdrawnAt, DateTime? ReminderSentAt)? withdrawn, TimeZoneInfo tz)
         => withdrawn is { } w
             ? t.Format("privacy.withdraw.done", DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
-                    DateTime.SpecifyKind(HabitService.DeletionDueUtc(w.WithdrawnAt, w.ReminderSentAt), DateTimeKind.Utc), tz))
+                    DateTime.SpecifyKind(ConsentService.DeletionDueUtc(w.WithdrawnAt, w.ReminderSentAt), DateTimeKind.Utc), tz))
                 .ToString(t.Get("date.full"), t.Culture))
             : t.Get("consent.declined");
 

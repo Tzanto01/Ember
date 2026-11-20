@@ -43,7 +43,7 @@ public partial class HabitService
     /// <exception cref="ConsentRequiredException">The user hasn't agreed to the current health-data consent.</exception>
     public async Task<ImportResult> ImportAsync(Guid userId, ImportData data)
     {
-        if (!await HasHealthDataConsentAsync(userId))
+        if (!await _consent.HasHealthDataConsentAsync(userId))
             throw new ConsentRequiredException();
 
         await using var transaction = await _db.Database.BeginTransactionAsync();

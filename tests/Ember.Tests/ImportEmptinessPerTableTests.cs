@@ -79,7 +79,7 @@ public class ImportEmptinessPerTableTests(PostgresFixture postgres)
                     Id = userId,
                     UserName = $"user-{userId}",
                     HealthDataConsentAt = Now.UtcDateTime.AddDays(-60),
-                    ConsentPolicyVersion = HabitService.CurrentConsentPolicyVersion,
+                    ConsentPolicyVersion = ConsentService.CurrentConsentPolicyVersion,
                 });
                 db.Users.Add(new User { Id = friendId, UserName = $"friend-{friendId}" });
                 await db.SaveChangesAsync();

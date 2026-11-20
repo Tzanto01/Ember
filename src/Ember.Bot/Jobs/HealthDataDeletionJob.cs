@@ -11,12 +11,12 @@ namespace Ember.Bot.Jobs;
 
 /// <summary>
 /// Runs daily and deletes the health data of users whose consent stayed withdrawn (<see cref="User.ConsentWithdrawnAt"/>) for
-/// <see cref="HabitService.WithdrawnDataLifetime"/>. <see cref="HabitService.DeletionReminderLead"/> before that, each such user gets one
+/// <see cref="ConsentService.WithdrawnDataLifetime"/>. <see cref="ConsentService.DeletionReminderLead"/> before that, each such user gets one
 /// notice, whatever their reminder settings: a DM to a linked Discord account with the consent prompt (<see cref="ConsentModule.PromptEmbed"/>,
 /// <see cref="ConsentModule.PromptButtons"/>) and web push tagged <see cref="PushTag"/> to every enabled push subscription. It names the
-/// deletion day (<see cref="HabitService.DeletionDueUtc"/>, the user's local date). The notice is claimed before sending; when the user has
+/// deletion day (<see cref="ConsentService.DeletionDueUtc"/>, the user's local date). The notice is claimed before sending; when the user has
 /// a target but no send succeeded, the claim is given back so the next run tries again; a user without any target keeps the claim. The
-/// deletion waits at least <see cref="HabitService.DeletionReminderLead"/> after the claim. One user's failure doesn't stop the run.
+/// deletion waits at least <see cref="ConsentService.DeletionReminderLead"/> after the claim. One user's failure doesn't stop the run.
 /// </summary>
 [DisallowConcurrentExecution]
 public class HealthDataDeletionJob : IJob
@@ -56,25 +56,26 @@ public class HealthDataDeletionJob : IJob
     {
         using var scope = _services.CreateScope();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+        var consent = scope.ServiceProvider.GetRequiredService<ConsentService>();
         var now = _time.GetUtcNow().UtcDateTime;
 
         var reminded = 0;
-        foreach (var id in await habits.GetDeletionReminderDueAsync(
-                     now - HabitService.WithdrawnDataLifetime + HabitService.DeletionReminderLead, cancellationToken))
+        foreach (var id in await consent.GetDeletionReminderDueAsync(
+                     now - ConsentService.WithdrawnDataLifetime + ConsentService.DeletionReminderLead, cancellationToken))
         {
             if (cancellationToken.IsCancellationRequested) return;
             try
             {
-                if (await habits.ClaimDeletionReminderAsync(id, cancellationToken) is not { } withdrawnAt) continue;
+                if (await consent.ClaimDeletionReminderAsync(id, cancellationToken) is not { } withdrawnAt) continue;
                 var delivered = false;
                 try
                 {
-                    delivered = await RemindAsync(habits, id, HabitService.DeletionDueUtc(withdrawnAt, now), cancellationToken);
+                    delivered = await RemindAsync(habits, id, ConsentService.DeletionDueUtc(withdrawnAt, now), cancellationToken);
                 }
                 finally
                 {
-                    if (!delivered && now < withdrawnAt + HabitService.WithdrawnDataLifetime + RetryFor)
-                        await habits.ReleaseDeletionReminderAsync(id, CancellationToken.None);
+                    if (!delivered && now < withdrawnAt + ConsentService.WithdrawnDataLifetime + RetryFor)
+                        await consent.ReleaseDeletionReminderAsync(id, CancellationToken.None);
                 }
                 if (delivered) reminded++;
             }
@@ -84,14 +85,14 @@ public class HealthDataDeletionJob : IJob
             }
         }
 
-        var cutoff = now - HabitService.WithdrawnDataLifetime;
+        var cutoff = now - ConsentService.WithdrawnDataLifetime;
         var deleted = 0;
-        foreach (var id in await habits.GetHealthDataDeletionDueAsync(cutoff, now - HabitService.DeletionReminderLead + ClaimSlack, cancellationToken))
+        foreach (var id in await consent.GetHealthDataDeletionDueAsync(cutoff, now - ConsentService.DeletionReminderLead + ClaimSlack, cancellationToken))
         {
             if (cancellationToken.IsCancellationRequested) return;
             try
             {
-                if (await habits.DeleteHealthDataAsync(id, cutoff, cancellationToken)) deleted++;
+                if (await consent.DeleteHealthDataAsync(id, cutoff, cancellationToken)) deleted++;
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {

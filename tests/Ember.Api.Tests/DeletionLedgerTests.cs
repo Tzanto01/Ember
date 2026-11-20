@@ -26,7 +26,7 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
     private async Task<Guid> UserWithHabit()
     {
         var id = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(ApiHost.NewDiscordId()));
-        await Host.Run(s => s.GiveHealthDataConsentAsync(id));
+        await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(id));
         await Host.Run(s => s.AddHabitAsync(id, "Stretch", null));
         return id;
     }
@@ -59,11 +59,11 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
     {
         var deleted = await UserWithHabit();
         var withdrawn = await UserWithHabit();
-        await Host.Run(s => s.WithdrawHealthDataConsentAsync(withdrawn));
+        await Host.Run<ConsentService>(s => s.WithdrawHealthDataConsentAsync(withdrawn));
 
         await Host.Run(s => s.DeleteUserDataAsync(deleted));
         Host.Time.Advance(TimeSpan.FromMinutes(5));
-        (await Host.Service(s => s.DeleteHealthDataAsync(withdrawn, Host.Time.GetUtcNow().UtcDateTime))).Should().BeTrue();
+        (await Host.Service<ConsentService, bool>(s => s.DeleteHealthDataAsync(withdrawn, Host.Time.GetUtcNow().UtcDateTime))).Should().BeTrue();
         await Host.Run(s => s.DeleteUserDataAsync(Guid.NewGuid()));
 
         var lines = Lines();
@@ -98,7 +98,7 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
             case "discord withdraw": (await Host.Service(s => s.WithdrawHealthDataConsentAsync(discordId))).Should().BeTrue(); break;
             default: await Host.Run(s => s.DeclineConsentPromptAsync(discordId)); break;
         }
-        await Host.Run(s => s.WithdrawHealthDataConsentAsync(id));
+        await Host.Run<ConsentService>(s => s.WithdrawHealthDataConsentAsync(id));
 
         Lines().Select(l => (l.GetProperty("at").GetString(), l.GetProperty("kind").GetString(), l.GetProperty("userId").GetGuid()))
             .Should().Equal(("2026-11-01T12:00:00Z", "withdraw", id));
@@ -109,7 +109,7 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
     {
         var consented = await UserWithHabit();
         var withdrawn = await UserWithHabit();
-        await Host.Run(s => s.WithdrawHealthDataConsentAsync(withdrawn));
+        await Host.Run<ConsentService>(s => s.WithdrawHealthDataConsentAsync(withdrawn));
         var original = await WithdrawnAt(withdrawn);
         var since = new DateTime(2026, 10, 30, 3, 0, 0, DateTimeKind.Utc);
         File.WriteAllLines(Ledger, [Line(since.AddHours(5), "withdraw", consented), Line(since.AddHours(6), "withdraw", withdrawn)]);
@@ -119,7 +119,7 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
         exit.Should().Be(0);
         output.Should().Be("Deleted again: 0 accounts, health data of 0 users. Withdrawn again: 1 consents. Already done: 1.");
         (await WithdrawnAt(consented)).Should().Be(since.AddHours(5));
-        (await Host.Service(s => s.HasHealthDataConsentAsync(consented))).Should().BeFalse();
+        (await Host.Service<ConsentService, bool>(s => s.HasHealthDataConsentAsync(consented))).Should().BeFalse();
         (await Habits(consented)).Should().Be(1, "the deletion runs 30 days after the withdrawal, as without a restore");
         (await WithdrawnAt(withdrawn)).Should().Be(original);
     }
@@ -133,7 +133,7 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
 
         await Host.Db(async db =>
         {
-            await new HabitService(db, Host.Time, ledger).DeleteUserDataAsync(id);
+            await new HabitService(db, Host.Time, new ConsentService(db, Host.Time, ledger), ledger).DeleteUserDataAsync(id);
             return 0;
         });
 

@@ -58,7 +58,7 @@ public class ConsentTests
         answered.Should().BeTrue();
         var user = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.Include(u => u.Habits).SingleAsync());
         user.HealthDataConsentAt.Should().Be(Now.UtcDateTime);
-        user.ConsentPolicyVersion.Should().Be(HabitService.CurrentConsentPolicyVersion);
+        user.ConsentPolicyVersion.Should().Be(ConsentService.CurrentConsentPolicyVersion);
         user.Habits.Should().ContainSingle();
     }
 
@@ -154,7 +154,7 @@ public class ConsentTests
 
     private static async Task SeedConsentedUserWithDueRemindersAsync(IntegrationTestHost host, long userId)
     {
-        await SeedExistingUserAsync(host, userId, HabitService.CurrentConsentPolicyVersion);
+        await SeedExistingUserAsync(host, userId, ConsentService.CurrentConsentPolicyVersion);
         await host.WithScopeAsync(async sp =>
         {
             var db = sp.GetRequiredService<EmberDbContext>();
@@ -211,7 +211,7 @@ public class ConsentTests
     public async Task CheckInsAndSlips_AreRefusedWithoutCurrentConsent_WhileClearingStaysAllowed(bool withdrawn)
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
-        await SeedExistingUserAsync(host, 1, withdrawn ? HabitService.CurrentConsentPolicyVersion : "2020-01");
+        await SeedExistingUserAsync(host, 1, withdrawn ? ConsentService.CurrentConsentPolicyVersion : "2020-01");
         var day = new DateOnly(2027, 1, 14);
         var (buildId, letGoId) = await host.WithScopeAsync(async sp =>
         {
@@ -285,7 +285,7 @@ public class ConsentTests
 
         var withData = await UserAsync(host, 1);
         withData.ConsentWithdrawnAt.Should().Be(Now.UtcDateTime);
-        withData.ConsentPromptedOn.Should().Be(new DateOnly(2027, 1, 15).AddDays(HabitService.ConsentDeclineBackoffDays - 1));
+        withData.ConsentPromptedOn.Should().Be(new DateOnly(2027, 1, 15).AddDays(ConsentService.ConsentDeclineBackoffDays - 1));
         var empty = await UserAsync(host, 2);
         empty.ConsentWithdrawnAt.Should().BeNull();
         empty.ConsentPromptedOn.Should().NotBeNull("the back-off still applies");
@@ -299,7 +299,7 @@ public class ConsentTests
         await SeedConsentedUserWithDueRemindersAsync(host, 1);
         await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
         time.Advance(TimeSpan.FromDays(27));
-        (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ClaimDeletionReminderAsync(TestUsers.Id(1)))).Should().NotBeNull();
+        (await host.WithScopeAsync(sp => sp.GetRequiredService<ConsentService>().ClaimDeletionReminderAsync(TestUsers.Id(1)))).Should().NotBeNull();
 
         await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GiveHealthDataConsentAsync(1UL));
 
