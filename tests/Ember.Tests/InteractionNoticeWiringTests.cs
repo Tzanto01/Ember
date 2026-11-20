@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Reflection;
 using Discord;
 using Discord.Interactions;
 using Ember.Bot;
@@ -55,8 +54,8 @@ public class InteractionNoticeWiringTests
 
         var interactions = host.Services.GetRequiredService<InteractionService>();
         await interactions.AddModuleAsync<ProbeModule>(host.Services);
-        var followups = new ConcurrentQueue<FakeInteraction.Followup>();
-        var context = new FakeContext(FakeInteraction.Create(DiscordId, ProbeModule.CustomId, followups));
+        var followups = new ConcurrentQueue<FakeFollowup>();
+        var context = new FakeInteractionContext(FakeInteraction.Component(DiscordId, ProbeModule.CustomId, followups));
 
         var result = await interactions.ExecuteCommandAsync(context, host.Services);
         result.IsSuccess.Should().BeTrue();
@@ -79,64 +78,5 @@ public class InteractionNoticeWiringTests
 
         [ComponentInteraction(CustomId)]
         public Task Probe() => RespondAsync();
-    }
-
-    private sealed class FakeContext(IDiscordInteraction interaction) : IInteractionContext
-    {
-        public IDiscordClient Client => null!;
-        public IGuild Guild => null!;
-        public IMessageChannel Channel => null!;
-        public IUser User => interaction.User;
-        public IDiscordInteraction Interaction => interaction;
-    }
-
-    /// <summary>An answered button press by <c>userId</c> that records its follow-ups; everything else returns defaults.</summary>
-    public class FakeInteraction : DispatchProxy
-    {
-        public sealed record Followup(string? Text, Embed? Embed, MessageComponent? Components, bool Ephemeral);
-
-        private Dictionary<string, object?> _values = [];
-        private ConcurrentQueue<Followup> _followups = new();
-
-        public static IComponentInteraction Create(ulong userId, string customId, ConcurrentQueue<Followup> followups)
-        {
-            var user = Create<IUser, FakeInteraction>();
-            ((FakeInteraction)(object)user)._values = new() { ["get_Id"] = userId };
-            var data = Create<IComponentInteractionData, FakeInteraction>();
-            ((FakeInteraction)(object)data)._values = new() { ["get_CustomId"] = customId, ["get_Type"] = ComponentType.Button };
-            var interaction = Create<IComponentInteraction, FakeInteraction>();
-            var fake = (FakeInteraction)(object)interaction;
-            fake._followups = followups;
-            fake._values = new()
-            {
-                ["get_User"] = user,
-                ["get_Data"] = data,
-                ["get_Type"] = InteractionType.MessageComponent,
-                ["get_UserLocale"] = "en-US",
-                ["get_HasResponded"] = true,
-            };
-            return interaction;
-        }
-
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
-        {
-            var method = targetMethod!;
-            if (method.Name == nameof(IDiscordInteraction.FollowupAsync))
-            {
-                var parameters = method.GetParameters();
-                object? Arg(string name) => args![Array.FindIndex(parameters, p => p.Name == name)];
-                _followups.Enqueue(new Followup((string?)Arg("text"), (Embed?)Arg("embed"), (MessageComponent?)Arg("components"), (bool)Arg("ephemeral")!));
-                return Task.FromResult<IUserMessage>(null!);
-            }
-
-            if (_values.TryGetValue(method.Name, out var value))
-                return value;
-
-            var type = method.ReturnType;
-            if (type == typeof(Task)) return Task.CompletedTask;
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
-                return typeof(Task).GetMethod(nameof(Task.FromResult))!.MakeGenericMethod(type.GetGenericArguments()[0]).Invoke(null, [null]);
-            return type.IsValueType && type != typeof(void) ? Activator.CreateInstance(type) : null;
-        }
     }
 }
