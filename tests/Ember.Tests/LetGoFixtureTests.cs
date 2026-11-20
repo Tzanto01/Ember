@@ -17,11 +17,12 @@ public class LetGoFixtureTests
 
     private sealed record SlipInput(DateOnly Date, int Count, List<string> Reasons);
 
-    private sealed record HabitInput(DateOnly StartDate, DateOnly? PausedFrom, DateOnly? PausedUntil, List<SlipInput> Slips);
+    private sealed record HabitInput(DateOnly StartDate, DateOnly? PausedFrom, DateOnly? PausedUntil, List<SlipInput> Slips,
+        List<DateOnly> MadeIt);
 
     private sealed record CaseInput(string Name, DateOnly Today, DateOnly From, string Timezone, HabitInput Habit);
 
-    private sealed record DayOut(DateOnly Date, string State, int Slips);
+    private sealed record DayOut(DateOnly Date, string State, int Slips, bool MadeIt);
 
     private sealed record StatsOut(int DaysFree, int LongestStretch, int FreeDaysThisMonth, int SlipDaysLast30);
 
@@ -62,6 +63,8 @@ public class LetGoFixtureTests
         };
         foreach (var slip in input.Habit.Slips)
             habit.Slips.Add(new HabitSlip { Date = slip.Date, Count = slip.Count, Reasons = slip.Reasons });
+        foreach (var date in input.Habit.MadeIt)
+            habit.MadeItDays.Add(new MadeItDay { Date = date });
 
         var s = LetGoRules.StatsOn(habit, input.Today, tz);
         return new ExpectedOut(
@@ -71,7 +74,7 @@ public class LetGoFixtureTests
                 .Select(i => Day(LetGoRules.DayOn(habit, input.From.AddDays(i), tz))).ToList());
     }
 
-    private static DayOut Day(LetGoDay day) => new(day.Date, day.State.ToString().ToLowerInvariant(), day.Slips);
+    private static DayOut Day(LetGoDay day) => new(day.Date, day.State.ToString().ToLowerInvariant(), day.Slips, day.MadeIt);
 
     private static string RepoRoot()
     {

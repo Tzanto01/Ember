@@ -40,6 +40,7 @@ public class HealthDataDeletionScopeTests
             var habit = new Habit { Name = "Take meds", CreatedAt = Now.UtcDateTime.AddDays(-60) };
             habit.Logs.Add(new HabitLog { Date = new DateOnly(2027, 1, 10), Completed = true, Count = 1 });
             habit.Slips.Add(new HabitSlip { Date = new DateOnly(2027, 1, 11), Count = 1, Reasons = ["stress"] });
+            habit.MadeItDays.Add(new MadeItDay { Date = new DateOnly(2027, 1, 12) });
             habit.Notes.Add(new HabitNote { Date = new DateOnly(2027, 1, 10), Text = "Went fine" });
             user.Habits.Add(habit);
             user.DayMarks.Add(new DayMark { Date = new DateOnly(2027, 1, 12) });

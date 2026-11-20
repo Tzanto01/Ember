@@ -572,6 +572,31 @@ namespace Ember.Core.Data.Migrations
                     b.ToTable("LookoutUserRefs");
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.MadeItDay", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("HabitId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HabitId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("MadeItDays");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.Mood", b =>
                 {
                     b.Property<int>("Id")
@@ -1326,6 +1351,17 @@ namespace Ember.Core.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.MadeItDay", b =>
+                {
+                    b.HasOne("Ember.Core.Models.Habit", "Habit")
+                        .WithMany("MadeItDays")
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Habit");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.Mood", b =>
                 {
                     b.HasOne("Ember.Core.Models.User", "User")
@@ -1484,6 +1520,8 @@ namespace Ember.Core.Data.Migrations
             modelBuilder.Entity("Ember.Core.Models.Habit", b =>
                 {
                     b.Navigation("Logs");
+
+                    b.Navigation("MadeItDays");
 
                     b.Navigation("Notes");
 

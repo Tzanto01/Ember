@@ -25,7 +25,7 @@ public class LetGoApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         letGo.GetProperty("frequency").GetString().Should().Be("daily");
         letGo.GetProperty("stats").EnumerateObject().Select(p => p.Name)
             .Should().BeEquivalentTo("daysFree", "longestStretch", "freeDaysThisMonth", "slipDaysLast30");
-        letGo.GetProperty("today").EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("date", "state", "slips");
+        letGo.GetProperty("today").EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("date", "state", "slips", "madeIt");
         letGo.GetProperty("today").GetProperty("state").GetString().Should().Be("free");
         letGo.GetProperty("stats").GetProperty("daysFree").GetInt32().Should().Be(1);
         build.GetProperty("kind").GetString().Should().Be("build");

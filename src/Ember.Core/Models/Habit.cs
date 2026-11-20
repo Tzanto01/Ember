@@ -30,7 +30,7 @@ public class Habit
 
     /// <summary>
     /// Whether the habit is built up or let go of. A <see cref="HabitKind.LetGo"/> habit is daily, once a day, has at most one reminder
-    /// time, no routine and no <see cref="Logs"/>; it records <see cref="Slips"/> instead.
+    /// time, no routine and no <see cref="Logs"/>; it records <see cref="Slips"/> and <see cref="MadeItDays"/> instead.
     /// </summary>
     public HabitKind Kind { get; set; } = HabitKind.Build;
 
@@ -93,5 +93,6 @@ public class Habit
     public Routine? Routine { get; set; }
     public ICollection<HabitLog> Logs { get; set; } = new List<HabitLog>();
     public ICollection<HabitSlip> Slips { get; set; } = new List<HabitSlip>();
+    public ICollection<MadeItDay> MadeItDays { get; set; } = new List<MadeItDay>();
     public ICollection<HabitNote> Notes { get; set; } = new List<HabitNote>();
 }

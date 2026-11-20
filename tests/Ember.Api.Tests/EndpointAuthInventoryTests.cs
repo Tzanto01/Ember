@@ -35,6 +35,7 @@ public class EndpointAuthInventoryTests(PostgresFixture postgres) : ApiTestBase(
         DELETE /api/fireside/friends/{id:int} -> authenticated
         DELETE /api/habits/{id:int} -> authenticated
         DELETE /api/habits/{id:int}/days/{date} -> authenticated
+        DELETE /api/habits/{id:int}/made-it/{date} -> authenticated
         DELETE /api/habits/{id:int}/notes/{date} -> authenticated
         DELETE /api/habits/{id:int}/slips/{date} -> authenticated
         DELETE /api/low-days/{date} -> authenticated
@@ -59,6 +60,7 @@ public class EndpointAuthInventoryTests(PostgresFixture postgres) : ApiTestBase(
         GET /api/habits -> authenticated
         GET /api/habits/{id:int} -> authenticated
         GET /api/habits/{id:int}/days -> authenticated
+        GET /api/habits/{id:int}/made-it -> authenticated
         GET /api/habits/{id:int}/slips -> authenticated
         GET /api/low-days -> authenticated
         GET /api/me -> authenticated
@@ -127,6 +129,7 @@ public class EndpointAuthInventoryTests(PostgresFixture postgres) : ApiTestBase(
         PUT /api/fireside/ -> authenticated
         PUT /api/fireside/ask -> authenticated
         PUT /api/habits/{id:int}/days/{date} -> authenticated
+        PUT /api/habits/{id:int}/made-it/{date} -> authenticated
         PUT /api/habits/{id:int}/notes/{date} -> authenticated
         PUT /api/low-days/{date} -> authenticated
         PUT /api/me/helps -> authenticated

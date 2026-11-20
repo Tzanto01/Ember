@@ -18,8 +18,11 @@ public enum LetGoDayState
     Paused,
 }
 
-/// <summary>One local day of a let-go habit: its <see cref="LetGoDayState"/> and that day's slip count (0 without slips).</summary>
-public sealed record LetGoDay(DateOnly Date, LetGoDayState State, int Slips);
+/// <summary>
+/// One local day of a let-go habit: its <see cref="LetGoDayState"/>, that day's slip count (0 without slips) and whether a
+/// <see cref="MadeItDay"/> marks it (only ever true on a <see cref="LetGoDayState.Free"/> day).
+/// </summary>
+public sealed record LetGoDay(DateOnly Date, LetGoDayState State, int Slips, bool MadeIt);
 
 /// <summary>A let-go habit's numbers as the clients show them (see <see cref="LetGoRules.StatsOn"/>).</summary>
 public sealed record LetGoStats(int DaysFree, int LongestStretch, int FreeDaysThisMonth, int SlipDaysLast30);
@@ -30,7 +33,8 @@ public static class LetGoRules
     /// <summary>
     /// The let-go habit's state on the local <paramref name="date"/>. Precedence: before start (<see cref="HabitRules.StartDate"/> in
     /// <paramref name="tz"/>), slipped (a slip that day, even on a paused day), paused (<see cref="HabitRules.IsPausedOn"/>), free.
-    /// Needs the habit's slip of that date loaded, if there is one.
+    /// <c>MadeIt</c> is true only on a free day with a <see cref="MadeItDay"/>; a mark on any other day is kept but reads false.
+    /// Needs the habit's slip and made-it day of that date loaded, if there are any.
     /// </summary>
     public static LetGoDay DayOn(Habit habit, DateOnly date, TimeZoneInfo tz)
     {
@@ -39,7 +43,8 @@ public static class LetGoRules
             : slips > 0 ? LetGoDayState.Slipped
             : HabitRules.IsPausedOn(habit, date) ? LetGoDayState.Paused
             : LetGoDayState.Free;
-        return new LetGoDay(date, state, slips);
+        var madeIt = state == LetGoDayState.Free && habit.MadeItDays.Any(m => m.Date == date);
+        return new LetGoDay(date, state, slips, madeIt);
     }
 
     /// <summary>
