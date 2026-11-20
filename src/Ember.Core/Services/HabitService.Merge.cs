@@ -54,12 +54,11 @@ public partial class HabitService
             await _db.Database.ExecuteSqlAsync(
                 $"""SELECT 1 FROM "AspNetUsers" WHERE "Id" IN ({targetUserId}, {sourceUserId}) ORDER BY "Id" FOR UPDATE""",
                 cancellationToken);
-            if (!await _consent.HasHealthDataConsentAsync(targetUserId)) return AccountMergeResult.ConsentRequired;
-
             if (!await _db.Users.AnyAsync(u => u.Id == targetUserId, cancellationToken)
                 || await _db.UserLogins.AnyAsync(l => l.UserId == targetUserId && l.LoginProvider == DiscordLogin.Provider, cancellationToken)
                 || !await IsMergeableSourceAsync(sourceUserId, discordUserId, cancellationToken))
                 return AccountMergeResult.Conflict;
+            if (!await _consent.HasHealthDataConsentAsync(targetUserId)) return AccountMergeResult.ConsentRequired;
 
             if (await _db.JournalKeys.CountAsync(k => k.UserId == targetUserId || k.UserId == sourceUserId, cancellationToken) == 2)
                 return AccountMergeResult.JournalConflict;
