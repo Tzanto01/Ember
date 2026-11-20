@@ -57,6 +57,12 @@ export interface LocalSlip {
   reasons: SlipReason[];
 }
 
+/** A let-go habit's "made it" mark on one day (v1.24; one record per habit and date). */
+export interface LocalMadeItDay {
+  habitId: number;
+  date: LocalDateString;
+}
+
 export interface LocalRoutine {
   id: number;
   name: string;
@@ -120,6 +126,8 @@ export interface LocalData {
   logs: LocalLog[];
   /** v1.21; missing on data saved before let-go habits. */
   slips?: LocalSlip[];
+  /** v1.24; missing on data saved before "made it" marks. */
+  madeIt?: LocalMadeItDay[];
   lowDays: LocalDateString[];
   routines: LocalRoutine[];
   moods: LocalMood[];

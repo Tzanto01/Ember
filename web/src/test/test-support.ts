@@ -141,12 +141,12 @@ export const habit: Habit = {
   stats: { streak: 0, graceUsed: 0, bestStreak: 0, last7: 0, week: null },
 };
 
-/** Synthetic let-go habit, free today (2026-11-01) with 4 days free. */
+/** Synthetic let-go habit, free and unmarked today (2026-11-01) with 4 days free. */
 export const letGoHabit: LetGoHabit = {
   ...habit,
   id: 9,
   name: 'Coffee',
   kind: 'letGo',
-  today: { date: '2026-11-01', state: 'free', slips: 0 },
+  today: { date: '2026-11-01', state: 'free', slips: 0, madeIt: false },
   stats: { daysFree: 4, longestStretch: 12, freeDaysThisMonth: 1, slipDaysLast30: 2 },
 };

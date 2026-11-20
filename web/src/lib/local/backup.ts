@@ -23,6 +23,7 @@ import type {
   LocalHabit,
   LocalHabitNote,
   LocalLog,
+  LocalMadeItDay,
   LocalMood,
   LocalNote,
   LocalRoutine,
@@ -243,6 +244,19 @@ function parse(text: string): ParsedBackup {
     return { habitId: habit.id, date, count: int(field(s, 'count'), 1, Number.MAX_SAFE_INTEGER), reasons: [...new Set(reasons)] };
   });
 
+  const markedDays = new Set<string>();
+  const madeIt = list(field(doc, 'made_it_days')).map((raw): LocalMadeItDay => {
+    const m = record(raw);
+    const habit = habitIds.get(field(m, 'habit_id') as number) ?? damaged();
+    if (habit.kind !== 'letGo') damaged();
+    const date = optionalDate(field(m, 'date')) ?? damaged();
+    if (date > today || date < habitStartDate(habit, timezone)) damaged();
+    const key = `${habit.id}|${date}`;
+    if (markedDays.has(key) || slipDays.has(key)) damaged();
+    markedDays.add(key);
+    return { habitId: habit.id, date };
+  });
+
   const lowDays = new Set<string>();
   for (const raw of list(field(doc, 'day_marks'))) {
     const mark = record(raw);
@@ -331,6 +345,7 @@ function parse(text: string): ParsedBackup {
       habits,
       logs,
       slips,
+      madeIt,
       lowDays: [...lowDays].sort(),
       routines,
       moods,
@@ -397,6 +412,7 @@ export class BackupService implements BackupApi {
         })),
         logs: data.logs.map((l) => ({ ...l, habitId: l.habitId + habit })),
         slips: (data.slips ?? []).map((sl) => ({ ...sl, habitId: sl.habitId + habit, reasons: [...sl.reasons] })),
+        madeIt: (data.madeIt ?? []).map((m) => ({ ...m, habitId: m.habitId + habit })),
         lowDays: [...data.lowDays],
         routines: data.routines.map((r) => ({ ...r, id: r.id + routine, reminderChannels: [...r.reminderChannels] })),
         moods: data.moods.map((m) => ({ ...m, id: m.id + mood })),

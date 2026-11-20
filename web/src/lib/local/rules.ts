@@ -56,7 +56,8 @@ export function isScheduledOn(habit: LocalHabit, date: LocalDateString): boolean
   return scheduledWeekday(habit, weekdayIndex(date));
 }
 
-function isPausedOn(habit: LocalHabit, date: LocalDateString): boolean {
+/** True when `date` falls inside the habit's pause. */
+export function isPausedOn(habit: LocalHabit, date: LocalDateString): boolean {
   return habit.pausedUntil !== null && date <= habit.pausedUntil && (habit.pausedFrom === null || date >= habit.pausedFrom);
 }
 
@@ -125,27 +126,33 @@ function slipsOf(data: LocalData, habitId: number): Map<LocalDateString, LocalSl
   return slips;
 }
 
+function madeItOf(data: LocalData, habitId: number): Set<LocalDateString> {
+  return new Set((data.madeIt ?? []).filter((mark) => mark.habitId === habitId).map((mark) => mark.date));
+}
+
 function letGoDayOn(
   habit: LocalHabit,
   date: LocalDateString,
   start: LocalDateString,
   slip: LocalSlip | undefined,
+  marked: boolean,
 ): LetGoToday {
   const state: LetGoDayState =
     date < start ? 'beforestart'
     : slip ? 'slipped'
     : isPausedOn(habit, date) ? 'paused'
     : 'free';
-  return { date, state, slips: state === 'slipped' ? slip!.count : 0 };
+  return { date, state, slips: state === 'slipped' ? slip!.count : 0, madeIt: state === 'free' && marked };
 }
 
 /** A let-go habit's days, oldest first, inclusive (Core `LetGoRules.DayOn`). */
 export function letGoDays(data: LocalData, habitId: number, from: LocalDateString, to: LocalDateString): LetGoToday[] {
   const habit = findHabit(data, habitId);
   const slips = slipsOf(data, habitId);
+  const madeIt = madeItOf(data, habitId);
   const start = habitStartDate(habit, data.profile.timezone);
   const days: LetGoToday[] = [];
-  for (let date = from; date <= to; date = addDays(date, 1)) days.push(letGoDayOn(habit, date, start, slips.get(date)));
+  for (let date = from; date <= to; date = addDays(date, 1)) days.push(letGoDayOn(habit, date, start, slips.get(date), madeIt.has(date)));
   return days;
 }
 
@@ -273,7 +280,7 @@ export function habitView(data: LocalData, habitId: number, today: LocalDateStri
       pausedToday: isPausedOn(habit, today),
       createdAt: habit.createdAt,
       startDate: start,
-      today: letGoDayOn(habit, today, start, slipsOf(data, habitId).get(today)),
+      today: letGoDayOn(habit, today, start, slipsOf(data, habitId).get(today), madeItOf(data, habitId).has(today)),
       stats: letGoStats(data, habitId, today),
       reminderChannels: habit.reminderChannels,
       days: null,

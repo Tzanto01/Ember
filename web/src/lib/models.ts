@@ -181,6 +181,8 @@ export interface LetGoToday {
   state: LetGoDayState;
   /** Slips recorded that day. */
   slips: number;
+  /** v1.24: true only on a `free` day that has a "made it" mark; marks change no stat. */
+  madeIt: boolean;
 }
 
 /** `stats` of a let-go habit. Paused days are neither free nor slipped. */
@@ -197,6 +199,11 @@ export interface SlipDay {
   date: LocalDateString;
   count: number;
   reasons: SlipReason[];
+}
+
+/** `GET /api/habits/{id}/made-it` item (v1.24): one day marked "made it". */
+export interface MadeItDay {
+  date: LocalDateString;
 }
 
 /** A v1.21 let-go habit: no check-ins, no streak, no schedule; `frequency` is always `daily` and `timesPerDay` 1. */
