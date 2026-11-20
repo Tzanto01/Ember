@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Quartz;
+using Quartz.Impl.Matchers;
 using Quartz.Logging;
 
 namespace Ember.Tests;
@@ -102,7 +103,11 @@ public sealed class IntegrationTestHost : IAsyncDisposable
         return await scheduler.GetTrigger(new TriggerKey(name, group));
     }
 
-    public async Task WaitForDmCountAsync(int expectedCount, int timeoutMs = 3000)
+    /// <summary>
+    /// Waits until at least <paramref name="expectedCount"/> DMs were sent. The timeout is generous because it is real time: a
+    /// job runs on Quartz's threads, and a test process on a busy or low-priority machine can go seconds without CPU.
+    /// </summary>
+    public async Task WaitForDmCountAsync(int expectedCount, int timeoutMs = 30_000)
     {
         var start = Environment.TickCount64;
         while (Environment.TickCount64 - start < timeoutMs)
@@ -114,6 +119,42 @@ public sealed class IntegrationTestHost : IAsyncDisposable
         }
 
         Discord.Messages.Count.Should().BeGreaterThanOrEqualTo(expectedCount);
+    }
+
+    /// <summary>Triggers <paramref name="key"/> and waits until that run has finished, however long the machine takes to get to it.</summary>
+    public async Task RunJobAsync(JobKey key)
+    {
+        var scheduler = await WithScopeAsync(sp => sp.GetRequiredService<ISchedulerFactory>().GetScheduler());
+        var finished = new JobFinishedListener();
+        scheduler.ListenerManager.AddJobListener(finished, KeyMatcher<JobKey>.KeyEquals(key));
+        try
+        {
+            await scheduler.TriggerJob(key);
+            await finished.Run.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        finally
+        {
+            scheduler.ListenerManager.RemoveJobListener(finished.Name);
+        }
+    }
+
+    private sealed class JobFinishedListener : IJobListener
+    {
+        private readonly TaskCompletionSource _run = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public string Name { get; } = $"test-run-{Guid.NewGuid():N}";
+
+        public Task Run => _run.Task;
+
+        public Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
+        {
+            _run.TrySetResult();
+            return Task.CompletedTask;
+        }
     }
 
     public async ValueTask DisposeAsync()
