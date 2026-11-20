@@ -24,7 +24,7 @@ public class StreakStatsTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
-            var habit = await service.AddHabitAsync(UserId, "Stretch", null);
+            var habit = (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!;
             await service.CheckInAsync(UserId, habit.Id, new DateOnly(2027, 1, 10), completed: true, guildId: null);
         });
 

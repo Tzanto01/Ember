@@ -26,22 +26,25 @@ public partial class HabitService
         _ledger = ledger;
     }
 
-    /// <exception cref="ConsentRequiredException">The user hasn't agreed to the current health-data consent.</exception>
-    /// <exception cref="HabitLimitReachedException">The user already tracks <see cref="Limits.HabitsPerUser"/> habits.</exception>
+    /// <summary>
+    /// Creates a habit for the user. Needs the health-data consent (<see cref="HabitWriteResult.ConsentRequired"/>) and room under
+    /// <see cref="Limits.HabitsPerUser"/> (<see cref="HabitWriteResult.LimitReached"/>); the habit comes back with
+    /// <see cref="HabitWriteResult.Saved"/> only.
+    /// </summary>
     /// <remarks>
     /// <paramref name="days"/> is stored for <see cref="FrequencyType.Weekdays"/> habits only; weekly habits always get <paramref name="timesPerDay"/> 1.
     /// <paramref name="reminderTimes"/>, when given, replaces <paramref name="reminderTime"/> and is kept as <see cref="HabitRules.NormalizeReminderTimes"/> does.
     /// </remarks>
     /// <exception cref="ArgumentException">A <see cref="HabitKind.LetGo"/> habit that isn't daily, once a day, without weekly target or days and with at most one reminder time.</exception>
-    public async Task<Habit> AddHabitAsync(Guid userId, string name, TimeOnly? reminderTime,
+    public async Task<(HabitWriteResult Result, Habit? Habit)> AddHabitAsync(Guid userId, string name, TimeOnly? reminderTime,
         FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null, IReadOnlyCollection<string>? reminderExclusions = null,
         ScheduleDays? days = null, int timesPerDay = 1, IReadOnlyCollection<TimeOnly>? reminderTimes = null, HabitKind kind = HabitKind.Build)
     {
         LetGoRules.ThrowIfInvalid(kind, frequency, timesPerDay, weeklyTarget, days, reminderTimes?.Distinct().Count() ?? 0);
         if (!await _consent.HasHealthDataConsentAsync(userId))
-            throw new ConsentRequiredException();
+            return (HabitWriteResult.ConsentRequired, null);
         if (await _db.Habits.CountAsync(h => h.UserId == userId) >= Limits.HabitsPerUser)
-            throw new HabitLimitReachedException();
+            return (HabitWriteResult.LimitReached, null);
 
         var habit = new Habit
         {
@@ -61,7 +64,7 @@ public partial class HabitService
         _db.Habits.Add(habit);
         await _db.SaveChangesAsync();
 
-        return habit;
+        return (HabitWriteResult.Saved, habit);
     }
 
     public async Task<Habit?> GetHabitAsync(Guid userId, int habitId)
@@ -354,21 +357,22 @@ public partial class HabitService
     /// Edits the user's habit; null arguments keep the current value. <paramref name="newReminderTime"/> replaces all reminder times
     /// with that one; <paramref name="newReminderTimes"/> replaces them with those (empty clears the reminder), kept as
     /// <see cref="HabitRules.NormalizeReminderTimes"/> does. <paramref name="reminderExclusions"/> replaces <see cref="Habit.ReminderExclusions"/>.
-    /// Null when the habit isn't the user's.
+    /// <see cref="HabitWriteResult.NotFound"/> when the habit isn't the user's; <see cref="HabitWriteResult.ConsentRequired"/>, writing
+    /// nothing, for a new name without the current health-data consent.
     /// </summary>
     /// <exception cref="ArgumentException">More than one reminder time for a let-go habit; nothing is written.</exception>
-    /// <exception cref="ConsentRequiredException">A new name without the current health-data consent; nothing is written.</exception>
-    public async Task<Habit?> EditHabitAsync(Guid userId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder,
-        IReadOnlyCollection<string>? reminderExclusions = null, IReadOnlyCollection<TimeOnly>? newReminderTimes = null)
+    public async Task<(HabitWriteResult Result, Habit? Habit)> EditHabitAsync(Guid userId, int habitId, string? newName,
+        TimeOnly? newReminderTime, bool clearReminder, IReadOnlyCollection<string>? reminderExclusions = null,
+        IReadOnlyCollection<TimeOnly>? newReminderTimes = null)
     {
         var habit = await _db.Habits
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
 
-        if (habit is null) return null;
+        if (habit is null) return (HabitWriteResult.NotFound, null);
         if (!clearReminder && newReminderTimes is not null)
             LetGoRules.ThrowIfInvalid(habit.Kind, FrequencyType.Daily, 1, null, null, newReminderTimes.Distinct().Count());
         if (newName is not null && newName != habit.Name && !await _consent.HasHealthDataConsentAsync(userId))
-            throw new ConsentRequiredException();
+            return (HabitWriteResult.ConsentRequired, null);
 
         if (newName is not null) habit.Name = newName;
         if (reminderExclusions is not null) habit.ReminderExclusions = reminderExclusions.Distinct().ToList();
@@ -390,7 +394,7 @@ public partial class HabitService
         }
 
         await _db.SaveChangesAsync();
-        return habit;
+        return (HabitWriteResult.Saved, habit);
     }
 
     /// <summary>How long a reminder's snooze button stays usable after the reminder was sent.</summary>

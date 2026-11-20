@@ -35,6 +35,7 @@ internal static class HelpsEndpoints
             {
                 HelpsWriteResult.Saved => Results.Ok(new HelpsVersionDto(version)),
                 HelpsWriteResult.JournalOff => Problems.Conflict("The private journal is off or turning off."),
+                HelpsWriteResult.ConsentRequired => Problems.ConsentRequired(),
                 _ => Problems.Conflict("Another device saved this list meanwhile. Reload and try again."),
             };
         });

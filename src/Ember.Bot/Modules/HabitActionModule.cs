@@ -53,21 +53,18 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        Habit habit;
-        try
-        {
-            habit = await _habits.AddHabitAsync(Context.User.Id, name, reminderTime: null);
-        }
-        catch (ConsentRequiredException)
+        var (result, added) = await _habits.AddHabitAsync(Context.User.Id, name, reminderTime: null);
+        if (result == HabitWriteResult.ConsentRequired)
         {
             await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
             return;
         }
-        catch (HabitLimitReachedException)
+        if (result == HabitWriteResult.LimitReached)
         {
             await RespondAsync(t.Format("habit.limit", Limits.HabitsPerUser), ephemeral: true);
             return;
         }
+        var habit = added!;
         var hasTimezone = await _habits.HasTimezoneSetAsync(Context.User.Id);
 
         var embed = new EmbedBuilder()
@@ -288,12 +285,8 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        Habit? habit;
-        try
-        {
-            habit = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: name, newReminderTime: null, clearReminder: false);
-        }
-        catch (ConsentRequiredException)
+        var (result, habit) = await _habits.EditHabitAsync(Context.User.Id, habitId, newName: name, newReminderTime: null, clearReminder: false);
+        if (result == HabitWriteResult.ConsentRequired)
         {
             await ConsentModule.RespondWithPromptAsync(Context, _config, _habits);
             return;

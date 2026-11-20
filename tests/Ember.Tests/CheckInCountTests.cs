@@ -26,7 +26,7 @@ public class CheckInCountTests
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
             var userId = await service.FindDiscordUserAsync(UserId);
-            return (await service.AddHabitAsync(userId, "Water", null, timesPerDay: timesPerDay)).Id;
+            return (await service.AddHabitAsync(userId, "Water", null, timesPerDay: timesPerDay)).Habit!.Id;
         });
         time.SetUtcNow(new DateTimeOffset(2027, 1, 13, 12, 0, 0, TimeSpan.Zero));
         return (host, habitId);

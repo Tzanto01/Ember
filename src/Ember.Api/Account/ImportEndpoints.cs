@@ -73,6 +73,7 @@ internal static class ImportEndpoints
             {
                 ImportResult.Imported => Results.NoContent(),
                 ImportResult.JournalKeyExists => Problems.Conflict("This account already has a private journal key."),
+                ImportResult.ConsentRequired => Problems.ConsentRequired(),
                 _ => Problems.Conflict(NotEmptyMessage),
             };
         }).WithMetadata(new RequestSizeLimitAttribute(MaxBodyBytes)).RequireRateLimiting(RateLimits.AuthPolicy);

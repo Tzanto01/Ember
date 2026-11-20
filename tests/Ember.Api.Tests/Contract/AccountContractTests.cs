@@ -197,7 +197,7 @@ public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(p
         var discordId = ApiHost.NewDiscordId();
         var botId = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(discordId));
         await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(botId));
-        var habit = await Host.Service(s => s.AddHabitAsync(botId, "Stretch", null));
+        var habit = (await Host.Service(s => s.AddHabitAsync(botId, "Stretch", null))).Habit!;
         await Host.Run(s => s.CheckInAsync(botId, habit.Id, Host.Today, true));
         await Host.DiscordAsync(user, "/api/auth/discord/link", discordId);
         await Rec("merge.get.ok", route, user.Get(route));

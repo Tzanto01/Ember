@@ -79,7 +79,8 @@ internal static class JournalEndpoints
             }
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            var note = await journal.SetDayNoteAsync(userId, day, text, mood, cipher);
+            var (result, note) = await journal.SetDayNoteAsync(userId, day, text, mood, cipher);
+            if (result == NoteWriteResult.ConsentRequired) return Problems.ConsentRequired();
             return Results.Ok(note is null ? new { date = day, text = (string?)null, mood = (string?)null } : ToDto(note));
         });
 
@@ -131,7 +132,13 @@ internal static class JournalEndpoints
             }
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            return await journal.SetHabitNoteAsync(userId, id, day, text, cipher) is { } note ? Results.Ok(ToDto(note)) : Problems.NotFound();
+            var (result, note) = await journal.SetHabitNoteAsync(userId, id, day, text, cipher);
+            return result switch
+            {
+                NoteWriteResult.Saved => Results.Ok(ToDto(note!)),
+                NoteWriteResult.ConsentRequired => Problems.ConsentRequired(),
+                _ => Problems.NotFound(),
+            };
         });
 
         api.MapDelete("/habits/{id:int}/notes/{date}", async (int id, string date, ClaimsPrincipal principal, JournalService journal) =>
@@ -161,7 +168,12 @@ internal static class JournalEndpoints
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var (result, mood) = await journal.AddMoodAsync(userId, label, emoji, cipher, request.Archived == true);
-            return result == MoodWriteResult.Saved ? Results.Created($"/api/moods/{mood!.Id}", ToDto(mood)) : MoodLimit();
+            return result switch
+            {
+                MoodWriteResult.Saved => Results.Created($"/api/moods/{mood!.Id}", ToDto(mood)),
+                MoodWriteResult.ConsentRequired => Problems.ConsentRequired(),
+                _ => MoodLimit(),
+            };
         });
 
         api.MapPatch("/moods/{id:int}", async (int id, JsonElement body, ClaimsPrincipal principal, ConsentService consent,
@@ -200,6 +212,7 @@ internal static class JournalEndpoints
             {
                 MoodWriteResult.Saved => Results.Ok(ToDto(mood!)),
                 MoodWriteResult.LimitReached => MoodLimit(),
+                MoodWriteResult.ConsentRequired => Problems.ConsentRequired(),
                 _ => Problems.NotFound(),
             };
         });

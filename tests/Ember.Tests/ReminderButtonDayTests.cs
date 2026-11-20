@@ -88,7 +88,7 @@ public class ReminderButtonDayTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", new TimeOnly(9, 0))).Id;
+            return (await service.AddHabitAsync(UserId, "Stretch", new TimeOnly(9, 0))).Habit!.Id;
         });
         var before = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId).Select(h => h.NextReminderUtc).SingleAsync());
 
@@ -108,7 +108,7 @@ public class ReminderButtonDayTests
         await sp.GetRequiredService<EmberDbContext>().Users
             .Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.Timezone, "America/Los_Angeles"));
-        return (await service.AddHabitAsync(UserId, "Stretch", null)).Id;
+        return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
     });
 
     [Fact]

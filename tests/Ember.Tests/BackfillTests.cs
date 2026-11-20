@@ -19,7 +19,7 @@ public class BackfillTests
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
             await SetTimezoneAsync(sp, timezone);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Id;
+            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
         });
 
     private static async Task SetTimezoneAsync(IServiceProvider sp, string timezone)

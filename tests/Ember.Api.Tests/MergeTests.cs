@@ -18,7 +18,7 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         await Host.Run<ConsentService>(s => s.GiveHealthDataConsentAsync(userId));
         foreach (var name in habitNames)
         {
-            var habit = await Host.Service(s => s.AddHabitAsync(userId, name, null));
+            var habit = (await Host.Service(s => s.AddHabitAsync(userId, name, null))).Habit!;
             await Host.Run(s => s.CheckInAsync(userId, habit.Id, Host.Today, true));
         }
         foreach (var offset in lowDayOffsets)
@@ -145,7 +145,7 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
     {
         var user = await Host.SignedInAsync();
         var bot = await BotOnlyAsync([]);
-        var habit = await Host.Service(s => s.AddHabitAsync(bot.UserId, "Coffee", null, kind: HabitKind.LetGo));
+        var habit = (await Host.Service(s => s.AddHabitAsync(bot.UserId, "Coffee", null, kind: HabitKind.LetGo))).Habit!;
         await Host.Run(s => s.AddSlipAsync(bot.UserId, habit.Id, Host.Today, "stressed"));
         await StartMergeAsync(user, bot.DiscordId);
 
@@ -164,7 +164,7 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var user = await Host.SignedInAsync();
         await (await user.Patch("/api/me", new { timezone = "Europe/Berlin" })).ExpectJson();
         var bot = await BotOnlyAsync([]);
-        var habit = await Host.Service(s => s.AddHabitAsync(bot.UserId, "Water", new TimeOnly(9, 0)));
+        var habit = (await Host.Service(s => s.AddHabitAsync(bot.UserId, "Water", new TimeOnly(9, 0)))).Habit!;
         var before = await Host.Db(db => db.Habits.Where(h => h.Id == habit.Id).Select(h => h.NextReminderUtc).SingleAsync());
         before.Should().Be(new DateTime(2026, 11, 2, 9, 0, 0, DateTimeKind.Utc));
         await StartMergeAsync(user, bot.DiscordId);
@@ -202,6 +202,24 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         (await Host.Db(db => db.Habits.CountAsync(h => h.UserId == bot.UserId))).Should().Be(1);
         await user.GiveConsentAsync();
         await (await user.Post(MergeUrl)).Expect(HttpStatusCode.NoContent);
+    }
+
+    [DockerFact]
+    public async Task Core_refuses_a_merge_into_an_account_without_consent_and_changes_nothing()
+    {
+        var user = await Host.SignedInAsync(consent: false);
+        var userId = await user.IdAsync();
+        var bot = await BotOnlyAsync(["Water"], 0);
+
+        (await Host.Service(s => s.MergeBotOnlyAccountAsync(userId, bot.UserId, bot.DiscordId)))
+            .Should().Be(AccountMergeResult.ConsentRequired);
+
+        (await UserExists(bot.UserId)).Should().BeTrue();
+        (await Host.Service(s => s.FindDiscordUserAsync(bot.DiscordId))).Should().Be(bot.UserId);
+        (await Host.Db(db => db.Habits.CountAsync(h => h.UserId == bot.UserId))).Should().Be(1);
+        (await Host.Db(db => db.HabitLogs.CountAsync(l => l.Habit.UserId == bot.UserId))).Should().Be(1);
+        (await Host.Db(db => db.DayMarks.CountAsync(m => m.UserId == bot.UserId))).Should().Be(1);
+        (await Host.Db(db => db.Habits.CountAsync(h => h.UserId == userId))).Should().Be(0);
     }
 
     [DockerFact]

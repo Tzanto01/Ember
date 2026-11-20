@@ -41,7 +41,8 @@ public partial class HabitService
     /// (ignoring case) is combined into it: the source's entries pointing at it point at the target's mood and the source mood
     /// is dropped (skipped when the source has encrypted entries, which may reference it inside the ciphertext).
     /// Moved routines go after the target's own, keeping their order. The habit and routine limits do not apply. The target's settings are kept; the caller reschedules the target's reminders. Returns <see cref="AccountMergeResult.JournalConflict"/>
-    /// without changes when both accounts have a journal key.
+    /// without changes when both accounts have a journal key, and <see cref="AccountMergeResult.ConsentRequired"/> without changes when the
+    /// target hasn't agreed to the current health-data consent, checked under the row locks.
     /// </summary>
     public async Task<AccountMergeResult> MergeBotOnlyAccountAsync(Guid targetUserId, Guid sourceUserId, ulong discordUserId,
         Guid? sessionId = null, CancellationToken cancellationToken = default)
@@ -53,6 +54,7 @@ public partial class HabitService
             await _db.Database.ExecuteSqlAsync(
                 $"""SELECT 1 FROM "AspNetUsers" WHERE "Id" IN ({targetUserId}, {sourceUserId}) ORDER BY "Id" FOR UPDATE""",
                 cancellationToken);
+            if (!await _consent.HasHealthDataConsentAsync(targetUserId)) return AccountMergeResult.ConsentRequired;
 
             if (!await _db.Users.AnyAsync(u => u.Id == targetUserId, cancellationToken)
                 || await _db.UserLogins.AnyAsync(l => l.UserId == targetUserId && l.LoginProvider == DiscordLogin.Provider, cancellationToken)

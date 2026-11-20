@@ -14,6 +14,9 @@ public enum AccountMergeResult
 
     /// <summary>Nothing changed: both accounts have a private-journal key.</summary>
     JournalConflict,
+
+    /// <summary>Nothing changed: the target hasn't agreed to the current health-data consent, which the moved health data needs.</summary>
+    ConsentRequired,
 }
 
 /// <summary>

@@ -111,7 +111,7 @@ public partial class HabitService
     public async Task MarkConsentPromptedAsync(ulong discordUserId)
         => await _consent.MarkConsentPromptedAsync(await FindDiscordUserAsync(discordUserId));
 
-    public async Task<Habit> AddHabitAsync(ulong discordUserId, string name, TimeOnly? reminderTime, FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null)
+    public async Task<(HabitWriteResult Result, Habit? Habit)> AddHabitAsync(ulong discordUserId, string name, TimeOnly? reminderTime, FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null)
         => await AddHabitAsync(await FindDiscordUserAsync(discordUserId), name, reminderTime, frequency, weeklyTarget);
 
     public async Task<Habit?> GetHabitAsync(ulong discordUserId, int habitId)
@@ -150,7 +150,7 @@ public partial class HabitService
     public async Task<bool> DeleteHabitAsync(ulong discordUserId, int habitId)
         => await DeleteHabitAsync(await FindDiscordUserAsync(discordUserId), habitId);
 
-    public async Task<Habit?> EditHabitAsync(ulong discordUserId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder)
+    public async Task<(HabitWriteResult Result, Habit? Habit)> EditHabitAsync(ulong discordUserId, int habitId, string? newName, TimeOnly? newReminderTime, bool clearReminder)
         => await EditHabitAsync(await FindDiscordUserAsync(discordUserId), habitId, newName, newReminderTime, clearReminder);
 
     public async Task<bool> SnoozeReminderAsync(ulong discordUserId, int habitId, DateTimeOffset sentAtUtc)

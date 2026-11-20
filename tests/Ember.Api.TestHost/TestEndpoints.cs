@@ -82,7 +82,7 @@ public static class TestEndpoints
 
             var userId = await habits.ResolveOrCreateDiscordUserAsync(discordId);
             await consent.GiveHealthDataConsentAsync(userId);
-            var habit = await habits.AddHabitAsync(userId, "Water", null);
+            var habit = (await habits.AddHabitAsync(userId, "Water", null)).Habit!;
             if (startDate < DateOnly.FromDateTime(now))
             {
                 var createdAt = startDate.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc);

@@ -210,7 +210,7 @@ public partial class RulesFixtureTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(user);
-            var habitId = (await service.AddHabitAsync(user, "Edit", null)).Id;
+            var habitId = (await service.AddHabitAsync(user, "Edit", null)).Habit!.Id;
             var db = sp.GetRequiredService<EmberDbContext>();
             var habit = await db.Habits.SingleAsync(h => h.Id == habitId);
             habit.CreatedAt = EditStart.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc);

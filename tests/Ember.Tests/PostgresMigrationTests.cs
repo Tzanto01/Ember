@@ -36,7 +36,7 @@ public class PostgresMigrationTests(PostgresFixture postgres)
 
             var service = scope.ServiceProvider.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(4242);
-            var habit = await service.AddHabitAsync(4242, "Stretch", new TimeOnly(7, 30));
+            var habit = (await service.AddHabitAsync(4242, "Stretch", new TimeOnly(7, 30))).Habit!;
             habitId = habit.Id;
             (await service.CheckInAsync(4242, habitId, await service.GetLocalTodayAsync(4242), completed: true, guildId: 99))
                 .Should().Be(DayEditResult.Saved);

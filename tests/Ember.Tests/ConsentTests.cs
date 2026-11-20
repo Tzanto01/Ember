@@ -40,9 +40,9 @@ public class ConsentTests
     {
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
 
-        var add = () => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().AddHabitAsync(1, "Take meds", null));
+        var (added, _) = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().AddHabitAsync(1, "Take meds", null));
 
-        await add.Should().ThrowAsync<ConsentRequiredException>();
+        added.Should().Be(HabitWriteResult.ConsentRequired);
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.CountAsync())).Should().Be(0);
     }
 
@@ -179,8 +179,8 @@ public class ConsentTests
         withdrawn.Should().BeTrue();
         again.Should().BeFalse("it was already withdrawn");
         (await UserAsync(host, 1)).ConsentWithdrawnAt.Should().Be(Now.UtcDateTime);
-        var add = () => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().AddHabitAsync(1, "Take meds", null));
-        await add.Should().ThrowAsync<ConsentRequiredException>();
+        var (added, _) = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().AddHabitAsync(1, "Take meds", null));
+        added.Should().Be(HabitWriteResult.ConsentRequired);
         (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SetLowDayAsync(1, new DateOnly(2027, 1, 15))))
             .Should().Be(DayEditResult.ConsentRequired);
 
@@ -245,9 +245,9 @@ public class ConsentTests
         await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().WithdrawHealthDataConsentAsync(1UL));
         var habitId = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Select(h => h.Id).SingleAsync());
 
-        var rename = () => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(1UL, habitId, "Take meds", null, false));
-        await rename.Should().ThrowAsync<ConsentRequiredException>();
-        var edited = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(1UL, habitId, null, new TimeOnly(7, 0), false));
+        var (renamed, _) = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(1UL, habitId, "Take meds", null, false));
+        renamed.Should().Be(HabitWriteResult.ConsentRequired);
+        var (_, edited) = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().EditHabitAsync(1UL, habitId, null, new TimeOnly(7, 0), false));
 
         edited!.Name.Should().Be("Walk");
         edited.ReminderTime.Should().Be(new TimeOnly(7, 0));

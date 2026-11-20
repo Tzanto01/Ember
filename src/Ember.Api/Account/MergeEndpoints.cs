@@ -44,6 +44,8 @@ internal static class MergeEndpoints
                     return Problems.Conflict("This Discord account can no longer be merged into yours.");
                 case AccountMergeResult.JournalConflict:
                     return Problems.Conflict("Both accounts have a private journal. Turn it off in one of them first.");
+                case AccountMergeResult.ConsentRequired:
+                    return Problems.ConsentRequired();
             }
 
             PendingMerge.Clear(http);

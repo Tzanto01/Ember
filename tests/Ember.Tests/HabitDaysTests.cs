@@ -22,7 +22,7 @@ public class HabitDaysTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Id;
+            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
         });
         time.SetUtcNow(new DateTimeOffset(2027, 1, 18, 12, 0, 0, TimeSpan.Zero));
         await host.WithScopeAsync(async sp =>
@@ -60,7 +60,7 @@ public class HabitDaysTests
         {
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
-            return (await service.AddHabitAsync(UserId, "Stretch", null)).Id;
+            return (await service.AddHabitAsync(UserId, "Stretch", null)).Habit!.Id;
         });
 
         (await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetHabitDaysAsync(UserId + 1, habitId, 14))).Should().BeNull();
