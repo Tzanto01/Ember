@@ -3,6 +3,7 @@
 # Needs ~/.config/ember-ops/{ember_dashboard,emberops,notices-token,github-token} (mode 600; github-token may be empty, then CI is fetched without auth) and the ops-status timer writing ~/.local/state/ember-ops.
 # The API timings key ~/.config/ember-ops/api-metrics.key (32+ bytes) is shared with Ember's API container (uid 1654), so it needs mode 644; keep ~/.config/ember-ops at 700.
 # Lookout needs its key ~/.config/lookout/providers/ember.key (mode 600) and the external network lookout-net, both created by Lookout.
+# Ops__ApiMetricsUrl names ember-api-1, the name Compose generates for the API started from ~/ember (see "Container names the checks rely on" in ops/README.md).
 services:
   ops:
     build:
