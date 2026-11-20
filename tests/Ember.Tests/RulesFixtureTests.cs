@@ -159,7 +159,7 @@ public partial class RulesFixtureTests
             {
                 Habits = Limits.HabitsPerUser,
                 Routines = Limits.RoutinesPerUser,
-                ActiveMoods = HabitService.MaxActiveMoodsPerUser,
+                ActiveMoods = JournalService.MaxActiveMoodsPerUser,
                 HabitName = Limits.HabitNameLength,
                 RoutineName = Limits.RoutineNameLength,
                 MoodLabel = MaxLength<Mood>(nameof(Mood.Label)),

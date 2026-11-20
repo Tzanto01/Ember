@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Core.Services;
 
-/// <summary>Outcome of <see cref="HabitService.PutHelpsAsync"/>.</summary>
+/// <summary>Outcome of <see cref="JournalService.PutHelpsAsync"/>.</summary>
 public enum HelpsWriteResult
 {
     Saved,
@@ -16,7 +16,7 @@ public enum HelpsWriteResult
 }
 
 /// <summary>The "What helps me" list, stored only as client-side ciphertext while the private journal is on.</summary>
-public partial class HabitService
+public partial class JournalService
 {
     /// <summary>The user's stored list, or null when there is none.</summary>
     public Task<UserHelps?> GetHelpsAsync(Guid userId)

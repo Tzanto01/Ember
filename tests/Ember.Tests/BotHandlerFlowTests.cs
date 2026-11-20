@@ -378,7 +378,7 @@ public class BotHandlerFlowTests
         await host.WithScopeAsync(async sp =>
         {
             var service = sp.GetRequiredService<HabitService>();
-            await service.SetDayNoteAsync(await service.FindDiscordUserAsync(User), Today, "private words", null, null);
+            await sp.GetRequiredService<JournalService>().SetDayNoteAsync(await service.FindDiscordUserAsync(User), Today, "private words", null, null);
         });
 
         var csv = await DriveAsync(host, (h, r) => new RecordingExportModule(h, r), m => m.ExportAsync(), slash: true);

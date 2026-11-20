@@ -14,12 +14,12 @@ internal static class HelpsEndpoints
 
     public static RouteGroupBuilder MapHelps(this RouteGroupBuilder api)
     {
-        api.MapGet("/me/helps", async (ClaimsPrincipal principal, HabitService habits) =>
-            await habits.GetHelpsAsync(principal.UserId()) is { } helps
+        api.MapGet("/me/helps", async (ClaimsPrincipal principal, JournalService journal) =>
+            await journal.GetHelpsAsync(principal.UserId()) is { } helps
                 ? Results.Ok(new HelpsDto(helps.Encrypted, helps.Version))
                 : Problems.NotFound());
 
-        api.MapPut("/me/helps", async (HelpsRequest request, ClaimsPrincipal principal, HabitService habits) =>
+        api.MapPut("/me/helps", async (HelpsRequest request, ClaimsPrincipal principal, HabitService habits, JournalService journal) =>
         {
             var userId = principal.UserId();
             if (!await habits.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
@@ -30,7 +30,7 @@ internal static class HelpsEndpoints
             if (request.Version is not >= 0) errors["version"] = ["Must be the version you last read, 0 when there was none."];
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            var (result, version) = await habits.PutHelpsAsync(userId, request.Encrypted!, request.Version!.Value);
+            var (result, version) = await journal.PutHelpsAsync(userId, request.Encrypted!, request.Version!.Value);
             return result switch
             {
                 HelpsWriteResult.Saved => Results.Ok(new HelpsVersionDto(version)),
@@ -39,9 +39,9 @@ internal static class HelpsEndpoints
             };
         });
 
-        api.MapDelete("/me/helps", async (ClaimsPrincipal principal, HabitService habits) =>
+        api.MapDelete("/me/helps", async (ClaimsPrincipal principal, JournalService journal) =>
         {
-            await habits.DeleteHelpsAsync(principal.UserId());
+            await journal.DeleteHelpsAsync(principal.UserId());
             return Results.NoContent();
         });
 
