@@ -15,6 +15,7 @@ import com.getcapacitor.JSObject
 import com.getcapacitor.PluginCall
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
@@ -31,6 +32,7 @@ import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import org.robolectric.shadows.ShadowLog
 import org.robolectric.shadows.ShadowSystemClock
 import org.robolectric.shadows.ShadowWebView
 import java.time.Duration
@@ -38,8 +40,8 @@ import java.time.Duration
 /**
  * How launches reach the web app: a moment door on a cold start is the pending launch action, on a warm one an
  * `openMoment` event; a validated widget tap is a `widgetTap` event; replayed, restored and foreign launches do
- * nothing; a dead WebView renderer recreates the activity once and then gives up. Runs the real Capacitor bridge, so
- * the web app's side is a listener on the EmberWidget plugin.
+ * nothing; a dead WebView renderer recreates the activity once and then gives up; the launch log names extras but
+ * never their values. Runs the real Capacitor bridge, so the web app's side is a listener on the EmberWidget plugin.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], shadows = [NoServiceWorkers::class])
@@ -226,6 +228,30 @@ class MainActivityTest {
 
         assertNotSame(recreated, app.get())
         assertFalse(app.get().isFinishing)
+    }
+
+    @Test
+    fun theLaunchLogNamesExtrasButNeverTheirValues() {
+        val token = today()
+        val date = WidgetStore.current(context)!!.getString("date")
+        ShadowLog.clear()
+
+        val app = start(tap(token))
+        app.newIntent(tap(token).addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY))
+        app.newIntent(launcher())
+
+        val lines = ShadowLog.getLogsForTag(MainActivity.LOG_TAG).map { it.msg }
+        val launch = lines.singleOrNull { it.startsWith("launch ") }
+        assertNotNull(lines.toString(), launch)
+        assertTrue(launch, launch!!.contains("component=app.ember.habits.MainActivity"))
+        assertTrue(launch, launch.contains("extras=[date, habitId, token, userId]"))
+        assertTrue(launch, launch.contains("saved=false history=false"))
+        assertEquals(2, lines.count { it.startsWith("newIntent ") })
+        assertTrue(lines.toString(), "route ignored reason=from history" in lines)
+        assertTrue(lines.toString(), "route ignored reason=no moment or valid widget tap" in lines)
+        for (value in listOf(token, "user-1", date)) {
+            assertTrue("$value leaked into $lines", lines.none { value in it })
+        }
     }
 }
 
