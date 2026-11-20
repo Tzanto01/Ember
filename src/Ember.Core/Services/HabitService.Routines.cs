@@ -173,6 +173,23 @@ public partial class HabitService
     }
 
     /// <summary>
+    /// Saves pending changes and, in the same transaction, moves the routine's next reminder to <paramref name="nextUtc"/> directly
+    /// in the database, but only while it is still <paramref name="dueAtUtc"/>. False when an edit moved it meanwhile; that change
+    /// is kept.
+    /// </summary>
+    public async Task<bool> SaveAndAdvanceRoutineReminderAsync(int routineId, DateTime dueAtUtc, DateTime? nextUtc,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
+        var advanced = await _db.Routines
+            .Where(r => r.Id == routineId && r.NextReminderUtc == dueAtUtc)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.NextReminderUtc, nextUtc), cancellationToken) == 1;
+        await transaction.CommitAsync(cancellationToken);
+        return advanced;
+    }
+
+    /// <summary>
     /// Makes <paramref name="habitIds"/> the routine's members in that order. Members of a tracked routine must be loaded.
     /// False, changing nothing, when any id isn't one of the user's habits.
     /// </summary>
