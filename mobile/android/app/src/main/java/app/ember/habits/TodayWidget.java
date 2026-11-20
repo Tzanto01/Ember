@@ -163,7 +163,7 @@ public class TodayWidget extends AppWidgetProvider {
      * while the snapshot is unchanged and no other request for that row is in flight or queued. Callers hold this
      * request's in-flight mark.
      */
-    private static void send(
+    static void send(
         Context context,
         String apiBase,
         String key,
