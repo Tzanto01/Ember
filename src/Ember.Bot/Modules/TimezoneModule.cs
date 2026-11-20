@@ -68,7 +68,7 @@ public class TimezoneModule : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("show", "Show your current timezone setting")]
     public async Task ShowAsync()
     {
-        var tz = await _habits.GetUserTzAsync(Context.User.Id);
+        var tz = await _habits.GetTimeZoneAsync(Context.User.Id);
 
         await RespondAsync(
             (await BotTexts.ForAsync(_habits, Context.Interaction)).Format("timezone.show", tz.Id),

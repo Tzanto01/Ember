@@ -65,7 +65,7 @@ internal static class ImportEndpoints
                 return Problems.Conflict($"The file has more than {JournalService.MaxActiveMoodsPerUser} active moods, the most Ember can hold.");
 
             var errors = new Dictionary<string, string[]>();
-            var data = Validate(doc, await journal.GetJournalKeyAsync(userId), await settings.GetUserTzAsync(userId),
+            var data = Validate(doc, await journal.GetJournalKeyAsync(userId), await settings.GetTimeZoneAsync(userId),
                 await settings.GetLocalTodayAsync(userId), time.GetUtcNow().UtcDateTime, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 

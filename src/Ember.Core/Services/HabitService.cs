@@ -56,7 +56,7 @@ public partial class HabitService
             CreatedAt = _time.GetUtcNow().UtcDateTime
         };
         if (reminderTimes is not null) habit.ReminderTimes = HabitRules.NormalizeReminderTimes(reminderTimes, habit.TimesPerDay);
-        habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+        habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetTimeZoneAsync(userId), _time.GetUtcNow().UtcDateTime);
         _db.Habits.Add(habit);
         await _db.SaveChangesAsync();
 
@@ -213,7 +213,7 @@ public partial class HabitService
             .Where(h => h.UserId == userId)
             .OrderBy(h => h.CreatedAt)
             .FirstOrDefaultAsync();
-        return oldest is null ? (DateOnly?)null : HabitRules.StartDate(oldest, await _settings.GetUserTzAsync(userId));
+        return oldest is null ? (DateOnly?)null : HabitRules.StartDate(oldest, await _settings.GetTimeZoneAsync(userId));
     }
 
     /// <summary>
@@ -257,7 +257,7 @@ public partial class HabitService
     /// </summary>
     public async Task<IReadOnlyList<DayStats>> GetDayStatsAsync(Guid userId, DateOnly from, DateOnly to)
     {
-        var tz = await _settings.GetUserTzAsync(userId);
+        var tz = await _settings.GetTimeZoneAsync(userId);
         var habits = await _db.Habits
             .AsNoTracking()
             .Where(h => h.UserId == userId)
@@ -319,7 +319,7 @@ public partial class HabitService
         if (habit.ReminderTimes.Count > target)
         {
             habit.ReminderTimes = habit.ReminderTimes.Take(target).ToList();
-            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetTimeZoneAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync();
@@ -381,12 +381,12 @@ public partial class HabitService
         else if (newReminderTimes is not null)
         {
             habit.ReminderTimes = HabitRules.NormalizeReminderTimes(newReminderTimes, habit.TimesPerDay);
-            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetTimeZoneAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
         else if (newReminderTime.HasValue)
         {
             habit.ReminderTime = newReminderTime;
-            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetUserTzAsync(userId), _time.GetUtcNow().UtcDateTime);
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, await _settings.GetTimeZoneAsync(userId), _time.GetUtcNow().UtcDateTime);
         }
 
         await _db.SaveChangesAsync();

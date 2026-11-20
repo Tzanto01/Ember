@@ -130,7 +130,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     /// <summary><see cref="BuildHabitSelectMenu"/> for the user of this interaction, with days free on let-go habits.</summary>
     private async Task<SelectMenuBuilder> HabitMenuAsync(Texts t, IReadOnlyList<Habit> habits, string customId, string placeholder)
         => BuildHabitSelectMenu(t, habits, customId, placeholder,
-            await _habits.GetLocalTodayAsync(Context.User.Id), await _habits.GetUserTzAsync(Context.User.Id));
+            await _habits.GetLocalTodayAsync(Context.User.Id), await _habits.GetTimeZoneAsync(Context.User.Id));
 
     // ── /habit add ────────────────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var grace = await _habits.GetGraceDaysAsync(Context.User.Id);
         var today = await _habits.GetLocalTodayAsync(Context.User.Id);
         var lowDays = await _habits.GetLowDaysAsync(Context.User.Id);
-        var tz = await _habits.GetUserTzAsync(Context.User.Id);
+        var tz = await _habits.GetTimeZoneAsync(Context.User.Id);
         var showStreaks = await _habits.GetShowStreaksAsync(Context.User.Id);
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -331,7 +331,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var grace = await service.GetGraceDaysAsync(userId);
         var today = await service.GetLocalTodayAsync(userId);
         var lowDays = await service.GetLowDaysAsync(userId);
-        var tz = await service.GetUserTzAsync(userId);
+        var tz = await service.GetTimeZoneAsync(userId);
         var showStreaks = await service.GetShowStreaksAsync(userId);
 
         var toggle = new ComponentBuilder()

@@ -267,7 +267,7 @@ internal static class HabitEndpoints
     private static async Task<UserDays> LoadUserDays(HabitService habits, UserSettingsService settings, ReminderService reminders, Guid userId)
     {
         var destinations = await reminders.GetUserWithDestinationsAsync(userId) ?? new User { Id = userId };
-        return new(await settings.GetUserTzAsync(userId), await settings.GetLocalTodayAsync(userId),
+        return new(await settings.GetTimeZoneAsync(userId), await settings.GetLocalTodayAsync(userId),
             await settings.GetGraceDaysAsync(userId), await habits.GetLowDaysAsync(userId), destinations, ReminderDestinations.Ids(destinations));
     }
 

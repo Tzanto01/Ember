@@ -92,7 +92,8 @@ public class UserSettingsService
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.Theme, theme));
     }
 
-    public async Task<TimeZoneInfo> GetUserTzAsync(Guid userId)
+    /// <summary>The user's time zone; UTC when the user doesn't exist or has no known time zone.</summary>
+    public async Task<TimeZoneInfo> GetTimeZoneAsync(Guid userId)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
         return TimeZones.Find(user?.Timezone ?? "UTC") ?? TimeZoneInfo.Utc;

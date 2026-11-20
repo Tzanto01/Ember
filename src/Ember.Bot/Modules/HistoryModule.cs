@@ -89,7 +89,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         if (habit?.Kind == Ember.Core.Models.HabitKind.LetGo)
         {
             var today = await _habits.GetLocalTodayAsync(Context.User.Id);
-            var tz = await _habits.GetUserTzAsync(Context.User.Id);
+            var tz = await _habits.GetTimeZoneAsync(Context.User.Id);
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
                 m.Content = t.Format("history.letgo.grid", habit.Name, Days,

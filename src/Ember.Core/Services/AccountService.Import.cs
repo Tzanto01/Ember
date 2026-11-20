@@ -55,7 +55,7 @@ public partial class AccountService
         if (data.JournalKey is not null && await _db.JournalKeys.AnyAsync(k => k.UserId == userId))
             return ImportResult.JournalKeyExists;
 
-        var tz = await _settings.GetUserTzAsync(userId);
+        var tz = await _settings.GetTimeZoneAsync(userId);
         foreach (var routine in data.Routines)
         {
             routine.UserId = userId;

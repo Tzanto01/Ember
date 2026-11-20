@@ -163,8 +163,8 @@ public partial class HabitService
     public async Task SetGraceDaysAsync(ulong discordUserId, int graceDays, string? language = null)
         => await _settings.SetGraceDaysAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), graceDays);
 
-    public async Task<TimeZoneInfo> GetUserTzAsync(ulong discordUserId)
-        => await _settings.GetUserTzAsync(await FindDiscordUserAsync(discordUserId));
+    public async Task<TimeZoneInfo> GetTimeZoneAsync(ulong discordUserId)
+        => await _settings.GetTimeZoneAsync(await FindDiscordUserAsync(discordUserId));
 
     public async Task<DateOnly> GetLocalTodayAsync(ulong discordUserId)
         => await _settings.GetLocalTodayAsync(await FindDiscordUserAsync(discordUserId));

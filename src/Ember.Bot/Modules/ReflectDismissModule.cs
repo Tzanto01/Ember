@@ -137,7 +137,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     /// <summary>The user's daily and weekdays habits that are still open to log as done on <paramref name="date"/>, in creation order.</summary>
     internal static async Task<List<Habit>> OpenHabitsAsync(HabitService habits, ulong userId, DateOnly date)
     {
-        var tz = await habits.GetUserTzAsync(userId);
+        var tz = await habits.GetTimeZoneAsync(userId);
         return (await habits.GetHabitsAsync(userId)).Where(h => MissedDayReflectionJob.IsOpenDaily(h, date, tz)).ToList();
     }
 

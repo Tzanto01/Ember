@@ -117,7 +117,7 @@ internal static class JournalEndpoints
             if (await habits.GetHabitAsync(userId, id) is not { } habit) return Problems.NotFound();
             var today = await settings.GetLocalTodayAsync(userId);
             if (day > today) return Problems.DayEdit(DayEditResult.InFuture)!;
-            if (day != today && day < HabitRules.StartDate(habit, await settings.GetUserTzAsync(userId))
+            if (day != today && day < HabitRules.StartDate(habit, await settings.GetTimeZoneAsync(userId))
                 && (await journal.GetHabitNotesAsync(userId, day, day, id)).Count == 0)
                 return Problems.DayEdit(DayEditResult.BeforeHabitStart)!;
 

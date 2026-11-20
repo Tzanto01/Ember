@@ -48,7 +48,7 @@ public partial class ReminderService
     {
         if (_time.GetUtcNow() - sentAtUtc > SnoozeWindow) return false;
 
-        var tz = await _settings.GetUserTzAsync(userId);
+        var tz = await _settings.GetTimeZoneAsync(userId);
         if (DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(_time.GetUtcNow() + SnoozeDelay, tz).DateTime)
             != DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(sentAtUtc, tz).DateTime))
             return false;
@@ -67,7 +67,7 @@ public partial class ReminderService
     /// <summary>Recomputes every habit and routine reminder of the user from their current timezone. Returns how many habits have a reminder.</summary>
     public async Task<int> RescheduleRemindersAsync(Guid userId)
     {
-        var tz = await _settings.GetUserTzAsync(userId);
+        var tz = await _settings.GetTimeZoneAsync(userId);
         var habits = await _db.Habits
             .Where(h => h.UserId == userId && h.ReminderTimes.Count > 0)
             .ToListAsync();
