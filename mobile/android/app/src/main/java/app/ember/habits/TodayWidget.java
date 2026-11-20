@@ -873,13 +873,7 @@ public class TodayWidget extends AppWidgetProvider {
         midnight.set(Calendar.SECOND, 5);
         midnight.set(Calendar.MILLISECOND, 0);
         Intent intent = new Intent(context, TodayWidget.class).setAction(ACTION_MIDNIGHT);
-        PendingIntent pending = PendingIntent.getBroadcast(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
-        );
-        alarms.set(AlarmManager.RTC, midnight.getTimeInMillis(), pending);
+        alarms.set(AlarmManager.RTC, midnight.getTimeInMillis(), WidgetIntents.broadcast(context, 0, intent));
     }
 
     private static String stateLabel(Context context, JSONObject habit) {
