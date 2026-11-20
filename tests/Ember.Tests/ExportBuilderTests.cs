@@ -149,6 +149,25 @@ public class ExportBuilderTests
     }
 
     [Fact]
+    public void Export_CarriesEachHabitsMadeItDaysOldestFirst_InFullAndDiscordJsonAndInCsv()
+    {
+        var user = UserWithLetGoHabit();
+        var letGo = user.Habits.Single(h => h.Id == 12);
+        letGo.MadeItDays.Add(new MadeItDay { Date = new DateOnly(2025, 6, 12) });
+        letGo.MadeItDays.Add(new MadeItDay { Date = new DateOnly(2025, 6, 4) });
+
+        var full = JsonElement.Parse(ExportBuilder.BuildJson(user));
+        var discord = JsonElement.Parse(ExportBuilder.BuildJson(user, forDiscord: true));
+        var rows = Rows(ExportBuilder.BuildCsv(user));
+
+        foreach (var json in new[] { full, discord })
+            json.GetProperty("made_it_days").EnumerateArray().Select(m => (m.GetProperty("habit_id").GetInt32(), m.GetProperty("date").GetString()))
+                .Should().Equal((12, "2025-06-04"), (12, "2025-06-12"));
+        rows.Where(r => r["record_type"] == "made_it").Select(r => (r["habit_id"], r["date"]))
+            .Should().Equal(("12", "2025-06-04"), ("12", "2025-06-12"));
+    }
+
+    [Fact]
     public void Csv_NeutralizesFormulaInjectionInHabitNames()
     {
         var user = SampleUser();
