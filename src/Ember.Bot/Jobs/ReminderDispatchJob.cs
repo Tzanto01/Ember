@@ -1,6 +1,7 @@
 using Discord.Net;
 using Ember.Bot.Services;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -378,7 +379,7 @@ public class ReminderDispatchJob : IJob
     {
         if (habit.FrequencyType != FrequencyType.Weekly) return false;
         var monday = HabitService.WeekStart(today);
-        return await habits.CountCompletedBetweenAsync(habit.Id, monday.AddDays(-1), monday.AddDays(7), cancellationToken) >= (habit.WeeklyTarget ?? 3);
+        return await habits.CountCompletedBetweenAsync(habit.Id, monday.AddDays(-1), monday.AddDays(7), cancellationToken) >= (habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget);
     }
 
     private static DateOnly LocalDay(DateTime utc, TimeZoneInfo tz)

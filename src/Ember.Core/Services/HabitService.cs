@@ -173,7 +173,7 @@ public partial class HabitService
             Kind = kind,
             ReminderTime = reminderTime,
             FrequencyType = frequency,
-            WeeklyTarget = frequency == FrequencyType.Weekly ? (weeklyTarget ?? 3) : null,
+            WeeklyTarget = frequency == FrequencyType.Weekly ? (weeklyTarget ?? HabitRules.DefaultWeeklyTarget) : null,
             Days = frequency == FrequencyType.Weekdays ? days : null,
             TimesPerDay = frequency == FrequencyType.Weekly ? 1 : timesPerDay,
             ReminderExclusions = reminderExclusions?.Distinct().ToList() ?? [],
@@ -571,7 +571,7 @@ public partial class HabitService
         var sunday = monday.AddDays(6);
 
         var done = habit.Logs.Count(l => l.Completed && l.Date >= monday && l.Date <= sunday);
-        var target = habit.WeeklyTarget ?? 3;
+        var target = habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget;
         return (done, target);
     }
 
@@ -632,7 +632,7 @@ public partial class HabitService
         var target = type == FrequencyType.Weekly ? 1 : timesPerDay;
         var recompute = target != habit.TimesPerDay;
         habit.FrequencyType = type;
-        habit.WeeklyTarget = type == FrequencyType.Weekly ? (weeklyTarget ?? 3) : null;
+        habit.WeeklyTarget = type == FrequencyType.Weekly ? (weeklyTarget ?? HabitRules.DefaultWeeklyTarget) : null;
         habit.Days = type == FrequencyType.Weekdays ? days : null;
         habit.TimesPerDay = target;
         if (habit.ReminderTimes.Count > target)

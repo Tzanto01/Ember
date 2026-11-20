@@ -140,7 +140,7 @@ internal static class ImportEndpoints
                 PausedFrom = h.PausedFrom,
                 PausedUntil = h.PausedUntil,
                 FrequencyType = frequency ?? FrequencyType.Daily,
-                WeeklyTarget = frequency == FrequencyType.Weekly ? h.WeeklyTarget ?? 3 : null,
+                WeeklyTarget = frequency == FrequencyType.Weekly ? h.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget : null,
                 Days = frequency == FrequencyType.Weekdays ? days : null,
                 TimesPerDay = frequency == FrequencyType.Weekly ? 1 : timesPerDay,
                 Routine = routine,

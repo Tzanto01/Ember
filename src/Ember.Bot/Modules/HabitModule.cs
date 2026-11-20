@@ -44,7 +44,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var times = h.TimesPerDay > 1 ? " · " + t.Format("habit.freq.per-day", h.TimesPerDay) : "";
         return h.FrequencyType switch
         {
-            FrequencyType.Weekly => t.Format("habit.freq.weekly", h.WeeklyTarget ?? 3),
+            FrequencyType.Weekly => t.Format("habit.freq.weekly", h.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget),
             FrequencyType.Weekdays => string.Join(" ", ScheduleDayNames.ToNames(h.Days.GetValueOrDefault()).Select(n => DayName(t, n))) + times,
             _ => t.Get("habit.freq.daily") + times,
         };

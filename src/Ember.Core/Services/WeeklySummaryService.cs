@@ -1,5 +1,6 @@
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 
 namespace Ember.Core.Services;
 
@@ -76,7 +77,7 @@ public static class WeeklySummaryService
         }
 
         var possible = habit.FrequencyType == FrequencyType.Weekly
-            ? Math.Min(habit.WeeklyTarget ?? 3, activeDays)
+            ? Math.Min(habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget, activeDays)
             : activeDays;
 
         // A check-in logged on a paused day still counts as done; never report

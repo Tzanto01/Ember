@@ -6,6 +6,7 @@ using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 
 namespace Ember.Bot.Modules;
@@ -128,7 +129,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
         {
             FrequencyType.Weekdays => t.Format("reminder.schedule.weekdays", string.Join(", ", ScheduleDayNames.ToNames(habit.Days.GetValueOrDefault())
                 .Select(n => HabitModule.DayName(t, n)))),
-            FrequencyType.Weekly => t.Plural("reminder.schedule.weekly", habit.WeeklyTarget ?? 3),
+            FrequencyType.Weekly => t.Plural("reminder.schedule.weekly", habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget),
             _ => t.Get("reminder.schedule.daily"),
         };
 

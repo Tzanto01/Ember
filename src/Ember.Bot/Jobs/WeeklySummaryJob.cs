@@ -3,6 +3,7 @@ using Ember.Bot.Modules;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -130,7 +131,7 @@ public class WeeklySummaryJob : IJob
     private static string FormatHabitLine(Texts t, WeeklySummaryService.HabitSummary h, bool showStreaks)
     {
         if (h.Habit.FrequencyType == FrequencyType.Weekly)
-            return t.Format("weekly.goal", h.DotString, h.Done, h.Possible, h.Habit.WeeklyTarget ?? 3);
+            return t.Format("weekly.goal", h.DotString, h.Done, h.Possible, h.Habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget);
         if (!showStreaks)
             return $"{h.DotString} **{h.Done}/{h.Possible}**";
 

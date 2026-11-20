@@ -2,6 +2,7 @@ using Discord;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Services;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -102,7 +103,7 @@ public class MissedDayReflectionJob : IJob
                 var weekEnd = weekStart.AddDays(6);
                 var daysLeft = (weekEnd.DayNumber - yesterday.DayNumber); // days remaining after yesterday
                 var doneCount = habit.Logs.Count(l => l.Completed && l.Date >= weekStart && l.Date <= yesterday);
-                var target = habit.WeeklyTarget ?? 3;
+                var target = habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget;
                 var needed = target - doneCount;
 
                 // Only nudge if they need to catch up, have 1–2 days remaining and didn't just do it yesterday
