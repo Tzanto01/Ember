@@ -171,7 +171,7 @@ public static class HabitRules
         var sunday = monday.AddDays(6);
 
         var done = habit.Logs.Count(l => l.Completed && l.Date >= monday && l.Date <= sunday);
-        var target = habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget;
+        var target = habit.WeeklyTarget ?? DefaultWeeklyTarget;
         return (done, target);
     }
 

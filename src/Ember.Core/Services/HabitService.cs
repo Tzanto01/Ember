@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Linq.Expressions;
 using Ember.Core.Data;
 using Ember.Core.Localization;
@@ -27,7 +26,6 @@ public partial class HabitService
 
     /// <summary>How long before the deletion the user is reminded, and the least time between that reminder and the deletion.</summary>
     public static readonly TimeSpan DeletionReminderLead = TimeSpan.FromDays(3);
-
 
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
@@ -885,7 +883,6 @@ public partial class HabitService
             .Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.Theme, theme));
     }
-
 
     public async Task<TimeZoneInfo> GetUserTzAsync(Guid userId)
     {
