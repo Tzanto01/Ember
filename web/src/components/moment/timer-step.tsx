@@ -28,11 +28,13 @@ export function TimerStep({ seconds, halted = false }: { seconds: number; halted
   }, [running]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- stops the timer in response to a prop or tick; deriving it would change when it stops
     if (halted) setRunning(false);
   }, [halted]);
 
   useEffect(() => {
     if (left > 0 || !running) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- stops the timer in response to a prop or tick; deriving it would change when it stops
     setRunning(false);
     setAnnounce(momentCopy.timerDone);
     if (voice.active) speak(momentCopy.timerDone, voice.language);

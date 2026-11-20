@@ -48,6 +48,7 @@ export function Guide() {
   const pending = useRef<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- closes the panel when the guide goes away
     if (!guide) setOpen(false);
   }, [guide]);
 

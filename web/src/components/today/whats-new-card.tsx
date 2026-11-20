@@ -32,6 +32,7 @@ export function WhatsNewCard() {
   useEffect(() => {
     if (latest && seen === null) {
       markVersionSeen(latest);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- records the version as seen once it is known
       setSeen(latest);
     }
   }, [latest, seen]);

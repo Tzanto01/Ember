@@ -182,6 +182,7 @@ export default function TodayPage() {
     const target = data.habits.find((h) => String(h.id) === openHabit);
     const row = target && document.getElementById(habitRowId(target.id));
     if (row?.closest('#not-today-list[hidden]')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- opens the Not for today list when the linked habit sits in it
       setLaterOpen(true);
       return;
     }

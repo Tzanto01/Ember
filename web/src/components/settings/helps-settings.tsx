@@ -130,6 +130,7 @@ export function HelpsSettings() {
   useEffect(() => {
     if (!focus) return;
     document.getElementById(focus)?.focus();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the focus request after focusing the rendered element
     setFocus(null);
   }, [focus, items, editing]);
 

@@ -93,6 +93,7 @@ export function FeedbackForm() {
   const [pictureError, setPictureError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
   const picturesRef = useRef(pictures);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref read by async picture handlers
   picturesRef.current = pictures;
   const nextKey = useRef(0);
   const remaining = maxFeedback - text.length;

@@ -112,6 +112,7 @@ export function BreathingPlayer({
       speak(current.label, voice.language);
       if (current.from !== current.to && player.left === current.seconds) pulse();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- speaks on phase changes only, not on every tick of `left`
   }, [voice.active, voice.language, player.running, player.finished, player.phase, player.round]);
 
   useEffect(() => stopVoice, []);

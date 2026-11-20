@@ -92,6 +92,7 @@ export function useReorder({ onLift, onDrop, onCancel }: ReorderOptions) {
     };
     window.addEventListener('keydown', escape);
     return () => window.removeEventListener('keydown', escape);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- subscribes when a move starts and unsubscribes when it ends
   }, [moving !== null]);
 
   useEffect(() => () => clearPending(), []);

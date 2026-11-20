@@ -179,6 +179,7 @@ export default function MomentsPage() {
   useEffect(() => {
     if (!added) return;
     document.getElementById(`moment-${added}-in-list`)?.focus();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the focus request after focusing the rendered element
     setAdded(null);
   }, [added, items]);
 

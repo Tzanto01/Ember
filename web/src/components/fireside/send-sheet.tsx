@@ -35,6 +35,7 @@ export function SendSheet({
 
   useEffect(() => {
     if (friend) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the form when the sheet closes
     setMessage('thinking');
     setSent(null);
     setProblem(null);

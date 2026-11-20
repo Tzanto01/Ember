@@ -33,6 +33,7 @@ function useNow(on: boolean): number {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     if (!on) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refreshes the clock as soon as the timer turns on
     setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(timer);

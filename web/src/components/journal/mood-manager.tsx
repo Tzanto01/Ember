@@ -144,6 +144,7 @@ function MoodRow({
     if (!focusArchive) return;
     document.getElementById(`mood-${mood.id}-archive`)?.focus();
     onArchived(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- focuses once on mount
   }, []);
 
   function closeEdit() {

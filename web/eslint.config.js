@@ -84,13 +84,4 @@ export default defineConfig(
       '@typescript-eslint/no-extraneous-class': ['error', { allowEmpty: true }],
     },
   },
-  {
-    // TEMPORARY:rules with findings left to fix; this block must be empty when the lint pass is done.
-    name: 'temporary-todo',
-    rules: {
-      'react-hooks/set-state-in-effect': 'off',
-      'react-hooks/exhaustive-deps': 'off',
-      'react-hooks/refs': 'off',
-    },
-  },
 );

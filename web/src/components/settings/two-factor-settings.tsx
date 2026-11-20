@@ -103,6 +103,7 @@ export function ConfirmForm({
 
   useEffect(() => {
     if (focusOnMount) input.current?.focus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- focuses once on mount
   }, []);
 
   async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {

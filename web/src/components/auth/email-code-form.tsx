@@ -62,6 +62,7 @@ export function EmailCodeForm({ email: knownEmail, userId = null, code: linkCode
   const [resendProblem, setResendProblem] = useState<string | null>(null);
   const askEmail = !knownEmail && !(userId && needsPassword);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- focuses once on mount
   useEffect(() => (needsPassword ? passwordInput : input).current?.focus(), []);
 
   const address = () => knownEmail ?? email.value.trim();

@@ -268,6 +268,7 @@ export default function SettingsPage() {
         .then((status) => setNotificationsOff(status.display === 'denied'), () => undefined);
     }
     if (updaterAvailable()) void reminders?.exactAllowed().then((exact) => setRemindersLate(!exact));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount; adding deps would rerun it
   }, []);
 
   function start(section: Section): void {
@@ -705,6 +706,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (redirect) void navigate(redirect, { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- navigates only when the redirect changes
   }, [redirect]);
 
   useEffect(() => {

@@ -121,6 +121,7 @@ export function Reflect({
 
   useEffect(() => {
     if (!unlocked || saveCase !== 'unlocked') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- returns focus after the unlock settles
     setUnlocked(false);
     triggerRef.current?.focus();
   }, [unlocked, saveCase]);

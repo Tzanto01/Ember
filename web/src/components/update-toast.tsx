@@ -28,6 +28,7 @@ export function UpdateToast() {
   const [updateHidden, setUpdateHidden] = useState(false);
   const [offlineHidden, setOfflineHidden] = useState(false);
   const [reloading, setReloading] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- shows the offline notice again when offline data changes
   useEffect(() => setOfflineHidden(false), [offline]);
 
   const showUpdate = !!reload && !updateHidden;
