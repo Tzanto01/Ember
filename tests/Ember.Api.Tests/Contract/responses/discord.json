@@ -1,0 +1,913 @@
+{
+  "2fa.login.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/login/complete?returnUrl=%2Fhabits",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "2fa.login.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "2fa.login.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/login/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/login?step=2fa&returnUrl=%2Fhabits",
+      "Set-Cookie": [
+        "Identity.External",
+        "Identity.TwoFactorUserId"
+      ]
+    }
+  },
+  "2fa.native-token.ok": {
+    "method": "POST",
+    "route": "/api/auth/discord/native/token",
+    "request": {
+      "code": "string",
+      "twoFactorCode": "string",
+      "verifier": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "accessToken": "string",
+      "expiresIn": "integer",
+      "refreshToken": "string",
+      "tokenType": "string"
+    }
+  },
+  "2fa.native-token.required": {
+    "method": "POST",
+    "route": "/api/auth/discord/native/token",
+    "request": {
+      "code": "string",
+      "twoFactorCode": "null",
+      "verifier": "string"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "RequiresTwoFactor",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "2fa.native.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/native/complete",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "2fa.native.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "2fa.native.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/native/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "app.ember.habits://auth/discord?code=<code>",
+      "Set-Cookie": [
+        "Identity.External"
+      ]
+    }
+  },
+  "2fa.no-pending": {
+    "method": "POST",
+    "route": "/api/auth/discord/2fa",
+    "request": {
+      "code": "string"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Failed",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "2fa.ok": {
+    "method": "POST",
+    "route": "/api/auth/discord/2fa",
+    "request": {
+      "code": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.TwoFactorUserId"
+      ]
+    }
+  },
+  "2fa.wrong-code": {
+    "method": "POST",
+    "route": "/api/auth/discord/2fa",
+    "request": {
+      "code": "string"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Failed",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "callback.bad-state": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/login?discord=error"
+    }
+  },
+  "delete.discord-only.ok": {
+    "method": "POST",
+    "route": "/api/me/delete",
+    "request": {
+      "confirm": "string",
+      "password": "null"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External",
+        "Identity.TwoFactorUserId"
+      ]
+    }
+  },
+  "delete.discord-only.unconfirmed": {
+    "method": "POST",
+    "route": "/api/me/delete",
+    "request": {
+      "confirm": "null",
+      "password": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "confirm": [
+          "Type DELETE to confirm."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "link-complete.direct": {
+    "method": "GET",
+    "route": "/api/auth/discord/link/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/settings?discord=error",
+      "Set-Cookie": [
+        "Identity.External"
+      ]
+    }
+  },
+  "link-start.no-password": {
+    "method": "POST",
+    "route": "/api/auth/discord/link/start",
+    "request": {
+      "password": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "This account has no password to check.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "link-start.ok": {
+    "method": "POST",
+    "route": "/api/auth/discord/link/start",
+    "request": {
+      "password": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        "ember.discord-link"
+      ]
+    }
+  },
+  "link-start.unauthenticated": {
+    "method": "POST",
+    "route": "/api/auth/discord/link/start",
+    "request": {
+      "password": "string"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "link-start.wrong-password": {
+    "method": "POST",
+    "route": "/api/auth/discord/link/start",
+    "request": {
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "link.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/link/complete",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "link.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/link",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "ember.discord-link"
+      ]
+    }
+  },
+  "link.discord-only-account": {
+    "method": "GET",
+    "route": "/api/auth/discord/link",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "link.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/link/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/settings?discord=linked",
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External"
+      ]
+    }
+  },
+  "link.me": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "string",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "string",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "link.password-needed": {
+    "method": "GET",
+    "route": "/api/auth/discord/link",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/settings?discord=password"
+    }
+  },
+  "link.taken.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/link/complete",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "link.taken.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/link",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "ember.discord-link"
+      ]
+    }
+  },
+  "link.taken.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/link/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/settings?discord=conflict",
+      "Set-Cookie": [
+        "Identity.External"
+      ]
+    }
+  },
+  "link.unauthenticated": {
+    "method": "GET",
+    "route": "/api/auth/discord/link",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "login-complete.direct": {
+    "method": "GET",
+    "route": "/api/auth/discord/login/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/login?discord=error",
+      "Set-Cookie": [
+        "Identity.External"
+      ]
+    }
+  },
+  "login.denied.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/login?discord=error",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "login.denied.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "login.existing.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/login/complete?returnUrl=%2Ftoday",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "login.existing.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "login.existing.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/login/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/today",
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External"
+      ]
+    }
+  },
+  "login.failed.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/login?discord=error",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "login.failed.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "login.new.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/login/complete?returnUrl=%2Fhabits",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "login.new.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "login.new.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/login/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/habits",
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External"
+      ]
+    }
+  },
+  "login.new.me": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "null",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "string",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "null",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "login.unsafe-return.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/login/complete?returnUrl=%2Ftoday",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "login.unsafe-return.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "login.unsafe-return.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/login/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/today",
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External"
+      ]
+    }
+  },
+  "me.discord-only": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "null",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "string",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "null",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "native-complete.direct": {
+    "method": "GET",
+    "route": "/api/auth/discord/native/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "app.ember.habits://auth/discord?error=discord",
+      "Set-Cookie": [
+        "Identity.External"
+      ]
+    }
+  },
+  "native-token.missing-code": {
+    "method": "POST",
+    "route": "/api/auth/discord/native/token",
+    "request": {
+      "code": "null",
+      "twoFactorCode": "null",
+      "verifier": "string"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Failed",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "native-token.ok": {
+    "method": "POST",
+    "route": "/api/auth/discord/native/token",
+    "request": {
+      "code": "string",
+      "twoFactorCode": "null",
+      "verifier": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "accessToken": "string",
+      "expiresIn": "integer",
+      "refreshToken": "string",
+      "tokenType": "string"
+    }
+  },
+  "native-token.used": {
+    "method": "POST",
+    "route": "/api/auth/discord/native/token",
+    "request": {
+      "code": "string",
+      "twoFactorCode": "null",
+      "verifier": "string"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Failed",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "native-token.wrong-verifier": {
+    "method": "POST",
+    "route": "/api/auth/discord/native/token",
+    "request": {
+      "code": "string",
+      "twoFactorCode": "null",
+      "verifier": "string"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Failed",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "native.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/native/complete",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "native.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "native.challenge.too-short": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "app.ember.habits://auth/discord?error=discord"
+    }
+  },
+  "native.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/native/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "app.ember.habits://auth/discord?code=<code>",
+      "Set-Cookie": [
+        "Identity.External"
+      ]
+    }
+  },
+  "native.second.callback": {
+    "method": "GET",
+    "route": "/api/auth/discord/callback",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "/api/auth/discord/native/complete",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>",
+        "Identity.External"
+      ]
+    }
+  },
+  "native.second.challenge": {
+    "method": "GET",
+    "route": "/api/auth/discord/login",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "<discord authorize>?client_id=test-client-id&scope=identify&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.test%2Fapi%2Fauth%2Fdiscord%2Fcallback&state=<state>",
+      "Set-Cookie": [
+        ".AspNetCore.Correlation.<suffix>"
+      ]
+    }
+  },
+  "native.second.follow-1": {
+    "method": "GET",
+    "route": "/api/auth/discord/native/complete",
+    "status": 302,
+    "contentType": null,
+    "headers": {
+      "Location": "app.ember.habits://auth/discord?code=<code>",
+      "Set-Cookie": [
+        "Identity.External"
+      ]
+    }
+  },
+  "unlink.no-password": {
+    "method": "DELETE",
+    "route": "/api/me/discord",
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Set a password and confirm your email before unlinking Discord.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "unlink.not-linked": {
+    "method": "DELETE",
+    "route": "/api/me/discord",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "unlink.ok": {
+    "method": "DELETE",
+    "route": "/api/me/discord",
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    }
+  },
+  "unlink.unauthenticated": {
+    "method": "DELETE",
+    "route": "/api/me/discord",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  }
+}

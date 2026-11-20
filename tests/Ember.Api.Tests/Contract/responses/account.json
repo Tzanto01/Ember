@@ -1,0 +1,1666 @@
+{
+  "2fa.disable.already-off": {
+    "method": "POST",
+    "route": "/api/me/2fa/disable",
+    "request": {
+      "password": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "2fa.disable.ok": {
+    "method": "POST",
+    "route": "/api/me/2fa/disable",
+    "request": {
+      "password": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    }
+  },
+  "2fa.disable.wrong-password": {
+    "method": "POST",
+    "route": "/api/me/2fa/disable",
+    "request": {
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "2fa.enable.already-on": {
+    "method": "POST",
+    "route": "/api/me/2fa/enable",
+    "request": {
+      "code": "string",
+      "password": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Two-factor sign-in is already on.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "2fa.enable.before-setup": {
+    "method": "POST",
+    "route": "/api/me/2fa/enable",
+    "request": {
+      "code": "string",
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "code": [
+          "The code is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "2fa.enable.ok": {
+    "method": "POST",
+    "route": "/api/me/2fa/enable",
+    "request": {
+      "code": "string",
+      "password": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    },
+    "body": {
+      "recoveryCodes": [
+        "string"
+      ]
+    }
+  },
+  "2fa.enable.wrong-code": {
+    "method": "POST",
+    "route": "/api/me/2fa/enable",
+    "request": {
+      "code": "string",
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "code": [
+          "The code is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "2fa.enable.wrong-password": {
+    "method": "POST",
+    "route": "/api/me/2fa/enable",
+    "request": {
+      "code": "string",
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "2fa.get.off": {
+    "method": "GET",
+    "route": "/api/me/2fa",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "enabled": "boolean",
+      "recoveryCodesLeft": "integer"
+    }
+  },
+  "2fa.get.on": {
+    "method": "GET",
+    "route": "/api/me/2fa",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "enabled": "boolean",
+      "recoveryCodesLeft": "integer"
+    }
+  },
+  "2fa.recovery-codes.off": {
+    "method": "POST",
+    "route": "/api/me/2fa/recovery-codes",
+    "request": {
+      "code": "string"
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Two-factor sign-in is off.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "2fa.recovery-codes.ok": {
+    "method": "POST",
+    "route": "/api/me/2fa/recovery-codes",
+    "request": {
+      "code": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application"
+      ]
+    },
+    "body": {
+      "recoveryCodes": [
+        "string"
+      ]
+    }
+  },
+  "2fa.recovery-codes.wrong-code": {
+    "method": "POST",
+    "route": "/api/me/2fa/recovery-codes",
+    "request": {
+      "code": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "code": [
+          "The code is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "2fa.setup.already-on": {
+    "method": "POST",
+    "route": "/api/me/2fa/setup",
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Two-factor sign-in is already on.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "2fa.setup.ok": {
+    "method": "POST",
+    "route": "/api/me/2fa/setup",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "authenticatorUri": "string",
+      "sharedKey": "string"
+    }
+  },
+  "consent.age-not-confirmed": {
+    "method": "POST",
+    "route": "/api/me/consent",
+    "request": {
+      "ageConfirmed": "boolean",
+      "policyVersion": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "ageConfirmed": [
+          "Confirm that you are at least 16."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "consent.decline.no-content": {
+    "method": "POST",
+    "route": "/api/me/consent/decline",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "consent.give.no-content": {
+    "method": "POST",
+    "route": "/api/me/consent",
+    "request": {
+      "ageConfirmed": "boolean",
+      "policyVersion": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "consent.habits.consent-required": {
+    "method": "POST",
+    "route": "/api/habits",
+    "request": {
+      "frequency": "enum(daily)",
+      "name": "string"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "consent.old-policy": {
+    "method": "POST",
+    "route": "/api/me/consent",
+    "request": {
+      "ageConfirmed": "boolean",
+      "policyVersion": "date"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "policyVersion": [
+          "Not the current policy version."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "consent.withdraw.no-content": {
+    "method": "POST",
+    "route": "/api/me/consent/withdraw",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "delete.missing-password": {
+    "method": "POST",
+    "route": "/api/me/delete",
+    "request": {
+      "confirm": "null",
+      "password": "null"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "delete.ok": {
+    "method": "POST",
+    "route": "/api/me/delete",
+    "request": {
+      "confirm": "null",
+      "password": "string"
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External",
+        "Identity.TwoFactorUserId"
+      ]
+    }
+  },
+  "delete.wrong-password": {
+    "method": "POST",
+    "route": "/api/me/delete",
+    "request": {
+      "confirm": "null",
+      "password": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "password": [
+          "The password is not correct."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "dm-reminders.resume.no-content": {
+    "method": "POST",
+    "route": "/api/me/dm-reminders/resume",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "export.bad-format": {
+    "method": "GET",
+    "route": "/api/me/export",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "format": [
+          "Must be json or csv."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "export.csv.ok": {
+    "method": "GET",
+    "route": "/api/me/export",
+    "status": 200,
+    "contentType": "text/csv",
+    "headers": {
+      "Content-Disposition": "attachment; filename=ember-export-2026-11-01.csv; filename*=UTF-8''ember-export-2026-11-01.csv"
+    },
+    "body": "record_type,timezone,grace_days_per_week,theme,dm_failure_count,dm_reminders_paused_at,dm_pause_notice_sent_at,health_data_consent_at,consent_policy_version,consent_prompted_on,consent_withdrawn_at,habit_id,name,frequency,weekly_target,reminder_time,paused_until,paused_from,created_at,next_reminder_utc,date,completed,guild_id,kind,reminder_exclusions,endpoint,email,discord_id,account_created_at,two_factor_enabled,days,times_per_day,routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived,cipher_version,cipher_iv,cipher_text,version,turning_off,passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped,second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen,fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order"
+  },
+  "export.json.empty": {
+    "method": "GET",
+    "route": "/api/me/export",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Content-Disposition": "attachment; filename=ember-export-2026-11-01.json; filename*=UTF-8''ember-export-2026-11-01.json"
+    },
+    "body": {
+      "account": {
+        "created_at": "datetime",
+        "discord_id": "null",
+        "email": "string"
+      },
+      "day_marks": [],
+      "day_notes": [],
+      "format_version": "integer",
+      "habit_notes": [],
+      "habits": [],
+      "helps_encrypted": "null",
+      "journal_key": "null",
+      "logs": [],
+      "moods": [],
+      "phones": [],
+      "push_subscriptions": [],
+      "routines": [],
+      "settings": {
+        "calm_mode": "boolean",
+        "consent_policy_version": "string",
+        "consent_prompted_on": "null",
+        "consent_withdrawn_at": "null",
+        "dm_failure_count": "integer",
+        "dm_pause_notice_sent_at": "null",
+        "dm_reminders_paused_at": "null",
+        "fireside_enabled": "boolean",
+        "fireside_name": "null",
+        "fireside_notify": "boolean",
+        "grace_days_per_week": "integer",
+        "health_data_consent_at": "datetime",
+        "language": "string",
+        "offer_habit_note": "boolean",
+        "second_reminder_minutes": "integer",
+        "show_streaks": "boolean",
+        "theme": "null",
+        "timezone": "string",
+        "tips_seen": [],
+        "today_order": "null",
+        "two_factor_enabled": "boolean"
+      },
+      "slips": []
+    }
+  },
+  "export.json.ok": {
+    "method": "GET",
+    "route": "/api/me/export",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Content-Disposition": "attachment; filename=ember-export-2026-11-01.json; filename*=UTF-8''ember-export-2026-11-01.json"
+    },
+    "body": {
+      "account": {
+        "created_at": "datetime",
+        "discord_id": "null",
+        "email": "string"
+      },
+      "day_marks": [
+        {
+          "date": "date",
+          "kind": "enum(low_day)"
+        }
+      ],
+      "day_notes": [
+        {
+          "date": "date",
+          "encrypted": "null",
+          "mood": "string",
+          "text": "null|string"
+        }
+      ],
+      "format_version": "integer",
+      "habit_notes": [
+        {
+          "date": "date",
+          "encrypted": "null",
+          "habit_id": "integer",
+          "text": "string"
+        }
+      ],
+      "habits": [
+        {
+          "created_at": "datetime",
+          "days": {
+            "$nullable": [
+              "string"
+            ]
+          },
+          "frequency": "enum(daily,weekdays,weekly)",
+          "id": "integer",
+          "kind": "enum(build,let_go)",
+          "name": "string",
+          "next_reminder_utc": "datetime|null",
+          "paused_from": "date|null",
+          "paused_until": "date|null",
+          "reminder_exclusions": [],
+          "reminder_time": "null|string",
+          "reminder_times": [
+            "string"
+          ],
+          "routine_id": "integer|null",
+          "routine_position": "integer|null",
+          "times_per_day": "integer",
+          "weekly_target": "integer|null"
+        }
+      ],
+      "helps_encrypted": "null",
+      "journal_key": "null",
+      "logs": [
+        {
+          "completed": "boolean",
+          "count": "integer",
+          "date": "date",
+          "guild_id": "null",
+          "habit_id": "integer"
+        }
+      ],
+      "moods": [
+        {
+          "archived": "boolean",
+          "created_at": "datetime",
+          "emoji": "null|string",
+          "encrypted": "null",
+          "id": "integer",
+          "label": "string"
+        }
+      ],
+      "phones": [],
+      "push_subscriptions": [],
+      "routines": [
+        {
+          "created_at": "datetime",
+          "id": "integer",
+          "name": "string",
+          "next_reminder_utc": "datetime",
+          "reminder_exclusions": [],
+          "reminder_time": "string"
+        }
+      ],
+      "settings": {
+        "calm_mode": "boolean",
+        "consent_policy_version": "string",
+        "consent_prompted_on": "null",
+        "consent_withdrawn_at": "null",
+        "dm_failure_count": "integer",
+        "dm_pause_notice_sent_at": "null",
+        "dm_reminders_paused_at": "null",
+        "fireside_enabled": "boolean",
+        "fireside_name": "null",
+        "fireside_notify": "boolean",
+        "grace_days_per_week": "integer",
+        "health_data_consent_at": "datetime",
+        "language": "string",
+        "offer_habit_note": "boolean",
+        "second_reminder_minutes": "integer",
+        "show_streaks": "boolean",
+        "theme": "string",
+        "timezone": "string",
+        "tips_seen": [
+          "string"
+        ],
+        "today_order": "null",
+        "two_factor_enabled": "boolean"
+      },
+      "slips": [
+        {
+          "count": "integer",
+          "date": "date",
+          "habit_id": "integer",
+          "reasons": [
+            "string"
+          ]
+        }
+      ]
+    }
+  },
+  "import.consent-required": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": {
+      "format_version": "integer"
+    },
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "import.habit-limit": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": {
+      "format_version": "integer",
+      "habits": [
+        {
+          "frequency": "enum(daily)",
+          "id": "integer",
+          "name": "string"
+        }
+      ]
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 409,
+      "title": "Conflict",
+      "type": "habit_limit"
+    }
+  },
+  "import.invalid": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": {
+      "day_marks": [
+        {
+          "date": "date",
+          "kind": "enum(party)"
+        }
+      ],
+      "format_version": "integer",
+      "habits": [
+        {
+          "frequency": "enum(hourly)",
+          "id": "integer",
+          "name": "string"
+        }
+      ],
+      "logs": [
+        {
+          "count": "integer",
+          "date": "date",
+          "habit_id": "integer"
+        }
+      ],
+      "settings": {
+        "theme": "string"
+      }
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "day_marks[0].date": [
+          "Can't be before your earliest habit's start."
+        ],
+        "day_marks[0].kind": [
+          "Must be low_day."
+        ],
+        "habits[0].frequency": [
+          "Must be daily, weekly or weekdays."
+        ],
+        "habits[0].name": [
+          "Must be 1 to 100 characters."
+        ],
+        "logs[0].habit_id": [
+          "Must be the id of a habit in this file."
+        ],
+        "settings.theme": [
+          "Unknown theme."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "import.not-empty": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": {
+      "day_marks": [
+        {
+          "date": "date",
+          "kind": "enum(low_day)"
+        }
+      ],
+      "day_notes": [
+        {
+          "date": "date",
+          "mood": "string",
+          "text?": "string"
+        }
+      ],
+      "format_version": "integer",
+      "habit_notes": [
+        {
+          "date": "date",
+          "habit_id": "integer",
+          "text": "string"
+        }
+      ],
+      "habits": [
+        {
+          "created_at": "datetime",
+          "days?": [
+            "string"
+          ],
+          "frequency": "enum(daily,weekdays,weekly)",
+          "id": "integer",
+          "kind?": "enum(let_go)",
+          "name": "string",
+          "paused_from?": "date",
+          "paused_until?": "date",
+          "reminder_times?": [
+            "time"
+          ],
+          "routine_id?": "integer",
+          "routine_position?": "integer",
+          "times_per_day?": "integer",
+          "weekly_target?": "integer"
+        }
+      ],
+      "logs": [
+        {
+          "completed": "boolean",
+          "count": "integer",
+          "date": "date",
+          "habit_id": "integer"
+        }
+      ],
+      "moods": [
+        {
+          "archived?": "boolean",
+          "emoji?": "string",
+          "id": "integer",
+          "label": "string"
+        }
+      ],
+      "routines": [
+        {
+          "id": "integer",
+          "name": "string",
+          "reminder_time": "time"
+        }
+      ],
+      "settings": {
+        "calm_mode": "boolean",
+        "grace_days_per_week": "integer",
+        "language": "string",
+        "offer_habit_note": "boolean",
+        "second_reminder_minutes": "integer",
+        "show_streaks": "boolean",
+        "theme": "string",
+        "tips_seen": [
+          "string"
+        ]
+      },
+      "slips": [
+        {
+          "count": "integer",
+          "date": "date",
+          "habit_id": "integer",
+          "reasons": [
+            "string"
+          ]
+        }
+      ]
+    },
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Import only works into an account without habits, routines, moods or journal entries.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "import.ok": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": {
+      "day_marks": [
+        {
+          "date": "date",
+          "kind": "enum(low_day)"
+        }
+      ],
+      "day_notes": [
+        {
+          "date": "date",
+          "mood": "string",
+          "text?": "string"
+        }
+      ],
+      "format_version": "integer",
+      "habit_notes": [
+        {
+          "date": "date",
+          "habit_id": "integer",
+          "text": "string"
+        }
+      ],
+      "habits": [
+        {
+          "created_at": "datetime",
+          "days?": [
+            "string"
+          ],
+          "frequency": "enum(daily,weekdays,weekly)",
+          "id": "integer",
+          "kind?": "enum(let_go)",
+          "name": "string",
+          "paused_from?": "date",
+          "paused_until?": "date",
+          "reminder_times?": [
+            "time"
+          ],
+          "routine_id?": "integer",
+          "routine_position?": "integer",
+          "times_per_day?": "integer",
+          "weekly_target?": "integer"
+        }
+      ],
+      "logs": [
+        {
+          "completed": "boolean",
+          "count": "integer",
+          "date": "date",
+          "habit_id": "integer"
+        }
+      ],
+      "moods": [
+        {
+          "archived?": "boolean",
+          "emoji?": "string",
+          "id": "integer",
+          "label": "string"
+        }
+      ],
+      "routines": [
+        {
+          "id": "integer",
+          "name": "string",
+          "reminder_time": "time"
+        }
+      ],
+      "settings": {
+        "calm_mode": "boolean",
+        "grace_days_per_week": "integer",
+        "language": "string",
+        "offer_habit_note": "boolean",
+        "second_reminder_minutes": "integer",
+        "show_streaks": "boolean",
+        "theme": "string",
+        "tips_seen": [
+          "string"
+        ]
+      },
+      "slips": [
+        {
+          "count": "integer",
+          "date": "date",
+          "habit_id": "integer",
+          "reasons": [
+            "string"
+          ]
+        }
+      ]
+    },
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "import.wrong-field-type": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": {
+      "format_version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "format_version": [
+          "Has the wrong type or format."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "import.wrong-type": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": [
+      "integer"
+    ],
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "body": [
+          "Has the wrong type or format."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "import.wrong-version": {
+    "method": "POST",
+    "route": "/api/me/import",
+    "request": {
+      "format_version": "integer"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "format_version": [
+          "Must be 2."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "login.2fa.bearer.ok": {
+    "method": "POST",
+    "route": "/api/auth/login",
+    "request": {
+      "email": "string",
+      "password": "string",
+      "twoFactorCode": "string",
+      "twoFactorRecoveryCode": "null"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {
+      "Set-Cookie": [
+        "Identity.External",
+        "Identity.TwoFactorUserId"
+      ]
+    },
+    "body": {
+      "accessToken": "string",
+      "expiresIn": "integer",
+      "refreshToken": "string",
+      "tokenType": "string"
+    }
+  },
+  "login.2fa.code.ok": {
+    "method": "POST",
+    "route": "/api/auth/login",
+    "request": {
+      "email": "string",
+      "password": "string",
+      "twoFactorCode": "string",
+      "twoFactorRecoveryCode": "null"
+    },
+    "status": 200,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External",
+        "Identity.TwoFactorUserId"
+      ]
+    }
+  },
+  "login.2fa.recovery.ok": {
+    "method": "POST",
+    "route": "/api/auth/login",
+    "request": {
+      "email": "string",
+      "password": "string",
+      "twoFactorCode": "null",
+      "twoFactorRecoveryCode": "string"
+    },
+    "status": 200,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "Identity.External",
+        "Identity.TwoFactorUserId"
+      ]
+    }
+  },
+  "login.2fa.required": {
+    "method": "POST",
+    "route": "/api/auth/login",
+    "request": {
+      "email": "string",
+      "password": "string",
+      "twoFactorCode": "null",
+      "twoFactorRecoveryCode": "null"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Set-Cookie": [
+        "Identity.TwoFactorUserId"
+      ]
+    },
+    "body": {
+      "detail": "RequiresTwoFactor",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "login.2fa.wrong-code": {
+    "method": "POST",
+    "route": "/api/auth/login",
+    "request": {
+      "email": "string",
+      "password": "string",
+      "twoFactorCode": "string",
+      "twoFactorRecoveryCode": "null"
+    },
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Set-Cookie": [
+        "Identity.TwoFactorUserId"
+      ]
+    },
+    "body": {
+      "detail": "Failed",
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "me.get.consent-withdrawn": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "datetime",
+        "given": "boolean",
+        "policyVersion": "string",
+        "withdrawnAt": "datetime"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "me.get.declined": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "null",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "me.get.deleted": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "me.get.no-consent": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "null",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "me.get.ok": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "string",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "null",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [],
+      "todayOrder": "null"
+    }
+  },
+  "me.get.tips-and-order": {
+    "method": "GET",
+    "route": "/api/me",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "string",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "string",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [
+        "string"
+      ],
+      "todayOrder": "null"
+    }
+  },
+  "me.patch.invalid": {
+    "method": "PATCH",
+    "route": "/api/me",
+    "request": {
+      "graceDaysPerWeek": "integer",
+      "language": "string",
+      "secondReminderMinutes": "integer",
+      "theme": "string",
+      "timezone": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "graceDaysPerWeek": [
+          "Must be between 0 and 3."
+        ],
+        "language": [
+          "Must be en or de."
+        ],
+        "secondReminderMinutes": [
+          "Must be 0, 15, 30, 60 or 120."
+        ],
+        "theme": [
+          "Unknown theme."
+        ],
+        "timezone": [
+          "Unknown IANA timezone."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "me.patch.not-an-object": {
+    "method": "PATCH",
+    "route": "/api/me",
+    "request": [
+      "integer"
+    ],
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "body": [
+          "Has the wrong type or format."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "me.patch.ok": {
+    "method": "PATCH",
+    "route": "/api/me",
+    "request": {
+      "calmMode": "boolean",
+      "graceDaysPerWeek": "integer",
+      "language": "string",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "string",
+      "timezone": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "calmMode": "boolean",
+      "consent": {
+        "currentPolicyVersion": "string",
+        "deletesAt": "null",
+        "given": "boolean",
+        "policyVersion": "string",
+        "withdrawnAt": "null"
+      },
+      "discord": {
+        "id": "null",
+        "linked": "boolean"
+      },
+      "dmReminders": {
+        "paused": "boolean"
+      },
+      "email": "string",
+      "emailConfirmed": "boolean",
+      "graceDaysPerWeek": "integer",
+      "hasPassword": "boolean",
+      "id": "guid",
+      "journal": {
+        "encrypted": "boolean",
+        "encryptedLeft": "integer",
+        "plaintextLeft": "integer",
+        "turningOff": "boolean"
+      },
+      "language": "string",
+      "localToday": "date",
+      "offerHabitNote": "boolean",
+      "secondReminderMinutes": "integer",
+      "showStreaks": "boolean",
+      "theme": "string",
+      "timezone": "string",
+      "timezoneSet": "boolean",
+      "tipsSeen": [
+        "string"
+      ],
+      "todayOrder": "null"
+    }
+  },
+  "me.patch.wrong-type": {
+    "method": "PATCH",
+    "route": "/api/me",
+    "request": {
+      "graceDaysPerWeek": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "graceDaysPerWeek": [
+          "Has the wrong type or format."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "merge.delete.no-content": {
+    "method": "DELETE",
+    "route": "/api/account/merge",
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        "ember.merge"
+      ]
+    }
+  },
+  "merge.delete.pending.no-content": {
+    "method": "DELETE",
+    "route": "/api/account/merge",
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        "ember.merge"
+      ]
+    }
+  },
+  "merge.get.cancelled": {
+    "method": "GET",
+    "route": "/api/account/merge",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "merge.get.nothing-pending": {
+    "method": "GET",
+    "route": "/api/account/merge",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "merge.get.ok": {
+    "method": "GET",
+    "route": "/api/account/merge",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "dayMarks": "integer",
+      "firesideDropped": "integer",
+      "habitNames": [
+        "string"
+      ],
+      "habits": "integer",
+      "kept": {
+        "graceDaysPerWeek": "integer",
+        "timezone": "string"
+      },
+      "logs": "integer"
+    }
+  },
+  "merge.post.after": {
+    "method": "POST",
+    "route": "/api/account/merge",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "merge.post.consent-required": {
+    "method": "POST",
+    "route": "/api/account/merge",
+    "status": 403,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 403,
+      "title": "Forbidden",
+      "type": "consent_required"
+    }
+  },
+  "merge.post.journal-conflict": {
+    "method": "POST",
+    "route": "/api/account/merge",
+    "status": 409,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "detail": "Both accounts have a private journal. Turn it off in one of them first.",
+      "status": 409,
+      "title": "Conflict",
+      "type": "conflict"
+    }
+  },
+  "merge.post.nothing-pending": {
+    "method": "POST",
+    "route": "/api/account/merge",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "merge.post.ok": {
+    "method": "POST",
+    "route": "/api/account/merge",
+    "status": 204,
+    "contentType": null,
+    "headers": {
+      "Set-Cookie": [
+        ".AspNetCore.Identity.Application",
+        "ember.merge"
+      ]
+    }
+  },
+  "tips.ok": {
+    "method": "PUT",
+    "route": "/api/me/tips/{id}",
+    "status": 204,
+    "contentType": null,
+    "headers": {}
+  },
+  "tips.unknown": {
+    "method": "PUT",
+    "route": "/api/me/tips/{id}",
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "id": [
+          "Unknown tip."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "today-order.clear.ok": {
+    "method": "PUT",
+    "route": "/api/me/today-order",
+    "request": {
+      "order": "null"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "order": "null"
+    }
+  },
+  "today-order.ok": {
+    "method": "PUT",
+    "route": "/api/me/today-order",
+    "request": {
+      "order": [
+        "string"
+      ]
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "order": [
+        "string"
+      ]
+    }
+  },
+  "today-order.too-many": {
+    "method": "PUT",
+    "route": "/api/me/today-order",
+    "request": {
+      "order": [
+        "string"
+      ]
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "order": [
+          "At most 500 entries."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "widget-key.bearer.ok": {
+    "method": "POST",
+    "route": "/api/me/widget-key",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "key": "string"
+    }
+  },
+  "widget-key.cookie.not-found": {
+    "method": "POST",
+    "route": "/api/me/widget-key",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  }
+}
