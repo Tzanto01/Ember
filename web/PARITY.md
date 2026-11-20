@@ -1,5 +1,7 @@
 # React port parity
 
+> Archived: the record of the 2026 port from Angular to React, kept for history. The Angular app and the `web/src/app/` paths below no longer exist, and the React paths are as they were then (the test helpers now live in `web/src/test/`).
+
 ## 1. Unit tests
 
 Counted by reading the 16 files under `web/src/app/**/*.spec.ts`: **113** `it`/`it.each` declarations, **132** cases with every `it.each` row expanded. The brief's figure of 124 matches neither count, so the table lists all 132 expanded cases.
