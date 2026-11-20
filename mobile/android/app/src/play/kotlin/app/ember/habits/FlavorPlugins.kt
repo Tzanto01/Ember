@@ -1,0 +1,10 @@
+package app.ember.habits
+
+import com.getcapacitor.Plugin
+
+/** Plugins only this flavor registers: none for the Play build, which must not update itself. */
+internal object FlavorPlugins {
+
+    @JvmStatic
+    fun all(): List<Class<out Plugin>> = emptyList()
+}
