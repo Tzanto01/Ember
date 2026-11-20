@@ -124,6 +124,22 @@ public class JournalApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Without_consent_a_mood_edit_is_refused_and_the_mood_stays_as_it_was()
+    {
+        var user = await Host.SignedInAsync();
+        var userId = await user.IdAsync();
+        var mood = await CreateMoodAsync(user);
+        await Host.Db(db => db.Users.Where(u => u.Id == userId).ExecuteUpdateAsync(s => s.SetProperty(u => u.HealthDataConsentAt, (DateTime?)null)));
+
+        await (await user.Patch($"/api/moods/{mood}", new { label = "Calm", archived = true }))
+            .ExpectProblem(HttpStatusCode.Forbidden, "consent_required");
+
+        var stored = (await (await user.Get("/api/moods")).ExpectJson()).EnumerateArray().Single();
+        stored.GetProperty("label").GetString().Should().Be("Tired");
+        stored.GetProperty("archived").GetBoolean().Should().BeFalse();
+    }
+
+    [DockerFact]
     public async Task Date_rules_follow_low_days_but_today_needs_no_habit()
     {
         var noHabits = await Host.SignedInAsync();
