@@ -5,13 +5,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
+import androidx.core.net.toUri
 import kotlin.math.max
 import kotlin.math.min
 import org.json.JSONArray
@@ -155,7 +155,7 @@ internal object TodayWidgetViews {
             views.addView(R.id.widget_single_circle, circle)
             views.setTextViewText(R.id.widget_single_name, text.getString(R.string.widget_all_done))
         }
-        if (list && snapshot != null) {
+        if (list) {
             for (i in plan.start until plan.start + plan.shown) {
                 val habit = habits.optJSONObject(i) ?: continue
                 if (single) {
@@ -208,7 +208,7 @@ internal object TodayWidgetViews {
         val background = checkIn && look.keyed
         val tap = Intent(context, if (background) TodayWidget::class.java else MainActivity::class.java)
             .setAction(if (checkIn) TodayWidget.ACTION_CHECK_IN else TodayWidget.ACTION_OPEN_HABIT)
-            .setData(Uri.parse(WidgetPlan.uri(checkIn, habitId, date)))
+            .setData(WidgetPlan.uri(checkIn, habitId, date).toUri())
             .putExtra("habitId", habitId)
             .putExtra("date", date)
             .putExtra("userId", userId)
