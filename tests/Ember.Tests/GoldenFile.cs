@@ -19,7 +19,8 @@ internal static class GoldenFile
         }
 
         File.Exists(path).Should().BeTrue($"{fileName} is a reviewed golden; create it with EMBER_WRITE_FIXTURES=1");
-        var expected = File.ReadAllText(path);
+        var expected = File.ReadAllText(path).Replace("\r\n", "\n");
+        actual = actual.Replace("\r\n", "\n");
         if (expected == actual) return;
 
         var want = expected.Split('\n');
