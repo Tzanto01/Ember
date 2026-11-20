@@ -134,7 +134,7 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
         await Host.Db(async db =>
         {
             var settings = new UserSettingsService(db, Host.Time);
-            var consent = new ConsentService(db, Host.Time, ledger);
+            var consent = new ConsentService(db, Host.Time, ledger, settings);
             var habits = new HabitService(db, Host.Time, consent, settings);
             await new AccountService(db, Host.Time, consent, settings, habits, new ReminderService(db, Host.Time, consent, settings, habits),
                     new FiresideService(db, Host.Time), ledger)

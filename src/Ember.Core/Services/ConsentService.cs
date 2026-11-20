@@ -1,7 +1,6 @@
 using System.Linq.Expressions;
 using Ember.Core.Data;
 using Ember.Core.Models;
-using Ember.Core.Rules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
@@ -34,13 +33,16 @@ public class ConsentService
     private readonly EmberDbContext _db;
     private readonly TimeProvider _time;
     private readonly DeletionLedger _ledger;
+    private readonly UserSettingsService _settings;
 
     /// <param name="ledger">Where committed withdrawals and health-data deletions are recorded.</param>
-    public ConsentService(EmberDbContext db, TimeProvider time, DeletionLedger ledger)
+    /// <param name="settings">Gives the user's local day; must use the same database.</param>
+    public ConsentService(EmberDbContext db, TimeProvider time, DeletionLedger ledger, UserSettingsService settings)
     {
         _db = db;
         _time = time;
         _ledger = ledger;
+        _settings = settings;
     }
 
     /// <summary>Whether the user agreed to the current health-data consent (<see cref="CurrentConsentPolicyVersion"/>) and hasn't withdrawn it.</summary>
@@ -88,7 +90,7 @@ public class ConsentService
     public async Task<bool> WithdrawHealthDataConsentAsync(Guid userId)
     {
         var now = _time.GetUtcNow().UtcDateTime;
-        var lastQuietDay = (await GetLocalTodayAsync(userId)).AddDays(ConsentDeclineBackoffDays - 1);
+        var lastQuietDay = (await _settings.GetLocalTodayAsync(userId)).AddDays(ConsentDeclineBackoffDays - 1);
         var withdrawn = await _db.Users
             .Where(u => u.Id == userId && u.ConsentWithdrawnAt == null)
             .Where(Or(HasCurrentConsent, HoldsHealthData))
@@ -118,7 +120,7 @@ public class ConsentService
     /// </summary>
     public async Task<bool> ClaimConsentPromptAsync(Guid userId)
     {
-        var today = await GetLocalTodayAsync(userId);
+        var today = await _settings.GetLocalTodayAsync(userId);
         return await _db.Users
             .Where(u => u.Id == userId && u.Habits.Any()
                 && (u.HealthDataConsentAt == null || u.ConsentPolicyVersion != CurrentConsentPolicyVersion)
@@ -143,7 +145,7 @@ public class ConsentService
     {
         if (await _db.Users.AnyAsync(u => u.Id == userId && u.ConsentWithdrawnAt != null)) return;
         if (await WithdrawHealthDataConsentAsync(userId)) return;
-        var lastQuietDay = (await GetLocalTodayAsync(userId)).AddDays(ConsentDeclineBackoffDays - 1);
+        var lastQuietDay = (await _settings.GetLocalTodayAsync(userId)).AddDays(ConsentDeclineBackoffDays - 1);
         await _db.Users
             .Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.ConsentPromptedOn, lastQuietDay));
@@ -152,7 +154,7 @@ public class ConsentService
     /// <summary>Notes that the consent prompt was shown today, keeping a later decline back-off. Never creates a user.</summary>
     public async Task MarkConsentPromptedAsync(Guid userId)
     {
-        var today = await GetLocalTodayAsync(userId);
+        var today = await _settings.GetLocalTodayAsync(userId);
         await _db.Users
             .Where(u => u.Id == userId && (u.ConsentPromptedOn == null || u.ConsentPromptedOn < today))
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.ConsentPromptedOn, today));
@@ -262,10 +264,4 @@ public class ConsentService
             .Where(HoldsHealthData)
             .Select(u => u.Id)
             .ToListAsync(cancellationToken);
-
-    private async Task<DateOnly> GetLocalTodayAsync(Guid userId)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return TimeZones.LocalToday(user?.Timezone, _time);
-    }
 }

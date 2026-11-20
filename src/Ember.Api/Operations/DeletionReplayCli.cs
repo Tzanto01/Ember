@@ -81,7 +81,7 @@ internal static partial class DeletionReplayCli
     {
         var off = new DeletionLedger(null, time, NullLogger<DeletionLedger>.Instance);
         var settings = new UserSettingsService(db, time);
-        var consent = new ConsentService(db, time, off);
+        var consent = new ConsentService(db, time, off, settings);
         var habits = new HabitService(db, time, consent, settings);
         var accountService = new AccountService(db, time, consent, settings, habits, new ReminderService(db, time, consent, settings, habits),
             new FiresideService(db, time), off);
