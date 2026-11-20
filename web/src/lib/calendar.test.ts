@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import i18n from './i18n';
 import type { DayState } from './models';
 import {
   buildMonth,
@@ -8,6 +9,7 @@ import {
   dayLabel,
   dayStateWords,
   monthRange,
+  stateWords,
 } from './calendar';
 
 const month = '2026-11-15';
@@ -130,5 +132,35 @@ describe('dayLabel', () => {
   it('prefixes today for a checked-in day', () => {
     expect(dayLabel(day('done', true))).toContain(dayLabel(day('done')));
     expect(dayLabel(day('done', true))).not.toBe(dayLabel(day('done')));
+  });
+});
+
+describe('stateWords', () => {
+  it('counts a partly done day of a several-times-a-day habit and keeps the plain word for everything else', () => {
+    expect(stateWords('partial', 2, 3)).toBe('2 of 3 done');
+    expect(stateWords('partial', 1, 1)).toBe('partly done');
+    expect(stateWords('done', 3, 3)).toBe('done');
+  });
+
+  it('counts in German too', async () => {
+    await i18n.changeLanguage('de');
+
+    expect(stateWords('partial', 2, 3)).toBe('2 von 3 erledigt');
+  });
+});
+
+describe('dayLabel with a several-times-a-day habit', () => {
+  const partial: CalendarDay = {
+    date: today,
+    state: 'partial',
+    editable: true,
+    inMonth: true,
+    isToday: true,
+    lowDay: false,
+    count: 1,
+  };
+
+  it('reads the count, and puts today in front of it', () => {
+    expect(dayLabel(partial, 3)).toBe('today, 1 of 3 done');
   });
 });

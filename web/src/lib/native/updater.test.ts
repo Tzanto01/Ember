@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockFetch } from '@/lib/test-support';
-import { betaUpdate, checkForUpdate, installBetaUpdate, offerBetaUpdate } from './updater';
+import { betaUpdate, checkForUpdate, installBetaUpdate, offerBetaUpdate, parseManifest } from './updater';
 
 const plugin = vi.hoisted(() => ({
   canInstall: vi.fn(async () => ({ value: true })),
@@ -68,5 +68,36 @@ describe('installBetaUpdate', () => {
 
     expect(plugin.downloadAndInstall).toHaveBeenCalledTimes(1);
     expect(betaUpdate.get().phase).toBe('offer');
+  });
+});
+
+describe('parseManifest', () => {
+  const origin = 'https://beta.example.test';
+
+  it('keeps only the known fields of a newer build and a size when it is a positive integer', () => {
+    expect(parseManifest({ ...manifest, size: 1234, note: 'x' }, origin, 3)).toEqual({ ...manifest, size: 1234 });
+    expect(parseManifest({ ...manifest, size: null }, origin, 3)).toEqual(manifest);
+  });
+
+  it.each([
+    ['an http download', { url: 'http://beta.example.test/download/ember-beta.apk' }],
+    ['a download from another origin', { url: 'https://evil.example.test/download/ember-beta.apk' }],
+    ['a download from a look-alike host', { url: 'https://beta.example.test.evil.test/a.apk' }],
+    ['a url that is not absolute', { url: '/download/ember-beta.apk' }],
+    ['a fractional version code', { versionCode: 4.5 }],
+    ['a zero size', { size: 0 }],
+    ['a blank version name', { versionName: ' ' }],
+    ['a short checksum', { sha256: 'ab'.repeat(31) }],
+    ['a checksum that is not hex', { sha256: 'zz'.repeat(32) }],
+  ])('refuses %s', (_name, change) => {
+    expect(parseManifest({ ...manifest, ...change }, origin, 3)).toBeNull();
+  });
+
+  it.each([null, 'latest', undefined])('refuses a body that is %s', (body) => {
+    expect(parseManifest(body, origin, 3)).toBeNull();
+  });
+
+  it('refuses a build that is not newer than the installed one', () => {
+    expect(parseManifest(manifest, origin, 4)).toBeNull();
   });
 });
