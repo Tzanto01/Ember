@@ -130,7 +130,7 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var exported = await (await source.Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
 
         var target = await Host.SignedInAsync();
-        await (await Import(target, JsonDocument.Parse(exported).RootElement)).Expect(HttpStatusCode.NoContent);
+        await (await Import(target, JsonElement.Parse(exported))).Expect(HttpStatusCode.NoContent);
         var reexported = await (await target.Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
 
         var expected = Comparable(exported);

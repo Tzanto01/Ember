@@ -20,7 +20,7 @@ namespace Ember.Api.Tests;
 
 internal sealed record Recorded(string Method, string Path, string? Authorization, byte[] Body)
 {
-    public JsonElement Json() => JsonDocument.Parse(Body).RootElement.Clone();
+    public JsonElement Json() => JsonElement.Parse(Body);
 }
 
 internal sealed class FakeLookout : IAsyncDisposable

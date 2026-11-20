@@ -35,7 +35,7 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
 
     private Task<DateTime?> WithdrawnAt(Guid id) => Host.Db(db => db.Users.Where(u => u.Id == id).Select(u => u.ConsentWithdrawnAt).SingleAsync());
 
-    private List<JsonElement> Lines() => File.ReadAllLines(Ledger).Select(l => JsonDocument.Parse(l).RootElement.Clone())
+    private List<JsonElement> Lines() => File.ReadAllLines(Ledger).Select(l => JsonElement.Parse(l))
         .Where(l => l.GetProperty("kind").GetString() != "start").ToList();
 
     private const string StartLine = """{"at":"2026-10-01T00:00:00Z","kind":"start"}""";

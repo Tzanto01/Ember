@@ -379,7 +379,7 @@ internal static class HttpExtensions
     }
 
     public static async Task<JsonElement> ExpectJson(this HttpResponseMessage response, HttpStatusCode status = HttpStatusCode.OK)
-        => JsonDocument.Parse(await response.Expect(status)).RootElement.Clone();
+        => JsonElement.Parse(await response.Expect(status));
 
     /// <summary>Asserts an <c>application/problem+json</c> response and, when given, its <c>type</c>.</summary>
     public static async Task<JsonElement> ExpectProblem(this HttpResponseMessage response, HttpStatusCode status, string? type = null)

@@ -66,7 +66,7 @@ internal sealed partial class Exchanges
 
         if (response.RequestMessage.Content is { } content && await content.ReadAsStringAsync() is { Length: > 0 } sent)
             exchange["request"] = content.Headers.ContentType?.MediaType == "application/json"
-                ? Shapes.Of(JsonDocument.Parse(sent).RootElement)
+                ? Shapes.Of(JsonElement.Parse(sent))
                 : JsonValue.Create(content.Headers.ContentType?.MediaType);
         exchange["status"] = (int)response.StatusCode;
         exchange["contentType"] = response.Content.Headers.ContentType?.MediaType;
@@ -139,8 +139,8 @@ internal sealed partial class Exchanges
         if (text.Length == 0) return null;
 
         var type = response.Content.Headers.ContentType?.MediaType;
-        if (type == "application/problem+json") return Shapes.Problem(JsonDocument.Parse(text).RootElement);
-        if (type == "application/json") return Shapes.Of(JsonDocument.Parse(text).RootElement);
+        if (type == "application/problem+json") return Shapes.Problem(JsonElement.Parse(text));
+        if (type == "application/json") return Shapes.Of(JsonElement.Parse(text));
         return JsonValue.Create(text.Split('\n')[0].TrimEnd('\r'));
     }
 
