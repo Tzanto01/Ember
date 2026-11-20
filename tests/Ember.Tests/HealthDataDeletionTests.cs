@@ -11,34 +11,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
+using static Ember.Tests.WebPushTestKeys;
+
 namespace Ember.Tests;
 
 [Collection("Integration")]
 public class HealthDataDeletionTests
 {
     private static readonly DateTimeOffset Now = new(2027, 1, 15, 9, 0, 0, TimeSpan.Zero);
-
-    private sealed class FakePushService : HttpMessageHandler
-    {
-        private int _count;
-        public int Count => _count;
-        public HttpStatusCode Status { get; set; } = HttpStatusCode.Created;
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            Interlocked.Increment(ref _count);
-            return Task.FromResult(new HttpResponseMessage(Status));
-        }
-    }
-
-    private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-    private static (string Public, string Private) NewKeyPair()
-    {
-        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var parameters = key.ExportParameters(true);
-        return (Base64Url([0x04, .. parameters.Q.X!, .. parameters.Q.Y!]), Base64Url(parameters.D!));
-    }
 
     private static async Task<(IntegrationTestHost Host, FakePushService Push)> CreateAsync(FakeTimeProvider time)
     {

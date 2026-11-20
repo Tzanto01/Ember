@@ -4,13 +4,13 @@ namespace Ember.Tests;
 
 internal static class HabitFactory
 {
+    /// <summary>Fixed anchor for daysAgo, so tests never depend on the real clock.</summary>
+    public static readonly DateOnly Today = new(2025, 6, 18);
+
     /// <summary>
     /// Creates a daily habit with the given check-in log entries.
     /// daysAgo=0 means today, daysAgo=1 means yesterday, etc.
     /// </summary>
-    /// <summary>Fixed anchor for daysAgo, so tests never depend on the real clock.</summary>
-    public static readonly DateOnly Today = new(2025, 6, 18);
-
     public static Habit Make(params (int daysAgo, bool completed)[] entries)
         => Make(pausedUntilDaysAgo: null, FrequencyType.Daily, weeklyTarget: null, entries);
 

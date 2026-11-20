@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
+using static Ember.Tests.WebPushTestKeys;
+
 namespace Ember.Tests;
 
 [Collection("Integration")]
@@ -26,52 +28,6 @@ public class WebPushReminderTests
     /// <summary>A user with one habit due now. <paramref name="Discord"/>/<paramref name="Push"/> false exclude Discord or every browser from the habit.</summary>
     private sealed record Seed(long Id, string[] Endpoints, bool Discord = true, bool Push = true, bool HasDiscordLogin = true,
         bool? DiscordAnswer = true, bool LetGo = false);
-
-    private sealed record PushRequest(string Endpoint, string? Authorization, string ContentEncoding, string? Ttl, int BodyLength);
-
-    private sealed class FakePushService : HttpMessageHandler
-    {
-        private readonly Lock _gate = new();
-        private readonly List<PushRequest> _requests = [];
-
-        public Dictionary<string, HttpStatusCode> Responses { get; } = [];
-
-        public IReadOnlyList<PushRequest> Requests
-        {
-            get
-            {
-                lock (_gate) return _requests.ToList();
-            }
-        }
-
-        public IEnumerable<string> Endpoints => Requests.Select(r => r.Endpoint);
-
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var body = request.Content is null ? [] : await request.Content.ReadAsByteArrayAsync(cancellationToken);
-            var endpoint = request.RequestUri!.ToString();
-            var contentEncoding = request.Content is null ? "" : string.Join(",", request.Content.Headers.ContentEncoding);
-            lock (_gate)
-            {
-                _requests.Add(new PushRequest(endpoint,
-                    request.Headers.TryGetValues("Authorization", out var authorization) ? authorization.First() : null,
-                    contentEncoding,
-                    request.Headers.TryGetValues("TTL", out var ttl) ? ttl.First() : null,
-                    body.Length));
-            }
-
-            return new HttpResponseMessage(Responses.GetValueOrDefault(endpoint, HttpStatusCode.Created));
-        }
-    }
-
-    private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-    private static (string Public, string Private) NewKeyPair()
-    {
-        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var parameters = key.ExportParameters(true);
-        return (Base64Url([0x04, .. parameters.Q.X!, .. parameters.Q.Y!]), Base64Url(parameters.D!));
-    }
 
     private static string Endpoint(string label) => $"https://fcm.googleapis.com/send/{label}";
 

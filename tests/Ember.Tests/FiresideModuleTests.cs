@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -42,29 +40,10 @@ public class FiresideModuleTests
         }
     }
 
-    private static void Set(object target, string name, object value)
-    {
-        for (var type = target.GetType(); type is not null; type = type.BaseType)
-        {
-            const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-            if (type.GetProperty(name, all) is { SetMethod: not null } property) { property.SetMethod.Invoke(target, [value]); return; }
-            if (type.GetField($"<{name}>k__BackingField", all) is { } field) { field.SetValue(target, value); return; }
-        }
-        throw new InvalidOperationException(name);
-    }
-
     private static RecordingModule ModuleFor(IServiceProvider sp, ulong discordId)
     {
         var module = new RecordingModule(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<FiresideService>());
-        var user = (SocketUser)RuntimeHelpers.GetUninitializedObject(typeof(SocketUser).Assembly.GetType("Discord.WebSocket.SocketGlobalUser")!);
-        Set(user, "Id", discordId);
-        var interaction = (SocketMessageComponent)RuntimeHelpers.GetUninitializedObject(typeof(SocketMessageComponent));
-        Set(interaction, "User", user);
-        Set(interaction, "UserLocale", "en-US");
-        var context = (SocketInteractionContext)RuntimeHelpers.GetUninitializedObject(typeof(SocketInteractionContext));
-        Set(context, "Interaction", interaction);
-        Set(context, "User", user);
-        ((IInteractionModuleBase)module).SetContext(context);
+        ((IInteractionModuleBase)module).SetContext(BotHandlers.ContextFor<SocketMessageComponent>(discordId));
         return module;
     }
 

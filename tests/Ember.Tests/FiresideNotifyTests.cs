@@ -11,41 +11,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
+using static Ember.Tests.WebPushTestKeys;
+
 namespace Ember.Tests;
 
 [Collection("Integration")]
 public class FiresideNotifyTests
 {
     private static readonly DateTimeOffset Now = new(2027, 1, 15, 8, 0, 0, TimeSpan.Zero);
-
-    private sealed class FakePushService : HttpMessageHandler
-    {
-        private readonly Lock _gate = new();
-        private readonly List<string> _endpoints = [];
-
-        public IReadOnlyList<string> Endpoints
-        {
-            get
-            {
-                lock (_gate) return _endpoints.ToList();
-            }
-        }
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            lock (_gate) _endpoints.Add(request.RequestUri!.ToString());
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Created));
-        }
-    }
-
-    private static string Base64Url(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-    private static (string Public, string Private) NewKeyPair()
-    {
-        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var parameters = key.ExportParameters(true);
-        return (Base64Url([0x04, .. parameters.Q.X!, .. parameters.Q.Y!]), Base64Url(parameters.D!));
-    }
 
     private static async Task<(IntegrationTestHost Host, FakePushService Push)> CreateAsync()
     {
