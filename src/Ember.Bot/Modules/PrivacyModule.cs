@@ -1,7 +1,9 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Core.Localization;
 using Ember.Core.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace Ember.Bot.Modules;
 
@@ -9,10 +11,25 @@ namespace Ember.Bot.Modules;
 public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly IConfiguration _config;
 
-    public PrivacyModule(HabitService habits)
+    public PrivacyModule(HabitService habits, IConfiguration config)
     {
         _habits = habits;
+        _config = config;
+    }
+
+    /// <summary>What <see cref="TryDeleteAsync"/> did.</summary>
+    internal enum DeleteOutcome
+    {
+        /// <summary>Someone other than the button's owner clicked; nothing was deleted.</summary>
+        NotYours,
+
+        /// <summary>The account has a password or two-step sign-in, so it is deleted only in the web app; nothing was deleted.</summary>
+        NeedsWebApp,
+
+        /// <summary>The owner's data is deleted (or there was none).</summary>
+        Deleted,
     }
 
     [SlashCommand("delete", "Permanently delete all your Ember data")]
@@ -34,6 +51,12 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
     {
         var userId = Context.User.Id;
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        if (await _habits.IsProtectedAccountAsync(await _habits.FindDiscordUserAsync(userId)))
+        {
+            await RespondAsync(WebAppDeleteText(t, _config), ephemeral: true);
+            return;
+        }
+
         var buttons = new ComponentBuilder()
             .WithButton(t.Get("privacy.delete.button"), $"privacy:delete:confirm:{userId}", ButtonStyle.Danger)
             .WithButton(t.Get("common.cancel"), $"privacy:delete:cancel:{userId}", ButtonStyle.Secondary)
@@ -49,7 +72,8 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
     public async Task OnConfirmDeleteAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        if (!await TryDeleteAsync(_habits, ownerIdStr, Context.User.Id))
+        var outcome = await TryDeleteAsync(_habits, ownerIdStr, Context.User.Id);
+        if (outcome == DeleteOutcome.NotYours)
         {
             await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
             return;
@@ -57,7 +81,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
 
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content    = t.Get("privacy.delete.done");
+            m.Content    = outcome == DeleteOutcome.Deleted ? t.Get("privacy.delete.done") : WebAppDeleteText(t, _config);
             m.Components = new ComponentBuilder().Build();
         });
     }
@@ -140,13 +164,23 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
-    /// <summary>Deletes the owner's data only when the person clicking is that owner. Returns whether it deleted.</summary>
-    internal static async Task<bool> TryDeleteAsync(HabitService habits, string ownerIdStr, ulong clickerId)
+    /// <summary>
+    /// Deletes the owner's data only when the person clicking is that owner and the account has no password and no two-step sign-in
+    /// (checked again here, so an older confirmation message can't skip it).
+    /// </summary>
+    internal static async Task<DeleteOutcome> TryDeleteAsync(HabitService habits, string ownerIdStr, ulong clickerId)
     {
-        if (!IsOwner(ownerIdStr, clickerId)) return false;
-        await habits.DeleteUserDataAsync(clickerId);
-        return true;
+        if (!IsOwner(ownerIdStr, clickerId)) return DeleteOutcome.NotYours;
+        return await habits.DeleteUnprotectedUserDataAsync(await habits.FindDiscordUserAsync(clickerId))
+            ? DeleteOutcome.Deleted
+            : DeleteOutcome.NeedsWebApp;
     }
+
+    /// <summary>Where a protected account is deleted: the web app's settings, linked when the web origin is configured.</summary>
+    internal static string WebAppDeleteText(Texts t, IConfiguration config)
+        => config[LinkModule.WebOriginKey] is { Length: > 0 } origin
+            ? t.Format("privacy.delete.web.link", origin.TrimEnd('/'))
+            : t.Get("privacy.delete.web.app");
 
     private static bool IsOwner(string ownerIdStr, ulong clickerId)
         => ulong.TryParse(ownerIdStr, out var ownerId) && ownerId == clickerId;

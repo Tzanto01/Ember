@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -54,9 +55,9 @@ internal static class ImportEndpoints
                 && await JournalEndpoints.PasswordProblem(user, doc.JournalKey.Password, users, signIn) is { } passwordProblem)
                 return passwordProblem;
 
-            if (doc.Habits?.Count > HabitService.MaxHabitsPerUser) return Problems.HabitLimit();
-            if (doc.Routines?.Count > HabitService.MaxRoutinesPerUser)
-                return Problems.Conflict($"The file has more than {HabitService.MaxRoutinesPerUser} routines, the most Ember can hold.");
+            if (doc.Habits?.Count > Limits.HabitsPerUser) return Problems.HabitLimit();
+            if (doc.Routines?.Count > Limits.RoutinesPerUser)
+                return Problems.Conflict($"The file has more than {Limits.RoutinesPerUser} routines, the most Ember can hold.");
             if (doc.Moods?.Count(m => m?.Archived != true) > HabitService.MaxActiveMoodsPerUser)
                 return Problems.Conflict($"The file has more than {HabitService.MaxActiveMoodsPerUser} active moods, the most Ember can hold.");
 
@@ -89,7 +90,7 @@ internal static class ImportEndpoints
         var routineById = new Dictionary<int, Routine>();
         foreach (var (r, path) in Items(doc.Routines, "routines", errors))
         {
-            var name = HabitEndpoints.ValidName(r.Name, local, RoutineEndpoints.MaxNameLength);
+            var name = HabitEndpoints.ValidName(r.Name, local, Limits.RoutineNameLength);
             var routine = new Routine
             {
                 Name = name ?? "",
@@ -165,7 +166,7 @@ internal static class ImportEndpoints
             else if (habit is not null && date < HabitService.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
             else if (habit is not null && !logged.Add((habit, date))) local["date"] = ["Only one log per habit and day."];
             var count = l.Count ?? -1;
-            var target = habit?.TimesPerDay ?? HabitService.MaxTimesPerDay;
+            var target = habit?.TimesPerDay ?? Limits.TimesPerDay;
             if (count < 0 || count > target) local["count"] = [$"Must be between 0 and {target}."];
             var completed = l.Completed == true || count >= target;
             if (completed && count == 0) local["completed"] = ["Must be false when count is 0."];

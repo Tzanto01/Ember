@@ -3,6 +3,7 @@ using Ember.Core.Localization;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -63,7 +64,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         }
         catch (HabitLimitReachedException)
         {
-            await RespondAsync(t.Format("habit.limit", HabitService.MaxHabitsPerUser), ephemeral: true);
+            await RespondAsync(t.Format("habit.limit", Limits.HabitsPerUser), ephemeral: true);
             return;
         }
         var hasTimezone = await _habits.HasTimezoneSetAsync(Context.User.Id);
@@ -264,7 +265,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             .WithTitle(t.Get("habit.rename.modal.title"))
             .WithCustomId($"habit:rename:modal:{habitIdStr}:{sourceMessageId}")
             .AddTextInput(t.Get("habit.rename.modal.label"), "habit_name",
-                minLength: 1, maxLength: 100, required: true)
+                minLength: 1, maxLength: Limits.HabitNameLength, required: true)
             .Build();
 
         await RespondWithModalAsync(modal);

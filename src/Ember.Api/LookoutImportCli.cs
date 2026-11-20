@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api;
@@ -53,7 +54,7 @@ internal static class LookoutImportCli
             await using (var input = file == "-" ? Console.OpenStandardInput() : File.OpenRead(file))
                 board = await JsonSerializer.DeserializeAsync<Board>(input, BoardJson) ?? throw new InvalidDataException("The board file is empty.");
 
-            var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(configuration.GetConnectionString("DefaultConnection")).Options;
+            var options = ServiceCollectionExtensions.EmberDbOptions(configuration);
             await using var db = new EmberDbContext(options);
             using var http = LookoutIngest.CreateClient();
             return await ImportAsync(db, http, endpoint, keyFile, board, Task.Delay, Console.Out, TimeProvider.System);

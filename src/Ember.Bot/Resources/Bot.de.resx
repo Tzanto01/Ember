@@ -946,6 +946,12 @@ Möchtest du weitermachen?</value>
   <data name="privacy.delete.cancelled" xml:space="preserve">
     <value>Kein Problem, nichts wurde gelöscht.</value>
   </data>
+  <data name="privacy.delete.web.link" xml:space="preserve">
+    <value>Dein Konto hat ein Passwort oder eine Anmeldung in zwei Schritten. Zu deinem Schutz lässt es sich deshalb nur in der Ember-Web-App löschen. 💙 Du findest das in den Einstellungen: {0}/settings#delete</value>
+  </data>
+  <data name="privacy.delete.web.app" xml:space="preserve">
+    <value>Dein Konto hat ein Passwort oder eine Anmeldung in zwei Schritten. Zu deinem Schutz lässt es sich deshalb nur in der Ember-Web-App löschen. 💙 Du findest das in den Einstellungen unter „Dein Konto löschen“.</value>
+  </data>
   <data name="export.nothing" xml:space="preserve">
     <value>Über dich ist noch nichts gespeichert, also gibt es nichts zu exportieren. 🌿</value>
   </data>

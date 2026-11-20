@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -68,7 +69,7 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
         }
         catch (HabitLimitReachedException)
         {
-            await RespondAsync(t.Format("habit.limit", HabitService.MaxHabitsPerUser), ephemeral: true);
+            await RespondAsync(t.Format("habit.limit", Limits.HabitsPerUser), ephemeral: true);
             return;
         }
 

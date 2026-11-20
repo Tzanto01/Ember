@@ -1,6 +1,7 @@
 using Ember.Bot.Modules;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -127,14 +128,14 @@ public class HabitServiceIntegrationTests
             var db = sp.GetRequiredService<EmberDbContext>();
 
             await service.GiveHealthDataConsentAsync(789);
-            for (var i = 1; i <= HabitService.MaxHabitsPerUser; i++)
+            for (var i = 1; i <= Limits.HabitsPerUser; i++)
                 await service.AddHabitAsync(789, $"Habit {i}", reminderTime: null);
 
             var add51st = () => service.AddHabitAsync(789, "One more", reminderTime: null, FrequencyType.Weekly, 2);
 
             await add51st.Should().ThrowAsync<HabitLimitReachedException>();
             var userId = await TestUsers.UserIdAsync(sp, 789);
-            db.Habits.Count(h => h.UserId == userId).Should().Be(HabitService.MaxHabitsPerUser);
+            db.Habits.Count(h => h.UserId == userId).Should().Be(Limits.HabitsPerUser);
         });
     }
 }

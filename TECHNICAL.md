@@ -38,7 +38,7 @@ Most commands open a menu or buttons. Three take an option: `/export`, `/timezon
 | Command | What it does |
 |---|---|
 | `/export [format: csv\|json]` | Get your settings, habits, check-ins, low days and routines as CSV (default) or JSON in your DMs. Day notes, moods and account details are never sent through Discord; the full export is in the web app's Settings |
-| `/privacy delete` | Permanently delete everything Ember stores about you, after you confirm with a button |
+| `/privacy delete` | Permanently delete everything Ember stores about you, after you confirm with a button. An account with a password or two-step sign-in is deleted in the web app's Settings instead, and the bot links there |
 
 ### Other
 
@@ -143,7 +143,7 @@ docker compose exec -T api dotnet Ember.Api.dll --feedback-status planned 42
 
 Pictures are never kept past 12 months after the report. There is no HTTP endpoint for any of this.
 
-**Sending feedback to Lookout (maintainer).** Every new report, and every account deletion of a user who sent feedback, goes into an outbox in `emberdb`. The `lookout-sender` container (profile `lookout`; enable it with `--profile lookout` or `COMPOSE_PROFILES`) delivers the outbox to Lookout's ingest at `LOOKOUT_INGEST_URL` from the pinned address `172.31.250.20`, with the key from `~/.config/lookout/apps/ember.key`: account deletions first, then reports, each in order. Without that profile and `LOOKOUT_INGEST_URL` nothing is sent. Reports Lookout refuses are parked (`ParkedAt`, `ParkedStatus` in `LookoutOutbox`) and logged without content. The one-time import of the reports stored before the outbox, with the ops board's comments and order, runs only while Lookout's import is open:
+**Sending feedback to Lookout (maintainer).** Every new report, and every account deletion of a user who sent feedback, goes into an outbox in `emberdb`. The `lookout-sender` container (profile `lookout`; enable it with `--profile lookout` or `COMPOSE_PROFILES`) delivers the outbox to Lookout's ingest at `LOOKOUT_INGEST_URL` from the pinned address `172.31.250.20`, with the key from `~/.config/lookout/apps/ember.key`: account deletions first, then reports, each in order. Without that profile and `LOOKOUT_INGEST_URL` nothing is sent. The container runs the `api` service's image, so build or start it together with `--profile api`. Reports Lookout refuses are parked (`ParkedAt`, `ParkedStatus` in `LookoutOutbox`) and logged without content. The one-time import of the reports stored before the outbox, with the ops board's comments and order, runs only while Lookout's import is open:
 
 ```bash
 docker exec homeserver-postgres psql -U finvarex -d emberops -At -c "SELECT json_build_object('comments', (SELECT coalesce(json_agg(c ORDER BY c.created_at, c.id), '[]') FROM comments c), 'positions', (SELECT coalesce(json_agg(p), '[]') FROM card_positions p))" \
