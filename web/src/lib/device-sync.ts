@@ -119,9 +119,11 @@ export class DeviceSync {
 
   private async listenNative(): Promise<void> {
     const { App } = await import('@capacitor/app');
-    await App.addListener('resume', async () => {
-      await this.auth.loadMe(true).catch(() => null);
-      await this.sync();
+    await App.addListener('resume', () => {
+      void (async () => {
+        await this.auth.loadMe(true).catch(() => null);
+        await this.sync();
+      })();
     });
     const { LocalNotifications } = await import('@capacitor/local-notifications');
     await LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
