@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using Ember.Api.Email;
 using Ember.Core.Data;
@@ -219,10 +220,12 @@ public static class ApiApp
                 ?? throw new InvalidOperationException($"Ember:NativeOrigins entries must be exact origins (scheme://host[:port]); '{entry}' is not."))
             .ToArray();
 
+    private static readonly SearchValues<char> NotInOrigin = SearchValues.Create("/?#@\\*");
+
     private static string? ExactOrigin(string entry)
     {
         var authority = entry.IndexOf("://", StringComparison.Ordinal) + 3;
-        if (authority < 3 || entry.AsSpan(authority).IndexOfAny("/?#@\\*") >= 0) return null;
+        if (authority < 3 || entry.AsSpan(authority).IndexOfAny(NotInOrigin) >= 0) return null;
         return Uri.TryCreate(entry, UriKind.Absolute, out var uri) && uri.Host.Length > 0 ? uri.GetLeftPart(UriPartial.Authority) : null;
     }
 
