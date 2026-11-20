@@ -34,12 +34,12 @@ internal static class ImportEndpoints
 
     public static RouteGroupBuilder MapImport(this RouteGroupBuilder api)
     {
-        api.MapPost("/me/import", async (JsonElement body, ClaimsPrincipal principal, HabitService habits, ConsentService consent,
-            JournalService journal, TimeProvider time, UserManager<User> users, SignInManager<User> signIn) =>
+        api.MapPost("/me/import", async (JsonElement body, ClaimsPrincipal principal, HabitService habits, AccountService accounts,
+            ConsentService consent, JournalService journal, TimeProvider time, UserManager<User> users, SignInManager<User> signIn) =>
         {
             var userId = principal.UserId();
             if (!await consent.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
-            if (!await habits.IsAccountEmptyAsync(userId)) return Problems.Conflict(NotEmptyMessage);
+            if (!await accounts.IsAccountEmptyAsync(userId)) return Problems.Conflict(NotEmptyMessage);
 
             ImportDocument? doc;
             try
@@ -69,7 +69,7 @@ internal static class ImportEndpoints
                 await habits.GetLocalTodayAsync(userId), time.GetUtcNow().UtcDateTime, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
-            return await habits.ImportAsync(userId, data) switch
+            return await accounts.ImportAsync(userId, data) switch
             {
                 ImportResult.Imported => Results.NoContent(),
                 ImportResult.JournalKeyExists => Problems.Conflict("This account already has a private journal key."),

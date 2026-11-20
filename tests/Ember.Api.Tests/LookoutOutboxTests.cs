@@ -353,7 +353,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
         var doomedRef = await RefOf(doomed);
         var before = await Outbox();
 
-        await Host.Run(s => s.DeleteUserDataAsync(doomed));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(doomed));
         var queued = await Outbox();
 
         queued.Should().HaveCount(2);
@@ -382,7 +382,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
         await rig.Step();
         (await Outbox()).Single().SentAt.Should().NotBeNull();
 
-        await Host.Run(s => s.DeleteUserDataAsync(user));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(user));
         var queued = await Outbox();
         await rig.Step();
 
@@ -398,7 +398,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
         var user = await NewUser();
         await Report(user, "web", "Gone soon");
         await rig.Step();
-        await Host.Run(s => s.DeleteUserDataAsync(user));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(user));
         rig.Fake.Script(503, 200);
 
         var down = await rig.Step();
@@ -424,7 +424,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
         rig.Fake.Script(429);
         await rig.Step();
         await rig.Step();
-        await Host.Run(s => s.DeleteUserDataAsync(leaving));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(leaving));
 
         var wait = await rig.Step();
 
@@ -439,7 +439,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
         await using var rig = await SenderRig.StartAsync(Host);
         var user = await NewUser();
         await Report(user, "web", "Leaving");
-        await Host.Run(s => s.DeleteUserDataAsync(user));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(user));
         rig.Fake.Script(400, 404, 409, 200);
 
         var waits = new[] { await rig.Step(), await rig.Step(), await rig.Step() };
@@ -476,7 +476,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
     {
         var user = await NewUser();
 
-        await Host.Run(s => s.DeleteUserDataAsync(user));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(user));
 
         (await Outbox()).Should().BeEmpty();
     }
@@ -503,7 +503,7 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
         await Report(userId, "web", "After the merge");
         (await Outbox()).Last().UserRef.Should().Be(botRef, "the oldest ref of the merged account is the bot's");
 
-        await Host.Run(s => s.DeleteUserDataAsync(userId));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(userId));
         var queued = await Outbox();
 
         queued.Should().OnlyContain(r => r.Kind == LookoutOutbox.UserDelete);

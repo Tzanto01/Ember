@@ -133,12 +133,12 @@ internal static class MeEndpoints
             return Results.NoContent();
         });
 
-        api.MapGet("/me/export", async (string? format, ClaimsPrincipal principal, HabitService habits, TimeProvider time) =>
+        api.MapGet("/me/export", async (string? format, ClaimsPrincipal principal, AccountService accounts, TimeProvider time) =>
         {
             if (format is not (null or "json" or "csv"))
                 return Problems.Validation("format", "Must be json or csv.");
 
-            var user = await habits.GetUserForExportAsync(principal.UserId(), withHabitNotes: true);
+            var user = await accounts.GetUserForExportAsync(principal.UserId(), withHabitNotes: true);
             if (user is null) return Problems.NotFound();
 
             var (content, contentType, extension) = format == "csv"
@@ -161,7 +161,7 @@ internal static class MeEndpoints
         });
 
         api.MapPost("/me/delete", async (DeleteRequest request, ClaimsPrincipal principal, UserManager<User> users,
-            SignInManager<User> signIn, HabitService habits, AuthSessions sessions) =>
+            SignInManager<User> signIn, AccountService accounts, AuthSessions sessions) =>
         {
             var user = await users.GetUserAsync(principal);
             if (user is null) return Problems.Unauthenticated();
@@ -177,7 +177,7 @@ internal static class MeEndpoints
             }
 
             await sessions.EndAllAsync(user.Id);
-            await habits.DeleteUserDataAsync(user.Id);
+            await accounts.DeleteUserDataAsync(user.Id);
             await signIn.SignOutAsync();
             return Results.NoContent();
         });

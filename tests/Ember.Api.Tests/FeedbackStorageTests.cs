@@ -39,7 +39,7 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
         await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(other, "discord", null, "other"));
         await Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(null, "web", null, "anonymous"));
 
-        await Host.Run(s => s.DeleteUserDataAsync(doomed));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(doomed));
 
         (await Stored()).Select(f => f.Text).Should().BeEquivalentTo("other", "anonymous");
     }

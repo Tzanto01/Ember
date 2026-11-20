@@ -72,7 +72,7 @@ public partial class HabitService
     }
 
     /// <summary>Deletes the user's least recently saved subscriptions beyond <see cref="MaxPushSubscriptionsPerUser"/>.</summary>
-    private async Task TrimPushSubscriptionsAsync(Guid userId, CancellationToken cancellationToken = default)
+    internal async Task TrimPushSubscriptionsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var excess = await _db.PushSubscriptions
             .Where(s => s.UserId == userId)

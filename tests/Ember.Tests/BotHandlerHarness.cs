@@ -107,7 +107,7 @@ internal sealed class RecordingFrequencyModule(HabitService habits, BotReplies r
     }
 }
 
-internal sealed class RecordingPrivacyModule(HabitService habits, BotReplies replies) : PrivacyModule(habits, BotHandlers.NoConfig)
+internal sealed class RecordingPrivacyModule(HabitService habits, AccountService accounts, BotReplies replies) : PrivacyModule(habits, accounts, BotHandlers.NoConfig)
 {
     protected override Task RespondAsync(string? text = null, Embed[]? embeds = null, bool isTTS = false, bool ephemeral = false,
         AllowedMentions? allowedMentions = null, RequestOptions? options = null, MessageComponent? components = null, Embed? embed = null,
@@ -140,7 +140,7 @@ internal sealed class RecordingOnboardingModule(HabitService habits, BotReplies 
     }
 }
 
-internal sealed class RecordingExportModule(HabitService habits, BotReplies replies) : ExportModule(habits, BotHandlers.NoConfig)
+internal sealed class RecordingExportModule(HabitService habits, AccountService accounts, BotReplies replies) : ExportModule(habits, accounts, BotHandlers.NoConfig)
 {
     protected override Task DeferAsync(bool ephemeral = false, RequestOptions? options = null) => Task.CompletedTask;
 

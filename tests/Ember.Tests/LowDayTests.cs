@@ -148,7 +148,7 @@ public class LowDayServiceTests
             var service = sp.GetRequiredService<HabitService>();
             await service.GiveHealthDataConsentAsync(UserId);
             await service.SetLowDayAsync(UserId, new DateOnly(2027, 1, 14));
-            await service.DeleteUserDataAsync(await service.FindDiscordUserAsync(UserId));
+            await sp.GetRequiredService<AccountService>().DeleteUserDataAsync(await service.FindDiscordUserAsync(UserId));
         });
 
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().DayMarks.CountAsync())).Should().Be(0);

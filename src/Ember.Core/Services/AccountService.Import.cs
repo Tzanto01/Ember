@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Core.Services;
 
 /// <summary>
-/// The validated, not yet saved content of an export file for <see cref="HabitService.ImportAsync"/>. Habits reference their
+/// The validated, not yet saved content of an export file for <see cref="AccountService.ImportAsync"/>. Habits reference their
 /// routine through <see cref="Habit.Routine"/> and carry their <see cref="Habit.Logs"/>, <see cref="Habit.Slips"/> and <see cref="Habit.Notes"/>; a day note whose mood is one of the
 /// imported own moods has a null <see cref="DayNote.Mood"/> and that mood as <c>CustomMood</c>. Null settings stay unchanged.
 /// </summary>
@@ -15,7 +15,7 @@ public sealed record ImportData(
     int SecondReminderMinutes, bool? ShowStreaks = null, string? Language = null, bool? CalmMode = null,
     IReadOnlyList<string>? TipsSeen = null, bool? OfferHabitNote = null);
 
-/// <summary>Outcome of <see cref="HabitService.ImportAsync"/>.</summary>
+/// <summary>Outcome of <see cref="AccountService.ImportAsync"/>.</summary>
 public enum ImportResult
 {
     Imported,
@@ -31,7 +31,7 @@ public enum ImportResult
 }
 
 /// <summary>Import of an export file into an empty account.</summary>
-public partial class HabitService
+public partial class AccountService
 {
     /// <summary>Whether the user has no habits, routines, own moods, day notes or low days, so an import may write into the account.</summary>
     public async Task<bool> IsAccountEmptyAsync(Guid userId)
@@ -55,7 +55,7 @@ public partial class HabitService
         if (data.JournalKey is not null && await _db.JournalKeys.AnyAsync(k => k.UserId == userId))
             return ImportResult.JournalKeyExists;
 
-        var tz = await GetUserTzAsync(userId);
+        var tz = await _habits.GetUserTzAsync(userId);
         foreach (var routine in data.Routines)
         {
             routine.UserId = userId;
@@ -108,7 +108,7 @@ public partial class HabitService
                 .SetProperty(u => u.Language, u => language ?? u.Language)
                 .SetProperty(u => u.CalmMode, u => calmMode ?? u.CalmMode)
                 .SetProperty(u => u.OfferHabitNote, u => offerHabitNote ?? u.OfferHabitNote));
-        foreach (var tip in data.TipsSeen ?? []) await MarkTipSeenAsync(userId, tip);
+        foreach (var tip in data.TipsSeen ?? []) await _habits.MarkTipSeenAsync(userId, tip);
         await transaction.CommitAsync();
         return ImportResult.Imported;
     }

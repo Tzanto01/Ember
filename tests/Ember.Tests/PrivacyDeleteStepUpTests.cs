@@ -37,7 +37,7 @@ public class PrivacyDeleteStepUpTests
         });
 
         var outcome = await host.WithScopeAsync(sp =>
-            PrivacyModule.TryDeleteAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1));
+            PrivacyModule.TryDeleteAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<AccountService>(), "1", clickerId: 1));
 
         outcome.Should().Be(PrivacyModule.DeleteOutcome.NeedsWebApp);
 

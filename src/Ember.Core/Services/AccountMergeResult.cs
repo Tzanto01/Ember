@@ -1,6 +1,6 @@
 namespace Ember.Core.Services;
 
-/// <summary>Outcome of <see cref="HabitService.MergeBotOnlyAccountAsync"/>.</summary>
+/// <summary>Outcome of <see cref="AccountService.MergeBotOnlyAccountAsync"/>.</summary>
 public enum AccountMergeResult
 {
     /// <summary>The bot-only account was merged into the target and deleted.</summary>

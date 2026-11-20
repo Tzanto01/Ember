@@ -45,8 +45,8 @@ public class MergeRefusalTests(PostgresFixture postgres)
 
         var (preview, result) = await host.WithScopeAsync(async sp =>
         {
-            var habits = sp.GetRequiredService<HabitService>();
-            return (await habits.GetMergePreviewAsync(targetId, sourceId, 5), await habits.MergeBotOnlyAccountAsync(targetId, sourceId, 5));
+            var accounts = sp.GetRequiredService<AccountService>();
+            return (await accounts.GetMergePreviewAsync(targetId, sourceId, 5), await accounts.MergeBotOnlyAccountAsync(targetId, sourceId, 5));
         });
 
         result.Should().Be(AccountMergeResult.Conflict);

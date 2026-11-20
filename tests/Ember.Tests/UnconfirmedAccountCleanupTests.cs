@@ -31,7 +31,7 @@ public class UnconfirmedAccountCleanupTests
             db.Users.Add(user);
             await db.SaveChangesAsync();
 
-            await sp.GetRequiredService<HabitService>().DeleteStaleUnconfirmedAccountsAsync();
+            await sp.GetRequiredService<AccountService>().DeleteStaleUnconfirmedAccountsAsync();
 
             return await db.Users.AnyAsync(u => u.Id == user.Id);
         });

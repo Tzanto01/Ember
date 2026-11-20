@@ -71,7 +71,7 @@ internal static partial class DeletionReplayCli
 
     /// <summary>
     /// Repeats the <paramref name="entries"/> at or after <paramref name="since"/> in time order, for accounts that still exist: an
-    /// account is deleted the normal way (<see cref="HabitService.DeleteUserDataAsync(Guid)"/>, which queues its Lookout deletion); a
+    /// account is deleted the normal way (<see cref="AccountService.DeleteUserDataAsync(Guid)"/>, which queues its Lookout deletion); a
     /// withdrawal or a health-data deletion sets a consent that isn't withdrawn back to withdrawn at the entry's time
     /// (<see cref="ConsentService.RepeatConsentWithdrawalAsync"/>), and a health-data deletion then deletes any health data again
     /// (<see cref="ConsentService.RepeatHealthDataDeletionAsync"/>). Records nothing in the ledger. Prints the counts and returns 0.
@@ -79,8 +79,9 @@ internal static partial class DeletionReplayCli
     internal static async Task<int> ReplayAsync(EmberDbContext db, IReadOnlyList<DeletionLedger.Entry> entries, DateTime since, TextWriter output,
         TimeProvider time, CancellationToken cancellationToken = default)
     {
-        var consent = new ConsentService(db, time, new DeletionLedger(null, time, NullLogger<DeletionLedger>.Instance));
-        var habits = new HabitService(db, time, consent);
+        var off = new DeletionLedger(null, time, NullLogger<DeletionLedger>.Instance);
+        var consent = new ConsentService(db, time, off);
+        var accountService = new AccountService(db, time, consent, new HabitService(db, time, consent), new FiresideService(db, time), off);
         int accounts = 0, health = 0, withdrawals = 0, done = 0;
         foreach (var entry in entries.Where(e => e.At >= since && e.Kind != DeletionLedger.Start).OrderBy(e => e.At))
         {
@@ -91,7 +92,7 @@ internal static partial class DeletionReplayCli
             }
             if (entry.Kind == DeletionLedger.Account)
             {
-                await habits.DeleteUserDataAsync(entry.UserId);
+                await accountService.DeleteUserDataAsync(entry.UserId);
                 accounts++;
                 continue;
             }

@@ -575,4 +575,63 @@ public class FiresideService
             .Select(l => new FiresideNotice(l.OwnerId, l.Id, l.Friend.FiresideName ?? "", null))
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// The friends of the source that come along in a merge (ids, the source's oldest links first, at most the target's free places up
+    /// to <see cref="MaxFriends"/>, none the target already has) and how many friends the source has besides the target.
+    /// </summary>
+    internal async Task<(List<Guid> Moving, int SourceFriends)> FiresideMovesAsync(Guid targetUserId, Guid sourceUserId,
+        CancellationToken cancellationToken)
+    {
+        var targetFriends = await _db.FiresideLinks.Where(l => l.OwnerId == targetUserId && l.FriendId != sourceUserId)
+            .Select(l => l.FriendId).ToListAsync(cancellationToken);
+        var sourceFriends = await _db.FiresideLinks.Where(l => l.OwnerId == sourceUserId && l.FriendId != targetUserId)
+            .OrderBy(l => l.CreatedAt).ThenBy(l => l.Id)
+            .Select(l => l.FriendId).ToListAsync(cancellationToken);
+        var moving = sourceFriends.Where(f => !targetFriends.Contains(f))
+            .Take(Math.Max(0, MaxFriends - targetFriends.Count)).ToList();
+        return (moving, sourceFriends.Count);
+    }
+
+    /// <summary>
+    /// The Fireside part of <see cref="AccountService.MergeBotOnlyAccountAsync"/>, inside its transaction: the target keeps all its own
+    /// links; links between the two accounts are dropped; the source's friendships from <see cref="FiresideMovesAsync"/> move to the
+    /// target in both directions with the warmth between them; the rest of the source's links, warmth and its code go with the source's
+    /// deletion. The source's Fireside settings (on, name, notifications,
+    /// asking) apply only when the target has Fireside off.
+    /// </summary>
+    internal async Task MergeFiresideAsync(Guid targetUserId, Guid sourceUserId, CancellationToken cancellationToken)
+    {
+        var (moving, _) = await FiresideMovesAsync(targetUserId, sourceUserId, cancellationToken);
+        await _db.FiresideLinks
+            .Where(l => (l.OwnerId == sourceUserId && l.FriendId == targetUserId) || (l.OwnerId == targetUserId && l.FriendId == sourceUserId))
+            .ExecuteDeleteAsync(cancellationToken);
+        await _db.Warmth
+            .Where(w => (w.FromUserId == sourceUserId && w.ToUserId == targetUserId) || (w.FromUserId == targetUserId && w.ToUserId == sourceUserId))
+            .ExecuteDeleteAsync(cancellationToken);
+        if (moving.Count > 0)
+        {
+            await _db.FiresideLinks.Where(l => l.OwnerId == sourceUserId && moving.Contains(l.FriendId))
+                .ExecuteUpdateAsync(s => s.SetProperty(l => l.OwnerId, targetUserId), cancellationToken);
+            await _db.FiresideLinks.Where(l => l.FriendId == sourceUserId && moving.Contains(l.OwnerId))
+                .ExecuteUpdateAsync(s => s.SetProperty(l => l.FriendId, targetUserId), cancellationToken);
+            await _db.Warmth.Where(w => w.FromUserId == sourceUserId && moving.Contains(w.ToUserId))
+                .ExecuteUpdateAsync(s => s.SetProperty(w => w.FromUserId, targetUserId), cancellationToken);
+            await _db.Warmth.Where(w => w.ToUserId == sourceUserId && moving.Contains(w.FromUserId))
+                .ExecuteUpdateAsync(s => s.SetProperty(w => w.ToUserId, targetUserId), cancellationToken);
+        }
+
+        var source = await _db.Users.Where(u => u.Id == sourceUserId)
+            .Select(u => new { u.FiresideEnabled, u.FiresideName, u.FiresideNotify, u.WarmthAskUntilUtc, u.FiresideConsentAt, u.FiresideConsentVersion })
+            .FirstAsync(cancellationToken);
+        await _db.Users
+            .Where(u => u.Id == targetUserId && !u.FiresideEnabled)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.FiresideEnabled, source.FiresideEnabled)
+                .SetProperty(u => u.FiresideConsentAt, source.FiresideConsentAt)
+                .SetProperty(u => u.FiresideConsentVersion, source.FiresideConsentVersion)
+                .SetProperty(u => u.FiresideName, u => source.FiresideName ?? u.FiresideName)
+                .SetProperty(u => u.FiresideNotify, source.FiresideNotify)
+                .SetProperty(u => u.WarmthAskUntilUtc, source.WarmthAskUntilUtc), cancellationToken);
+    }
 }

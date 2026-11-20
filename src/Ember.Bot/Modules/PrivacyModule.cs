@@ -12,11 +12,13 @@ namespace Ember.Bot.Modules;
 public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HabitService _habits;
+    private readonly AccountService _accounts;
     private readonly IConfiguration _config;
 
-    public PrivacyModule(HabitService habits, IConfiguration config)
+    public PrivacyModule(HabitService habits, AccountService accounts, IConfiguration config)
     {
         _habits = habits;
+        _accounts = accounts;
         _config = config;
     }
 
@@ -52,7 +54,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
     {
         var userId = Context.User.Id;
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        if (await _habits.IsProtectedAccountAsync(await _habits.FindDiscordUserAsync(userId)))
+        if (await _accounts.IsProtectedAccountAsync(await _habits.FindDiscordUserAsync(userId)))
         {
             await RespondAsync(WebAppDeleteText(t, _config), ephemeral: true);
             return;
@@ -73,7 +75,7 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
     public async Task OnConfirmDeleteAsync(string ownerIdStr)
     {
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        var outcome = await TryDeleteAsync(_habits, ownerIdStr, Context.User.Id);
+        var outcome = await TryDeleteAsync(_habits, _accounts, ownerIdStr, Context.User.Id);
         if (outcome == DeleteOutcome.NotYours)
         {
             await RespondAsync(t.Get("common.not-yours"), ephemeral: true);
@@ -169,10 +171,10 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
     /// Deletes the owner's data only when the person clicking is that owner and the account has no password and no two-step sign-in
     /// (checked again here, so an older confirmation message can't skip it).
     /// </summary>
-    internal static async Task<DeleteOutcome> TryDeleteAsync(HabitService habits, string ownerIdStr, ulong clickerId)
+    internal static async Task<DeleteOutcome> TryDeleteAsync(HabitService habits, AccountService accounts, string ownerIdStr, ulong clickerId)
     {
         if (!IsOwner(ownerIdStr, clickerId)) return DeleteOutcome.NotYours;
-        return await habits.DeleteUnprotectedUserDataAsync(await habits.FindDiscordUserAsync(clickerId))
+        return await accounts.DeleteUnprotectedUserDataAsync(await habits.FindDiscordUserAsync(clickerId))
             ? DeleteOutcome.Deleted
             : DeleteOutcome.NeedsWebApp;
     }

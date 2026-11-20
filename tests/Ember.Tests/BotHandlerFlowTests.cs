@@ -42,10 +42,15 @@ public class BotHandlerFlowTests
 
     private static Task<BotReplies> DriveAsync<TModule>(IntegrationTestHost host, Func<HabitService, BotReplies, TModule> create, Func<TModule, Task> call,
         ulong user = User, bool slash = false) where TModule : IInteractionModuleBase
+        => DriveAsync(host, (h, _, r) => create(h, r), call, user, slash);
+
+    private static Task<BotReplies> DriveAsync<TModule>(IntegrationTestHost host, Func<HabitService, AccountService, BotReplies, TModule> create,
+        Func<TModule, Task> call, ulong user = User, bool slash = false) where TModule : IInteractionModuleBase
         => host.WithScopeAsync(async sp =>
         {
             var replies = new BotReplies();
-            var module = BotHandlers.Attach(create(sp.GetRequiredService<HabitService>(), replies), user, slash: slash);
+            var module = BotHandlers.Attach(create(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<AccountService>(), replies), user,
+                slash: slash);
             await BotHandlers.RunAsync(() => call(module));
             return replies;
         });
@@ -57,7 +62,7 @@ public class BotHandlerFlowTests
         => DriveAsync(host, (h, r) => new RecordingFrequencyModule(h, r), call);
 
     private static Task<BotReplies> PrivacyAsync(IntegrationTestHost host, Func<RecordingPrivacyModule, Task> call, ulong user = User, bool slash = false)
-        => DriveAsync(host, (h, r) => new RecordingPrivacyModule(h, r), call, user, slash);
+        => DriveAsync(host, (h, a, r) => new RecordingPrivacyModule(h, a, r), call, user, slash);
 
     private static Task<Habit> HabitAsync(IntegrationTestHost host, int habitId)
         => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.AsNoTracking().SingleAsync(h => h.Id == habitId));
@@ -381,8 +386,8 @@ public class BotHandlerFlowTests
             await sp.GetRequiredService<JournalService>().SetDayNoteAsync(await service.FindDiscordUserAsync(User), Today, "private words", null, null);
         });
 
-        var csv = await DriveAsync(host, (h, r) => new RecordingExportModule(h, r), m => m.ExportAsync(), slash: true);
-        var json = await DriveAsync(host, (h, r) => new RecordingExportModule(h, r), m => m.ExportAsync(ExportModule.ExportFormat.Json), slash: true);
+        var csv = await DriveAsync(host, (h, a, r) => new RecordingExportModule(h, a, r), m => m.ExportAsync(), slash: true);
+        var json = await DriveAsync(host, (h, a, r) => new RecordingExportModule(h, a, r), m => m.ExportAsync(ExportModule.ExportFormat.Json), slash: true);
 
         var csvFile = csv.Files.Should().ContainSingle().Subject;
         csvFile.FileName.Should().MatchRegex(@"^ember-export-\d{4}-\d{2}-\d{2}\.csv$");
@@ -398,7 +403,7 @@ public class BotHandlerFlowTests
     {
         await using var host = await HostAsync();
 
-        var replies = await DriveAsync(host, (h, r) => new RecordingExportModule(h, r), m => m.ExportAsync(), slash: true);
+        var replies = await DriveAsync(host, (h, a, r) => new RecordingExportModule(h, a, r), m => m.ExportAsync(), slash: true);
 
         replies.Files.Should().BeEmpty();
         replies.Sent.Should().ContainSingle().Which.Text.Should().Be(English.Get("export.nothing"));

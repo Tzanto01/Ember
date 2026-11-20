@@ -16,11 +16,13 @@ public class ExportModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     private readonly HabitService _habits;
+    private readonly AccountService _accounts;
     private readonly IConfiguration _config;
 
-    public ExportModule(HabitService habits, IConfiguration config)
+    public ExportModule(HabitService habits, AccountService accounts, IConfiguration config)
     {
         _habits = habits;
+        _accounts = accounts;
         _config = config;
     }
 
@@ -37,7 +39,7 @@ public class ExportModule : InteractionModuleBase<SocketInteractionContext>
     {
         await DeferAsync(ephemeral: true);
 
-        var user = await _habits.GetUserForExportAsync(Context.User.Id);
+        var user = await _accounts.GetUserForExportAsync(await _habits.FindDiscordUserAsync(Context.User.Id));
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
         if (user is null)

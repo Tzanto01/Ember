@@ -49,6 +49,7 @@ public class MissedDayReflectionJob : IJob
     {
         using var scope = _services.CreateScope();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
+        var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();
 
         var candidates = await habits.GetUserTimezonesWithHabitsAsync(context.CancellationToken);
 
@@ -69,7 +70,7 @@ public class MissedDayReflectionJob : IJob
                 // Only Discord users get the reflection DM; a web-only user has nowhere to receive it yet.
                 if (user.DiscordId() is not { } discordId
                     || user.DmRemindersPausedAt is not null
-                    || !await habits.UserExistsAsync(user.Id, context.CancellationToken))
+                    || !await accounts.UserExistsAsync(user.Id, context.CancellationToken))
                     continue;
 
                 var yesterday = TimezoneHelper.LocalToday(user.Timezone, _time).AddDays(-1);

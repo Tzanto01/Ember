@@ -43,8 +43,9 @@ public class DiscordUserTests
             (await service.GetHabitsAsync(55)).Should().BeEmpty();
             (await service.HasHealthDataConsentAsync(55)).Should().BeFalse();
             (await service.GetGraceDaysAsync(55)).Should().Be(1);
-            (await service.GetUserForExportAsync(55)).Should().BeNull();
-            await service.DeleteUserDataAsync(await service.FindDiscordUserAsync(55));
+            var accounts = sp.GetRequiredService<AccountService>();
+            (await accounts.GetUserForExportAsync(await service.FindDiscordUserAsync(55))).Should().BeNull();
+            await accounts.DeleteUserDataAsync(await service.FindDiscordUserAsync(55));
         });
 
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Users.CountAsync())).Should().Be(0);

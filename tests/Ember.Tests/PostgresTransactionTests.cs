@@ -139,7 +139,7 @@ public class PostgresTransactionTests(PostgresFixture postgres)
         failure.Arm("DELETE", "AspNetUsers");
 
         await AssertRolledBackAsync(host, failure, before, () => host.WithScopeAsync(sp =>
-            sp.GetRequiredService<HabitService>().MergeBotOnlyAccountAsync(TestUsers.Id(6), TestUsers.Id(5), 5)));
+            sp.GetRequiredService<AccountService>().MergeBotOnlyAccountAsync(TestUsers.Id(6), TestUsers.Id(5), 5)));
     }
 
     [DockerFact]
@@ -163,7 +163,7 @@ public class PostgresTransactionTests(PostgresFixture postgres)
         failure.Arm("UPDATE", "FiresideLinks");
 
         await AssertRolledBackAsync(host, failure, before, () => host.WithScopeAsync(sp =>
-            sp.GetRequiredService<HabitService>().MergeBotOnlyAccountAsync(TestUsers.Id(6), TestUsers.Id(5), 5)));
+            sp.GetRequiredService<AccountService>().MergeBotOnlyAccountAsync(TestUsers.Id(6), TestUsers.Id(5), 5)));
     }
 
     [DockerFact]
@@ -182,7 +182,7 @@ public class PostgresTransactionTests(PostgresFixture postgres)
             2, "tidepool", 30);
         failure.Arm("UPDATE", "AspNetUsers");
 
-        await AssertRolledBackAsync(host, failure, before, () => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ImportAsync(TestUsers.Id(7), data)));
+        await AssertRolledBackAsync(host, failure, before, () => host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().ImportAsync(TestUsers.Id(7), data)));
     }
 
     [DockerFact]

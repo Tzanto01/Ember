@@ -14,9 +14,9 @@ internal static partial class StatsEndpoints
 
     public static RouteGroupBuilder MapStats(this RouteGroupBuilder api)
     {
-        api.MapGet("/stats/weekly", async (ClaimsPrincipal principal, HabitService habits, TimeProvider time) =>
+        api.MapGet("/stats/weekly", async (ClaimsPrincipal principal, AccountService accounts, TimeProvider time) =>
         {
-            var user = await habits.GetUserForExportAsync(principal.UserId());
+            var user = await accounts.GetUserForExportAsync(principal.UserId());
             if (user is null) return Problems.NotFound();
 
             var summary = WeeklySummaryService.Build(user, TimezoneHelper.LocalToday(user.Timezone, time).AddDays(-1));

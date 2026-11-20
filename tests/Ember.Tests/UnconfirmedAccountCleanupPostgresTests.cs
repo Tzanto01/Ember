@@ -41,7 +41,7 @@ public class UnconfirmedAccountCleanupPostgresTests(PostgresFixture postgres)
             var db = sp.GetRequiredService<EmberDbContext>();
             db.Users.AddRange(stale, young, confirmed, withLogin, withMood);
             await db.SaveChangesAsync();
-            var count = await sp.GetRequiredService<HabitService>().DeleteStaleUnconfirmedAccountsAsync();
+            var count = await sp.GetRequiredService<AccountService>().DeleteStaleUnconfirmedAccountsAsync();
             return (count, await db.Users.Select(u => u.Id).ToListAsync());
         });
 

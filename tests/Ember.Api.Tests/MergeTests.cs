@@ -211,7 +211,7 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var userId = await user.IdAsync();
         var bot = await BotOnlyAsync(["Water"], 0);
 
-        (await Host.Service(s => s.MergeBotOnlyAccountAsync(userId, bot.UserId, bot.DiscordId)))
+        (await Host.Service<AccountService, AccountMergeResult>(s => s.MergeBotOnlyAccountAsync(userId, bot.UserId, bot.DiscordId)))
             .Should().Be(AccountMergeResult.ConsentRequired);
 
         (await UserExists(bot.UserId)).Should().BeTrue();
@@ -275,7 +275,7 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var user = await Host.SignedInAsync();
         var bot = await BotOnlyAsync(["Water"]);
         await StartMergeAsync(user, bot.DiscordId);
-        await Host.Run(s => s.DeleteUserDataAsync(bot.UserId));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(bot.UserId));
         var recreated = await Host.Service(s => s.ResolveOrCreateDiscordUserAsync(bot.DiscordId));
 
         await (await user.Post(MergeUrl)).ExpectProblem(HttpStatusCode.Conflict, "conflict");

@@ -23,7 +23,6 @@ public class ConsentGateMatrixTests
         ["AddLetGoHabit"] = (s, _, _) => Outcome(async () => (await s.AddHabitAsync(UserId, "Smoking", null, kind: HabitKind.LetGo)).Result),
         ["EditHabitRename"] = (s, b, _) => Outcome(async () => (await s.EditHabitAsync(UserId, b, "Renamed", null, false)).Result),
         ["EditHabitReminder"] = (s, b, _) => Outcome(async () => (await s.EditHabitAsync(UserId, b, null, new TimeOnly(7, 0), false)).Habit!.ReminderTime),
-        ["Import"] = (s, _, _) => Outcome(() => s.ImportAsync(UserId, EmptyImport)),
         ["CheckIn"] = (s, b, _) => Outcome(() => s.CheckInAsync(UserId, b, Today, true)),
         ["AddCheckIn"] = (s, b, _) => Outcome(() => s.AddCheckInAsync(UserId, b, Today)),
         ["SetCount"] = (s, b, _) => Outcome(() => s.SetCountAsync(UserId, b, Today, 1)),
@@ -38,6 +37,11 @@ public class ConsentGateMatrixTests
         ["AddRoutine"] = (s, _, _) => Outcome(async () => (await s.AddRoutineAsync(UserId, "Morning", null, null, null)).Result),
         ["UseReminderActionToken"] = (s, b, _) => Outcome(async () =>
             await s.UseReminderActionTokenAsync(await s.CreateReminderActionTokenAsync(UserId, b, Today, Now.UtcDateTime.AddHours(5)))),
+    };
+
+    private static readonly Dictionary<string, Func<AccountService, int, int, Task<string>>> AccountOperations = new()
+    {
+        ["Import"] = (a, _, _) => Outcome(() => a.ImportAsync(UserId, EmptyImport)),
     };
 
     private static readonly Dictionary<string, Func<JournalService, int, int, Task<string>>> JournalOperations = new()
@@ -95,7 +99,9 @@ public class ConsentGateMatrixTests
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now));
         var (buildId, letGoId) = await SeedWithoutConsentAsync(host);
 
-        var outcome = await host.WithScopeAsync(sp => Operations[operation](sp.GetRequiredService<HabitService>(), buildId, letGoId));
+        var outcome = await host.WithScopeAsync(sp => Operations.TryGetValue(operation, out var habitOperation)
+            ? habitOperation(sp.GetRequiredService<HabitService>(), buildId, letGoId)
+            : AccountOperations[operation](sp.GetRequiredService<AccountService>(), buildId, letGoId));
 
         outcome.Should().Be(expected);
     }
@@ -164,7 +170,7 @@ public class ConsentGateMatrixTests
             (await service.GetHabitDaysAsync(UserId, buildId, 7))!.Should().HaveCount(7);
             (await service.GetLowDaysAsync(UserId)).Should().BeEmpty();
             (await service.GetGraceDaysAsync(UserId)).Should().Be(1);
-            (await service.GetUserForExportAsync(UserId)).Should().NotBeNull();
+            (await sp.GetRequiredService<AccountService>().GetUserForExportAsync(UserId)).Should().NotBeNull();
         });
     }
 }

@@ -16,8 +16,8 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Adds <see cref="EmberDbContext"/> (PostgreSQL from <see cref="ConnectionStringName"/>, unless <paramref name="configureDb"/>
     /// configures it instead), <see cref="TimeProvider.System"/>, the <see cref="DeletionLedger"/> (from
-    /// <see cref="DeletionLedger.FileSetting"/>), <see cref="ConsentService"/>, <see cref="HabitService"/>, <see cref="JournalService"/>,
-    /// <see cref="FeedbackService"/> and <see cref="FiresideService"/>.
+    /// <see cref="DeletionLedger.FileSetting"/>), <see cref="ConsentService"/>, <see cref="HabitService"/>, <see cref="AccountService"/>,
+    /// <see cref="JournalService"/>, <see cref="FeedbackService"/> and <see cref="FiresideService"/>.
     /// </summary>
     public static IServiceCollection AddEmberCore(this IServiceCollection services, IConfiguration configuration,
         Action<DbContextOptionsBuilder>? configureDb = null)
@@ -32,6 +32,7 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<ILogger<DeletionLedger>>()));
         services.AddScoped<ConsentService>();
         services.AddScoped<HabitService>();
+        services.AddScoped<AccountService>();
         services.AddScoped<JournalService>();
         services.AddScoped<FeedbackService>();
         services.AddScoped<FiresideService>();

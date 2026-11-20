@@ -7,8 +7,8 @@ namespace Ember.Bot.Jobs;
 
 /// <summary>
 /// Runs daily and deletes email signups that were never confirmed within
-/// <see cref="HabitService.UnconfirmedAccountLifetime"/> (see <see cref="HabitService.DeleteStaleUnconfirmedAccountsAsync"/>),
-/// expired sign-in sessions (see <see cref="HabitService.DeleteExpiredSessionsAsync"/>) and expired reminder action tokens
+/// <see cref="AccountService.UnconfirmedAccountLifetime"/> (see <see cref="AccountService.DeleteStaleUnconfirmedAccountsAsync"/>),
+/// expired sign-in sessions (see <see cref="AccountService.DeleteExpiredSessionsAsync"/>) and expired reminder action tokens
 /// (see <see cref="HabitService.DeleteExpiredReminderActionTokensAsync"/>), and prunes the <see cref="DeletionLedger"/>.
 /// </summary>
 [DisallowConcurrentExecution]
@@ -29,10 +29,11 @@ public class UnconfirmedAccountCleanupJob : IJob
     {
         using var scope = _services.CreateScope();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
-        var deleted = await habits.DeleteStaleUnconfirmedAccountsAsync(context.CancellationToken);
+        var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();
+        var deleted = await accounts.DeleteStaleUnconfirmedAccountsAsync(context.CancellationToken);
         if (deleted > 0)
             _logger.LogInformation("UnconfirmedAccountCleanupJob: deleted {Count} unconfirmed accounts.", deleted);
-        var sessions = await habits.DeleteExpiredSessionsAsync(context.CancellationToken);
+        var sessions = await accounts.DeleteExpiredSessionsAsync(context.CancellationToken);
         if (sessions > 0)
             _logger.LogInformation("UnconfirmedAccountCleanupJob: deleted {Count} expired sessions.", sessions);
         var tokens = await habits.DeleteExpiredReminderActionTokensAsync(context.CancellationToken);

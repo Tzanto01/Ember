@@ -11,7 +11,7 @@ namespace Ember.Tests;
 
 /// <summary>
 /// Pins, on Postgres, that an account holding a single row of one entity counts as non-empty for an import exactly where the registry
-/// says <see cref="UserData.BlocksImport"/>, through both <see cref="HabitService.IsAccountEmptyAsync"/> and <see cref="HabitService.ImportAsync"/>.
+/// says <see cref="UserData.BlocksImport"/>, through both <see cref="AccountService.IsAccountEmptyAsync"/> and <see cref="AccountService.ImportAsync"/>.
 /// </summary>
 [Collection("Postgres")]
 public class ImportEmptinessPerTableTests(PostgresFixture postgres)
@@ -92,8 +92,8 @@ public class ImportEmptinessPerTableTests(PostgresFixture postgres)
         {
             var blocks = DataLifecycle.Entities.Single(e => e.Entity == type).BlocksImport;
 
-            var empty = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().IsAccountEmptyAsync(userId));
-            var result = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().ImportAsync(userId, EmptyImport));
+            var empty = await host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().IsAccountEmptyAsync(userId));
+            var result = await host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().ImportAsync(userId, EmptyImport));
 
             empty.Should().Be(!blocks, $"{type.Name} BlocksImport is {blocks}");
             result.Should().Be(blocks ? ImportResult.NotEmpty : ImportResult.Imported, $"{type.Name} BlocksImport is {blocks}");

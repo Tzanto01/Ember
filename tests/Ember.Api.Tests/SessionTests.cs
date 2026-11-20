@@ -7,6 +7,7 @@ using Ember.Api.Auth;
 using Ember.Api.TestHost;
 using Ember.Core.Data;
 using Ember.Core.Models;
+using Ember.Core.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -337,7 +338,7 @@ public class SessionTests(PostgresFixture postgres) : ApiTestBase(postgres)
             return db.SaveChangesAsync();
         });
 
-        await Host.Service(s => s.DeleteExpiredSessionsAsync());
+        await Host.Service<AccountService, int>(s => s.DeleteExpiredSessionsAsync());
 
         (await Host.Db(db => db.AuthSessions.Where(s => s.UserId == userId).Select(s => s.ExpiresUtc).ToListAsync()))
             .Should().Equal(now.AddDays(13));

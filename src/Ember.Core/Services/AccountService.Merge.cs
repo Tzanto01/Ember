@@ -7,7 +7,7 @@ namespace Ember.Core.Services;
 /// Merging a bot-only account (no email, no password) into the web account that links its Discord login.
 /// Needs PostgreSQL: the merge locks both user rows.
 /// </summary>
-public partial class HabitService
+public partial class AccountService
 {
     /// <summary>
     /// What merging <paramref name="sourceUserId"/> into <paramref name="targetUserId"/> would move, or null when it is no longer a bot-only account
@@ -25,7 +25,7 @@ public partial class HabitService
             .ToListAsync(cancellationToken);
         var logs = await _db.HabitLogs.CountAsync(l => l.Habit.UserId == sourceUserId, cancellationToken);
         var dayMarks = await _db.DayMarks.CountAsync(m => m.UserId == sourceUserId, cancellationToken);
-        var (moving, sourceFriends) = await FiresideMovesAsync(targetUserId, sourceUserId, cancellationToken);
+        var (moving, sourceFriends) = await _fireside.FiresideMovesAsync(targetUserId, sourceUserId, cancellationToken);
         return new MergePreview(habitNames.Count, logs, dayMarks, habitNames, sourceFriends - moving.Count);
     }
 
@@ -36,7 +36,7 @@ public partial class HabitService
     /// own moods, journal key, push subscriptions and phones (one without a session joins <paramref name="sessionId"/>; each kept at
     /// most at its per-user limit), feedback, Lookout refs and Discord login to the target, gives the target the source's Discord reminder answer
     /// (<see cref="User.DiscordReminders"/>, <see cref="User.DiscordRemindersAskedAt"/>) when the target has none and the union of both
-    /// accounts' <see cref="User.TipsSeen"/>, merges Fireside (<see cref="MergeFiresideAsync"/>), deletes the source and gives
+    /// accounts' <see cref="User.TipsSeen"/>, merges Fireside (<see cref="FiresideService.MergeFiresideAsync"/>), deletes the source and gives
     /// the target a new security stamp. A plaintext source mood whose trimmed label matches a plaintext target mood
     /// (ignoring case) is combined into it: the source's entries pointing at it point at the target's mood and the source mood
     /// is dropped (skipped when the source has encrypted entries, which may reference it inside the ciphertext).
@@ -102,12 +102,12 @@ public partial class HabitService
             await _db.PushSubscriptions
                 .Where(s => s.UserId == sourceUserId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.UserId, targetUserId).SetProperty(p => p.SessionId, p => p.SessionId ?? sessionId), cancellationToken);
-            await TrimPushSubscriptionsAsync(targetUserId, cancellationToken);
+            await _habits.TrimPushSubscriptionsAsync(targetUserId, cancellationToken);
 
             await _db.ReminderPhones
                 .Where(p => p.UserId == sourceUserId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.UserId, targetUserId).SetProperty(p => p.SessionId, p => p.SessionId ?? sessionId), cancellationToken);
-            await TrimReminderPhonesAsync(targetUserId, cancellationToken);
+            await _habits.TrimReminderPhonesAsync(targetUserId, cancellationToken);
 
             var source = await _db.Users.Where(u => u.Id == sourceUserId)
                 .Select(u => new { u.DiscordReminders, u.DiscordRemindersAskedAt, u.TipsSeen })
@@ -117,7 +117,7 @@ public partial class HabitService
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(u => u.DiscordReminders, source.DiscordReminders)
                     .SetProperty(u => u.DiscordRemindersAskedAt, source.DiscordRemindersAskedAt), cancellationToken);
-            foreach (var tip in source.TipsSeen) await MarkTipSeenAsync(targetUserId, tip);
+            foreach (var tip in source.TipsSeen) await _habits.MarkTipSeenAsync(targetUserId, tip);
 
             var key = DiscordLogin.Key(discordUserId);
             await _db.UserLogins
@@ -135,7 +135,7 @@ public partial class HabitService
             await _db.LookoutUserRefs.Where(r => r.UserId == sourceUserId)
                 .ExecuteUpdateAsync(s => s.SetProperty(r => r.UserId, targetUserId), cancellationToken);
 
-            await MergeFiresideAsync(targetUserId, sourceUserId, cancellationToken);
+            await _fireside.MergeFiresideAsync(targetUserId, sourceUserId, cancellationToken);
 
             await _db.Users.Where(u => u.Id == sourceUserId).ExecuteDeleteAsync(cancellationToken);
 
@@ -151,64 +151,6 @@ public partial class HabitService
         }
 
         return AccountMergeResult.Merged;
-    }
-
-    /// <summary>
-    /// The friends of the source that come along in a merge (ids, the source's oldest links first, at most the target's free places up
-    /// to <see cref="FiresideService.MaxFriends"/>, none the target already has) and how many friends the source has besides the target.
-    /// </summary>
-    private async Task<(List<Guid> Moving, int SourceFriends)> FiresideMovesAsync(Guid targetUserId, Guid sourceUserId,
-        CancellationToken cancellationToken)
-    {
-        var targetFriends = await _db.FiresideLinks.Where(l => l.OwnerId == targetUserId && l.FriendId != sourceUserId)
-            .Select(l => l.FriendId).ToListAsync(cancellationToken);
-        var sourceFriends = await _db.FiresideLinks.Where(l => l.OwnerId == sourceUserId && l.FriendId != targetUserId)
-            .OrderBy(l => l.CreatedAt).ThenBy(l => l.Id)
-            .Select(l => l.FriendId).ToListAsync(cancellationToken);
-        var moving = sourceFriends.Where(f => !targetFriends.Contains(f))
-            .Take(Math.Max(0, FiresideService.MaxFriends - targetFriends.Count)).ToList();
-        return (moving, sourceFriends.Count);
-    }
-
-    /// <summary>
-    /// The Fireside part of a merge: the target keeps all its own links; links between the two accounts are dropped; the source's
-    /// friendships from <see cref="FiresideMovesAsync"/> move to the target in both directions with the warmth between them; the rest of
-    /// the source's links, warmth and its code go with the source's deletion. The source's Fireside settings (on, name, notifications,
-    /// asking) apply only when the target has Fireside off.
-    /// </summary>
-    private async Task MergeFiresideAsync(Guid targetUserId, Guid sourceUserId, CancellationToken cancellationToken)
-    {
-        var (moving, _) = await FiresideMovesAsync(targetUserId, sourceUserId, cancellationToken);
-        await _db.FiresideLinks
-            .Where(l => (l.OwnerId == sourceUserId && l.FriendId == targetUserId) || (l.OwnerId == targetUserId && l.FriendId == sourceUserId))
-            .ExecuteDeleteAsync(cancellationToken);
-        await _db.Warmth
-            .Where(w => (w.FromUserId == sourceUserId && w.ToUserId == targetUserId) || (w.FromUserId == targetUserId && w.ToUserId == sourceUserId))
-            .ExecuteDeleteAsync(cancellationToken);
-        if (moving.Count > 0)
-        {
-            await _db.FiresideLinks.Where(l => l.OwnerId == sourceUserId && moving.Contains(l.FriendId))
-                .ExecuteUpdateAsync(s => s.SetProperty(l => l.OwnerId, targetUserId), cancellationToken);
-            await _db.FiresideLinks.Where(l => l.FriendId == sourceUserId && moving.Contains(l.OwnerId))
-                .ExecuteUpdateAsync(s => s.SetProperty(l => l.FriendId, targetUserId), cancellationToken);
-            await _db.Warmth.Where(w => w.FromUserId == sourceUserId && moving.Contains(w.ToUserId))
-                .ExecuteUpdateAsync(s => s.SetProperty(w => w.FromUserId, targetUserId), cancellationToken);
-            await _db.Warmth.Where(w => w.ToUserId == sourceUserId && moving.Contains(w.FromUserId))
-                .ExecuteUpdateAsync(s => s.SetProperty(w => w.ToUserId, targetUserId), cancellationToken);
-        }
-
-        var source = await _db.Users.Where(u => u.Id == sourceUserId)
-            .Select(u => new { u.FiresideEnabled, u.FiresideName, u.FiresideNotify, u.WarmthAskUntilUtc, u.FiresideConsentAt, u.FiresideConsentVersion })
-            .FirstAsync(cancellationToken);
-        await _db.Users
-            .Where(u => u.Id == targetUserId && !u.FiresideEnabled)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(u => u.FiresideEnabled, source.FiresideEnabled)
-                .SetProperty(u => u.FiresideConsentAt, source.FiresideConsentAt)
-                .SetProperty(u => u.FiresideConsentVersion, source.FiresideConsentVersion)
-                .SetProperty(u => u.FiresideName, u => source.FiresideName ?? u.FiresideName)
-                .SetProperty(u => u.FiresideNotify, source.FiresideNotify)
-                .SetProperty(u => u.WarmthAskUntilUtc, source.WarmthAskUntilUtc), cancellationToken);
     }
 
     private async Task MergeMoodsAsync(Guid targetUserId, Guid sourceUserId, CancellationToken cancellationToken)
@@ -241,5 +183,5 @@ public partial class HabitService
 
     private async Task<bool> IsMergeableSourceAsync(Guid sourceUserId, ulong discordUserId, CancellationToken cancellationToken)
         => await _db.Users.AnyAsync(u => u.Id == sourceUserId && u.PasswordHash == null && u.Email == null && !u.TwoFactorEnabled, cancellationToken)
-           && await FindDiscordUserAsync(discordUserId, cancellationToken) == sourceUserId;
+           && await _habits.FindDiscordUserAsync(discordUserId, cancellationToken) == sourceUserId;
 }

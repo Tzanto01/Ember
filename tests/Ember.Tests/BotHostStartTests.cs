@@ -46,7 +46,7 @@ public class BotHostStartTests
                 await db.SaveChangesAsync();
             });
 
-            await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().DeleteUserDataAsync(userId));
+            await host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().DeleteUserDataAsync(userId));
 
             DeletionLedger.Read(path).Should().ContainSingle(e => e.Kind == DeletionLedger.Account)
                 .Which.UserId.Should().Be(userId);

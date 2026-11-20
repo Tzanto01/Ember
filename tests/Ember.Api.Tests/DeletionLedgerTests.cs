@@ -61,10 +61,10 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
         var withdrawn = await UserWithHabit();
         await Host.Run<ConsentService>(s => s.WithdrawHealthDataConsentAsync(withdrawn));
 
-        await Host.Run(s => s.DeleteUserDataAsync(deleted));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(deleted));
         Host.Time.Advance(TimeSpan.FromMinutes(5));
         (await Host.Service<ConsentService, bool>(s => s.DeleteHealthDataAsync(withdrawn, Host.Time.GetUtcNow().UtcDateTime))).Should().BeTrue();
-        await Host.Run(s => s.DeleteUserDataAsync(Guid.NewGuid()));
+        await Host.Run<AccountService>(s => s.DeleteUserDataAsync(Guid.NewGuid()));
 
         var lines = Lines();
         lines.Select(l => l.EnumerateObject().Select(p => p.Name)).Should().AllSatisfy(names => names.Should().Equal("at", "kind", "userId"));
@@ -133,7 +133,9 @@ public sealed class DeletionLedgerTests(PostgresFixture postgres) : ApiTestBase(
 
         await Host.Db(async db =>
         {
-            await new HabitService(db, Host.Time, new ConsentService(db, Host.Time, ledger), ledger).DeleteUserDataAsync(id);
+            var consent = new ConsentService(db, Host.Time, ledger);
+            await new AccountService(db, Host.Time, consent, new HabitService(db, Host.Time, consent), new FiresideService(db, Host.Time), ledger)
+                .DeleteUserDataAsync(id);
             return 0;
         });
 

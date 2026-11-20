@@ -109,7 +109,7 @@ public partial class HabitService
     }
 
     /// <summary>Deletes the user's least recently registered phones beyond <see cref="MaxReminderPhonesPerUser"/>.</summary>
-    private async Task TrimReminderPhonesAsync(Guid userId, CancellationToken cancellationToken = default)
+    internal async Task TrimReminderPhonesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var excess = await _db.ReminderPhones
             .Where(p => p.UserId == userId)

@@ -55,7 +55,7 @@ public class PrivacyDeleteTests
         await using var host = await CreateHostWithTwoUsersAsync();
 
         var deleted = await host.WithScopeAsync(sp =>
-            PrivacyModule.TryDeleteAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 1));
+            PrivacyModule.TryDeleteAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<AccountService>(), "1", clickerId: 1));
 
         deleted.Should().Be(PrivacyModule.DeleteOutcome.Deleted);
         (await CountsForAsync(host, 1)).Should().Be((0, 0, 0));
@@ -89,7 +89,7 @@ public class PrivacyDeleteTests
             await db.SaveChangesAsync();
         });
 
-        await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().DeleteUserDataAsync(TestUsers.Id(1)));
+        await host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().DeleteUserDataAsync(TestUsers.Id(1)));
 
         var counts = await host.WithScopeAsync(async sp =>
         {
@@ -160,7 +160,7 @@ public class PrivacyDeleteTests
         await using var host = await CreateHostWithTwoUsersAsync();
 
         var deleted = await host.WithScopeAsync(sp =>
-            PrivacyModule.TryDeleteAsync(sp.GetRequiredService<HabitService>(), "1", clickerId: 2));
+            PrivacyModule.TryDeleteAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<AccountService>(), "1", clickerId: 2));
 
         deleted.Should().Be(PrivacyModule.DeleteOutcome.NotYours);
         (await CountsForAsync(host, 1)).Should().Be((1, 2, 4));

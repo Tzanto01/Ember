@@ -181,7 +181,7 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
     {
         await using var host = await SeededHostAsync();
 
-        var user = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetUserForExportAsync(UserId, withHabitNotes: true));
+        var user = await host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().GetUserForExportAsync(UserId, withHabitNotes: true));
         var document = BuildDocument(user!);
 
         foreach (var (type, part) in ExportedPart)
@@ -193,8 +193,8 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
     {
         await using var host = await SeededHostAsync();
 
-        var user = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
-            .GetUserForExportAsync((ulong)TestUsers.DiscordIdOf(UserId)));
+        var user = await host.WithScopeAsync(async sp => await sp.GetRequiredService<AccountService>()
+            .GetUserForExportAsync(await sp.GetRequiredService<HabitService>().FindDiscordUserAsync((ulong)TestUsers.DiscordIdOf(UserId))));
         var document = BuildDocument(user!, forDiscord: true);
 
         foreach (var entity in DataLifecycle.Entities.Where(e => e.Export != ExportRule.Never))
@@ -209,9 +209,9 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
     {
         await using var host = await SeededHostAsync();
 
-        var web = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().GetUserForExportAsync(UserId, withHabitNotes: true));
-        var discord = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>()
-            .GetUserForExportAsync((ulong)TestUsers.DiscordIdOf(UserId)));
+        var web = await host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().GetUserForExportAsync(UserId, withHabitNotes: true));
+        var discord = await host.WithScopeAsync(async sp => await sp.GetRequiredService<AccountService>()
+            .GetUserForExportAsync(await sp.GetRequiredService<HabitService>().FindDiscordUserAsync((ulong)TestUsers.DiscordIdOf(UserId))));
         var outputs = new[] { BuildJson(web!), BuildCsv(web!), BuildJson(discord!, forDiscord: true), BuildCsv(discord!, forDiscord: true) };
 
         foreach (var marker in NeverExportedMarkers.Values.SelectMany(m => m).Concat(SecretMarkers))

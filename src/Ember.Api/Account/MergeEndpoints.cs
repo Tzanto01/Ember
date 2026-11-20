@@ -16,13 +16,13 @@ internal static class MergeEndpoints
 
     public static RouteGroupBuilder MapMerge(this RouteGroupBuilder api)
     {
-        api.MapGet("/account/merge", async (HttpContext http, UserManager<User> users, HabitService habits) =>
+        api.MapGet("/account/merge", async (HttpContext http, UserManager<User> users, AccountService accounts) =>
         {
             var user = await users.GetUserAsync(http.User);
             if (user is null) return Problems.Unauthenticated();
 
             if (PendingMerge.Read(http, user) is not { } pending
-                || await habits.GetMergePreviewAsync(user.Id, pending.SourceUserId, pending.DiscordId) is not { } preview)
+                || await accounts.GetMergePreviewAsync(user.Id, pending.SourceUserId, pending.DiscordId) is not { } preview)
                 return Problems.NotFound();
 
             return Results.Ok(new MergePreviewDto(preview.Habits, preview.Logs, preview.DayMarks, preview.HabitNames,
@@ -30,7 +30,7 @@ internal static class MergeEndpoints
         });
 
         api.MapPost("/account/merge", async (HttpContext http, UserManager<User> users, SignInManager<User> signIn,
-            HabitService habits, ConsentService consent, EmberDbContext db, AuthSessions sessions) =>
+            HabitService habits, AccountService accounts, ConsentService consent, EmberDbContext db, AuthSessions sessions) =>
         {
             var user = await users.GetUserAsync(http.User);
             if (user is null) return Problems.Unauthenticated();
@@ -38,7 +38,7 @@ internal static class MergeEndpoints
             if (PendingMerge.Read(http, user) is not { } pending) return Problems.NotFound();
 
             await sessions.EndSessionsAsync(pending.SourceUserId);
-            switch (await habits.MergeBotOnlyAccountAsync(user.Id, pending.SourceUserId, pending.DiscordId, AuthSessions.IdOf(http.User)))
+            switch (await accounts.MergeBotOnlyAccountAsync(user.Id, pending.SourceUserId, pending.DiscordId, AuthSessions.IdOf(http.User)))
             {
                 case AccountMergeResult.Conflict:
                     return Problems.Conflict("This Discord account can no longer be merged into yours.");

@@ -188,7 +188,4 @@ public partial class HabitService
 
     public async Task SetTimezoneAsync(ulong discordUserId, string timezoneId, string? language = null)
         => await SetTimezoneAsync(await ResolveOrCreateDiscordUserAsync(discordUserId, language), timezoneId);
-
-    public async Task<User?> GetUserForExportAsync(ulong discordUserId)
-        => await GetUserForExportAsync(await FindDiscordUserAsync(discordUserId));
 }
