@@ -9,7 +9,7 @@ const sizes = [
   { name: 'desktop', width: 1280, height: 800 },
 ];
 const schemes = ['light', 'dark'] as const;
-const comparison = { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.005 } as const;
+const comparison = { animations: 'disabled', caret: 'hide', maxDiffPixels: 50 } as const;
 
 interface Screen {
   name: string;
