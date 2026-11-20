@@ -423,6 +423,6 @@ internal static class HabitEndpoints
     {
         if (weeklyTarget is null) return;
         if (frequency != FrequencyType.Weekly) errors["weeklyTarget"] = ["Only for weekly habits."];
-        else if (weeklyTarget is < 1 or > 6) errors["weeklyTarget"] = ["Must be between 1 and 6."];
+        else if (weeklyTarget is < 1 or > Limits.WeeklyTarget) errors["weeklyTarget"] = [$"Must be between 1 and {Limits.WeeklyTarget}."];
     }
 }

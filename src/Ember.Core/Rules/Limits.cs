@@ -15,6 +15,9 @@ public static class Limits
     /// <summary>Most check-ins a daily or weekdays habit can need per day (<see cref="Models.Habit.TimesPerDay"/>).</summary>
     public const int TimesPerDay = 10;
 
+    /// <summary>Most check-ins per week a weekly habit can target (<see cref="Models.Habit.WeeklyTarget"/>), from 1.</summary>
+    public const int WeeklyTarget = 6;
+
     /// <summary>Most characters in a habit name, after trimming.</summary>
     public const int HabitNameLength = 100;
 
