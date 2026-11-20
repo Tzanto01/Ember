@@ -420,7 +420,7 @@ public class ReminderDispatchJob : IJob
                     && !await IsWeekDoneAsync(habits, habit, today, cancellationToken)
                     && !await habits.IsLowDayStoredAsync(user.Id, today)));
 
-        habit.SecondReminderUtc = null;
+        DateTime? secondUtc = null;
         var delivery = Delivery.NotDelivered;
         if (send && letGo)
         {
@@ -437,17 +437,19 @@ public class ReminderDispatchJob : IJob
             delivery = await DeliverAsync(targets, reminder, user, now, (HabitKind, habit.Id, dueAt), cancellationToken);
             if (delivery == Delivery.Delivered && !snoozed && SecondReminderAt(user, tz, today, now) is { } second
                 && (TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now) is not { } next || next > second))
-                habit.SecondReminderUtc = second;
+                secondUtc = second;
         }
 
         var saveToken = send ? CancellationToken.None : cancellationToken;
         if (delivery == Delivery.Retry)
         {
+            habit.SecondReminderUtc = null;
             await habits.SaveChangesAsync(saveToken);
             return;
         }
 
-        if (!await habits.SaveAndAdvanceReminderAsync(habit.Id, dueAt, TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now), saveToken))
+        if (!await habits.SaveAndAdvanceReminderAsync(habit.Id, dueAt, TimezoneHelper.NextOccurrenceUtc(habit.ReminderTimes, tz, now), secondUtc,
+                saveToken))
             _logger.LogInformation("Reminder for habit {HabitId} changed while it was sent; keeping the change.", habitId);
         _retries.Forget(HabitKind, habitId, dueAt);
     }
@@ -480,17 +482,17 @@ public class ReminderDispatchJob : IJob
                 PushSubscriptionIds: pushIds, Language: user.Language), user, now,
                 (RoutineKind, routine.Id, dueAt), cancellationToken)
             : Delivery.NotDelivered;
-        routine.SecondReminderUtc = delivery == Delivery.Delivered ? SecondReminderAt(user, tz, today, now) : null;
-
         var saveToken = send ? CancellationToken.None : cancellationToken;
         if (delivery == Delivery.Retry)
         {
+            routine.SecondReminderUtc = null;
             await habits.SaveChangesAsync(saveToken);
             return;
         }
 
         var next = routine.ReminderTime is { } reminderTime ? TimezoneHelper.NextOccurrenceUtc(reminderTime, tz, now) : (DateTime?)null;
-        if (!await habits.SaveAndAdvanceRoutineReminderAsync(routine.Id, dueAt, next, saveToken))
+        var secondUtc = delivery == Delivery.Delivered ? SecondReminderAt(user, tz, today, now) : null;
+        if (!await habits.SaveAndAdvanceRoutineReminderAsync(routine.Id, dueAt, next, secondUtc, saveToken))
             _logger.LogInformation("Reminder for routine {RoutineId} changed while it was sent; keeping the change.", routineId);
         _retries.Forget(RoutineKind, routineId, dueAt);
     }

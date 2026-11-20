@@ -173,18 +173,19 @@ public partial class HabitService
     }
 
     /// <summary>
-    /// Saves pending changes and, in the same transaction, moves the routine's next reminder to <paramref name="nextUtc"/> directly
-    /// in the database, but only while it is still <paramref name="dueAtUtc"/>. False when an edit moved it meanwhile; that change
-    /// is kept.
+    /// Saves pending changes and, in the same transaction, moves the routine's next reminder to <paramref name="nextUtc"/> and its
+    /// second reminder to <paramref name="secondUtc"/> directly in the database, but only while the next reminder is still
+    /// <paramref name="dueAtUtc"/>. False when an edit moved it meanwhile; that change is kept.
     /// </summary>
-    public async Task<bool> SaveAndAdvanceRoutineReminderAsync(int routineId, DateTime dueAtUtc, DateTime? nextUtc,
+    public async Task<bool> SaveAndAdvanceRoutineReminderAsync(int routineId, DateTime dueAtUtc, DateTime? nextUtc, DateTime? secondUtc,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
         var advanced = await _db.Routines
             .Where(r => r.Id == routineId && r.NextReminderUtc == dueAtUtc)
-            .ExecuteUpdateAsync(s => s.SetProperty(r => r.NextReminderUtc, nextUtc), cancellationToken) == 1;
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.NextReminderUtc, nextUtc).SetProperty(r => r.SecondReminderUtc, secondUtc),
+                cancellationToken) == 1;
         await transaction.CommitAsync(cancellationToken);
         return advanced;
     }

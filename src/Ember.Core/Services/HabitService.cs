@@ -1223,18 +1223,19 @@ public partial class HabitService
     }
 
     /// <summary>
-    /// Saves pending changes and, in the same transaction, moves the habit's next reminder to <paramref name="nextUtc"/> directly in
-    /// the database, but only while it is still <paramref name="dueAtUtc"/>. False when an edit or snooze moved it meanwhile; that
-    /// change is kept.
+    /// Saves pending changes and, in the same transaction, moves the habit's next reminder to <paramref name="nextUtc"/> and its
+    /// second reminder to <paramref name="secondUtc"/> directly in the database, but only while the next reminder is still
+    /// <paramref name="dueAtUtc"/>. False when an edit or snooze moved it meanwhile; that change is kept, second reminder included.
     /// </summary>
-    public async Task<bool> SaveAndAdvanceReminderAsync(int habitId, DateTime dueAtUtc, DateTime? nextUtc,
+    public async Task<bool> SaveAndAdvanceReminderAsync(int habitId, DateTime dueAtUtc, DateTime? nextUtc, DateTime? secondUtc,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
         var advanced = await _db.Habits
             .Where(h => h.Id == habitId && h.NextReminderUtc == dueAtUtc)
-            .ExecuteUpdateAsync(s => s.SetProperty(h => h.NextReminderUtc, nextUtc), cancellationToken) == 1;
+            .ExecuteUpdateAsync(s => s.SetProperty(h => h.NextReminderUtc, nextUtc).SetProperty(h => h.SecondReminderUtc, secondUtc),
+                cancellationToken) == 1;
         await transaction.CommitAsync(cancellationToken);
         return advanced;
     }

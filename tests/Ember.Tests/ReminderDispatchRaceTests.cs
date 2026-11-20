@@ -12,8 +12,8 @@ using static Ember.Tests.ReminderDispatchTests;
 namespace Ember.Tests;
 
 /// <summary>
-/// A reminder edit or snooze that lands while the dispatch job is still sending (another process: the API) survives the job's save,
-/// and the reminder is still sent exactly once.
+/// A reminder edit (from the API) or a snooze (from the reminder's Discord button) that lands while the dispatch job is still sending
+/// survives the job's save, and the reminder is still sent exactly once.
 /// </summary>
 [Collection("Integration")]
 public class ReminderDispatchRaceTests
@@ -27,6 +27,10 @@ public class ReminderDispatchRaceTests
     [Fact]
     public Task RoutineEditedWhileItsReminderIsSent_KeepsTheEditedNextReminder()
         => Race.RoutineEditedDuringSendAsync(postgres: null);
+
+    [Fact]
+    public Task HabitSnoozedWhileItsReminderIsSent_SendsNoSecondReminder()
+        => Race.HabitSnoozedDuringSendWithSecondReminderAsync(postgres: null);
 }
 
 /// <summary>The same races against Postgres, the production database, where the compare-and-set runs as real SQL.</summary>
@@ -40,6 +44,10 @@ public class ReminderDispatchRacePostgresTests(PostgresFixture postgres)
     [DockerFact]
     public async Task RoutineEditedWhileItsReminderIsSent_KeepsTheEditedNextReminder()
         => await Race.RoutineEditedDuringSendAsync(await postgres.CreateDatabaseAsync());
+
+    [DockerFact]
+    public async Task HabitSnoozedWhileItsReminderIsSent_SendsNoSecondReminder()
+        => await Race.HabitSnoozedDuringSendWithSecondReminderAsync(await postgres.CreateDatabaseAsync());
 }
 
 public enum HabitEdit { Snooze, NewReminderTime }
@@ -72,6 +80,26 @@ internal static class Race
         (await NextReminderAsync(host, 1)).Should().Be(edited);
     }
 
+    /// <summary>
+    /// The user wants a second reminder 30 minutes after a delivered one, but snoozes this one while it is sent: the snooze drops the
+    /// second reminder, so nothing is sent at 08:30 and the snoozed reminder comes at 09:00.
+    /// </summary>
+    public static async Task HabitSnoozedDuringSendWithSecondReminderAsync(string? postgres)
+    {
+        var time = new FakeTimeProvider(Now);
+        var channel = new EditDuringSendChannel();
+        await using var host = await HostAsync(time, channel, postgres, db => db.Habits.Add(DueHabit(1, DiscordUser)),
+            secondReminderMinutes: 30);
+        channel.OnSend = () => host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().SnoozeReminderAsync(UserId, 1, Now));
+
+        await RunAsync(host);
+        time.Advance(TimeSpan.FromMinutes(31));
+        await RunAsync(host);
+
+        channel.Sent.Should().ContainSingle();
+        (await NextReminderAsync(host, 1)).Should().Be(Now.UtcDateTime + HabitService.SnoozeDelay);
+    }
+
     public static async Task RoutineEditedDuringSendAsync(string? postgres)
     {
         var time = new FakeTimeProvider(Now);
@@ -95,7 +123,7 @@ internal static class Race
 
     /// <summary>A user reached only by web push, through <paramref name="channel"/>, with the items <paramref name="seed"/> adds.</summary>
     private static async Task<IntegrationTestHost> HostAsync(FakeTimeProvider time, EditDuringSendChannel channel, string? postgres,
-        Action<EmberDbContext> seed)
+        Action<EmberDbContext> seed, int secondReminderMinutes = 0)
     {
         var host = await IntegrationTestHost.CreateAsync(start: false, time: time, postgresConnectionString: postgres,
             configureServices: services => services.AddSingleton<IReminderChannel>(channel));
@@ -104,7 +132,7 @@ internal static class Race
             var db = sp.GetRequiredService<EmberDbContext>();
             db.Users.Add(new User
             {
-                Id = UserId, Logins = TestUsers.Discord(DiscordUser), Timezone = "Europe/Berlin",
+                Id = UserId, Logins = TestUsers.Discord(DiscordUser), Timezone = "Europe/Berlin", SecondReminderMinutes = secondReminderMinutes,
                 PushSubscriptions = [new PushSubscription { Endpoint = "https://push.example/u10", P256dh = "k", Auth = "a" }],
             });
             seed(db);
