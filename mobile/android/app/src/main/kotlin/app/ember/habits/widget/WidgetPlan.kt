@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import kotlin.math.max
 import kotlin.math.min
@@ -8,11 +8,11 @@ import kotlin.math.min
  * many rows, the "+N more" count and whether the day is all done. Pure Kotlin, so it runs in plain unit tests.
  */
 internal data class WidgetPlan(
-    @JvmField val layout: Int,
-    @JvmField val start: Int,
-    @JvmField val shown: Int,
-    @JvmField val more: Int,
-    @JvmField val allDone: Boolean,
+    val layout: Int,
+    val start: Int,
+    val shown: Int,
+    val more: Int,
+    val allDone: Boolean,
 ) {
     companion object {
         /** Up to two rows high and two columns wide (2x2): the next open habit with one big circle. */
@@ -38,7 +38,6 @@ internal data class WidgetPlan(
          * The {width, height} breakpoints for the sized RemoteViews on API 31+, at most 16. Each is the smallest size
          * of its layout and row count, so the launcher's closest fitting entry renders like [of] at the real size.
          */
-        @JvmField
         val SIZES: Array<FloatArray> = arrayOf(
             floatArrayOf(110f, 110f),
             floatArrayOf(180f, 110f),
@@ -56,12 +55,10 @@ internal data class WidgetPlan(
             floatArrayOf(WIDE_DP.toFloat(), 392f),
         )
 
-        @JvmStatic
         fun layout(width: Float, height: Float) =
             if (height < HIGH_DP) { if (width < WIDE_DP) SINGLE else SHORT } else TALL
 
         /** Row slots at [height]: one for [SINGLE], else what fits after the chrome, 1 to [MAX_ROWS]. */
-        @JvmStatic
         fun rows(layout: Int, height: Float): Int {
             if (layout == SINGLE) return 1
             return max(1, min(MAX_ROWS, ((height - CHROME_DP) / ROW_DP).toInt()))
@@ -72,7 +69,6 @@ internal data class WidgetPlan(
          * row and, when rows overflow, gives its last slot to "+N more"; the others start at the first open or
          * partial row and show no "+N more" unless no listed row is left.
          */
-        @JvmStatic
         fun of(width: Float, height: Float, states: List<String?>, more: Int): WidgetPlan {
             val layout = layout(width, height)
             val rows = rows(layout, height)
@@ -87,22 +83,18 @@ internal data class WidgetPlan(
             return WidgetPlan(layout, start, shown, if (shown == 0) more else 0, allDone)
         }
 
-        @JvmStatic
         fun checkIn(state: String?) = state == "open" || state == "partial"
 
         /** The index of the first open or partial row, or `states.size` when none is. */
-        @JvmStatic
         fun firstOpen(states: List<String?>): Int {
             val index = states.indexOfFirst(::checkIn)
             return if (index < 0) states.size else index
         }
 
         /** True when there are rows, none is open or partial (a rest row doesn't count), and none is unlisted. */
-        @JvmStatic
         fun allDone(states: List<String?>, more: Int) = states.isNotEmpty() && more == 0 && firstOpen(states) == states.size
 
         /** [done] after a row went from [before] to [after]: up on reaching done, down on leaving it. */
-        @JvmStatic
         fun done(done: Int, total: Int, before: String?, after: String?): Int {
             val was = before == "done"
             val isDone = after == "done"
@@ -114,7 +106,6 @@ internal data class WidgetPlan(
          * The data Uri of a row's PendingIntent, unique per action (check-in for an open or partial row, else open),
          * habit and date.
          */
-        @JvmStatic
         fun uri(checkIn: Boolean, habitId: Long, date: String?) =
             "ember://widget/${if (checkIn) "check-in" else "open"}/$habitId/$date"
 
@@ -122,14 +113,12 @@ internal data class WidgetPlan(
          * The flame flickers only once the app sent a style ([style] holds [MOTION]), with motion on, and while
          * system animations run.
          */
-        @JvmStatic
         fun motion(style: Map<String, *>, animatorScale: Float) = style[MOTION] == true && animatorScale > 0
 
         /**
          * Whether the header has room for one dot per habit: never on [TALL], and only up to [MAX_DOTS] and what the
          * width leaves beside the flame, the count and (except on [SINGLE]) the title.
          */
-        @JvmStatic
         fun dots(layout: Int, width: Float, total: Int): Boolean {
             if (layout == TALL || total <= 0) return false
             val room = ((width - (if (layout == SINGLE) 110 else 160)) / DOT_DP).toInt()
@@ -140,7 +129,6 @@ internal data class WidgetPlan(
          * Whether a day's counts fit its rows: [listed] rows ([doneRows] of them done) plus [more] unlisted make
          * [total], and [done] is at least the done rows and at most [total].
          */
-        @JvmStatic
         fun counts(done: Int, total: Int, doneRows: Int, listed: Int, more: Int) =
             total == listed + more && done >= doneRows && done <= total
     }

@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import app.ember.habits.widget.WidgetIntents
 
 /**
  * The 1x1 "I need a moment" home-screen door. It holds no user data: it only shows the door label and opens
@@ -25,8 +26,7 @@ class MomentWidget : AppWidgetProvider() {
 
     companion object {
         /** Redraws every moment widget, for example after the app's language changed. */
-        @JvmStatic
-        fun refresh(context: Context) {
+        internal fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context) ?: return
             val ids = manager.getAppWidgetIds(ComponentName(context, MomentWidget::class.java))
             if (ids != null && ids.isNotEmpty()) MomentWidget().onUpdate(context, manager, ids)

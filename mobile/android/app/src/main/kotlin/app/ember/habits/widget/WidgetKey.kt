@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
@@ -16,7 +16,7 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * The per-device widget check-in key, sealed with an AndroidKeyStore AES-GCM key, and the API origin it is sent to.
- * Both live in [WidgetStore]'s app-private prefs, so [TodayWidget.clear] erases them. Unrelated to the app's session
+ * Both live in [WidgetStore]'s app-private prefs, so [WidgetStore.clear] erases them. Unrelated to the app's session
  * tokens.
  */
 internal object WidgetKey {
@@ -30,7 +30,6 @@ internal object WidgetKey {
     private val VALUE = Regex("^[A-Za-z0-9_-]{32,128}={0,2}$")
 
     /** Seals and stores [key] with its [apiBase]; throws IllegalArgumentException on invalid input. */
-    @JvmStatic
     @Throws(GeneralSecurityException::class, IOException::class)
     fun set(context: Context, key: String?, apiBase: String?) {
         val origin = origin(apiBase)
@@ -49,7 +48,6 @@ internal object WidgetKey {
     }
 
     /** The stored key, or null when there is none or it does not decrypt. */
-    @JvmStatic
     fun get(context: Context): String? {
         val prefs = WidgetStore.prefs(context)
         val sealed = prefs.getString(SEALED, null)
@@ -73,11 +71,9 @@ internal object WidgetKey {
     }
 
     /** The stored API origin, or null. */
-    @JvmStatic
     fun apiBase(context: Context): String? = origin(WidgetStore.prefs(context).getString(API_BASE, null))
 
     /** Erases the key if it is still [rejected], so a key the app set meanwhile survives. */
-    @JvmStatic
     fun erase(context: Context, rejected: String) {
         synchronized(WidgetStore.LOCK) {
             if (rejected != get(context)) return
@@ -86,7 +82,6 @@ internal object WidgetKey {
     }
 
     /** [value] as `https://host[:port]` when it is an absolute https origin without path, else null. */
-    @JvmStatic
     fun origin(value: String?): String? {
         if (value == null) return null
         return try {

@@ -1,4 +1,4 @@
-package app.ember.habits
+package app.ember.habits.plugin
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

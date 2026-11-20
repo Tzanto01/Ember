@@ -1,6 +1,7 @@
-package app.ember.habits
+package app.ember.habits.widget
 
 import android.content.Context
+import app.ember.habits.InMemoryContext
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
