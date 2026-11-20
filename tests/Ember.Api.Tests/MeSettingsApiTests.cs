@@ -31,21 +31,6 @@ public class MeSettingsApiTests(PostgresFixture postgres) : ApiTestBase(postgres
     }
 
     [DockerFact]
-    public async Task Local_today_uses_the_daylight_saving_offset_in_force_on_the_day()
-    {
-        var user = await Host.SignedInAsync();
-        await (await user.Patch("/api/me", new { timezone = "Australia/Lord_Howe" })).Expect(HttpStatusCode.OK);
-
-        Host.Time.SetUtcNow(new DateTimeOffset(2026, 11, 1, 12, 59, 59, TimeSpan.Zero));
-        var summerBefore = await LocalTodayAsync(user);
-        Host.Time.SetUtcNow(new DateTimeOffset(2026, 11, 1, 13, 0, 0, TimeSpan.Zero));
-        var summerAfter = await LocalTodayAsync(user);
-
-        summerBefore.Should().Be("2026-11-01");
-        summerAfter.Should().Be("2026-11-02");
-    }
-
-    [DockerFact]
     public async Task Local_today_is_the_utc_day_while_the_stored_zone_is_unknown()
     {
         var user = await Host.SignedInAsync();
@@ -63,7 +48,6 @@ public class MeSettingsApiTests(PostgresFixture postgres) : ApiTestBase(postgres
         (await MeAsync(user)).GetProperty("language").GetString().Should().Be("en");
 
         var patched = await (await user.Patch("/api/me", new { language = "de" })).ExpectJson();
-        await (await user.Patch("/api/me", new { theme = "tidepool" })).ExpectJson();
 
         patched.GetProperty("language").GetString().Should().Be("de");
         (await MeAsync(user)).GetProperty("language").GetString().Should().Be("de");

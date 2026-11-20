@@ -1,5 +1,6 @@
 using Ember.Core.Rules;
 using FluentAssertions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Ember.Tests;
 
@@ -139,5 +140,32 @@ public class TimeZonesTests
         var kolkata = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
         TimeZones.NextOccurrenceUtc(new TimeOnly(8, 0), kolkata, Utc(2027, 1, 15, 0, 0))
             .Should().Be(Utc(2027, 1, 15, 2, 30));
+    }
+
+    public static TheoryData<string, int, int, int, int, int, int, int, int> LocalDays => new()
+    {
+        { "Asia/Kolkata", 2027, 1, 14, 18, 29, 59, 1, 14 },
+        { "Asia/Kolkata", 2027, 1, 14, 18, 30, 0, 1, 15 },
+        { "America/St_Johns", 2027, 1, 15, 3, 29, 59, 1, 14 },
+        { "America/St_Johns", 2027, 1, 15, 3, 30, 0, 1, 15 },
+        { "Australia/Lord_Howe", 2027, 1, 10, 12, 59, 59, 1, 10 },
+        { "Australia/Lord_Howe", 2027, 1, 10, 13, 0, 0, 1, 11 },
+        { "Australia/Lord_Howe", 2027, 7, 10, 13, 29, 59, 7, 10 },
+        { "Australia/Lord_Howe", 2027, 7, 10, 13, 30, 0, 7, 11 },
+        { "America/Havana", 2026, 11, 1, 3, 59, 59, 10, 31 },
+        { "America/Havana", 2026, 11, 1, 4, 0, 0, 11, 1 },
+        { "America/Havana", 2026, 11, 1, 5, 30, 0, 11, 1 },
+        { "America/Havana", 2026, 3, 8, 4, 59, 59, 3, 7 },
+        { "America/Havana", 2026, 3, 8, 5, 0, 0, 3, 8 },
+    };
+
+    [Theory]
+    [MemberData(nameof(LocalDays))]
+    public void LocalToday_FollowsHalfHourOffsetsAndDaylightSavingEdges(
+        string zone, int year, int month, int day, int hour, int minute, int second, int expectedMonth, int expectedDay)
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(year, month, day, hour, minute, second, TimeSpan.Zero));
+
+        TimeZones.LocalToday(zone, time).Should().Be(new DateOnly(year, expectedMonth, expectedDay));
     }
 }
