@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/local-date';
 import type { LetGoHabit } from '@/lib/models';
 import { habitQueryKey, historyKey, type TodayData, todayKey } from '@/lib/query-keys';
 import { daysFreeText } from './letgo-text';
+import { MadeItButton, MadeItFeedback, useMadeIt } from './made-it';
 import { SlipSheet } from './slip-sheet';
 import { TryInstead } from './try-instead';
 
@@ -38,6 +39,8 @@ function LetGoRow({ habit, extras }: { habit: LetGoHabit; extras?: LetGoRowExtra
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState(0);
   const update = useLetGoUpdate();
+  const madeIt = useMadeIt(habit, update);
+  const free = habit.today.state === 'free';
   const paused = habit.today.state === 'paused';
   const notStarted = habit.today.state === 'beforestart';
 
@@ -68,6 +71,7 @@ function LetGoRow({ habit, extras }: { habit: LetGoHabit; extras?: LetGoRowExtra
             </Link>
           </Button>
           {extras?.menu}
+          {free && <MadeItButton habit={habit} state={madeIt} />}
           {!paused && !notStarted && (
             <Button
               variant="secondary"
@@ -82,6 +86,7 @@ function LetGoRow({ habit, extras }: { habit: LetGoHabit; extras?: LetGoRowExtra
             </Button>
           )}
         </div>
+        <MadeItFeedback habit={habit} state={madeIt} />
       </Card>
       <SlipSheet key={session} habit={habit} open={open} onOpenChange={setOpen} onChange={update} />
     </li>
@@ -89,7 +94,7 @@ function LetGoRow({ habit, extras }: { habit: LetGoHabit; extras?: LetGoRowExtra
 }
 
 /**
- * Today's "Letting go" section: one row per let-go habit (in the given order) with its days free and "I slipped".
+ * Today's "Letting go" section: one row per let-go habit (in the given order) with its days free, "Made it today" on a free day and "I slipped".
  * Renders nothing without any. `listProps` and `extras` let Today rearrange the rows.
  */
 export function LetGoSection({

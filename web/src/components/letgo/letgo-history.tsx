@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Feather, Pause } from 'lucide-react';
+import { Check, Feather, Pause } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +26,13 @@ import { daysFreeText } from './letgo-text';
 
 const longDate: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
 
+const announcements = {
+  addSlip: 'letgo.announce.added',
+  clearSlips: 'letgo.announce.cleared',
+  markMadeIt: 'letgo.announce.madeIt',
+  clearMadeIt: 'letgo.announce.madeItCleared',
+} as const;
+
 const cellClass =
   'relative inline-flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-cell text-[14px] leading-none transition-colors';
 
@@ -39,16 +46,19 @@ const stateClass: Record<LetGoDayState | 'future', string> = {
   future: 'text-beforestart',
 };
 
-/** "free", "2 slips noted", "paused", "before this habit started" or "not yet". */
-function dayWords(state: LetGoDayState | null, slips: number): string {
+const madeItClass =
+  'border-[color-mix(in_oklch,var(--done)_55%,var(--empty))] bg-[color-mix(in_oklch,var(--done)_14%,var(--card))]';
+
+/** "free", "free, made it", "2 slips noted", "paused", "before this habit started" or "not yet". */
+function dayWords(state: LetGoDayState | null, slips: number, madeIt: boolean): string {
   if (state === null) return t('calendar.notYet');
-  if (state === 'free') return t('letgo.day.free');
+  if (state === 'free') return t(madeIt ? 'letgo.day.madeIt' : 'letgo.day.free');
   if (state === 'slipped') return t('letgo.day.slipped', { count: slips });
   return t(`calendar.state.${state}`);
 }
 
-function cellName(day: CalendarDay, state: LetGoDayState | null, slips: number): string {
-  const words = dayWords(state, slips);
+function cellName(day: CalendarDay, state: LetGoDayState | null, slips: number, madeIt: boolean): string {
+  const words = dayWords(state, slips, madeIt);
   return t('calendar.cellName', {
     date: formatDate(day.date, longDate),
     words: day.isToday ? t('calendar.today', { words }) : words,
@@ -59,12 +69,15 @@ function Cell({
   day,
   state,
   slips,
+  madeIt,
   expanded,
   onSelect,
 }: {
   day: CalendarDay;
   state: LetGoDayState | null;
   slips: number;
+  /** A free day with a "made it" mark. */
+  madeIt: boolean;
   expanded: boolean;
   onSelect: () => void;
 }) {
@@ -72,6 +85,7 @@ function Cell({
     cellClass,
     'aspect-square w-full min-w-[40px] max-w-[56px] align-middle min-[360px]:min-w-[44px]',
     stateClass[state ?? 'future'],
+    madeIt && madeItClass,
   );
   const content = (
     <>
@@ -79,6 +93,7 @@ function Cell({
         {Number(day.date.slice(8))}
       </span>
       {state === 'slipped' && <Feather aria-hidden className="size-[14px]" />}
+      {madeIt && <Check aria-hidden className="size-[14px]" strokeWidth={2.5} />}
       {state === 'paused' && <Pause aria-hidden className="hidden size-[14px] md:block" />}
     </>
   );
@@ -86,7 +101,7 @@ function Cell({
     return (
       <span data-state={state ?? 'future'} aria-current={day.isToday ? 'date' : undefined} className={classes}>
         {content}
-        <span className="sr-only">{cellName(day, state, slips)}</span>
+        <span className="sr-only">{cellName(day, state, slips, madeIt)}</span>
       </span>
     );
   }
@@ -95,7 +110,8 @@ function Cell({
       type="button"
       id={`day-${day.date}`}
       data-state={state}
-      aria-label={cellName(day, state, slips)}
+      data-made-it={madeIt || undefined}
+      aria-label={cellName(day, state, slips, madeIt)}
       aria-current={day.isToday ? 'date' : undefined}
       aria-expanded={expanded}
       aria-controls={expanded ? 'day-panel' : undefined}
@@ -113,15 +129,18 @@ function Cell({
 function Legend() {
   const { t } = useTranslation();
   const items = [
-    { state: 'free', label: t('letgo.legend.free') },
-    { state: 'slipped', label: t('letgo.legend.slipped') },
-    { state: 'paused', label: t('calendar.legend.paused') },
-  ] as const;
+    { key: 'free', className: stateClass.free, label: t('letgo.legend.free') },
+    { key: 'madeIt', className: cn(stateClass.free, madeItClass), label: t('letgo.legend.madeIt') },
+    { key: 'slipped', className: stateClass.slipped, label: t('letgo.legend.slipped') },
+    { key: 'paused', className: stateClass.paused, label: t('calendar.legend.paused') },
+  ];
   return (
     <ul aria-label={t('calendar.legendLabel')} className="grid grid-cols-2 gap-x-4 gap-y-2 text-[0.875rem] md:flex md:flex-wrap">
       {items.map((item) => (
-        <li key={item.state} className="flex items-center gap-2">
-          <span aria-hidden="true" className={cn(cellClass, 'size-[24px]', stateClass[item.state])} />
+        <li key={item.key} className="flex items-center gap-2">
+          <span aria-hidden="true" className={cn(cellClass, 'size-[24px]', item.className)}>
+            {item.key === 'madeIt' && <Check className="size-[14px]" strokeWidth={2.5} />}
+          </span>
           {item.label}
         </li>
       ))}
@@ -135,8 +154,9 @@ interface Tile {
 }
 
 /**
- * History for a let-go habit: the month calendar with slip days marked softly (paused days hatched), the day panel
- * to note a slip on a past day or remove that day's slips, the day's journal, and the tiles days free, longest stretch
+ * History for a let-go habit: the month calendar with slip days marked softly (paused days hatched, "made it" days
+ * tinted with a check), the day panel to note a slip on a past day or remove that day's slips, to mark a free day
+ * "made it" or remove that mark, the day's journal, and the tiles days free, longest stretch
  * and free days this month (also with streaks hidden).
  */
 export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: ReactNode }) {
@@ -157,7 +177,12 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
     queryKey: [...historyKey, 'slips', habit.id, range?.from, range?.to],
     queryFn: () => (range ? api.getSlips(habit.id, range.from, range.to) : Promise.resolve([])),
   });
+  const madeItQuery = useQuery({
+    queryKey: [...historyKey, 'madeIt', habit.id, range?.from, range?.to],
+    queryFn: () => (range ? api.getMadeIt(habit.id, range.from, range.to) : Promise.resolve([])),
+  });
   const slips = new Map((slipsQuery.data ?? []).map((slip) => [slip.date, slip.count]));
+  const marked = new Set((madeItQuery.data ?? []).map((day) => day.date));
   const stateOf = (day: CalendarDay): LetGoDayState | null =>
     day.state === null
       ? null
@@ -171,8 +196,11 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
   const weeks = buildMonth(month, [], [], habit.startDate, today);
   const openDay = openDate ? (weeks.flat().find((d) => d.inMonth && d.editable && d.date === openDate) ?? null) : null;
   const openState = openDay ? stateOf(openDay) : null;
-  const openWords = openDay ? dayWords(openState, slips.get(openDay.date) ?? 0) : '';
-  const monthError = slipsQuery.isError && !slipsQuery.data && !slipsQuery.isFetching ? asApiError(slipsQuery.error) : null;
+  const madeItOn = (day: CalendarDay, state: LetGoDayState | null) => state === 'free' && marked.has(day.date);
+  const openMadeIt = openDay ? madeItOn(openDay, openState) : false;
+  const openWords = openDay ? dayWords(openState, slips.get(openDay.date) ?? 0, openMadeIt) : '';
+  const failed = [slipsQuery, madeItQuery].find((query) => query.isError && !query.data && !query.isFetching);
+  const monthError = failed ? asApiError(failed.error) : null;
 
   useEffect(() => {
     if (openDate) heading.current?.focus();
@@ -206,15 +234,15 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
     setOpenDate(date);
   }
 
-  async function edit(add: boolean) {
+  async function edit(change: 'addSlip' | 'clearSlips' | 'markMadeIt' | 'clearMadeIt') {
     const date = openDate;
     if (!date || busy) return;
     setBusy(true);
     setProblem(null);
     try {
-      update(add ? await api.addSlip(habit.id, date) : await api.clearSlips(habit.id, date));
-      await slipsQuery.refetch();
-      setAnnouncement(t(add ? 'letgo.announce.added' : 'letgo.announce.cleared', { date: formatDate(date, longDate) }));
+      update(await api[change](habit.id, date));
+      await Promise.all([slipsQuery.refetch(), madeItQuery.refetch()]);
+      setAnnouncement(t(announcements[change], { date: formatDate(date, longDate) }));
     } catch (error) {
       const apiError = asApiError(error);
       if (!apiError.handled) setProblem(problemToMessage(apiError).message);
@@ -238,7 +266,7 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
         <MonthCalendar
           title={monthLabel(month)}
           weeks={weeks}
-          loading={slipsQuery.isFetching && !busy}
+          loading={(slipsQuery.isFetching || madeItQuery.isFetching) && !busy}
           canPrevious={canGoPrevious(month, habit.startDate)}
           canNext={canGoNext(month, today)}
           onPrevious={() => shiftMonth(-1)}
@@ -252,6 +280,7 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
               day={day}
               state={stateOf(day)}
               slips={slips.get(day.date) ?? 0}
+              madeIt={madeItOn(day, stateOf(day))}
               expanded={openDate === day.date}
               onSelect={() => toggle(day.date)}
             />
@@ -261,7 +290,10 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
               <div className="px-4 md:px-0">
                 <Notice tone="notice" heading={t('history.daysError')}>
                   {!monthError.handled && <p>{problemToMessage(monthError).message}</p>}
-                  <Button variant="secondary" onClick={() => void slipsQuery.refetch()}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => void Promise.all([slipsQuery.refetch(), madeItQuery.refetch()])}
+                  >
                     {t('history.tryAgain')}
                   </Button>
                 </Notice>
@@ -293,12 +325,21 @@ export function LetGoHistory({ habit, picker }: { habit: LetGoHabit; picker: Rea
               <p className="text-muted-foreground">{openWords.charAt(0).toUpperCase() + openWords.slice(1)}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" aria-disabled={busy || undefined} onClick={() => void edit(true)}>
+              {openState === 'free' && (
+                <Button
+                  variant="outline"
+                  aria-disabled={busy || undefined}
+                  onClick={() => void edit(openMadeIt ? 'clearMadeIt' : 'markMadeIt')}
+                >
+                  {t(openMadeIt ? 'letgo.day.unmark' : 'letgo.day.mark')}
+                </Button>
+              )}
+              <Button variant="secondary" aria-disabled={busy || undefined} onClick={() => void edit('addSlip')}>
                 <Feather aria-hidden />
                 {t('letgo.day.add')}
               </Button>
               {openState === 'slipped' && (
-                <Button variant="secondary" aria-disabled={busy || undefined} onClick={() => void edit(false)}>
+                <Button variant="secondary" aria-disabled={busy || undefined} onClick={() => void edit('clearSlips')}>
                   {t('letgo.day.clear')}
                 </Button>
               )}

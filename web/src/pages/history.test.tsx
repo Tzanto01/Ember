@@ -225,6 +225,10 @@ describe('HistoryPage for a let-go habit', () => {
         f.pending.splice(f.pending.indexOf(call), 1);
         call.respond(200, slips);
       }
+      for (const call of f.pending.filter((c) => c.url.startsWith('/api/habits/9/made-it?'))) {
+        f.pending.splice(f.pending.indexOf(call), 1);
+        call.respond(200, []);
+      }
     }, 5));
     setTimeout(() => clearInterval(timer), 1500);
   }
