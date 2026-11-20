@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using Ember.Api.TestHost;
 using Ember.Core.Models;
 using Ember.Core.Services;
@@ -26,7 +25,7 @@ public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(p
     [DockerFact]
     public async Task Account_exchanges_match_the_golden()
     {
-        await Settings();
+        await SettingsScenario();
         await Consent();
         await Export();
         await Import();
@@ -36,7 +35,7 @@ public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(p
         Verify();
     }
 
-    private async Task Settings()
+    private async Task SettingsScenario()
     {
         var user = await Host.SignedInAsync();
         var habit = (await user.CreateHabitAsync()).GetProperty("id").GetInt32();
@@ -63,19 +62,9 @@ public class AccountContractTests(PostgresFixture postgres) : ContractTestBase(p
         await Rec("me.get.tips-and-order", "/api/me", user.Get("/api/me"));
         await Rec("dm-reminders.resume.no-content", "/api/me/dm-reminders/resume", user.Post("/api/me/dm-reminders/resume"));
 
-        var bearer = await BearerAsync();
+        var bearer = await Host.BearerAsync();
         await Rec("widget-key.bearer.ok", "/api/me/widget-key", bearer.Post("/api/me/widget-key"));
         await Rec("widget-key.cookie.not-found", "/api/me/widget-key", user.Post("/api/me/widget-key"));
-    }
-
-    private async Task<ApiClient> BearerAsync()
-    {
-        var user = await Host.ConfirmedUserAsync();
-        var tokens = await (await user.Post("/api/auth/login", new Credentials(user.Email, ApiClient.Passphrase))).ExpectJson();
-        var bearer = Host.NewClient();
-        bearer.Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.GetProperty("accessToken").GetString());
-        await bearer.GiveConsentAsync();
-        return bearer;
     }
 
     private async Task Consent()

@@ -28,7 +28,7 @@
     "request": {
       "name": "string",
       "reminderExclusions": [
-        "string"
+        "browser-{n}"
       ],
       "reminderTime": "string"
     },
@@ -143,7 +143,7 @@
       ],
       "name": "string",
       "reminderExclusions": [
-        "string"
+        "browser-{n}"
       ],
       "reminderTime": "time"
     },
@@ -162,7 +162,7 @@
         "string"
       ],
       "reminderExclusions": [
-        "string"
+        "browser-{n}"
       ],
       "reminderTime": "time",
       "serverReminders": "boolean"
@@ -217,7 +217,7 @@
     "body": {
       "current": "boolean",
       "enabled": "boolean",
-      "id": "string",
+      "id": "browser-{n}",
       "kind": "enum(browser)",
       "label": "string"
     }
@@ -266,7 +266,7 @@
     "body": {
       "current": "boolean",
       "enabled": "boolean",
-      "id": "string",
+      "id": "phone-{n}",
       "kind": "enum(phone)",
       "label": "string"
     }
@@ -338,7 +338,7 @@
       {
         "current": "boolean",
         "enabled": "boolean",
-        "id": "string",
+        "id": "browser-{n}|phone-{n}",
         "kind": "enum(browser,phone)",
         "label": "string"
       }
@@ -423,7 +423,7 @@
           "string"
         ],
         "reminderExclusions": [
-          "string"
+          "browser-{n}"
         ],
         "reminderTime": "null|time",
         "serverReminders": "boolean"
@@ -713,7 +713,7 @@
         "string"
       ],
       "reminderExclusions": [
-        "string"
+        "browser-{n}"
       ],
       "reminderTime": "null",
       "serverReminders": "boolean"
@@ -826,7 +826,7 @@
         "string"
       ],
       "reminderExclusions": [
-        "string"
+        "browser-{n}"
       ],
       "reminderTime": "time",
       "serverReminders": "boolean"
@@ -889,7 +889,7 @@
     "body": {
       "current": "boolean",
       "enabled": "boolean",
-      "id": "string",
+      "id": "phone-{n}",
       "kind": "enum(phone)",
       "label": "string"
     }
@@ -907,7 +907,7 @@
     "body": {
       "current": "boolean",
       "enabled": "boolean",
-      "id": "string",
+      "id": "phone-{n}",
       "kind": "enum(phone)",
       "label": "string"
     }

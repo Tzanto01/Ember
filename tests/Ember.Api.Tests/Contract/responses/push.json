@@ -236,7 +236,7 @@
       {
         "current": "boolean",
         "enabled": "boolean",
-        "id": "string",
+        "id": "browser-{n}",
         "kind": "enum(browser)",
         "label": "string"
       }

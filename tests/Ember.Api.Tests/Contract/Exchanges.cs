@@ -70,7 +70,8 @@ internal sealed partial class Exchanges
         foreach (var name in expected.Select(p => p.Key).Union(_byName.Keys).Order(StringComparer.Ordinal))
             Diff(name, expected[name], actual[name], differences);
 
-        differences.Should().BeEmpty("{0} differs from the app (golden vs app). Run with EMBER_WRITE_FIXTURES=1 to accept.", file);
+        if (differences.Count > 0)
+            throw new Xunit.Sdk.XunitException($"{file} differs from the app, per exchange (golden vs app):\n{string.Join("\n", differences)}\nRun with EMBER_WRITE_FIXTURES=1 to accept.");
     }
 
     private static void Diff(string path, JsonNode? expected, JsonNode? actual, List<string> differences)

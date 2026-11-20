@@ -162,11 +162,13 @@ public class JournalContractTests(PostgresFixture postgres) : ContractTestBase(p
         await Rec("mood.patch.plaintext-on-encrypted", Mood, user.Patch($"{Moods}/{secret}", new { label = "plain" }));
         await Rec("moods.get.mixed", Moods, user.Get(Moods));
 
+        await Rec("journal-key.turn-off.no-body", JournalKey + "/turn-off", user.Post($"{JournalKey}/turn-off"));
         await Rec("journal-key.turn-off.wrong-password", JournalKey + "/turn-off", user.Post($"{JournalKey}/turn-off", new TurnOffBody(Wrong)));
         await Rec("journal-key.turn-off.ok", JournalKey + "/turn-off", user.Post($"{JournalKey}/turn-off", new TurnOffBody(ApiClient.Passphrase)));
         await Rec("me.journal-turning-off", "/api/me", user.Get("/api/me"));
         await Rec("day-note.put.plaintext-while-turning-off", DayNote, user.Put(Url(DayNote, 2), new { text = "plain again" }));
         await Rec("journal-key.delete.wrong-password", JournalKey, user.Send(HttpMethod.Delete, JournalKey, new DeleteKeyBody(Wrong, false)));
+        await Rec("journal-key.delete.no-body", JournalKey, user.Delete(JournalKey));
         await Rec("journal-key.delete.encrypted-left", JournalKey, user.Send(HttpMethod.Delete, JournalKey, new DeleteKeyBody(ApiClient.Passphrase, false)));
         await Rec("journal-key.delete.discard", JournalKey, user.Send(HttpMethod.Delete, JournalKey, new DeleteKeyBody(ApiClient.Passphrase, true)));
         await Rec("journal-key.get.gone", JournalKey, user.Get(JournalKey));

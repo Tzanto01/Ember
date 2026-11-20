@@ -17,14 +17,14 @@ public class FiresideContractTests(PostgresFixture postgres) : ContractTestBase(
     private const string Acknowledge = "/api/fireside/friends/{id:int}/acknowledge";
     private const string Dismiss = "/api/fireside/warmth/{id:int}/dismiss";
 
-    private sealed record Settings(bool? Enabled, string? Name, bool? Notify, string? ConsentVersion);
+    private sealed record FiresideSettings(bool? Enabled, string? Name, bool? Notify, string? ConsentVersion);
 
     private static string Slug() => Guid.NewGuid().ToString("N")[..10];
 
     private async Task<ApiClient> PersonAsync(string name)
     {
         var user = await Host.SignedInAsync();
-        await (await user.Put("/api/fireside", new Settings(true, name, null, FiresideService.CurrentConsentVersion))).Expect(HttpStatusCode.OK);
+        await (await user.Put("/api/fireside", new FiresideSettings(true, name, null, FiresideService.CurrentConsentVersion))).Expect(HttpStatusCode.OK);
         return user;
     }
 
@@ -48,18 +48,18 @@ public class FiresideContractTests(PostgresFixture postgres) : ContractTestBase(
         var user = await Host.SignedInAsync();
         await Rec("get.off", Fireside, user.Get("/api/fireside"));
         await Rec("get.unauthenticated", Fireside, Host.NewClient().Get("/api/fireside"));
-        await Rec("put.missing-enabled", Fireside, user.Put("/api/fireside", new Settings(null, "Ember", null, null)));
-        await Rec("put.invalid-name", Fireside, user.Put("/api/fireside", new Settings(true, new string('x', 33), null, FiresideService.CurrentConsentVersion)));
-        await Rec("put.name-required", Fireside, user.Put("/api/fireside", new Settings(true, null, null, FiresideService.CurrentConsentVersion)));
-        await Rec("put.consent-required", Fireside, user.Put("/api/fireside", new Settings(true, "Ember", null, null)));
-        await Rec("put.old-consent", Fireside, user.Put("/api/fireside", new Settings(true, "Ember", null, "2000-01-01")));
+        await Rec("put.missing-enabled", Fireside, user.Put("/api/fireside", new FiresideSettings(null, "Ember", null, null)));
+        await Rec("put.invalid-name", Fireside, user.Put("/api/fireside", new FiresideSettings(true, new string('x', 33), null, FiresideService.CurrentConsentVersion)));
+        await Rec("put.name-required", Fireside, user.Put("/api/fireside", new FiresideSettings(true, null, null, FiresideService.CurrentConsentVersion)));
+        await Rec("put.consent-required", Fireside, user.Put("/api/fireside", new FiresideSettings(true, "Ember", null, null)));
+        await Rec("put.old-consent", Fireside, user.Put("/api/fireside", new FiresideSettings(true, "Ember", null, "2000-01-01")));
         await Rec("code.off", Code, user.Post(Code));
         await Rec("ask.off", Ask, user.Put(Ask));
         await Rec("join.off", Join, user.Post(Join, new { code = "ABCD EFGH" }));
-        await Rec("put.ok", Fireside, user.Put("/api/fireside", new Settings(true, $"Ember{Slug()}", false, FiresideService.CurrentConsentVersion)));
+        await Rec("put.ok", Fireside, user.Put("/api/fireside", new FiresideSettings(true, $"Ember{Slug()}", false, FiresideService.CurrentConsentVersion)));
         await Rec("get.on", Fireside, user.Get("/api/fireside"));
-        await Rec("put.rename-and-notify", Fireside, user.Put("/api/fireside", new Settings(true, $"Ember{Slug()}", true, null)));
-        await Rec("put.off", Fireside, user.Put("/api/fireside", new Settings(false, null, null, null)));
+        await Rec("put.rename-and-notify", Fireside, user.Put("/api/fireside", new FiresideSettings(true, $"Ember{Slug()}", true, null)));
+        await Rec("put.off", Fireside, user.Put("/api/fireside", new FiresideSettings(false, null, null, null)));
 
         var withoutConsent = await Host.SignedInAsync(consent: false);
         await Rec("get.no-health-consent", Fireside, withoutConsent.Get("/api/fireside"));
@@ -78,6 +78,8 @@ public class FiresideContractTests(PostgresFixture postgres) : ContractTestBase(
         await Rec("join.ok", Join, joiner.Post(Join, new { code }));
         await Rec("join.used-code", Join, joiner.Post(Join, new { code }));
         await Rec("get.with-friend", Fireside, owner.Get("/api/fireside"));
+        var second = (await (await owner.Post(Code)).ExpectJson()).GetProperty("code").GetString()!;
+        await Rec("join.already-friends", Join, joiner.Post(Join, new { code = second }));
         await Rec("code.delete.ok", Code, owner.Delete(Code));
         await Rec("code.delete.again", Code, owner.Delete(Code));
 

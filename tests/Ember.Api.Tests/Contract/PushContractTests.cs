@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Ember.Core.Services;
 
@@ -21,16 +20,6 @@ public class PushContractTests(PostgresFixture postgres) : ContractTestBase(post
 
     private static Subscription Valid(string host = "fcm.googleapis.com", bool? showNames = null)
         => new($"https://{host}/send/contract", new Keys("BPcontractp256dhkey", "contractauth"), showNames);
-
-    private async Task<ApiClient> BearerAsync()
-    {
-        var user = await Host.ConfirmedUserAsync();
-        var tokens = await (await user.Post("/api/auth/login", new Credentials(user.Email, ApiClient.Passphrase))).ExpectJson();
-        var bearer = Host.NewClient();
-        bearer.Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.GetProperty("accessToken").GetString());
-        await bearer.GiveConsentAsync();
-        return bearer;
-    }
 
     private Task<HttpResponseMessage> WidgetCheckIn(string? authorization, object body)
     {
@@ -92,7 +81,7 @@ public class PushContractTests(PostgresFixture postgres) : ContractTestBase(post
 
     private async Task Widget()
     {
-        var bearer = await BearerAsync();
+        var bearer = await Host.BearerAsync();
         var habit = (await (await bearer.Post("/api/habits", new { name = "Pills", frequency = "daily", timesPerDay = 2 })).ExpectJson(HttpStatusCode.Created)).GetProperty("id").GetInt32();
         var letGo = (await (await bearer.Post("/api/habits", new { name = "Coffee", kind = "letGo", frequency = "daily" })).ExpectJson(HttpStatusCode.Created)).GetProperty("id").GetInt32();
         var key = (await (await bearer.Post("/api/me/widget-key")).ExpectJson()).GetProperty("key").GetString();

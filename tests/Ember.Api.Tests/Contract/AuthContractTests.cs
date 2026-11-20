@@ -172,6 +172,13 @@ public class AuthContractTests(PostgresFixture postgres) : ContractTestBase(post
         await Rec("antiforgery.get.ok", "/api/me", withoutToken.Get("/api/me"));
         await Rec("antiforgery.login.exempt", Login, withoutToken.Post($"{Login}?useCookies=true", new Credentials(user.Email, ApiClient.Passphrase)));
 
+        await Rec("antiforgery.refresh.exempt", "/api/auth/refresh", withoutToken.Post("/api/auth/refresh", new { refreshToken = "not-a-token" }));
+        await Rec("antiforgery.reminders-done.exempt", "/api/reminders/done", withoutToken.Post("/api/reminders/done", new { token = "unknown" }));
+        await Rec("antiforgery.native-token.exempt", "/api/auth/discord/native/token", withoutToken.Post("/api/auth/discord/native/token", new { code = "unknown", verifier = "unknown" }));
+        await Rec("antiforgery.forgot-password.exempt", "/api/auth/forgotPassword", withoutToken.Post("/api/auth/forgotPassword", new { email = user.Email }));
+        await Rec("antiforgery.logout", "/api/auth/logout", withoutToken.Post("/api/auth/logout"));
+        await Rec("antiforgery.logout-everywhere", "/api/auth/logout-everywhere", withoutToken.Post("/api/auth/logout-everywhere"));
+
         var tokens = await (await Host.NewClient().Post(Login, new Credentials(user.Email, ApiClient.Passphrase))).ExpectJson();
         var bearer = BearerClient(tokens.GetProperty("accessToken").GetString()!);
         await Rec("antiforgery.bearer.exempt", "/api/habits", bearer.Post("/api/habits", new { name = "Water", frequency = "daily" }));

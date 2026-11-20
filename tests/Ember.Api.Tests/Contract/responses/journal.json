@@ -1092,6 +1092,18 @@
       "type": "conflict"
     }
   },
+  "journal-key.delete.no-body": {
+    "method": "DELETE",
+    "route": "/api/me/journal-key",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
   "journal-key.delete.wrong-password": {
     "method": "DELETE",
     "route": "/api/me/journal-key",
@@ -1335,6 +1347,18 @@
     "request": {
       "password": "string"
     },
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "journal-key.turn-off.no-body": {
+    "method": "POST",
+    "route": "/api/me/journal-key/turn-off",
     "status": 404,
     "contentType": "application/problem+json",
     "headers": {},

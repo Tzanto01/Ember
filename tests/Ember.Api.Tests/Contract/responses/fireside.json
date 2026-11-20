@@ -417,6 +417,27 @@
       ]
     }
   },
+  "join.already-friends": {
+    "method": "POST",
+    "route": "/api/fireside/join",
+    "request": {
+      "code": "string"
+    },
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "asking": "boolean",
+      "canSendWarmth": "boolean",
+      "checkedInToday": "null",
+      "id": "integer",
+      "joinedViaMyCode": "boolean",
+      "muted": "boolean",
+      "name": "string",
+      "renamedFrom": "null",
+      "shareFlame": "boolean"
+    }
+  },
   "join.full": {
     "method": "POST",
     "route": "/api/fireside/join",

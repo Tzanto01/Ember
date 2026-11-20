@@ -48,7 +48,7 @@ public class RoutinesContractTests(PostgresFixture postgres) : ContractTestBase(
         await Rec("destination.patch.disable", Destination, user.Patch($"{Destinations}/{browser}", new { enabled = false }));
         await Rec("destination.patch.enable", Destination, user.Patch($"{Destinations}/{phone}", new { enabled = true }));
         await Rec("destination.patch.missing-enabled", Destination, user.Patch($"{Destinations}/{browser}", new { }));
-        await Rec("destination.patch.not-found", Destination, user.Patch($"{Destinations}/phone:9999", new { enabled = true }));
+        await Rec("destination.patch.not-found", Destination, user.Patch($"{Destinations}/phone-9999", new { enabled = true }));
         await Rec("destination.patch.discord-not-linked", Destination, user.Patch($"{Destinations}/discord", new { enabled = true }));
 
         var discord = Host.NewClient();
@@ -65,7 +65,7 @@ public class RoutinesContractTests(PostgresFixture postgres) : ContractTestBase(
         await Rec("list.unauthenticated", Routines, Host.NewClient().Get(Routines));
         var morning = await IdOf(await Rec("create.ok", Routines, user.Post(Routines, new { name = "Morning", reminderTime = "07:30", habitIds = new[] { habit }, reminderExclusions = new[] { destination } })));
         var empty = await IdOf(await Rec("create.minimal", Routines, user.Post(Routines, new { name = "Evening" })));
-        await Rec("create.invalid", Routines, user.Post(Routines, new { name = "", reminderTime = "7:30pm", reminderExclusions = new[] { "browser:9999" } }));
+        await Rec("create.invalid", Routines, user.Post(Routines, new { name = "", reminderTime = "7:30pm", reminderExclusions = new[] { "browser-9999" } }));
         await Rec("create.name-too-long", Routines, user.Post(Routines, new { name = new string('x', 51) }));
         await Rec("create.duplicate-habits", Routines, user.Post(Routines, new { name = "Dup", habitIds = new[] { habit, habit } }));
         await Rec("create.let-go-habit", Routines, user.Post(Routines, new { name = "Let go", habitIds = new[] { letGo } }));

@@ -29,6 +29,9 @@ internal static partial class Shapes
     [GeneratedRegex(@"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")]
     private static partial Regex GuidPattern();
 
+    [GeneratedRegex(@"^(browser|phone)-\d+$")]
+    private static partial Regex DestinationIdPattern();
+
     [GeneratedRegex(@"t-[0-9a-f]{32}@example\.test")]
     private static partial Regex EmailPattern();
 
@@ -80,6 +83,7 @@ internal static partial class Shapes
     private static string StringKind(string value, string? key)
     {
         if (Guid.TryParse(value, out _) && GuidPattern().IsMatch(value)) return "guid";
+        if (DestinationIdPattern().Match(value) is { Success: true } destination) return $"{destination.Groups[1].Value}-{{n}}";
         if (DatePattern().IsMatch(value)) return "date";
         if (TimePattern().IsMatch(value)) return "time";
         if (DateTimePattern().IsMatch(value)) return "datetime";

@@ -67,7 +67,7 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
             days = new[] { "mon" },
             timesPerDay = 0,
             reminderTime = "25:00",
-            reminderExclusions = new[] { "browser:999" },
+            reminderExclusions = new[] { "browser-999" },
         }));
         await Rec("create.invalid.reminder-times", Habits, user.Post(Habits, new { name = "A", frequency = "daily", timesPerDay = 1, reminderTimes = new[] { "08:00", "09:00" } }));
         await Rec("create.invalid.weekdays", Habits, user.Post(Habits, new { name = "A", frequency = "weekdays" }));
@@ -102,7 +102,7 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
         await Rec("patch.schedule", One, user.Patch($"{Habits}/{ids.Weekdays}", new { days = new[] { "tue", "thu" } }));
         await Rec("patch.times-per-day", One, user.Patch($"{Habits}/{ids.Multi}", new { timesPerDay = 2, reminderTimes = new[] { "08:00" } }));
         await Rec("patch.let-go", One, user.Patch($"{Habits}/{ids.LetGo}", new { name = "Less coffee", reminderTime = "20:00" }));
-        await Rec("patch.invalid", One, user.Patch($"{Habits}/{ids.Daily}", new { name = "", frequency = "hourly", weeklyTarget = 2, reminderTime = "9am", reminderExclusions = new[] { "phone:0" } }));
+        await Rec("patch.invalid", One, user.Patch($"{Habits}/{ids.Daily}", new { name = "", frequency = "hourly", weeklyTarget = 2, reminderTime = "9am", reminderExclusions = new[] { "phone-0" } }));
         await Rec("patch.clear-conflict", One, user.Patch($"{Habits}/{ids.Daily}", new { reminderTime = "09:00", clearReminder = true }));
         await Rec("patch.kind-change", One, user.Patch($"{Habits}/{ids.Daily}", new { kind = "letGo" }));
         await Rec("patch.invalid.let-go", One, user.Patch($"{Habits}/{ids.LetGo}", new { frequency = "weekly", weeklyTarget = 2, timesPerDay = 3 }));
@@ -175,6 +175,7 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
         await Rec("pause.until", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Daily}/pause", new { until = Host.Today.AddDays(3).Iso() }));
         await Rec("pause.indefinite", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Weekly}/pause", new { }));
         await Rec("pause.let-go", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.LetGo}/pause", new { until = Host.Today.AddDays(1).Iso() }));
+        await Rec("pause.no-body", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Daily}/pause"));
         await Rec("pause.bad-date", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Daily}/pause", new { until = "later" }));
         await Rec("pause.in-the-past", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Daily}/pause", new { until = Host.Today.AddDays(-1).Iso() }));
         await Rec("pause.not-found", "/api/habits/{id:int}/pause", user.Post($"{Habits}/9999/pause", new { }));
