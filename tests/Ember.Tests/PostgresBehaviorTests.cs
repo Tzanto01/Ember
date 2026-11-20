@@ -192,4 +192,13 @@ public class PostgresBehaviorTests(PostgresFixture postgres)
         result.Should().Be(DayEditResult.Saved);
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().DayMarks.CountAsync(m => m.Date == Day))).Should().Be(1);
     }
+
+    [DockerFact]
+    public async Task WithdrawalEmptiesEveryHealthTable()
+    {
+        var time = new FakeTimeProvider(HealthDataDeletionScopeTests.Now);
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time, postgresConnectionString: await postgres.CreateDatabaseAsync());
+
+        await HealthDataDeletionScopeTests.AssertWithdrawalEmptiesEveryHealthTableAsync(host, time);
+    }
 }

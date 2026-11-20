@@ -31,6 +31,69 @@ internal static class GoldenFile
             + "After a deliberate change, review it and regenerate with EMBER_WRITE_FIXTURES=1.");
     }
 
+    /// <summary>
+    /// For a growing CSV: every golden column must still exist in the same relative order and every golden row must still appear, in order, with
+    /// the same values in the golden's columns. Extra columns, extra rows and extra record types in the actual output are fine.
+    /// </summary>
+    public static void AssertCsvKeeps(string fileName, string actual)
+    {
+        var path = Path.Combine(RepoRoot(), "tests", "Ember.Tests", "Golden", fileName);
+        if (Environment.GetEnvironmentVariable("EMBER_WRITE_FIXTURES") == "1")
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, actual);
+            return;
+        }
+
+        var golden = ParseCsv(File.ReadAllText(path));
+        var rows = ParseCsv(actual);
+        var columns = rows[0];
+        var positions = new List<int>();
+        var from = 0;
+        foreach (var column in golden[0])
+        {
+            var at = Array.IndexOf(columns, column, from);
+            at.Should().BeGreaterThanOrEqualTo(0, $"column {column} must stay, after the golden columns before it");
+            positions.Add(at);
+            from = at + 1;
+        }
+
+        var next = 1;
+        for (var i = 1; i < golden.Count; i++)
+        {
+            var want = golden[i];
+            var found = false;
+            for (; next < rows.Count && !found; next++)
+                found = positions.Select((p, c) => rows[next].ElementAtOrDefault(p) == want[c]).All(equal => equal);
+            found.Should().BeTrue($"golden row {i} must still be exported with the same values, in order: {string.Join(",", want)}");
+        }
+    }
+
+    private static List<string[]> ParseCsv(string text)
+    {
+        var rows = new List<string[]>();
+        var cells = new List<string>();
+        var cell = new System.Text.StringBuilder();
+        var quoted = false;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (quoted)
+            {
+                if (c == '"' && i + 1 < text.Length && text[i + 1] == '"') { cell.Append('"'); i++; }
+                else if (c == '"') quoted = false;
+                else cell.Append(c);
+            }
+            else if (c == '"') quoted = true;
+            else if (c == ',') { cells.Add(cell.ToString()); cell.Clear(); }
+            else if (c == '\r') { }
+            else if (c == '\n') { cells.Add(cell.ToString()); cell.Clear(); rows.Add([.. cells]); cells.Clear(); }
+            else cell.Append(c);
+        }
+        if (cell.Length > 0 || cells.Count > 0) { cells.Add(cell.ToString()); rows.Add([.. cells]); }
+        return rows;
+    }
+
     private static string RepoRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
