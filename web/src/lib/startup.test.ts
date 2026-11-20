@@ -49,7 +49,7 @@ describe('habitsCache', () => {
 
   it('deletes a save that lands after the user changed', async () => {
     let user: Me | null = me;
-    let finish = () => undefined as void;
+    let finish: () => void = () => undefined;
     const store = fakeStore(null);
     store.saveHabits.mockImplementation(() => new Promise<undefined>((resolve) => (finish = () => resolve(undefined))));
     const cache = habitsCache(store, () => user);

@@ -573,7 +573,7 @@ export class ApiClient {
   async sendFeedback(body: FeedbackRequest): Promise<void> {
     if (!body.images?.length) return this.http.request('POST', '/api/feedback', { body, server: true });
     const send = () =>
-      this.http.request<void>('POST', '/api/feedback', {
+      this.http.request<undefined>('POST', '/api/feedback', {
         body,
         server: true,
         timeoutMs: longRequestTimeoutMs,

@@ -80,16 +80,16 @@ export const firesideApi = {
   makeCode: () => http.request<FiresideCode>('POST', '/api/fireside/code'),
   join: (code: string) => http.request<FiresideFriend>('POST', '/api/fireside/join', { body: { code } }),
   sendWarmth: (id: number, message: WarmthMessage) =>
-    http.request<void>('POST', `${friends(id)}/warmth`, { body: { message } }),
+    http.request<undefined>('POST', `${friends(id)}/warmth`, { body: { message } }),
   patchFriend: (id: number, body: { muted?: boolean; shareFlame?: boolean }) =>
     http.request<FiresideFriend>('PATCH', friends(id), { body }),
   acknowledge: (id: number, body: { rename?: boolean; joined?: boolean }) =>
     http.request<FiresideFriend>('POST', `${friends(id)}/acknowledge`, { body }),
   remove: (id: number, revokeCode: boolean) =>
-    http.request<void>('DELETE', friends(id), { params: { revokeCode: String(revokeCode) } }),
-  dismiss: (id: number) => http.request<void>('POST', `/api/fireside/warmth/${id}/dismiss`),
+    http.request<undefined>('DELETE', friends(id), { params: { revokeCode: String(revokeCode) } }),
+  dismiss: (id: number) => http.request<undefined>('POST', `/api/fireside/warmth/${id}/dismiss`),
   ask: () => http.request<{ askingUntil: string }>('PUT', '/api/fireside/ask'),
-  stopAsking: () => http.request<void>('DELETE', '/api/fireside/ask'),
+  stopAsking: () => http.request<undefined>('DELETE', '/api/fireside/ask'),
 };
 
 export const firesideKey = ['fireside'] as const;

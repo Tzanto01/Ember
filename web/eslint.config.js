@@ -68,7 +68,6 @@ export default defineConfig(
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
       '@typescript-eslint/prefer-promise-reject-errors': 'off',
-      '@typescript-eslint/no-invalid-void-type': 'off',
       '@typescript-eslint/no-meaningless-void-operator': 'off',
       '@typescript-eslint/no-misused-spread': 'off',
       '@typescript-eslint/no-unnecessary-type-conversion': 'off',
