@@ -135,8 +135,8 @@ class TodayWidgetTest {
         assertNotNull(alarm)
         val zone = ZoneId.of(host.zone)
         val midnight = ZonedDateTime.now(zone).toLocalDate().plusDays(1).atTime(0, 0, 5).atZone(zone)
-        assertEquals(AlarmManager.RTC, alarm!!.type)
-        assertEquals(midnight.toInstant().toEpochMilli(), alarm.triggerAtTime)
+        assertEquals(AlarmManager.RTC, alarm!!.getType())
+        assertEquals(midnight.toInstant().toEpochMilli(), alarm.getTriggerAtMs())
         val intent = shadowOf(alarm.operation!!).savedIntent
         assertEquals("app.ember.habits.WIDGET_MIDNIGHT", intent.action)
         assertEquals(TodayWidget::class.java.name, intent.component!!.className)
