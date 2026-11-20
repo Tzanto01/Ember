@@ -80,9 +80,9 @@ public class LowDayTests
         var user = new User { Timezone = "UTC", GraceDaysPerWeek = 0, Habits = { habit } };
         user.DayMarks.Add(new DayMark { Date = Today.AddDays(-6), Kind = DayMarkKind.LowDay });
 
-        var summary = WeeklySummaryService.Build(user, Today.AddDays(-1));
+        var summary = WeeklySummary.Build(user, Today.AddDays(-1));
 
-        summary.Habits.Single().Should().Match<WeeklySummaryService.HabitSummary>(h => h.Done == 5 && h.Possible == 6);
+        summary.Habits.Single().Should().Match<WeeklySummary.HabitSummary>(h => h.Done == 5 && h.Possible == 6);
     }
 }
 

@@ -10,7 +10,7 @@ namespace Ember.Core.Services;
 /// tone-appropriate headline/footer for how the user's week went.
 /// No EF or Discord dependencies — fully unit-testable.
 /// </summary>
-public static class WeeklySummaryService
+public static class WeeklySummary
 {
     /// <summary>Length of the summary window in days.</summary>
     public const int WindowDays = 7;

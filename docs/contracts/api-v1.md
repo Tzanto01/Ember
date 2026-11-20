@@ -215,7 +215,7 @@ Endpoints:
 
 - `GET /api/low-days?from&to` → `string[]` of dates (default: the last 366 days).
 - `PUT /api/low-days/{date}` → 204. `in_future` after the local today, `before_habit_start` before the user's earliest habit start. `DELETE /api/low-days/{date}` → 204.
-- `GET /api/stats/weekly` → `{ totalDone, totalPossible, headline, footer, habits: [{ habitId, name, done, possible, streak }] }` for the 7 days ending yesterday (Core `WeeklySummaryService`). `headline` and `footer` are plain text: Discord markdown stripped, emoji kept. `streak` is null for weekly habits. When nothing was possible that week (`totalPossible` 0, Core `HasSummarableWeek` false, the bot sends no summary), `headline` and `footer` are empty strings.
+- `GET /api/stats/weekly` → `{ totalDone, totalPossible, headline, footer, habits: [{ habitId, name, done, possible, streak }] }` for the 7 days ending yesterday (Core `WeeklySummary`). `headline` and `footer` are plain text: Discord markdown stripped, emoji kept. `streak` is null for weekly habits. When nothing was possible that week (`totalPossible` 0, Core `HasSummarableWeek` false, the bot sends no summary), `headline` and `footer` are empty strings.
 
 ## Web push (Phase 6 server slice)
 

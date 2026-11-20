@@ -253,16 +253,16 @@ public partial class RulesFixtureTests
             Weekly(input, habits));
     }
 
-    /// <summary>What <c>GET /api/stats/weekly</c> returns on <c>today</c>, from <see cref="WeeklySummaryService"/> as the API maps it.</summary>
+    /// <summary>What <c>GET /api/stats/weekly</c> returns on <c>today</c>, from <see cref="WeeklySummary"/> as the API maps it.</summary>
     private static WeeklyOut Weekly(CaseInput input, List<Habit> habits)
     {
         var user = new User { Timezone = input.Timezone, GraceDaysPerWeek = input.GraceDaysPerWeek, Language = Languages.English };
         foreach (var habit in habits) user.Habits.Add(habit);
         foreach (var day in input.LowDays) user.DayMarks.Add(new DayMark { Date = day, Kind = DayMarkKind.LowDay });
 
-        var summary = WeeklySummaryService.Build(user, input.Today.AddDays(-1));
+        var summary = WeeklySummary.Build(user, input.Today.AddDays(-1));
         var (headline, footer) = summary.HasSummarableWeek
-            ? WeeklySummaryService.ToneLines(summary.TotalDone, summary.TotalPossible)
+            ? WeeklySummary.ToneLines(summary.TotalDone, summary.TotalPossible)
             : ("", "");
         return new WeeklyOut(summary.TotalDone, summary.TotalPossible, PlainText(headline), PlainText(footer),
             summary.Habits.Select(h => new WeeklyHabitOut(h.Habit.Id, h.Habit.Name, h.Done, h.Possible,
