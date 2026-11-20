@@ -34,8 +34,8 @@ export function setVoiceOn(on: boolean): void {
   if (!on) stopVoice();
 }
 
-function offlineVoice<T extends { lang: string; localService: boolean }>(
-  voices: T[],
+function offlineVoice(
+  voices: { lang: string; localService: boolean }[],
   language: Language,
 ): number {
   const pattern = new RegExp(`^${language}(?:[-_]|$)`, 'i');

@@ -75,7 +75,6 @@ export default defineConfig(
       '@typescript-eslint/no-extraneous-class': 'off',
       '@typescript-eslint/no-base-to-string': 'off',
       '@typescript-eslint/no-redundant-type-constituents': 'off',
-      '@typescript-eslint/no-unnecessary-type-parameters': 'off',
       '@typescript-eslint/no-implied-eval': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/exhaustive-deps': 'off',
