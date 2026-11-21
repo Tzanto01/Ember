@@ -2,12 +2,14 @@ using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.Discord;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Ember.Bot.Modules;
 
@@ -23,13 +25,15 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     private readonly ConsentService _consent;
     private readonly UserSettingsService _settings;
     private readonly IConfiguration _config;
+    private readonly ILogger<ReflectDismissModule> _logger;
 
-    public ReflectDismissModule(HabitService habits, ConsentService consent, UserSettingsService settings, IConfiguration config)
+    public ReflectDismissModule(HabitService habits, ConsentService consent, UserSettingsService settings, IConfiguration config, ILogger<ReflectDismissModule> logger)
     {
         _habits = habits;
         _consent = consent;
         _settings = settings;
         _config = config;
+        _logger = logger;
     }
 
     [ComponentInteraction(ReflectIds.DismissPattern)]
@@ -44,7 +48,10 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
             if (Context.Interaction is SocketMessageComponent component)
                 await component.Message.DeleteAsync();
         }
-        catch { /* Message may already be gone */ }
+        catch (Exception ex) when (DiscordFailures.IsRequestFailure(ex))
+        {
+            _logger.LogDebug(ex, "Could not delete the missed-day DM for interaction {InteractionId}.", Context.Interaction.Id);
+        }
     }
 
     [ComponentInteraction(ReflectIds.LogPattern)]

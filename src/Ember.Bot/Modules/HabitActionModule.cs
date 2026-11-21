@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.Discord;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
 using Ember.Core.Localization;
@@ -8,6 +9,7 @@ using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Ember.Bot.Modules;
 
@@ -35,13 +37,15 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     private readonly ConsentService _consent;
     private readonly UserSettingsService _settings;
     private readonly IConfiguration _config;
+    private readonly ILogger<HabitActionModule> _logger;
 
-    public HabitActionModule(HabitService habits, ConsentService consent, UserSettingsService settings, IConfiguration config)
+    public HabitActionModule(HabitService habits, ConsentService consent, UserSettingsService settings, IConfiguration config, ILogger<HabitActionModule> logger)
     {
         _habits = habits;
         _consent = consent;
         _settings = settings;
         _config = config;
+        _logger = logger;
     }
 
     // ── habit:add:modal ───────────────────────────────────────────────────────
@@ -104,16 +108,18 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         {
             try
             {
-                var dm = await Context.User.CreateDMChannelAsync();
                 var dmEmbed = new EmbedBuilder()
                     .WithColor(0xE8873A)
                     .WithTitle(t.Get("habit.welcome.title"))
                     .WithDescription(t.Format("habit.welcome.body", habit.Name))
                     .WithFooter(t.Get("habit.welcome.footer"))
                     .Build();
-                await dm.SendMessageAsync(embed: dmEmbed);
+                await SendWelcomeDmAsync(dmEmbed);
             }
-            catch { /* DMs disabled */ }
+            catch (Exception ex) when (DiscordFailures.IsRequestFailure(ex))
+            {
+                _logger.LogDebug(ex, "Could not send the first-habit welcome DM for interaction {InteractionId}.", Context.Interaction.Id);
+            }
         }
 
         await AskStreaksOnceAsync(Context.Interaction, _settings, userId, t);
@@ -277,7 +283,14 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             .Build();
 
         await RespondWithModalAsync(modal);
-        try { await DeleteOriginalResponseAsync(); } catch { /* ignore */ }
+        try
+        {
+            await DeleteOriginalResponseAsync();
+        }
+        catch (Exception ex) when (DiscordFailures.IsRequestFailure(ex))
+        {
+            _logger.LogDebug(ex, "Could not delete the rename message for interaction {InteractionId}.", Context.Interaction.Id);
+        }
     }
 
     // ── habit:rename:modal:{habitId}:{sourceMessageId} ────────────────────────
@@ -451,6 +464,13 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>Sends the welcome DM for the user's first habit.</summary>
+    protected virtual async Task SendWelcomeDmAsync(Embed embed)
+    {
+        var dm = await Context.User.CreateDMChannelAsync();
+        await dm.SendMessageAsync(embed: embed);
+    }
 
     private async Task BadIdAsync(Texts t) =>
         await RespondAsync(t.Get("common.retry.dash"), ephemeral: true);

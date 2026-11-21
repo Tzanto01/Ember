@@ -2,6 +2,7 @@ using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Ember.Bot.Discord;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Discord.Messages;
@@ -10,6 +11,7 @@ using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Ember.Bot.Modules;
 
@@ -18,12 +20,14 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     private readonly HabitService _habits;
     private readonly UserSettingsService _settings;
     private readonly ReminderService _reminders;
+    private readonly ILogger<ReminderSetupModule> _logger;
 
-    public ReminderSetupModule(HabitService habits, UserSettingsService settings, ReminderService reminders)
+    public ReminderSetupModule(HabitService habits, UserSettingsService settings, ReminderService reminders, ILogger<ReminderSetupModule> logger)
     {
         _habits = habits;
         _settings = settings;
         _reminders = reminders;
+        _logger = logger;
     }
 
     // ── "Set a reminder" button ───────────────────────────────────────────────
@@ -84,7 +88,14 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
 
         // Strip the buttons from the original message so it can't be clicked again.
         // DeleteOriginalResponseAsync works after RespondWithModalAsync for component interactions.
-        try { await DeleteOriginalResponseAsync(); } catch { /* ignore */ }
+        try
+        {
+            await DeleteOriginalResponseAsync();
+        }
+        catch (Exception ex) when (DiscordFailures.IsRequestFailure(ex))
+        {
+            _logger.LogDebug(ex, "Could not delete the reminder message for interaction {InteractionId}.", Context.Interaction.Id);
+        }
     }
 
     // ── "Remind me at HH:mm" button (from /habit template) ────────────────────
