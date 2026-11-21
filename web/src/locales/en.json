@@ -1055,6 +1055,7 @@
   "settings.group.feedbackSummary": "Tell us what would make Ember better",
   "settings.group.help": "Help right now",
   "settings.group.helpSummary": "Crisis lines, any time of day",
+  "settings.group.helpSummaryWithReport": "Crisis lines, any time of day · Tech report",
   "settings.groupsLabel": "Settings groups",
   "settings.whatsNewSummary": "What changed in each version",
   "settings.backToList": "Back to Settings",
