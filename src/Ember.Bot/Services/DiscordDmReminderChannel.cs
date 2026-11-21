@@ -18,15 +18,6 @@ namespace Ember.Bot.Services;
 /// </summary>
 public class DiscordDmReminderChannel : IReminderChannel
 {
-    /// <summary>Label of the reminder's Skip button; calm, with no red mark.</summary>
-    public static string SkipLabel(Texts t) => t.Get("reminder.skip");
-
-    /// <summary>Subtext added to a closed reminder whose habits are done for its day.</summary>
-    public static string LoggedLine(Texts t) => t.Get("reminder.logged-line");
-
-    /// <summary>Subtext added to a closed reminder whose habits are not all done for its day.</summary>
-    public static string ClosedLine(Texts t) => t.Get("reminder.closed-line");
-
     private readonly IDiscordDmSender _discord;
     private readonly TimeProvider _time;
     private readonly IServiceScopeFactory _scopes;
@@ -79,7 +70,7 @@ public class DiscordDmReminderChannel : IReminderChannel
         var now = _time.GetUtcNow().ToUnixTimeSeconds();
         var components = new ComponentBuilder()
             .WithButton(t.Get("reminder.done"), CheckInIds.Done(reminder.HabitId, now), ButtonStyle.Success)
-            .WithButton(SkipLabel(t), CheckInIds.Skip(reminder.HabitId, now), ButtonStyle.Secondary)
+            .WithButton(ReminderDm.SkipLabel(t), CheckInIds.Skip(reminder.HabitId, now), ButtonStyle.Secondary)
             .WithButton(t.Get("reminder.snooze"), CheckInIds.Snooze(reminder.HabitId, now), ButtonStyle.Secondary)
             .WithButton(DiscordRemindersAsk.StopButton(t, discordUserId), row: 1)
             .Build();
@@ -152,7 +143,7 @@ public class DiscordDmReminderChannel : IReminderChannel
             foreach (var old in superseded)
             {
                 if (!await _discord.DeleteMessageAsync(old.ChannelId, old.MessageId))
-                    await _discord.CloseMessageAsync(old.ChannelId, old.MessageId, ClosedLine(BotTexts.For(reminder.Language)));
+                    await _discord.CloseMessageAsync(old.ChannelId, old.MessageId, ReminderDm.ClosedLine(BotTexts.For(reminder.Language)));
                 await reminders.DeleteReminderMessageAsync(old.Id);
             }
         }

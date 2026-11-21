@@ -4,6 +4,7 @@ using Discord.Net;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -55,7 +56,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         var components = new ComponentBuilder()
             .WithButton(t.Get("habit.checkin.done-button"), HabitActionIds.CheckInDone(habitId), ButtonStyle.Success)
-            .WithButton(Ember.Bot.Services.DiscordDmReminderChannel.SkipLabel(t), HabitActionIds.CheckInSkip(habitId), ButtonStyle.Secondary)
+            .WithButton(ReminderDm.SkipLabel(t), HabitActionIds.CheckInSkip(habitId), ButtonStyle.Secondary)
             .Build();
 
         var progress = habit.TimesPerDay > 1

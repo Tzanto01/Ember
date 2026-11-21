@@ -4,7 +4,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
-using Ember.Bot.Services;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -49,8 +49,8 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
 
     /// <summary>
     /// For a Done or Skip tap on a reminder sent at <paramref name="timestampStr"/>: null while the reminder is usable, otherwise the
-    /// subtext its message closes with: <see cref="DiscordDmReminderChannel.LoggedLine"/> when every habit with a Done button in
-    /// <paramref name="components"/> is done for that day, <see cref="DiscordDmReminderChannel.ClosedLine"/> otherwise.
+    /// subtext its message closes with: <see cref="ReminderDm.LoggedLine"/> when every habit with a Done button in
+    /// <paramref name="components"/> is done for that day, <see cref="ReminderDm.ClosedLine"/> otherwise.
     /// </summary>
     internal static async Task<string?> ExpiredLineAsync(Texts t, HabitService habits, UserSettingsService settings, TimeProvider time, Guid userId,
         string timestampStr, IEnumerable<IMessageComponent> components)
@@ -65,8 +65,8 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             .ToList();
         foreach (var habitId in habitIds)
             if ((await habits.GetHabitAsync(userId, habitId))?.Logs.Any(l => l.Date == day && l.Completed) != true)
-                return DiscordDmReminderChannel.ClosedLine(t);
-        return habitIds.Count > 0 ? DiscordDmReminderChannel.LoggedLine(t) : DiscordDmReminderChannel.ClosedLine(t);
+                return ReminderDm.ClosedLine(t);
+        return habitIds.Count > 0 ? ReminderDm.LoggedLine(t) : ReminderDm.ClosedLine(t);
     }
 
     /// <summary>
@@ -131,7 +131,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
                 var others = RoutineButtonsAfterDone(component.Message.Components, component.Data.CustomId, done: true);
                 await component.UpdateAsync(msg =>
                 {
-                    if (others is null) msg.Content = $"{component.Message.Content}\n{DiscordDmReminderChannel.ClosedLine(t)}";
+                    if (others is null) msg.Content = $"{component.Message.Content}\n{ReminderDm.ClosedLine(t)}";
                     msg.Components = others ?? new ComponentBuilder().Build();
                 });
                 await FollowupAsync(t.Get("checkin.habit-gone"), ephemeral: true);

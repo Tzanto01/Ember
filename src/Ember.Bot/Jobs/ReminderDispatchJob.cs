@@ -1,3 +1,4 @@
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Services;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -225,8 +226,8 @@ public class ReminderDispatchJob : IJob
     }
 
     /// <summary>
-    /// Closes each open Discord reminder message whose habits are done for its day (<see cref="DiscordDmReminderChannel.LoggedLine"/>)
-    /// or whose buttons expired (<see cref="DiscordDmReminderChannel.ClosedLine"/>), and forgets it, also when Discord can't edit it.
+    /// Closes each open Discord reminder message whose habits are done for its day (<see cref="ReminderDm.LoggedLine"/>)
+    /// or whose buttons expired (<see cref="ReminderDm.ClosedLine"/>), and forgets it, also when Discord can't edit it.
     /// </summary>
     private async Task CloseReminderMessagesAsync(CancellationToken cancellationToken)
     {
@@ -247,7 +248,7 @@ public class ReminderDispatchJob : IJob
                 if (!done && !expired) continue;
 
                 await _discord.CloseMessageAsync(message.ChannelId, message.MessageId,
-                    done ? DiscordDmReminderChannel.LoggedLine(BotTexts.For(language)) : DiscordDmReminderChannel.ClosedLine(BotTexts.For(language)),
+                    done ? ReminderDm.LoggedLine(BotTexts.For(language)) : ReminderDm.ClosedLine(BotTexts.For(language)),
                     cancellationToken);
                 await reminders.DeleteReminderMessageAsync(message.Id, CancellationToken.None);
             }

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Discord;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Jobs;
 using Ember.Bot.Modules;
 using Ember.Bot.Services;
@@ -203,7 +204,7 @@ public class ReminderBoundaryTests
         time.Advance(TimeSpan.FromSeconds(1));
         await RunJobAsync(host);
 
-        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, DiscordDmReminderChannel.ClosedLine(Ember.Bot.BotTexts.English)));
+        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.ClosedLine(Ember.Bot.BotTexts.English)));
         (await OpenMessagesAsync(host)).Should().BeEmpty();
     }
 
@@ -226,7 +227,7 @@ public class ReminderBoundaryTests
         (await ExpiredLine()).Should().BeNull();
 
         time.Advance(TimeSpan.FromSeconds(1));
-        (await ExpiredLine()).Should().Be(DiscordDmReminderChannel.ClosedLine(Ember.Bot.BotTexts.English));
+        (await ExpiredLine()).Should().Be(ReminderDm.ClosedLine(Ember.Bot.BotTexts.English));
     }
 
     [Fact]
