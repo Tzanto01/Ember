@@ -265,7 +265,8 @@ public static class HabitRules
 
     /// <summary>
     /// Whether a daily or weekdays habit is active, scheduled and unpaused on <paramref name="date"/> but not logged as done yet
-    /// (a partial day is still open). Never for a let-go habit. The missed-day reflection offers to log such a habit.
+    /// (a partial day is still open) or skipped (<see cref="HabitLog.Skipped"/>). Never for a let-go habit. The missed-day reflection
+    /// lists such a habit and offers to log it.
     /// </summary>
     public static bool IsOpenDaily(Habit habit, DateOnly date, TimeZoneInfo tz)
         => habit.Kind != HabitKind.LetGo
@@ -273,7 +274,7 @@ public static class HabitRules
             && IsScheduledOn(habit, date)
             && IsAfterStartDay(habit, date, tz)
             && !IsPausedOn(habit, date)
-            && !habit.Logs.Any(l => l.Date == date && l.Completed);
+            && !habit.Logs.Any(l => l.Date == date && (l.Completed || l.Skipped));
 
     /// <summary>
     /// For the missed-day reflection on the day after <paramref name="yesterday"/>: a weekly habit's progress (completed logs from its

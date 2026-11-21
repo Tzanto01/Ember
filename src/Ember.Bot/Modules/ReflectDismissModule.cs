@@ -149,7 +149,10 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
         await CloseAsync(t.Format("reflect.low-marked", Label(t, date)));
     }
 
-    /// <summary>The user's daily and weekdays habits that are still open to log as done on <paramref name="date"/>, in creation order.</summary>
+    /// <summary>
+    /// The user's daily and weekdays habits that are still open to log as done on <paramref name="date"/> (neither done nor skipped,
+    /// <see cref="HabitRules.IsOpenDaily"/>), in creation order.
+    /// </summary>
     internal static async Task<List<Habit>> OpenHabitsAsync(HabitService habits, UserSettingsService settings, Guid userId, DateOnly date)
     {
         var tz = await settings.GetTimeZoneAsync(userId);

@@ -12,7 +12,7 @@ namespace Ember.Bot.Jobs;
 
 /// <summary>
 /// Fires once per day at <see cref="LocalSendHour"/>:00 in each user's local time.
-/// Checks whether any daily habits are still unlogged for yesterday, which is
+/// Checks whether any daily habits are neither done nor skipped yesterday, which is
 /// still open (see <see cref="HabitRules.OpenDays"/> and <see cref="HabitRules.IsOpenDaily"/>), or weekly habits are
 /// below target for the week and weren't done yesterday (<see cref="HabitRules.WeeklyCatchUp"/>), and sends a low-pressure DM with
 /// "Log yesterday" (only when a daily habit is open), "It was a low day" and dismiss buttons.

@@ -359,4 +359,39 @@ public class ReminderBoundaryTests
 
         host.Discord.Messages.Should().ContainSingle().Which.Embed!.Description.Should().Contain("Walk");
     }
+
+    [Fact]
+    public async Task DailyHabitSkippedYesterday_IsNotListedAsOpen_AndAloneSendsNothing()
+    {
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 1, 17, 10, 0, 0, TimeSpan.Zero));
+        await using var host = await IntegrationTestHost.CreateAsync(time: time);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var created = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var yesterday = new DateOnly(2026, 1, 16);
+
+            var mixed = new User { Id = TestUsers.Id(2301), Logins = TestUsers.Discord(2301), Timezone = "UTC" };
+            var walk = new Habit { Name = "Walk", TimesPerDay = 2, CreatedAt = created };
+            walk.Logs.Add(new HabitLog { Date = yesterday, Count = 1, Completed = false, Skipped = true });
+            var read = new Habit { Name = "Read", CreatedAt = created };
+            read.Logs.Add(new HabitLog { Date = yesterday, Count = 0, Completed = false });
+            mixed.Habits.Add(walk);
+            mixed.Habits.Add(read);
+
+            var onlySkipped = new User { Id = TestUsers.Id(2302), Logins = TestUsers.Discord(2302), Timezone = "UTC" };
+            var stretch = new Habit { Name = "Stretch", CreatedAt = created };
+            stretch.Logs.Add(new HabitLog { Date = yesterday, Count = 0, Completed = false, Skipped = true });
+            onlySkipped.Habits.Add(stretch);
+
+            db.Users.AddRange(mixed, onlySkipped);
+            await db.SaveChangesAsync();
+        });
+
+        await host.RunJobAsync(MissedDayReflectionJob.Key);
+
+        var message = host.Discord.Messages.Should().ContainSingle().Subject;
+        message.UserId.Should().Be(2301);
+        message.Embed!.Description.Should().Contain("Read").And.NotContain("Walk");
+    }
 }
