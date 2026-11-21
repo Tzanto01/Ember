@@ -13,7 +13,7 @@ public class HabitLog
 
     /// <summary>
     /// True when the day is done: <see cref="Count"/> reached the habit's <see cref="Habit.TimesPerDay"/> at the time of writing.
-    /// A log with <see cref="Count"/> 0 and Completed false is an explicit "not done".
+    /// A log with <see cref="Count"/> 0 and Completed false is a skip ("not done") when <see cref="Skipped"/> is set, otherwise a count lowered to 0.
     /// </summary>
     public bool Completed { get; set; }
 
