@@ -8,6 +8,12 @@ public sealed record SentDm(DeliveryOutcome Outcome, ulong ChannelId = 0, ulong 
 
 public interface IDiscordDmSender
 {
+    /// <summary>
+    /// Whether the Discord client is logged in. Until it is, every send and edit fails, so jobs leave due Discord DMs, one-time asks and
+    /// notices waiting instead of using them up.
+    /// </summary>
+    bool IsLoggedIn { get; }
+
     /// <summary>Sends a DM. Users who can't receive DMs from Ember yield <see cref="DeliveryOutcome.Undeliverable"/> instead of an exception.</summary>
     Task<DeliveryOutcome> SendMessageAsync(
         ulong userId,

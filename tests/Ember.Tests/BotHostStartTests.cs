@@ -7,6 +7,7 @@ using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -69,6 +70,49 @@ public class BotHostStartTests
         await host.RunJobAsync(ReminderDispatchJob.Key);
 
         host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(920UL);
+    }
+
+    [Fact]
+    public async Task While_the_Discord_login_keeps_failing_a_due_Discord_reminder_and_the_Discord_ask_wait_without_counting_a_failure()
+    {
+        var loginFailed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var host = await IntegrationTestHost.CreateAsync(args: ["--BotToken=test-token"], includeDiscordGateway: true,
+            configureServices: services =>
+            {
+                services.AddSingleton<IDiscordDmSender, DiscordDmSender>();
+                services.Remove(services.Single(d => d.ImplementationType == typeof(BotService)));
+                services.AddHostedService(sp => new BotService(
+                    sp.GetRequiredService<DiscordSocketClient>(), sp.GetRequiredService<InteractionService>(), sp,
+                    sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<ILogger<BotService>>(),
+                    sp.GetRequiredService<NoticePoller>(),
+                    _ => { loginFailed.TrySetResult(); throw new HttpRequestException("Discord is unreachable"); }));
+            });
+        var dueAt = DateTime.UtcNow.AddMinutes(-1);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var reminded = new User { Id = TestUsers.Id(920), Timezone = "UTC", Logins = TestUsers.Discord(920), DiscordReminders = true };
+            var unasked = new User { Id = TestUsers.Id(921), Timezone = "UTC", Logins = TestUsers.Discord(921) };
+            db.Users.AddRange(reminded, unasked);
+            db.Habits.Add(new Habit
+            {
+                UserId = reminded.Id, Name = "Stretch", ReminderTime = new TimeOnly(9, 0), NextReminderUtc = dueAt, CreatedAt = DateTime.UtcNow.AddDays(-1),
+            });
+            db.Habits.Add(new Habit { UserId = unasked.Id, Name = "Read", ReminderTimes = [new TimeOnly(9, 0)], CreatedAt = DateTime.UtcNow.AddDays(-1) });
+            await db.SaveChangesAsync();
+        });
+
+        await loginFailed.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await host.RunJobAsync(ReminderDispatchJob.Key);
+        await host.RunJobAsync(DiscordReminderAskJob.Key);
+
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            (await db.Habits.Where(h => h.Name == "Stretch").Select(h => h.NextReminderUtc).SingleAsync()).Should().Be(dueAt);
+            var users = await db.Users.AsNoTracking().OrderBy(u => u.Id).ToListAsync();
+            users.Select(u => (u.DmFailureCount, u.DiscordRemindersAskedAt)).Should().Equal((0, (DateTime?)null), (0, (DateTime?)null));
+        });
     }
 
     [Fact]

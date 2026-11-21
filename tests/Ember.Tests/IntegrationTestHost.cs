@@ -195,6 +195,9 @@ public sealed class TestDiscordDmSender : IDiscordDmSender
         }
     }
 
+    /// <summary>What <see cref="IDiscordDmSender.IsLoggedIn"/> reports; true unless a test takes the client offline.</summary>
+    public bool IsLoggedIn { get; set; } = true;
+
     /// <summary>Whether deleting a message succeeds.</summary>
     public bool DeleteSucceeds { get; set; } = true;
 

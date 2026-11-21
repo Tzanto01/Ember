@@ -19,6 +19,9 @@ namespace Ember.Bot.Jobs;
 /// its day is still open. Only the Discord outcome counts towards the DM pause. The advance applies only while the reminder is still
 /// the one that was due, so an edit or snooze saved while it was being sent (for example by the API) is kept.
 /// Phones are never sent to from here: the native app schedules their reminders as local notifications on the device.
+/// While the Discord client isn't logged in (<see cref="IDiscordDmSender.IsLoggedIn"/>), Discord is left out: a reminder it would send only
+/// there stays due without counting a failure, so it goes out once the login succeeds (unless it went stale meanwhile), one with other
+/// destinations goes to those, and open Discord reminder messages wait to be closed.
 /// Reminders overdue by more than <see cref="ReminderPolicy.StaleAfter"/> (e.g. after downtime) are advanced
 /// without sending, as are habits paused or already completed on the user's local day, weekly habits whose target is already
 /// reached in the user's local Monday–Sunday week, and habits in a routine that has a
@@ -230,10 +233,12 @@ public class ReminderDispatchJob : IJob
 
     /// <summary>
     /// Closes each open Discord reminder message whose habits are done for its day (<see cref="ReminderDm.LoggedLine"/>)
-    /// or whose buttons expired (<see cref="ReminderDm.ClosedLine"/>), and forgets it, also when Discord can't edit it.
+    /// or whose buttons expired (<see cref="ReminderDm.ClosedLine"/>), and forgets it, also when Discord can't edit it. Nothing while the
+    /// Discord client isn't logged in.
     /// </summary>
     private async Task CloseReminderMessagesAsync(CancellationToken cancellationToken)
     {
+        if (!_discord.IsLoggedIn) return;
         List<(ReminderMessage Message, string Timezone, bool HabitDone, string Language)> open;
         using (var scope = _services.CreateScope())
             open = await scope.ServiceProvider.GetRequiredService<ReminderService>().GetOpenReminderMessagesAsync(cancellationToken);
@@ -299,6 +304,11 @@ public class ReminderDispatchJob : IJob
         var send = targets.Count > 0
             && ReminderPolicy.ShouldSendSecondReminder(habit, user.SecondReminderMinutes, dueAt, now, today, tz,
                 await DayFactsAsync(reminders, habits, habit, today, cancellationToken));
+        if (send)
+        {
+            if (Reachable(targets) is not { } reachable) return;
+            targets = reachable;
+        }
 
         var delivery = Delivery.NotDelivered;
         if (send)
@@ -343,6 +353,11 @@ public class ReminderDispatchJob : IJob
         }
 
         var send = pending.Count > 0;
+        if (send)
+        {
+            if (Reachable(targets) is not { } reachable) return;
+            targets = reachable;
+        }
         var delivery = send
             ? await DeliverAsync(targets, new Reminder(user.Id, discordId, routine.Id, routine.Name, 0, false, today, pending, Second: true,
                 PushSubscriptionIds: pushIds, Language: user.Language),
@@ -391,6 +406,11 @@ public class ReminderDispatchJob : IJob
         var letGo = habit.Kind == Core.Models.HabitKind.LetGo;
         var send = targets.Count > 0
             && ReminderPolicy.ShouldSendReminder(habit, dueAt, now, today, await DayFactsAsync(reminders, habits, habit, today, cancellationToken));
+        if (send)
+        {
+            if (Reachable(targets) is not { } reachable) return;
+            targets = reachable;
+        }
 
         DateTime? secondUtc = null;
         var delivery = Delivery.NotDelivered;
@@ -450,6 +470,11 @@ public class ReminderDispatchJob : IJob
         }
 
         var send = pending.Count > 0;
+        if (send)
+        {
+            if (Reachable(targets) is not { } reachable) return;
+            targets = reachable;
+        }
         var delivery = send
             ? await DeliverAsync(targets, new Reminder(user.Id, discordId, routine.Id, routine.Name, 0, false, today, pending,
                 PushSubscriptionIds: pushIds, Language: user.Language), user, now,
@@ -483,6 +508,17 @@ public class ReminderDispatchJob : IJob
             ReminderChannels.WebPush => targets.PushSubscriptionIds.Count > 0,
             _ => false,
         }).ToList(), targets.PushSubscriptionIds);
+    }
+
+    /// <summary>
+    /// The <paramref name="targets"/> a reminder can go to now: all of them while the Discord client is logged in, else those besides
+    /// Discord. Null when Discord was the only one, so the caller leaves the reminder due and unchanged until the login succeeds.
+    /// </summary>
+    private List<IReminderChannel>? Reachable(List<IReminderChannel> targets)
+    {
+        if (_discord.IsLoggedIn || targets.All(c => c.Channel != ReminderChannels.Discord)) return targets;
+        var others = targets.Where(c => c.Channel != ReminderChannels.Discord).ToList();
+        return others.Count > 0 ? others : null;
     }
 
     /// <summary>

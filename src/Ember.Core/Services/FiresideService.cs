@@ -577,6 +577,14 @@ public class FiresideService
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    /// <summary>Bot only: gives back the claim on warmth <paramref name="warmthId"/>'s notification, so a later run delivers it.</summary>
+    public Task ReleaseWarmthNoticeAsync(int warmthId, CancellationToken cancellationToken = default)
+        => _db.Warmth.Where(w => w.Id == warmthId).ExecuteUpdateAsync(s => s.SetProperty(w => w.NotifyPending, true), cancellationToken);
+
+    /// <summary>Bot only: gives back the claim on link <paramref name="linkId"/>'s "joined your fireside" notification, so a later run delivers it.</summary>
+    public Task ReleaseJoinNoticeAsync(int linkId, CancellationToken cancellationToken = default)
+        => _db.FiresideLinks.Where(l => l.Id == linkId).ExecuteUpdateAsync(s => s.SetProperty(l => l.JoinNotifyPending, true), cancellationToken);
+
     /// <summary>
     /// The friends of the source that come along in a merge (ids, the source's oldest links first, at most the target's free places up
     /// to <see cref="MaxFriends"/>, none the target already has) and how many friends the source has besides the target.

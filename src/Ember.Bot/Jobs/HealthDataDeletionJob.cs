@@ -107,13 +107,17 @@ public class HealthDataDeletionJob : IJob
                 reminded, deleted);
     }
 
-    /// <summary>Sends the notice; false when the user has a target but nothing reached them (true when there is no target at all).</summary>
+    /// <summary>
+    /// Sends the notice; false when the user has a target but nothing reached them (true when there is no target at all), and without sending
+    /// anything while the user has a Discord account and the Discord client isn't logged in, so the next run sends it everywhere.
+    /// </summary>
     private async Task<bool> RemindAsync(ReminderService reminders, Guid userId, DateTime deletesAtUtc, CancellationToken cancellationToken)
     {
         if (await reminders.GetUserWithDestinationsAsync(userId, cancellationToken) is not { } user) return true;
         var pushIds = _push is null ? [] : user.PushSubscriptions.Where(s => s.Enabled).Select(s => s.Id).ToList();
         var discordId = user.DiscordId();
         if (discordId is null && pushIds.Count == 0) return true;
+        if (discordId is not null && !_discord.IsLoggedIn) return false;
 
         var t = BotTexts.For(user.Language);
         var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
