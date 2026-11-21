@@ -48,7 +48,7 @@ public partial class HabitService
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
         if (habit is null) return SlipResult.HabitNotFound;
         if (habit.Kind != HabitKind.LetGo) return SlipResult.NotLetGo;
-        if (date > TimeZones.LocalToday(habit.User.Timezone, _time)) return SlipResult.InFuture;
+        if (date > TimeZones.LocalToday(habit.User.Timezone, _time.GetUtcNow())) return SlipResult.InFuture;
         if (date < HabitRules.StartDate(habit, TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc)) return SlipResult.BeforeHabitStart;
         if (!await _consent.HasHealthDataConsentAsync(userId)) return SlipResult.ConsentRequired;
 

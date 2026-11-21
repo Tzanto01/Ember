@@ -25,14 +25,28 @@ public static class TimeZones
     /// Unknown or missing ids fall back to UTC.
     /// </summary>
     public static DateTimeOffset LocalNow(string? timezoneId, TimeProvider time)
-        => TimeZoneInfo.ConvertTime(time.GetUtcNow(), Find(timezoneId ?? "UTC") ?? TimeZoneInfo.Utc);
+        => LocalNow(timezoneId, time.GetUtcNow());
+
+    /// <summary>
+    /// <paramref name="utcNow"/> in the user's timezone (IANA or Windows id).
+    /// Unknown or missing ids fall back to UTC.
+    /// </summary>
+    public static DateTimeOffset LocalNow(string? timezoneId, DateTimeOffset utcNow)
+        => TimeZoneInfo.ConvertTime(utcNow, Find(timezoneId ?? "UTC") ?? TimeZoneInfo.Utc);
 
     /// <summary>
     /// The user's current local calendar day. Every "today", streak and weekly
     /// calculation for a user is based on this, never on the UTC date.
     /// </summary>
     public static DateOnly LocalToday(string? timezoneId, TimeProvider time)
-        => DateOnly.FromDateTime(LocalNow(timezoneId, time).DateTime);
+        => LocalToday(timezoneId, time.GetUtcNow());
+
+    /// <summary>
+    /// The user's local calendar day at <paramref name="utcNow"/>. Every "today", streak and weekly
+    /// calculation for a user is based on this, never on the UTC date.
+    /// </summary>
+    public static DateOnly LocalToday(string? timezoneId, DateTimeOffset utcNow)
+        => DateOnly.FromDateTime(LocalNow(timezoneId, utcNow).DateTime);
 
     /// <summary>The earliest <see cref="NextOccurrenceUtc(TimeOnly, TimeZoneInfo, DateTime)"/> of any of <paramref name="localTimes"/>; null when there are none.</summary>
     public static DateTime? NextOccurrenceUtc(IEnumerable<TimeOnly> localTimes, TimeZoneInfo tz, DateTime afterUtc)
