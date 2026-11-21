@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
 using Ember.Api.Auth;
@@ -22,7 +23,7 @@ internal static class ImportEndpoints
         JournalEndpoints.JournalKeyRequest? JournalKey, List<ImportSlip?>? Slips, List<ImportHabitNote?>? HabitNotes,
         List<ImportMadeItDay?>? MadeItDays);
     public sealed record ImportSettings(int? GraceDaysPerWeek, string? Theme, int? SecondReminderMinutes, bool? ShowStreaks,
-        string? Language, bool? CalmMode, List<string?>? TipsSeen, bool? OfferHabitNote);
+        string? Language, bool? CalmMode, List<string?>? TipsSeen, bool? OfferHabitNote, List<string?>? TodayOrder);
     public sealed record ImportHabit(int? Id, string? Name, string? Frequency, int? WeeklyTarget, TimeOnly? ReminderTime,
         DateOnly? PausedUntil, DateOnly? PausedFrom, DateTimeOffset? CreatedAt, string?[]? Days,
         int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind);
@@ -91,6 +92,7 @@ internal static class ImportEndpoints
         SettingsValidation.ValidateGraceAndTheme(doc.Settings?.GraceDaysPerWeek, doc.Settings?.Theme, local);
         SettingsValidation.ValidateSecondReminder(doc.Settings?.SecondReminderMinutes, local);
         SettingsValidation.ValidateLanguage(doc.Settings?.Language, local);
+        if (doc.Settings?.TodayOrder?.Count > User.MaxTodayOrderEntries) local["today_order"] = [$"At most {User.MaxTodayOrderEntries} entries."];
         Nest(errors, "settings", local);
 
         var routines = new List<Routine>();
@@ -330,7 +332,23 @@ internal static class ImportEndpoints
         return new ImportData(routines, habits, marks, moods, notes, material, doc.Settings?.GraceDaysPerWeek, doc.Settings?.Theme,
             doc.Settings?.SecondReminderMinutes ?? 0, doc.Settings?.ShowStreaks, doc.Settings?.Language, doc.Settings?.CalmMode,
             doc.Settings?.TipsSeen?.Where(t => t is not null && User.TipIds.Contains(t)).Select(t => t!).ToList(),
-            doc.Settings?.OfferHabitNote);
+            doc.Settings?.OfferHabitNote,
+            doc.Settings?.TodayOrder?.Select(k => TodayOrderEntry(k, habitById, routineById)).OfType<ImportTodayOrderEntry>().ToList());
+    }
+
+    /// <summary>The habit or routine of this file a canonical <c>h:&lt;id&gt;</c> or <c>r:&lt;id&gt;</c> key names; null for any other key.</summary>
+    private static ImportTodayOrderEntry? TodayOrderEntry(string? key, Dictionary<int, Habit> habitById, Dictionary<int, Routine> routineById)
+    {
+        if (key is not { Length: > 2 } || key[1] != ':'
+            || !int.TryParse(key.AsSpan(2), NumberStyles.None, CultureInfo.InvariantCulture, out var id)
+            || key[2..] != id.ToString(CultureInfo.InvariantCulture))
+            return null;
+        return key[0] switch
+        {
+            'h' when habitById.TryGetValue(id, out var habit) => new ImportTodayOrderEntry(habit, null),
+            'r' when routineById.TryGetValue(id, out var routine) => new ImportTodayOrderEntry(null, routine),
+            _ => null,
+        };
     }
 
     private const string NotEmptyMessage = "Import only works into an account without habits, routines, moods or journal entries.";

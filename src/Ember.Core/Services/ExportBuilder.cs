@@ -58,7 +58,7 @@ public static class ExportBuilder
     /// <summary>
     /// Settings, reminder delivery state and health-data consent of the exported user. Timestamps are UTC.
     /// <c>TwoFactorEnabled</c> only says whether two-factor sign-in is on; authenticator keys and recovery codes are never exported.
-    /// <c>TodayOrder</c> is the account's Today order (<see cref="User.TodayOrder"/>), only in the full export; import ignores it.
+    /// <c>TodayOrder</c> is the account's Today order (<see cref="User.TodayOrder"/>), only in the full export; import remaps its keys to the new ids.
     /// </summary>
     public sealed record SettingsRecord(
         string Timezone, int GraceDaysPerWeek, string? Theme,

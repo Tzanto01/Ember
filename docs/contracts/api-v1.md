@@ -1,4 +1,6 @@
-# Ember API contract v1.24
+# Ember API contract v1.25
+
+v1.25 (2026-11-21, Lookout #9 review): an account import keeps the Today order: `settings.today_order` is remapped to the new ids under the `PUT /api/me/today-order` rules, and the no-account upgrade sends the device's order.
 
 v1.24 (2026-11-20, Nico on a tester's wish for "a passed tick, for the good feeling"): a let-go habit can be marked "made it today", a warm acknowledgement only, with no streak, no effect on days without or any number, and no nudge when it is skipped. See "Made it today v1.24".
 
@@ -356,7 +358,7 @@ snake_case like today, plus `"format_version": 2` at the top level (an export wi
 - `moods`: `[{ id, label, emoji, archived }]` or, when encrypted, `[{ id, encrypted: { v, iv, ct }, archived }]`.
 - `day_notes`: `[{ date, text, mood }]` or, when encrypted, `[{ date, encrypted: { v, iv, ct } }]`.
 - `journal_key`: `{ passphrase: { salt, iterations, iv, wrapped }, recovery: { salt, iv, wrapped } }` or null.
-- Ids in a file are only references inside that file; import assigns new ids and remaps `routine_id`, log `habit_id` and `custom:<id>` moods inside plaintext notes. `account`, push subscriptions, DM state and consent fields are ignored on import.
+- Ids in a file are only references inside that file; import assigns new ids and remaps `routine_id`, log `habit_id`, `custom:<id>` moods inside plaintext notes and the `h:<id>`/`r:<id>` keys of `settings.today_order` (more than 500 entries → 400 on `settings.today_order`). `account`, push subscriptions, DM state and consent fields are ignored on import.
 - The CSV export gets the matching columns and record types; import is JSON only.
 - A `journal_key` in an import needs the login password inside it (`journal_key.password`) on accounts that have one, like `PUT /api/me/journal-key` (wrong or missing → 400 on `password`).
 - Before importing, the client sends `PATCH /api/me { timezone }` with the device's zone (as for any new account); otherwise a first-day log can fall before a habit's start and the whole import is refused.
@@ -780,7 +782,7 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 - `Me` gains `todayOrder: string[] | null`. Keys: `h:<habitId>` for a habit outside a routine (let-go habits too), `r:<routineId>` for a routine. Null means automatic (reminder time, then name). The order inside a routine stays the routine's own `habitIds`.
 - `PUT /api/me/today-order` `{ "order": string[] | null }` → 200 `{ "order": string[] | null }`. The server keeps only well-formed keys (canonical ids, no leading zeros) of the caller's own habits outside a routine and own routines, each once at its first place, and drops the rest (malformed, unknown, foreign, routine member, duplicate). Null resets. More than 500 entries → 400 `validation` on `order` and nothing changes. Not consent-gated (it holds ids only). The client sends the full list and adopts the trimmed response.
 - The server never inserts keys; the client places items missing from the saved order. Stored keys of habits deleted or moved into a routine later stay until the next save.
-- Export: `settings.today_order` (JSON) and `today_order` (CSV, keys joined with `;`), full export only. Import ignores it, because ids change. Deleted with the account.
+- Export: `settings.today_order` (JSON) and `today_order` (CSV, keys joined with `;`), full export only. Import remaps its keys to the new ids like `routine_id` and stores it under the `PUT` rules above (missing or null keeps the account's order; more than 500 entries → 400 `validation` on `settings.today_order` and nothing is written). The no-account upgrade sends the device's order there. Deleted with the account.
 
 ### Habit note offer
 

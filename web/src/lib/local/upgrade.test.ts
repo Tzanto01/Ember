@@ -375,6 +375,34 @@ describe('UpgradeService', () => {
     expect(callIndex('PUT /api/me/tips/android')).toBeLessThan(callIndex('POST /api/me/import'));
   });
 
+  it("sends the device's Today order with the import", async () => {
+    await store.update((d) => ({
+      ...d,
+      routines: [{ id: 1, name: 'Synthetic mornings', reminderTime: null, reminderChannels: [] }],
+      profile: { ...d.profile, todayOrder: ['h:1', 'r:1'] },
+    }));
+
+    await upgrade.run();
+
+    expect(server.imports[0]).toMatchObject({ settings: { today_order: ['h:1', 'r:1'] } });
+  });
+
+  it('sends the backfilled Today order of a device that never ran the backfill', async () => {
+    await store.update((d) => {
+      const { todayOrderRestored: _, ...older } = d.profile;
+      return {
+        ...d,
+        habits: [...d.habits, { ...d.habits[0], id: 2, name: 'Stretch', routineId: 1, routinePosition: 0 }],
+        routines: [{ id: 1, name: 'Synthetic mornings', reminderTime: null, reminderChannels: [] }],
+        profile: { ...older, todayOrder: null },
+      };
+    });
+
+    await upgrade.run();
+
+    expect(server.imports[0]).toMatchObject({ settings: { today_order: ['r:1', 'h:1'] } });
+  });
+
   it('keeps the device data when the account got other habits after a send that never landed', async () => {
     server.failImports = 1;
     await upgrade.run();
