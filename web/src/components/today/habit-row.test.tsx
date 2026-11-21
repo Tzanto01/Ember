@@ -2,10 +2,11 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import type { Habit } from '@/lib/models';
+import type { NotTodayReason } from '@/lib/today-plan';
 import { habit } from '@/test/test-support';
 import { HabitRow } from './habit-row';
 
-function show(overrides: Partial<Habit>, showStreaks = true, checkInPaused = false) {
+function show(overrides: Partial<Habit>, showStreaks = true, checkInPaused = false, notToday?: NotTodayReason) {
   const subject: Habit = { ...habit, ...overrides };
   const { container } = render(
     <MemoryRouter>
@@ -17,6 +18,7 @@ function show(overrides: Partial<Habit>, showStreaks = true, checkInPaused = fal
         onRewardEnd={() => {}}
         showStreaks={showStreaks}
         checkInPaused={checkInPaused}
+        notToday={notToday}
       />
     </MemoryRouter>,
   );
@@ -84,6 +86,7 @@ describe('HabitRow meta line', () => {
       { pausedToday: true, pausedUntil: '2026-12-15', today: { ...habit.today, state: 'paused' } },
       true,
       true,
+      'paused',
     );
 
     expect(row.textContent).toMatch(/Paused until (15 December|December 15)/);
@@ -102,5 +105,45 @@ describe('HabitRow meta line', () => {
 
     expect(row).toHaveTextContent('Low day, resting. Checking in is still welcome.');
     expect(checkButton()).not.toBeNull();
+  });
+});
+
+describe('HabitRow under Not for today', () => {
+  const restDays = { frequency: 'weekdays' as const, days: ['mon' as const] };
+  const restLine = 'Rest day, nothing planned. Checking in is still welcome.';
+  const checkedInLine = 'Rest day, and you checked in anyway.';
+
+  it.each([
+    ['open', { state: 'offday', completed: null, count: 0 }, 1, restLine, 'false'],
+    ['on a low day', { state: 'lowday', completed: null, count: 0 }, 1, restLine, 'false'],
+    ['checked in', { state: 'done', completed: true, count: 1 }, 1, checkedInLine, 'true'],
+    ['partly checked in', { state: 'partial', completed: null, count: 1 }, 2, checkedInLine, 'false'],
+  ] as const)('says a rest day is a rest day when it is %s', (_, today, timesPerDay, line, pressed) => {
+    const row = show({ ...restDays, timesPerDay, today: { ...habit.today, ...today } }, true, true, 'restDay');
+
+    expect(row).toHaveTextContent(line);
+    expect(row).not.toHaveTextContent(/Low day|Done today|of 2 today/);
+    expect(screen.getByRole('button', { name: /^Check in Walk for today/ })).toHaveAttribute('aria-pressed', pressed);
+  });
+
+  it('says "Done for this week" for a weekly habit met before today, even after another check-in today', () => {
+    const row = show(
+      {
+        frequency: 'weekly',
+        weeklyTarget: 2,
+        today: { ...habit.today, state: 'done', completed: true, count: 1 },
+        stats: { ...habit.stats, week: { done: 3, target: 2 } },
+      },
+      true,
+      true,
+      'doneForWeek',
+    );
+
+    expect(row).toHaveTextContent('Done for this week');
+    expect(row).not.toHaveTextContent('Done today');
+  });
+
+  it('keeps the day-state line for a For today row in the same state', () => {
+    expect(show({ today: { ...habit.today, state: 'done', completed: true, count: 1 } })).toHaveTextContent('Done today');
   });
 });

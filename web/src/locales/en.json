@@ -774,6 +774,7 @@
   "today.paused": "Paused. You can resume it any time under Edit.",
   "today.starts": "Starts {{date}}.",
   "today.restDay": "Rest day, nothing planned. Checking in is still welcome.",
+  "today.restDayCheckedIn": "Rest day, and you checked in anyway.",
   "today.lowDayRow": "Low day, resting. Checking in is still welcome.",
   "today.doneToday": "Done today",
   "today.countToday": "{{n}} of {{target}} today",

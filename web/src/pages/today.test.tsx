@@ -293,7 +293,7 @@ describe('TodayPage', () => {
     expect(screen.getByText('2 of 3 today')).toBeInTheDocument();
   });
 
-  it('shows a rest day as rest, not as open, and returns to rest when its check-in is cleared', async () => {
+  it('says a checked-in rest day is still a rest day, and returns to the plain rest line when its check-in is cleared', async () => {
     const restDone = {
       ...habit,
       frequency: 'weekdays' as const,
@@ -304,6 +304,8 @@ describe('TodayPage', () => {
     await answerLoad(f, [restDone]);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Not for today · 1' }));
+    expect(screen.getByText(/Rest day, and you checked in anyway/)).toBeInTheDocument();
+    expect(screen.queryByText('Done today')).toBeNull();
     await userEvent.click(await checkButton());
     await f.next('DELETE', '/api/habits/1/days/2026-11-01');
 

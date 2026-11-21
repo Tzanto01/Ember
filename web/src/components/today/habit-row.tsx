@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { highlightRing } from '@/lib/guide/highlight';
 import { formatDate } from '@/lib/local-date';
 import type { Habit } from '@/lib/models';
+import type { NotTodayReason } from '@/lib/today-plan';
 import { cn } from '@/lib/utils';
 import { CheckButton, checkButtonId } from './check-button';
 import type { RewardKeyword } from './reward';
@@ -33,8 +34,8 @@ export interface HabitRowProps {
   highlight?: boolean;
   /** The row's "⋯" menu, next to Edit. */
   menu?: ReactNode;
-  /** A weekly habit whose target was met before today (Not for today): says "Done for this week". */
-  doneForWeek?: boolean;
+  /** Under Not for today: why the habit is there, which the meta line says whatever the day's state. */
+  notToday?: NotTodayReason;
   /** Shows the grip while a row of its list is being moved. */
   grip?: boolean;
   /** Under Not for today: a paused habit still gets its check button (keeping the paused line). */
@@ -89,7 +90,8 @@ function Progress({ habit, roll, showStreaks }: { habit: Habit; roll: boolean; s
 
 /**
  * One Today habit card: name, meta line, Edit icon link, and the CheckButton (or a static day slot when not
- * checkable). Multi-count habits show "2 of 3 today" and a "take one off" button once started; a rest day says so.
+ * checkable). Multi-count habits show "2 of 3 today" and a "take one off" button once started; a rest day says so,
+ * and a Not for today row always says why it is there.
  */
 export function HabitRow({
   habit,
@@ -102,7 +104,7 @@ export function HabitRow({
   showStreaks,
   highlight = false,
   menu,
-  doneForWeek = false,
+  notToday,
   grip = false,
   reorderKey,
   className,
@@ -120,7 +122,7 @@ export function HabitRow({
   const multi = checkable && target > 1;
 
   let meta: ReactNode;
-  if (paused) {
+  if (notToday === 'paused' || (!notToday && paused)) {
     meta = (
       <span className="inline-flex items-start gap-1.5">
         <Pause aria-hidden className="mt-[3px] size-[14px] shrink-0" />
@@ -129,20 +131,20 @@ export function HabitRow({
           : t('today.paused')}
       </span>
     );
-  } else if (notStarted) {
+  } else if (notToday === 'notStarted' || (!notToday && notStarted)) {
     meta = <span>{t('today.starts', { date: formatDate(habit.startDate, shortDate) })}</span>;
-  } else if (doneForWeek) {
+  } else if (notToday === 'doneForWeek') {
     meta = (
       <span className="inline-flex items-start gap-1.5">
         <CalendarCheck aria-hidden className="mt-[3px] size-[14px] shrink-0" />
         {t('today.doneForWeek')}
       </span>
     );
-  } else if (state === 'offday') {
+  } else if (notToday === 'restDay' || state === 'offday') {
     meta = (
       <span className="inline-flex items-start gap-1.5">
         <Leaf aria-hidden className="mt-[3px] size-[14px] shrink-0" />
-        {t('today.restDay')}
+        {t(notToday === 'restDay' && habit.today.count > 0 ? 'today.restDayCheckedIn' : 'today.restDay')}
       </span>
     );
   } else if (state === 'lowday') {

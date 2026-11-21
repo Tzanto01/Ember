@@ -23,11 +23,17 @@ export type TodayItem =
   | { kind: 'habit'; key: string; habit: Habit }
   | { kind: 'routine'; key: string; routine: Routine; habits: Habit[] };
 
-/** A Not for today row; `doneForWeek` when a weekly habit met its target before this day. */
+/**
+ * Why a habit sits under Not for today: paused, a rest day of a weekdays habit, before its start (on a day other
+ * than its own today), or a weekly target met before this day.
+ */
+export type NotTodayReason = 'paused' | 'restDay' | 'notStarted' | 'doneForWeek';
+
+/** A Not for today row with the reason it is there. */
 export interface NotTodayItem {
   key: string;
   habit: Habit;
-  doneForWeek: boolean;
+  reason: NotTodayReason;
 }
 
 /** Today's three sections, each in its final order. */
@@ -37,7 +43,7 @@ export interface TodayPlan {
   notToday: NotTodayItem[];
 }
 
-type Place = 'today' | 'notToday' | 'doneForWeek';
+type Place = 'today' | NotTodayReason;
 
 function isPaused(habit: Habit, date: LocalDateString): boolean {
   if (habit.today.date === date && habit.pausedToday) return true;
@@ -59,12 +65,14 @@ function weekDoneBefore(habit: Habit, date: LocalDateString): number {
 }
 
 /**
- * Where a build habit goes on `date`, from its schedule alone (never its day state, so a check-in or a low day
- * never moves it). Before its start it stays with today's habits on its own today and is not for any other day.
+ * Where a build habit goes on `date`, or why it is not for that day, from its schedule alone (never its day state, so
+ * a check-in or a low day never moves it). Before its start it stays with today's habits on its own today and is not
+ * for any other day.
  */
 function placeOf(habit: Habit, date: LocalDateString): Place {
-  if (date < habit.startDate) return habit.today.date === date ? 'today' : 'notToday';
-  if (isPaused(habit, date) || isOffday(habit, date)) return 'notToday';
+  if (date < habit.startDate) return habit.today.date === date ? 'today' : 'notStarted';
+  if (isPaused(habit, date)) return 'paused';
+  if (isOffday(habit, date)) return 'restDay';
   const week = habit.stats.week;
   if (habit.frequency === 'weekly' && week && weekDoneBefore(habit, date) >= week.target)
     return 'doneForWeek';
@@ -123,7 +131,8 @@ const habitSort = (habit: AnyHabit) => ({
 /**
  * Today's sections for `date` (contract C4): For today (habits outside a routine and routines with any member for
  * today, listing those members in routine order), Let go, and Not for today (paused, a rest day of a weekdays habit,
- * or a weekly target met before today; routine members one by one). `order` is the account's saved order or null.
+ * before its start on another day, or a weekly target met before today, each with its `reason`; routine members one
+ * by one). `order` is the account's saved order or null.
  */
 export function planToday(
   habits: readonly AnyHabit[],
@@ -136,8 +145,8 @@ export function planToday(
   const placed = new Set<number>();
   const today: (TodayItem & Sortable)[] = [];
   const notToday: (NotTodayItem & Sortable)[] = [];
-  const later = (habit: Habit, place: Place) =>
-    notToday.push({ ...habitSort(habit), habit, doneForWeek: place === 'doneForWeek' });
+  const later = (habit: Habit, reason: NotTodayReason) =>
+    notToday.push({ ...habitSort(habit), habit, reason });
   for (const routine of routines ?? []) {
     const members: Habit[] = [];
     for (const id of routine.habitIds) {
@@ -173,11 +182,7 @@ export function planToday(
   return {
     today: orderItems(today, order),
     letGo: letGo.map((item) => item.habit),
-    notToday: orderItems(notToday, order).map(({ key, habit, doneForWeek }) => ({
-      key,
-      habit,
-      doneForWeek,
-    })),
+    notToday: orderItems(notToday, order).map(({ key, habit, reason }) => ({ key, habit, reason })),
   };
 }
 
