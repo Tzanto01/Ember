@@ -3,6 +3,7 @@ using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Formatting;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -44,7 +45,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             await ((SocketMessageComponent)Context.Interaction)
                 .UpdateAsync(m =>
                 {
-                    m.Content = t.Format("habit.letgo.question", habit.Name, HabitModule.DaysFreeText(t, daysFree));
+                    m.Content = t.Format("habit.letgo.question", habit.Name, HabitText.DaysFreeText(t, daysFree));
                     m.Components = new ComponentBuilder()
                         .WithButton(t.Get("habit.letgo.slip-button"), HabitActionIds.Slip(habitId), ButtonStyle.Secondary)
                         .Build();
@@ -58,7 +59,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             .Build();
 
         var progress = habit.TimesPerDay > 1
-            ? " " + t.Format("habit.checkin.so-far", HabitModule.DayMark(habit, await _settings.GetLocalTodayAsync(userId)))
+            ? " " + t.Format("habit.checkin.so-far", HabitText.DayMark(habit, await _settings.GetLocalTodayAsync(userId)))
             : "";
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
@@ -238,7 +239,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     private async Task LetGoWebOnlyAsync(Texts t) =>
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
-            m.Content = HabitModule.LetGoWebOnlyText(t);
+            m.Content = HabitText.LetGoWebOnlyText(t);
             m.Components = new ComponentBuilder().Build();
         });
 
@@ -250,8 +251,8 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             var stats = LetGoRules.StatsOn(habit, today, tz ?? TimeZoneInfo.Utc);
             return new EmbedBuilder()
                 .WithColor(0xE8873A)
-                .WithTitle($"🌿 {habit.Name} _({HabitModule.FrequencyLabel(t, habit)})_")
-                .WithDescription($"**{HabitModule.DaysFreeText(t, stats.DaysFree)}**\n\n{t.Format("habit.letgo.share.stats", stats.LongestStretch, stats.FreeDaysThisMonth)}")
+                .WithTitle($"🌿 {habit.Name} _({HabitText.FrequencyLabel(t, habit)})_")
+                .WithDescription($"**{HabitText.DaysFreeText(t, stats.DaysFree)}**\n\n{t.Format("habit.letgo.share.stats", stats.LongestStretch, stats.FreeDaysThisMonth)}")
                 .WithFooter(t.Format("habit.share.footer", username))
                 .WithTimestamp(DateTimeOffset.UtcNow);
         }
@@ -308,7 +309,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         return new EmbedBuilder()
             .WithColor(0xE8873A)
-            .WithTitle($"🔥 {habit.Name} _({HabitModule.FrequencyLabel(t, habit)})_")
+            .WithTitle($"🔥 {habit.Name} _({HabitText.FrequencyLabel(t, habit)})_")
             .WithDescription($"{titleLine}\n\n{grid}\n\n{statsLine}")
             .WithFooter(t.Format("habit.share.footer", username))
             .WithTimestamp(DateTimeOffset.UtcNow);

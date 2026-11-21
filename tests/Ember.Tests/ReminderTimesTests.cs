@@ -1,3 +1,4 @@
+using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Jobs;
 using Ember.Bot.Modules;
 using Ember.Core.Data;
@@ -153,9 +154,9 @@ public class ReminderTimesTests
     [Fact]
     public void Discord_lists_all_times_and_names_the_times_a_single_time_replaced()
     {
-        HabitModule.FormatReminder(Ember.Bot.BotTexts.English, At("08:00", "13:00", "20:00")).Should().Be("Reminders: 08:00, 13:00, 20:00 your time");
-        HabitModule.FormatReminder(Ember.Bot.BotTexts.English, At("09:05")).Should().Be("Reminder: 09:05 your time");
-        HabitModule.FormatReminder(Ember.Bot.BotTexts.English, At()).Should().Be("Reminder: None set");
+        HabitText.FormatReminder(Ember.Bot.BotTexts.English, At("08:00", "13:00", "20:00")).Should().Be("Reminders: 08:00, 13:00, 20:00 your time");
+        HabitText.FormatReminder(Ember.Bot.BotTexts.English, At("09:05")).Should().Be("Reminder: 09:05 your time");
+        HabitText.FormatReminder(Ember.Bot.BotTexts.English, At()).Should().Be("Reminder: None set");
 
         ReminderSetupModule.ReplacedText(Ember.Bot.BotTexts.English, At("08:00", "20:00")).Should().Contain("replaces your earlier reminders at 08:00, 20:00");
         ReminderSetupModule.ReplacedText(Ember.Bot.BotTexts.English, At("08:00")).Should().BeEmpty();

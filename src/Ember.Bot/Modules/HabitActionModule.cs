@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Formatting;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -141,7 +142,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var text = HabitModule.CheckInText(t, await _habits.GetHabitAsync(userId, habitId), today, t.Get("common.logged-today"));
+        var text = HabitText.CheckInText(t, await _habits.GetHabitAsync(userId, habitId), today, t.Get("common.logged-today"));
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
@@ -189,7 +190,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction(LetGoIds.SlipPattern)]
     public async Task OnListSlipAsync(string habitIdStr) => await SlipAsync(habitIdStr, inPlace: false);
 
-    /// <summary>Records one slip without a reason on the user's local today and answers with <see cref="HabitModule.SlipNotedText"/>.</summary>
+    /// <summary>Records one slip without a reason on the user's local today and answers with <see cref="HabitText.SlipNotedText"/>.</summary>
     private async Task SlipAsync(string habitIdStr, bool inPlace)
     {
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
@@ -209,7 +210,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var text = HabitModule.SlipNotedText(t,
+        var text = HabitText.SlipNotedText(t,
             LetGoRules.StatsOn(habit, today, await _settings.GetTimeZoneAsync(userId)).LongestStretch);
         if (!inPlace)
         {

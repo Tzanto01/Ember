@@ -1,3 +1,4 @@
+using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Modules;
 using Ember.Core.Models;
 using FluentAssertions;
@@ -40,7 +41,7 @@ public class BotCopyTests
     [Fact]
     public void Streak_OfOneDay_IsSingular()
     {
-        HabitModule.StreakText(Ember.Bot.BotTexts.English, 1).Should().Be("Streak: **1** day");
-        HabitModule.StreakText(Ember.Bot.BotTexts.English, 2).Should().Be("Streak: **2** days");
+        HabitText.StreakText(Ember.Bot.BotTexts.English, 1).Should().Be("Streak: **1** day");
+        HabitText.StreakText(Ember.Bot.BotTexts.English, 2).Should().Be("Streak: **2** days");
     }
 }

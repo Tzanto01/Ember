@@ -3,6 +3,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Formatting;
 using Ember.Core.Localization;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -99,7 +100,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
                 m.Content = t.Format("history.letgo.grid", habit.Name, Days,
-                    HabitModule.DaysFreeText(t, LetGoRules.StatsOn(habit, today, tz).DaysFree));
+                    HabitText.DaysFreeText(t, LetGoRules.StatsOn(habit, today, tz).DaysFree));
                 m.Components = BuildLetGoGrid(t, habit, today, tz);
             });
             return;
@@ -176,7 +177,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         return builder.WithSelectMenu(menu, row: (days.Count + 4) / 5).Build();
     }
 
-    /// <summary>The last <see cref="Days"/> local days of a let-go habit as read-only buttons with soft marks (<see cref="HabitModule.LetGoMark"/>), oldest first.</summary>
+    /// <summary>The last <see cref="Days"/> local days of a let-go habit as read-only buttons with soft marks (<see cref="HabitText.LetGoMark"/>), oldest first.</summary>
     internal static MessageComponent BuildLetGoGrid(Texts t, Core.Models.Habit habit, DateOnly today, TimeZoneInfo tz)
     {
         var builder = new ComponentBuilder();
@@ -185,7 +186,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
             var day = LetGoRules.DayOn(habit, today.AddDays(i + 1 - Days), tz);
             var date = day.Date.ToString(t.Get("date.button"), t.Culture);
             builder.WithButton(
-                day.State == LetGoDayState.BeforeStart ? date : $"{date} {HabitModule.LetGoMark(day.State)}",
+                day.State == LetGoDayState.BeforeStart ? date : $"{date} {HabitText.LetGoMark(day.State)}",
                 HistoryIds.LetGo(habit.Id, day.Date),
                 ButtonStyle.Secondary,
                 disabled: true,

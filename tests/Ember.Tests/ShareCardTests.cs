@@ -1,3 +1,4 @@
+using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Modules;
 using FluentAssertions;
 
@@ -49,7 +50,7 @@ public class ShareCardTests
     {
         var habit = HabitFactory.Make((0, true), (1, true));
 
-        HabitModule.ListProgress(Ember.Bot.BotTexts.English, habit, HabitFactory.Today, 1, new HashSet<DateOnly>(), TimeZoneInfo.Utc, showStreaks)
+        HabitText.ListProgress(Ember.Bot.BotTexts.English, habit, HabitFactory.Today, 1, new HashSet<DateOnly>(), TimeZoneInfo.Utc, showStreaks)
             .Should().Be(expected);
     }
 }

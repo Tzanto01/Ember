@@ -1,4 +1,5 @@
 using Discord;
+using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Modules;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
@@ -137,6 +138,6 @@ public class WeeklySummaryJob : IJob
             return $"{h.DotString} **{h.Done}/{h.Possible}**";
 
         var graceStr = h.GraceUsed > 0 ? " " + t.Plural("weekly.grace", h.GraceUsed) : "";
-        return $"{h.DotString} **{h.Done}/{h.Possible}** · {HabitModule.StreakText(t, h.CurrentStreak)}{graceStr}";
+        return $"{h.DotString} **{h.Done}/{h.Possible}** · {HabitText.StreakText(t, h.CurrentStreak)}{graceStr}";
     }
 }

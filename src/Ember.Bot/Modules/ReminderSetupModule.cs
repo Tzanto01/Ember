@@ -3,6 +3,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -36,7 +37,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
         {
             await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
             {
-                m.Content = HabitModule.LetGoWebOnlyText(t);
+                m.Content = HabitText.LetGoWebOnlyText(t);
                 m.Embed = null;
                 m.Components = new ComponentBuilder().Build();
             });
@@ -116,7 +117,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     /// </summary>
     internal static string ReplacedText(Texts t, IReadOnlyList<TimeOnly> replaced)
         => replaced.Count > 1
-            ? "\n" + t.Format("reminder.replaced", HabitModule.FormatTimes(replaced))
+            ? "\n" + t.Format("reminder.replaced", HabitText.FormatTimes(replaced))
             : "";
 
     /// <summary>
@@ -134,7 +135,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
         => habit.FrequencyType switch
         {
             FrequencyType.Weekdays => t.Format("reminder.schedule.weekdays", string.Join(", ", ScheduleDayNames.ToNames(habit.Days.GetValueOrDefault())
-                .Select(n => HabitModule.DayName(t, n)))),
+                .Select(n => HabitText.DayName(t, n)))),
             FrequencyType.Weekly => t.Plural("reminder.schedule.weekly", habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget),
             _ => t.Get("reminder.schedule.daily"),
         };

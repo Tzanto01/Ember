@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot;
+using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Modules;
 using Ember.Core.Data;
 using Ember.Core.Localization;
@@ -316,7 +317,7 @@ public class BotHandlerFlowTests
 
         BotHandlers.ComponentIds(build.Sent.Single().Components).Should().Contain(
             [$"freq:weekly:{buildId}:3", $"freq:weekdays:{buildId}", $"freq:times:{buildId}", $"habitaction:freq:{buildId}:daily"]);
-        letGo.Sent.Single().Text.Should().Be(HabitModule.LetGoWebOnlyText(English));
+        letGo.Sent.Single().Text.Should().Be(HabitText.LetGoWebOnlyText(English));
         letGo.Sent.Single().Components.Should().BeNull();
     }
 

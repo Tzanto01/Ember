@@ -3,6 +3,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Rules;
@@ -144,7 +145,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             : isToday ? t.Get(todayKey) : t.Format(earlierKey, dayLabel);
         var habit = completed ? await _habits.GetHabitAsync(userId, habitId) : null;
         if (completed)
-            text = HabitModule.CheckInText(t, habit, day, text, isToday ? null : dayLabel);
+            text = HabitText.CheckInText(t, habit, day, text, isToday ? null : dayLabel);
 
         if (completed && RoutineButtonsAfterDone(component.Message.Components, component.Data.CustomId,
                 habit?.Logs.Any(l => l.Date == day && l.Completed) == true) is { } remaining)
