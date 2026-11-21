@@ -3,6 +3,7 @@ using System.Net;
 using System.Resources;
 using System.Security.Cryptography;
 using System.Text;
+using Ember.Api.Auth;
 using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Localization;
@@ -62,7 +63,7 @@ internal sealed class EmberEmailSender(
         var code = RandomNumberGenerator.GetInt32(1_000_000).ToString("D6", CultureInfo.InvariantCulture);
         var hash = CodeHash(code);
         var keyHash = KeyHash(http.HttpContext?.Request.Headers[SignupKeyHeader].ToString());
-        var signingUp = http.HttpContext?.Request.Path.Value?.EndsWith("/register", StringComparison.OrdinalIgnoreCase) == true;
+        var signingUp = http.HttpContext?.Items.ContainsKey(AuthEndpoints.SigningUpKey) == true;
         var expires = (time.GetUtcNow() + CodeLifetime).UtcDateTime;
         var userId = user.Id;
         var link = $"{Origin}/confirm-email?user={userId}&code={code}";
