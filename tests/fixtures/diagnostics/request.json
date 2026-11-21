@@ -1,0 +1,45 @@
+{
+  "installation": "Zk3vQ8xLm2Ty7pWa9cHn4g",
+  "platform": "android",
+  "version": "0.10.0-beta.4",
+  "os": "Android 14 (API 34)",
+  "device": "Google Pixel 7",
+  "launches": [
+    { "at": "2026-11-20T18:41:00Z", "event": "page_loaded ms=1840" },
+    { "at": "2026-11-20T18:40:00Z", "event": "launch cold=true saved=false source=user history=false webview=131.0.6778.135" },
+    { "at": "2026-11-20T18:39:00Z", "event": "renderer_gone crashed=true priority=2 then=finish" },
+    { "at": "2026-11-20T18:39:00Z", "event": "renderer_gone crashed=true priority=2 then=recreate" },
+    { "at": "2026-11-19T07:02:00Z", "event": "destroy finishing=true config_change=false" }
+  ],
+  "exits": [
+    {
+      "at": "2026-11-20T18:39:00Z",
+      "reason": "CRASH",
+      "signal": null,
+      "exception": ["java.lang.IllegalStateException", "java.lang.NullPointerException"],
+      "frames": [
+        "app.ember.habits.MainActivity.onCreate(MainActivity.kt:42)",
+        "android.app.Activity.performCreate(Activity.java:8595)",
+        "com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1020)"
+      ]
+    },
+    {
+      "at": "2026-11-18T21:10:00Z",
+      "reason": "ANR",
+      "signal": null,
+      "exception": [],
+      "frames": [
+        "#00 pc 000000000004e1d4 libc.so (__epoll_pwait)",
+        "android.os.MessageQueue.nativePollOnce(Native method)",
+        "android.os.Looper.loop(Looper.java:288)"
+      ]
+    },
+    {
+      "at": "2026-11-17T09:30:00Z",
+      "reason": "CRASH_NATIVE",
+      "signal": "SIGSEGV",
+      "exception": [],
+      "frames": ["#00 pc 0000000000a1b2c3 libchrome.so (crashpad::Handle)"]
+    }
+  ]
+}
