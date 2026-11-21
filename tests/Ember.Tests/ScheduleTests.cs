@@ -1,4 +1,3 @@
-using Ember.Bot.Jobs;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -113,19 +112,19 @@ public class ScheduleTests
         habit.TimesPerDay = 2;
         AddLog(habit, 2, 1);
 
-        MissedDayReflectionJob.IsOpenDaily(habit, Today.AddDays(-1), TimeZoneInfo.Utc).Should().BeFalse();
-        MissedDayReflectionJob.IsOpenDaily(habit, Today.AddDays(-2), TimeZoneInfo.Utc).Should().BeTrue();
+        HabitRules.IsOpenDaily(habit, Today.AddDays(-1), TimeZoneInfo.Utc).Should().BeFalse();
+        HabitRules.IsOpenDaily(habit, Today.AddDays(-2), TimeZoneInfo.Utc).Should().BeTrue();
     }
 
     [Fact]
     public void Reflection_IsNeverOfferedForALetGoHabit()
     {
         var habit = HabitFactory.Make(createdAtDaysAgo: 30, null, FrequencyType.Daily, null);
-        MissedDayReflectionJob.IsOpenDaily(habit, Today.AddDays(-2), TimeZoneInfo.Utc).Should().BeTrue();
+        HabitRules.IsOpenDaily(habit, Today.AddDays(-2), TimeZoneInfo.Utc).Should().BeTrue();
 
         habit.Kind = HabitKind.LetGo;
 
-        MissedDayReflectionJob.IsOpenDaily(habit, Today.AddDays(-2), TimeZoneInfo.Utc).Should().BeFalse();
+        HabitRules.IsOpenDaily(habit, Today.AddDays(-2), TimeZoneInfo.Utc).Should().BeFalse();
     }
 
     [Fact]

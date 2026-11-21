@@ -243,4 +243,36 @@ public static class HabitRules
     public static bool IsRoutineDone(Routine routine, DateOnly date)
         => routine.Habits.Where(h => h.Kind != HabitKind.LetGo).ToList() is { Count: > 0 } members
             && members.All(h => h.Logs.Any(l => l.Date == date && l.Completed));
+
+    /// <summary>
+    /// Whether a daily or weekdays habit is active, scheduled and unpaused on <paramref name="date"/> but not logged as done yet
+    /// (a partial day is still open). Never for a let-go habit. The missed-day reflection offers to log such a habit.
+    /// </summary>
+    public static bool IsOpenDaily(Habit habit, DateOnly date, TimeZoneInfo tz)
+        => habit.Kind != HabitKind.LetGo
+            && habit.FrequencyType != FrequencyType.Weekly
+            && IsScheduledOn(habit, date)
+            && IsAfterStartDay(habit, date, tz)
+            && !IsPausedOn(habit, date)
+            && !habit.Logs.Any(l => l.Date == date && l.Completed);
+
+    /// <summary>
+    /// For the missed-day reflection on the day after <paramref name="yesterday"/>: a weekly habit's progress (completed logs from its
+    /// Monday through <paramref name="yesterday"/>, and its target) when it still needs check-ins, its week has one or two days left
+    /// after <paramref name="yesterday"/>, it wasn't done <paramref name="yesterday"/>, which lies after its start day
+    /// (<see cref="IsAfterStartDay"/>), and it isn't paused then. Null otherwise, and for habits that aren't weekly.
+    /// </summary>
+    public static (int Done, int Target)? WeeklyCatchUp(Habit habit, DateOnly yesterday, TimeZoneInfo tz)
+    {
+        if (habit.FrequencyType != FrequencyType.Weekly || !IsAfterStartDay(habit, yesterday, tz) || IsPausedOn(habit, yesterday))
+            return null;
+
+        var weekStart = WeekStart(yesterday);
+        var daysLeft = weekStart.AddDays(6).DayNumber - yesterday.DayNumber;
+        var done = habit.Logs.Count(l => l.Completed && l.Date >= weekStart && l.Date <= yesterday);
+        var target = habit.WeeklyTarget ?? DefaultWeeklyTarget;
+        return target - done > 0 && daysLeft is > 0 and <= 2 && !habit.Logs.Any(l => l.Date == yesterday && l.Completed)
+            ? (done, target)
+            : null;
+    }
 }

@@ -3,9 +3,9 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
-using Ember.Bot.Jobs;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -145,7 +145,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     internal static async Task<List<Habit>> OpenHabitsAsync(HabitService habits, UserSettingsService settings, Guid userId, DateOnly date)
     {
         var tz = await settings.GetTimeZoneAsync(userId);
-        return (await habits.GetHabitsAsync(userId)).Where(h => MissedDayReflectionJob.IsOpenDaily(h, date, tz)).ToList();
+        return (await habits.GetHabitsAsync(userId)).Where(h => HabitRules.IsOpenDaily(h, date, tz)).ToList();
     }
 
     private async Task CloseAsync(string text) =>
