@@ -29,7 +29,7 @@ public static class HabitRules
             : !IsScheduledOn(habit, date) ? DayState.Offday
             : IsOpen(date, today) ? DayState.Pending
             : DayState.NotDone;
-        return new HabitDay(date, state, partial ? null : log?.Completed, log?.Count ?? 0);
+        return new HabitDay(date, state, partial ? null : log?.Completed, log?.Count ?? 0, log?.Skipped ?? false);
     }
 
     /// <summary>
@@ -241,21 +241,22 @@ public static class HabitRules
 
     /// <summary>
     /// The routine members a reminder on the user's local <paramref name="today"/> is for: those whose day (<see cref="DayOn"/>)
-    /// is pending or partial, in <see cref="Habit.RoutinePosition"/> order. Done, offday, paused, low and not-started days and let-go habits are left out.
-    /// Needs each habit's log of <paramref name="today"/> loaded, if there is one.
+    /// is pending or partial, in <see cref="Habit.RoutinePosition"/> order. Done, skipped (<see cref="HabitLog.Skipped"/>), offday, paused,
+    /// low and not-started days and let-go habits are left out. Needs each habit's log of <paramref name="today"/> loaded, if there is one.
     /// </summary>
     public static List<Habit> PendingRoutineHabits(IEnumerable<Habit> members, DateOnly today, TimeZoneInfo tz, IReadOnlySet<DateOnly> lowDays)
         => members
             .OrderBy(h => h.RoutinePosition)
-            .Where(h => h.Kind == HabitKind.Build && DayOn(h, today, today, tz, lowDays).State is DayState.Pending or DayState.Partial)
+            .Where(h => h.Kind == HabitKind.Build
+                && DayOn(h, today, today, tz, lowDays) is { State: DayState.Pending or DayState.Partial, Skipped: false })
             .ToList();
 
     /// <summary>
     /// Whether a routine reminder for the user's local <paramref name="date"/> has nothing left to remind of, given the user's local
     /// <paramref name="today"/>: the routine has build members and every one due that day is done. A member whose day
-    /// (<see cref="DayOn"/>) is pending, partial or not done is still due; offday, paused, low and not-started days are not.
-    /// On <paramref name="today"/> this is <see cref="PendingRoutineHabits"/> coming back empty. Needs each habit's log of
-    /// <paramref name="date"/> loaded, if there is one.
+    /// (<see cref="DayOn"/>) is pending, partial or not done is still due, a skipped one too; offday, paused, low and not-started days are not.
+    /// So a member skipped on <paramref name="today"/> keeps the routine open though <see cref="PendingRoutineHabits"/> leaves it out.
+    /// Needs each habit's log of <paramref name="date"/> loaded, if there is one.
     /// </summary>
     public static bool IsRoutineDone(IEnumerable<Habit> members, DateOnly date, DateOnly today, TimeZoneInfo tz, IReadOnlySet<DateOnly> lowDays)
         => members.Where(h => h.Kind == HabitKind.Build).ToList() is { Count: > 0 } build

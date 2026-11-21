@@ -127,4 +127,57 @@ public class RoutineReminderTests
 
         host.Discord.Messages.Should().ContainSingle().Which.Text.Should().Contain("Habit 1").And.Contain("Did you follow this habit today?");
     }
+
+    [Fact]
+    public async Task DueRoutineWhoseOnlyOpenMemberIsSkippedToday_SendsNothing_AndAdvances()
+    {
+        var skipped = Member(1, 0);
+        skipped.Logs.Add(new HabitLog { Date = Today, Count = 0, Completed = false, Skipped = true });
+        var done = Member(2, 1);
+        done.Logs.Add(new HabitLog { Date = Today, Count = 1, Completed = true });
+
+        await using var host = await CreateHostAsync(new FakeTimeProvider(Now), Now.UtcDateTime, skipped, done);
+
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().BeEmpty();
+        (await RoutineNextReminderAsync(host)).Should().Be(TomorrowNineBerlin);
+    }
+
+    [Fact]
+    public async Task DueRoutine_LeavesOutAMemberSkippedToday_ButListsOneCountedDownToZero()
+    {
+        var skipped = Member(1, 0);
+        skipped.Logs.Add(new HabitLog { Date = Today, Count = 0, Completed = false, Skipped = true });
+        var countedToZero = Member(2, 1);
+        countedToZero.Logs.Add(new HabitLog { Date = Today, Count = 0, Completed = false });
+        var open = Member(3, 2);
+
+        await using var host = await CreateHostAsync(new FakeTimeProvider(Now), Now.UtcDateTime, skipped, countedToZero, open);
+
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().ContainSingle().Which.Text.Should().Contain("Habit 2").And.Contain("Habit 3").And.NotContain("Habit 1");
+    }
+
+    [Theory]
+    [InlineData(true, 0)]
+    [InlineData(false, 1)]
+    public async Task SecondRoutineReminder_IsNotSentWhenItsOnlyOpenMemberIsSkippedToday(bool skip, int expected)
+    {
+        var member = Member(1, 0);
+        member.Logs.Add(new HabitLog { Date = Today, Count = 0, Completed = false, Skipped = skip });
+
+        await using var host = await CreateHostAsync(new FakeTimeProvider(Now), TomorrowNineBerlin, member);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            await db.Users.ExecuteUpdateAsync(s => s.SetProperty(u => u.SecondReminderMinutes, 30));
+            await db.Routines.ExecuteUpdateAsync(s => s.SetProperty(r => r.SecondReminderUtc, Now.UtcDateTime));
+        });
+
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().HaveCount(expected);
+    }
 }

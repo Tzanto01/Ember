@@ -30,6 +30,7 @@ public enum DayState
 
 /// <summary>
 /// One local day of a habit: its <see cref="DayState"/>, whether it is done (true), explicitly not done (false, a log with
-/// <c>Count</c> 0) or neither (null: no log, or partial), and the day's check-in <c>Count</c> (0 without a log).
+/// <c>Count</c> 0) or neither (null: no log, or partial), the day's check-in <c>Count</c> (0 without a log) and whether the log was
+/// written by a skip (<see cref="Models.HabitLog.Skipped"/>; false without a log).
 /// </summary>
-public sealed record HabitDay(DateOnly Date, DayState State, bool? Completed, int Count);
+public sealed record HabitDay(DateOnly Date, DayState State, bool? Completed, int Count, bool Skipped = false);
