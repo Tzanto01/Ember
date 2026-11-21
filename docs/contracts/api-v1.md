@@ -1,4 +1,6 @@
-# Ember API contract v1.26
+# Ember API contract v1.27
+
+v1.27 (2026-11-21, the server and the phone couldn't tell a skip from a count of 0): a check-in log stores whether it was written by a skip. Day objects gain `skipped`, a skip of today ends that day's reminders on every channel and leaves the habit out of its routine's reminder, and "Not done" on a partly done day now skips it the same way on every path. See "Skip marker v1.27".
 
 v1.26 (2026-11-21, Send diagnostics): the Android app can send an anonymous technical report (versions, launch events, recent exit reasons) to the Ember team and gets a reference code to quote in Discord (`POST /api/diagnostics`). See "Diagnostics v1.26".
 
@@ -197,7 +199,7 @@ Rate limits: per client IP (after forwarded headers) on the credential endpoints
   "id": 1, "name": "Water", "frequency": "daily", "weeklyTarget": null,
   "reminderTime": "09:00", "pausedFrom": null, "pausedUntil": null, "pausedToday": false,
   "createdAt": "2026-10-01T08:00:00Z", "startDate": "2026-10-01",
-  "today": { "date": "2026-11-01", "state": "pending", "completed": null },
+  "today": { "date": "2026-11-01", "state": "pending", "completed": null, "count": 0, "skipped": false },
   "stats": { "streak": 4, "graceUsed": 0, "bestStreak": 9, "last7": 5, "week": { "done": 2, "target": 3 } }
 }
 ```
@@ -214,7 +216,7 @@ Endpoints:
 - `PATCH /api/habits/{id}` `{ name?, reminderTime?, clearReminder?, frequency?, weeklyTarget? }` → 200 `Habit`. All fields are validated before anything is written.
 - `DELETE /api/habits/{id}` → 204.
 - `POST /api/habits/{id}/pause` `{ until: "yyyy-MM-dd" | null }` → 200 `Habit`. `null` resumes (Core `PauseHabitAsync` rules). `until` before the user's local today → 400.
-- `GET /api/habits/{id}/days?from=yyyy-MM-dd&to=yyyy-MM-dd` → `[{ date, state, completed }]`, oldest first. Default: the 14 days ending today. At most 366 days per request; any past day back to the habit's start can be fetched.
+- `GET /api/habits/{id}/days?from=yyyy-MM-dd&to=yyyy-MM-dd` → `[{ date, state, completed, count, skipped }]` (`count` v1.6, `skipped` v1.27), oldest first. Default: the 14 days ending today. At most 366 days per request; any past day back to the habit's start can be fetched.
 - `PUT /api/habits/{id}/days/{date}` `{ completed: bool }` → 200 `Habit`. Check-in and backfill.
 - `DELETE /api/habits/{id}/days/{date}` → 200 `Habit`. Clears the day.
 - `GET /api/habit-templates` → `[{ key, name, description, suggestedReminderTime: "HH:mm", frequency, weeklyTarget }]` from Core `HabitTemplates` (`name` is `DisplayName` with its emoji; `weeklyTarget` is null for daily templates).
@@ -272,8 +274,8 @@ Producer: team `backend` (`src/Ember.Core`, `src/Ember.Bot`, `src/Ember.Api`, mi
 - `weekdays`: `days` lists 1–6 distinct weekdays (`mon`…`sun`, any order in, Monday-first order out); all seven is rejected (use `daily`). `days` is null for `daily` and `weekly`.
 - A day that isn't in `days` has the new state `offday`: nothing is expected, it can still be checked in (it then counts as `done`), it is never `pending` or `notdone`, and streaks step over it (it neither extends nor breaks a streak). Grace days apply to scheduled days only.
 - `timesPerDay` 1–10 for `daily` and `weekdays` (always 1 for `weekly`). A day carries `count` (0…timesPerDay). The day is `done` when `count >= timesPerDay`; a day with `0 < count < timesPerDay` has the new state `partial`. Streaks count `done` days only; `partial` days count as "showed up" in day stats.
-- Day objects (`today` and `GET .../days`) gain `count`: `{ date, state, completed, count }`. `completed` stays (true when done, false when explicitly not done, null otherwise).
-- `PUT /api/habits/{id}/days/{date}` accepts `{ completed: bool }` (unchanged: true sets `count = timesPerDay`, false sets `count = 0` and marks not done) or `{ count: int }` (absolute; a count above `timesPerDay` is clamped to it, so a queued offline edit still lands after the target was lowered; a negative count → 400). Absolute values keep offline replays idempotent. `DELETE` clears the day as before.
+- Day objects (`today` and `GET .../days`) gain `count`: `{ date, state, completed, count }`. `completed` stays (true when done, false when explicitly not done, null otherwise). v1.27 adds `skipped` (see "Skip marker v1.27").
+- `PUT /api/habits/{id}/days/{date}` accepts `{ completed: bool }` (unchanged: true sets `count = timesPerDay`, false sets `count = 0` and marks not done, a skip since v1.27) or `{ count: int }` (absolute; a count above `timesPerDay` is clamped to it, so a queued offline edit still lands after the target was lowered; a negative count → 400). Absolute values keep offline replays idempotent. `DELETE` clears the day as before.
 - `POST`/`PATCH /api/habits` accept `frequency`, `days`, `timesPerDay`, `weeklyTarget` with the rules above; an invalid combination → 400 `validation` naming the field. Changing `timesPerDay` never takes a done day away: a day that reached its target when it was checked in stays `done` (stored with the day), and a past day whose count reaches a lowered target counts as done too. Only today's day is recomputed against the new target. A checked-in offday counts as `done` and extends the streak like any done day.
 - Bot: shows `2/3` style progress for multi-count habits, its check-in button adds one (capped), and the habit setup offers weekdays and times per day. Offdays show as rest, never as missed. Weekly summary and DM reminders skip offdays.
 - Reminders (all channels) fire only on scheduled days, and not once the day is `done`.
@@ -356,7 +358,7 @@ Client only (team `local`), except the import endpoint below.
 snake_case like today, plus `"format_version": 2` at the top level (an export without it is the old format; import accepts only 2). Existing sections (`settings`, `habits`, `logs`, `day_marks`, `account`, push data) keep their names. Additions:
 
 - `habits[]`: `days` (`["mon",…]` or null), `times_per_day`, `routine_id` (or null), `routine_position` (or null).
-- `logs[]`: `count`.
+- `logs[]`: `count`, `skipped` (v1.27; CSV column `skipped`).
 - `account`: `created_at` (instant or null; CSV `account_created_at`).
 - `routines`: `[{ id, name, reminder_time, reminder_channels }]` (membership lives on the habits). *(Superseded in v1.14, see "Reminder destinations v1.14".)*
 - `moods`: `[{ id, label, emoji, archived }]` or, when encrypted, `[{ id, encrypted: { v, iv, ct }, archived }]`.
@@ -473,7 +475,7 @@ Nico chose "Same device only": the code alone signs in only on the device that s
 - `reminderTimes`: `"HH:mm"` local times, sorted ascending, without repeats, 0 to `timesPerDay` entries (so never more than 10; weekly habits have at most 1). Empty means no reminder. `reminderTime` stays in responses as the first entry, or null, for older clients.
 - `POST /api/habits` and `PATCH /api/habits/{id}` take `reminderTimes?: string[]`. When present it wins and `reminderTime` is ignored; an empty array clears the reminder. A request with only `reminderTime` sets `[reminderTime]` (on PATCH this replaces all times), and PATCH `clearReminder: true` clears them all. Input in any order is accepted and stored sorted. 400 `validation` on `reminderTimes`: an entry that isn't `HH:mm`, a repeated time, more entries than the habit's `timesPerDay` (the request's `timesPerDay` when it sends one), or `reminderTimes` combined with `clearReminder: true`.
 - Lowering `timesPerDay` (also by switching to `weekly`) keeps the earliest `timesPerDay` times. A PATCH that sends both `timesPerDay` and `reminderTimes` checks the times against the new `timesPerDay`.
-- Dispatch: the next reminder is the next of any of the times in the user's timezone. Each time sends like a single reminder (same channels, buttons, Done token, skip rules): only while the day is still open (`count < timesPerDay`), not paused and scheduled. A second reminder (v1.8) still follows a delivered regular reminder, but is skipped when the habit's next regular reminder comes first or at the same time. Routines keep one `reminderTime`; a habit in a routine with a reminder still sends none of its own.
+- Dispatch: the next reminder is the next of any of the times in the user's timezone. Each time sends like a single reminder (same channels, buttons, Done token, skip rules): only while the day is still open (`count < timesPerDay`), not paused and scheduled. A skip of the user's local today (`PUT /api/habits/{id}/days/{date} { completed: false }`, the Discord Skip button or `/habit checkin` Skip) ends that day's reminders for the habit, first and second, and leaves it out of its routine's reminder (v1.27); `{ count: 0 }` and `DELETE` are not skips and keep them. A second reminder (v1.8) still follows a delivered regular reminder, but is skipped when the habit's next regular reminder comes first or at the same time. Routines keep one `reminderTime`; a habit in a routine with a reminder still sends none of its own.
 - Weekly habits: a reminder (regular or second) is sent only on a day without a check-in yet and while the week's `weeklyTarget` isn't reached, counting check-ins in the user's local Monday–Sunday week, the same week as the weekly progress. Once the target is met, its reminders stay quiet until the next Monday; the next reminder time still advances day by day.
 - The native app schedules one local notification per entry for habits with the `mobile` channel. *(Superseded in v1.14, see "Reminder destinations v1.14".)*
 - Discord shows all times (`Reminders: 08:00, 13:00, 20:00 your time` in `/habit list`). Setting a reminder in Discord still sets one time: it replaces all of the habit's times with it, and the bot's reply names the times it replaced when there were several.
@@ -843,6 +845,15 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 ### Out of scope
 
 The Discord bot (it shows no tick; its slips still clear the mark through Core) and the Android widget.
+
+## Skip marker v1.27
+
+- `HabitLog.Skipped` (boolean, `NOT NULL DEFAULT false`): true on any day written by a skip, past days too: `PUT /api/habits/{id}/days/{date} { completed: false }`, the Discord Skip button on a reminder and `/habit checkin` Skip. A skip stores `count` 0 and `completed` false. Any check-in, count change (also `{ count: 0 }`) or clear (`DELETE`, which removes the log) resets it. Existing logs are not backfilled: a skip, a count lowered to 0 and a history "Not done" could not be told apart, so they read `skipped: false`.
+- Day objects (`today` of a build habit and `GET /api/habits/{id}/days`) gain `skipped: boolean`: `{ date, state, completed, count, skipped }`. False without a log. A skipped day keeps its `state` (`pending` on an open day, `notdone` on a closed one); `skipped` changes no streak, stat or day stats.
+- "Not done" on a partly done day (`0 < count < timesPerDay`) is a skip on every path: count 0, `skipped` true. The Discord reminder Skip used to keep the partial count. A Skip tapped on a stale reminder of a day already done keeps the done day.
+- Reminders: only a skip of the local today ends reminders: that day's first and second reminders of the habit stay quiet, also when a change of its reminder times, a snooze or a timezone change moves the next one to later that day. A routine's reminder and second reminder leave out members skipped today and aren't sent when no other member is open. A member skipped today still keeps the routine open (not done), so the routine's reminder doesn't close as logged. The native app's local plan follows the same rules from `skipped`.
+- Export: JSON `logs[].skipped`, CSV `log` rows' `skipped` column. Import reads optional `skipped` (missing → false); `skipped: true` with `count > 0` or `completed: true` → 400 `validation` on `logs[i].skipped`. Account merge moves logs with their marker. No-account mode stores the same marker, its backups carry it, older backups restore as not skipped, and moving device data into an account sends it.
+- `docs/contracts/fixtures/rules-v1.json`: logs take optional `skipped`, expected days and edit logs carry it, and `routinePending` leaves out members skipped today.
 
 ## Diagnostics v1.26
 
