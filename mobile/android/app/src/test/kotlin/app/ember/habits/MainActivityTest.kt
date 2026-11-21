@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageInfo
 import android.os.Bundle
 import android.os.Looper
+import android.view.MotionEvent
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
@@ -35,9 +36,11 @@ import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import org.robolectric.shadow.api.Shadow
 import org.robolectric.shadows.ShadowLog
 import org.robolectric.shadows.ShadowSystemClock
 import org.robolectric.shadows.ShadowWebView
+import org.robolectric.util.ReflectionHelpers
 import java.io.File
 import java.time.Duration
 
@@ -45,7 +48,8 @@ import java.time.Duration
  * How launches reach the web app: a moment door on a cold start is the pending launch action, on a warm one an
  * `openMoment` event; a validated widget tap is a `widgetTap` event; replayed, restored and foreign launches do
  * nothing; a dead WebView renderer recreates the activity once and then gives up; the launch log names extras but
- * never their values; the on-device launch log records the diagnostics vocabulary. Runs the real Capacitor bridge, so the web app's side is a listener on the EmberWidget plugin.
+ * never their values; the WebView fills with Ember's background before content; the on-device launch log records the
+ * diagnostics vocabulary, including when the first page became visible, drew and was first touched. Runs the real Capacitor bridge, so the web app's side is a listener on the EmberWidget plugin.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], shadows = [NoServiceWorkers::class])
@@ -337,6 +341,67 @@ class MainActivityTest {
     }
 
     @Test
+    fun theWebViewFillsWithEmbersBackgroundBeforeAnyContent() {
+        val activity = start(launcher()).get()
+
+        assertEquals(activity.getColor(R.color.ember_background), shadowOf(activity.bridge.webView).backgroundColor)
+    }
+
+    @Test
+    @Config(shadows = [NoServiceWorkers::class, VisualStateWebView::class])
+    fun theWindowsFirstDrawAfterThePageCommitIsRecordedOnce() {
+        val app = start(launcher()).start().resume().visible()
+        val bridge = app.get().bridge
+        draw(bridge.webView)
+
+        ShadowSystemClock.advanceBy(Duration.ofMillis(640))
+        repeat(2) { bridge.webViewClient.onPageCommitVisible(bridge.webView, "https://localhost/") }
+        ShadowSystemClock.advanceBy(Duration.ofMillis(60))
+        repeat(2) { draw(bridge.webView) }
+
+        assertAtLeastMs(700, events().filter { it.startsWith("first_draw") }.single(), "first_draw")
+    }
+
+    @Test
+    @Config(shadows = [NoServiceWorkers::class, VisualStateWebView::class])
+    fun theVisualStateOfTheFirstCommittedPageIsRecordedOnce() {
+        val app = start(launcher())
+        val bridge = app.get().bridge
+
+        repeat(2) { bridge.webViewClient.onPageCommitVisible(bridge.webView, "https://localhost/") }
+        ShadowSystemClock.advanceBy(Duration.ofMillis(900))
+        Shadow.extract<VisualStateWebView>(bridge.webView).ready()
+
+        assertEquals(listOf("visual_state ms=900"), events().filter { it.startsWith("visual_state") })
+    }
+
+    @Test
+    fun theFirstTouchRecordsOnlyItsTimeAndOnlyOnce() {
+        val activity = start(launcher()).start().resume().visible().get()
+
+        ShadowSystemClock.advanceBy(Duration.ofMillis(3_100))
+        for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP, MotionEvent.ACTION_DOWN)) {
+            activity.dispatchTouchEvent(MotionEvent.obtain(0, 0, action, 123f, 456f, 0))
+        }
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertAtLeastMs(3_100, events().filter { it.startsWith("first_touch") }.single(), "first_touch")
+    }
+
+    /** [event] is `[name] ms=N` with nothing else in it, and N counts at least [ms] since create. */
+    private fun assertAtLeastMs(ms: Long, event: String, name: String) {
+        val match = Regex("$name ms=([0-9]{1,9})").matchEntire(event)
+        assertNotNull(event, match)
+        assertTrue(event, match!!.groupValues[1].toLong() >= ms)
+    }
+
+    /** The window [webView] sits in draws a frame, and the main thread then runs what that scheduled. */
+    private fun draw(webView: WebView) {
+        ReflectionHelpers.callInstanceMethod<Unit>(webView.viewTreeObserver, "dispatchOnDraw")
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    @Test
     fun rendererDeathsRecordRecreateAndThenFinish() {
         val app = start(launcher())
         app.rendererGone()
@@ -369,4 +434,17 @@ class NoServiceWorkers {
 class FullyLoadedWebView : ShadowWebView() {
     @Implementation
     protected fun getProgress() = 100
+}
+
+/** A WebView that holds the visual state callbacks posted to it until [ready] reports that state drawable. */
+@Implements(WebView::class)
+class VisualStateWebView : ShadowWebView() {
+    private val pending = ArrayList<Pair<Long, WebView.VisualStateCallback>>()
+
+    @Implementation
+    protected fun postVisualStateCallback(requestId: Long, callback: WebView.VisualStateCallback) {
+        pending.add(requestId to callback)
+    }
+
+    fun ready() = pending.forEach { (id, callback) -> callback.onComplete(id) }
 }

@@ -76,6 +76,12 @@ internal object LaunchEvents {
 
     fun pageLoaded(ms: Long) = event("page_loaded", "ms" to int(ms))
 
+    fun visualState(ms: Long) = event("visual_state", "ms" to int(ms))
+
+    fun firstDraw(ms: Long) = event("first_draw", "ms" to int(ms))
+
+    fun firstTouch(ms: Long) = event("first_touch", "ms" to int(ms))
+
     fun rendererGone(crashed: Boolean?, priority: Int?, then: RendererThen) = event(
         "renderer_gone",
         "crashed" to crashed?.toString(),
