@@ -157,6 +157,9 @@ describe('BackupService', () => {
     ['an unknown own mood', (doc) => ((doc['day_notes'] as Record<string, unknown>[])[0]['mood'] = 'custom:42'), "can't be read"],
     ['a count above 10', (doc) => ((doc['logs'] as Record<string, unknown>[])[0]['count'] = 11), "can't be read"],
     ['a count above the habit’s times a day', (doc) => ((doc['logs'] as Record<string, unknown>[])[1]['count'] = 4), "can't be read"],
+    ['a skipped flag that isn’t true or false', (doc) => ((doc['logs'] as Record<string, unknown>[])[0]['skipped'] = 'yes'), "can't be read"],
+    ['a skipped day with a check-in', (doc) => ((doc['logs'] as Record<string, unknown>[])[1]['skipped'] = true), "can't be read"],
+    ['a skipped day that is done', (doc) => (doc['logs'] as unknown[]).push({ habit_id: 1, date: '2026-10-09', completed: true, count: 0, skipped: true }), "can't be read"],
     ['a bad date', (doc) => ((doc['logs'] as Record<string, unknown>[])[0]['date'] = '2026-02-30'), "can't be read"],
     ['a bad time', (doc) => ((doc['habits'] as Record<string, unknown>[])[0]['reminder_time'] = '25:00'), "can't be read"],
     ['a bad time in a list', (doc) => ((doc['habits'] as Record<string, unknown>[])[1]['reminder_times'] = ['08:00', '25:00']), "can't be read"],
@@ -181,6 +184,25 @@ describe('BackupService', () => {
     const result = parsed(backup.parseBackup(fileText(doc)));
 
     expect(result.data.logs[1]).toEqual({ habitId: 2, date: '2026-10-02', completed: true, count: 3 });
+  });
+
+  it('carries a skipped day through export and restore, and reads an older file without the field as not skipped', () => {
+    const data = sample();
+    data.logs.push({ habitId: 1, date: '2026-10-04', completed: false, count: 0, skipped: true });
+    const doc = exportDocument(data);
+    const logs = doc['logs'] as Record<string, unknown>[];
+
+    expect(logs.map((l) => l['skipped'])).toEqual([false, true, false, false]);
+    expect(parsed(backup.parseBackup(fileText(doc))).data.logs[1]).toEqual({
+      habitId: 1,
+      date: '2026-10-04',
+      completed: false,
+      count: 0,
+      skipped: true,
+    });
+
+    for (const log of logs) delete log['skipped'];
+    expect(parsed(backup.parseBackup(fileText(doc))).data.logs.some((l) => l.skipped)).toBe(false);
   });
 
   it('reads reminder times sorted from reminder_times, and a file without them as its one reminder_time', () => {

@@ -62,7 +62,7 @@ function toLocalData(c: FixtureUser): LocalData {
     },
     habits: c.habits.map(localHabit),
     logs: c.habits.flatMap((h) =>
-      h.logs.map((l) => ({ habitId: h.id, date: l.date, completed: l.completed, count: l.count })),
+      h.logs.map((l) => ({ habitId: h.id, date: l.date, completed: l.completed, count: l.count, skipped: l.skipped ?? false })),
     ),
     lowDays: c.lowDays,
     routines: c.routines.map((r) => ({
@@ -102,16 +102,20 @@ function editData(
   });
 }
 
+function logShape({ date, count, completed, skipped }: Omit<LocalLog, 'habitId'>): Omit<LocalLog, 'habitId'> {
+  return { date, count, completed, skipped: skipped === true };
+}
+
 function sortedLogs(logs: LocalLog[]): Omit<LocalLog, 'habitId'>[] {
   return logs
     .filter((l) => l.habitId === editHabitId)
-    .map(({ date, count, completed }) => ({ date, count, completed }))
+    .map(logShape)
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 describe('client rules match the Core rules fixture', () => {
-  it('has all 27 cases', () => {
-    expect(fixture.cases).toHaveLength(27);
+  it('has all 28 cases', () => {
+    expect(fixture.cases).toHaveLength(28);
   });
 
   it.each(fixture.cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {
@@ -129,8 +133,8 @@ describe('client rules match the Core rules fixture', () => {
 
     for (const r of c.routines) {
       const pending = r.habitIds.filter((id) => {
-        const state = habitDays(data, id, c.today, c.today, c.today)[0].state;
-        return state === 'pending' || state === 'partial';
+        const { state, skipped } = habitDays(data, id, c.today, c.today, c.today)[0];
+        return (state === 'pending' || state === 'partial') && !skipped;
       });
       expect(pending).toEqual(
         (c.expected.routinePending as Record<string, number[]>)[String(r.id)],
@@ -161,12 +165,12 @@ describe('client edits match the Core rules fixture', () => {
     const data = editData({ timesPerDay: c.timesPerDay }, c.log ? [c.log] : []);
     const { count, completed } = c.edit;
     const edit = count === undefined ? { completed: completed ?? null } : { count };
-    expect(sortedLogs(writeDay(data, editHabitId, c.date, edit))[0] ?? null).toEqual(c.expected);
+    expect(sortedLogs(writeDay(data, editHabitId, c.date, edit))[0] ?? null).toEqual(c.expected && logShape(c.expected));
   });
 
   it.each(fixture.edits.retarget.map((c) => [c.name, c] as const))('retarget: %s', (_name, c) => {
     const data = editData({ timesPerDay: c.timesPerDay }, c.logs);
-    expect(sortedLogs(retarget(data, editHabitId, c.newTimesPerDay, today))).toEqual(c.expected);
+    expect(sortedLogs(retarget(data, editHabitId, c.newTimesPerDay, today))).toEqual(c.expected.map(logShape));
   });
 });
 

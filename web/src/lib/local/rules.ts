@@ -416,7 +416,7 @@ export function weeklySummary(data: LocalData, today: LocalDateString): WeeklySt
   return { totalDone, totalPossible, headline: plainText(headline), footer: plainText(footer), habits };
 }
 
-/** The logs array after one day edit: `{completed:true}` sets count = timesPerDay, `{completed:false}` count 0 and explicitly not done, `{completed:null}` clears (removes the log), `{count}` absolute (0…timesPerDay; completed = count >= timesPerDay at write time). Validation of ranges is the caller's. */
+/** The logs array after one day edit: `{completed:true}` sets count = timesPerDay, `{completed:false}` (a skip) count 0, explicitly not done and `skipped`, `{completed:null}` clears (removes the log), `{count}` absolute (0…timesPerDay; completed = count >= timesPerDay at write time). Every other edit clears `skipped`. Validation of ranges is the caller's. */
 export function writeDay(
   data: LocalData,
   habitId: number,
@@ -429,7 +429,9 @@ export function writeDay(
   const count = 'count' in edit ? edit.count : edit.completed ? target : 0;
   const existing = index < 0 ? undefined : data.logs[index];
   const completed = count >= target || (!!existing?.completed && count > 0 && count >= existing.count);
-  const log: LocalLog = { habitId, date, completed, count };
+  const log: LocalLog = 'completed' in edit && edit.completed === false
+    ? { habitId, date, completed, count, skipped: true }
+    : { habitId, date, completed, count };
   return index < 0 ? [...data.logs, log] : data.logs.map((l, i) => (i === index ? log : l));
 }
 

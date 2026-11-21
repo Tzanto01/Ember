@@ -148,6 +148,7 @@ export function exportDocument(data: LocalData, journal = true): Record<string, 
         date: log.date,
         completed: log.completed,
         count: Math.min(log.count, timesPerDay.get(log.habitId)!),
+        skipped: log.skipped === true,
       })),
     slips: (data.slips ?? [])
       .filter((slip) => order.has(slip.habitId))

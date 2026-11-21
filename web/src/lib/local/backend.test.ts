@@ -112,6 +112,18 @@ describe('LocalBackend through ApiClient', () => {
     expect(cleared.today.state).toBe('pending');
   });
 
+  it('marks a skipped day on the habit, its days and the export, and a count of 0 clears the mark', async () => {
+    await store.replace(seed([localHabit(1)]));
+
+    const skipped = await api.setDay(1, today, false);
+    expect(skipped.today).toEqual({ date: today, state: 'pending', completed: false, count: 0, skipped: true });
+    expect((await api.getDays(1, today, today))[0].skipped).toBe(true);
+    const doc = JSON.parse(await (await api.exportData('json')).blob.text());
+    expect(doc.logs).toEqual([{ habit_id: 1, date: today, completed: false, count: 0, skipped: true }]);
+
+    expect((await api.setDayCount(1, today, 0)).today.skipped).toBe(false);
+  });
+
   it('stores a language choice on the device, reads it back as the profile language and rejects anything but en or de', async () => {
     await store.replace(seed());
     vi.stubGlobal('navigator', { languages: ['en-GB'], language: 'en-GB' });
@@ -537,7 +549,7 @@ describe('LocalBackend through ApiClient', () => {
 
     const doc = JSON.parse(await (await api.exportData('json')).blob.text());
 
-    expect(doc.logs).toEqual([{ habit_id: 1, date: '2026-10-25', completed: true, count: 2 }]);
+    expect(doc.logs).toEqual([{ habit_id: 1, date: '2026-10-25', completed: true, count: 2, skipped: false }]);
   });
 
   describe('let-go habits', () => {

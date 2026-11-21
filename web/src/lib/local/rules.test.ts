@@ -135,7 +135,6 @@ describe('habitDays day states', () => {
     expect(dayOf(habit(), missed(0), TODAY).skipped).toBe(false);
   });
 
-
   it('lists the range oldest first and inclusive', () => {
     const days = habitDays(data([habit()], done(2)), 1, ago(3), ago(1), TODAY);
     expect(days.map((d) => [d.date, d.state])).toEqual([
@@ -338,9 +337,17 @@ describe('writeDay', () => {
     expect(write([], { completed: true })).toEqual([{ habitId: 1, date: ago(1), completed: true, count: 3 }]);
   });
 
-  it('completed false records an explicit not-done day, replacing a done one', () => {
+  it('completed false records a skipped not-done day, replacing a done one', () => {
     const existing: LocalLog[] = [{ habitId: 1, date: ago(1), completed: true, count: 3 }];
-    expect(write(existing, { completed: false })).toEqual([{ habitId: 1, date: ago(1), completed: false, count: 0 }]);
+    expect(write(existing, { completed: false })).toEqual([{ habitId: 1, date: ago(1), completed: false, count: 0, skipped: true }]);
+  });
+
+  it('any check-in or count after a skip clears the skip, a count of 0 included', () => {
+    const skip: LocalLog[] = [{ habitId: 1, date: ago(1), completed: false, count: 0, skipped: true }];
+    expect(write(skip, { count: 0 })).toEqual([{ habitId: 1, date: ago(1), completed: false, count: 0 }]);
+    expect(write(skip, { count: 1 })).toEqual([{ habitId: 1, date: ago(1), completed: false, count: 1 }]);
+    expect(write(skip, { completed: true })).toEqual([{ habitId: 1, date: ago(1), completed: true, count: 3 }]);
+    expect(write(skip, { completed: null })).toEqual([]);
   });
 
   it('completed null removes the log', () => {

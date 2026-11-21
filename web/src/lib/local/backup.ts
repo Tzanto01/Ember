@@ -221,10 +221,13 @@ function parse(text: string): ParsedBackup {
     const completed = field(l, 'completed');
     if (typeof completed !== 'boolean') damaged();
     const count = int(field(l, 'count') ?? (completed ? habit.timesPerDay : 0), 0, habit.timesPerDay);
+    const skipped = field(l, 'skipped') ?? false;
+    if (typeof skipped !== 'boolean' || (skipped && (completed || count > 0))) damaged();
     const key = `${habit.id}|${date}`;
     if (seenDays.has(key)) damaged();
     seenDays.add(key);
-    return { habitId: habit.id, date, completed: completed || count >= habit.timesPerDay, count };
+    const log: LocalLog = { habitId: habit.id, date, completed: completed || count >= habit.timesPerDay, count };
+    return skipped ? { ...log, skipped } : log;
   });
 
   const today = localToday(timezone);
