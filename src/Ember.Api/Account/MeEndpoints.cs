@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.Json;
 using Ember.Api.Auth;
 using Ember.Api.Hosting;
-using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -44,7 +43,7 @@ internal static class MeEndpoints
             await LoadMe(principal, users, settings, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
 
         api.MapPatch("/me", async (JsonElement body, ClaimsPrincipal principal, UserManager<User> users, UserSettingsService settings,
-            ReminderService reminders, ConsentService consent, JournalService journal, EmberDbContext db, TimeProvider time) =>
+            ReminderService reminders, ConsentService consent, JournalService journal, TimeProvider time) =>
         {
             MePatch? patch;
             try
@@ -67,19 +66,10 @@ internal static class MeEndpoints
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var userId = principal.UserId();
-            db.ChangeTracker.Clear();
-            if (patch.GraceDaysPerWeek is { } grace) await settings.SetGraceDaysAsync(userId, grace);
-            if (patch.Theme is { } theme) await settings.SetThemeAsync(userId, theme);
             if (patch.SecondReminderMinutes is { } second) await reminders.SetSecondReminderMinutesAsync(userId, second);
-            if (patch.ShowStreaks is { } showStreaks) await settings.SetShowStreaksAsync(userId, showStreaks);
-            if (patch.Language is { } language) await settings.SetLanguageAsync(userId, language);
-            if (patch.CalmMode is { } calmMode) await settings.SetCalmModeAsync(userId, calmMode);
-            if (patch.OfferHabitNote is { } offer) await settings.SetOfferHabitNoteAsync(userId, offer);
-            if (zone is not null)
-            {
-                await settings.SetTimezoneAsync(userId, zone.Id);
-                await reminders.RescheduleRemindersAsync(userId);
-            }
+            await settings.UpdateAsync(userId, new UserSettingsService.SettingsUpdate(patch.GraceDaysPerWeek, patch.Theme,
+                patch.ShowStreaks, patch.Language, patch.CalmMode, patch.OfferHabitNote, zone?.Id));
+            if (zone is not null) await reminders.RescheduleRemindersAsync(userId);
 
             return await LoadMe(principal, users, settings, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
         });

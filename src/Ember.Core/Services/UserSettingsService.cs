@@ -21,6 +21,27 @@ public class UserSettingsService
         _time = time;
     }
 
+    /// <summary>The settings <see cref="UpdateAsync"/> changes; a null one stays as it is. The caller validates the values.</summary>
+    public sealed record SettingsUpdate(int? GraceDaysPerWeek = null, string? Theme = null, bool? ShowStreaks = null,
+        string? Language = null, bool? CalmMode = null, bool? OfferHabitNote = null, string? Timezone = null);
+
+    /// <summary>
+    /// Stores the non-null settings of <paramref name="update"/> with the setters below (a time zone without rescheduling reminders),
+    /// then stops tracking every entity this database context holds. The writes bypass the context, so reads later in the same scope,
+    /// such as the signed-in user the sign-in loaded, see the stored values, including earlier set-based writes in that scope.
+    /// </summary>
+    public async Task UpdateAsync(Guid userId, SettingsUpdate update)
+    {
+        if (update.GraceDaysPerWeek is { } grace) await SetGraceDaysAsync(userId, grace);
+        if (update.Theme is { } theme) await SetThemeAsync(userId, theme);
+        if (update.ShowStreaks is { } showStreaks) await SetShowStreaksAsync(userId, showStreaks);
+        if (update.Language is { } language) await SetLanguageAsync(userId, language);
+        if (update.CalmMode is { } calmMode) await SetCalmModeAsync(userId, calmMode);
+        if (update.OfferHabitNote is { } offer) await SetOfferHabitNoteAsync(userId, offer);
+        if (update.Timezone is { } timezone) await SetTimezoneAsync(userId, timezone);
+        _db.ChangeTracker.Clear();
+    }
+
     public async Task<int> GetGraceDaysAsync(Guid userId)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);

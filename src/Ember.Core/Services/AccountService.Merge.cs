@@ -42,7 +42,8 @@ public partial class AccountService
     /// is dropped (skipped when the source has encrypted entries, which may reference it inside the ciphertext).
     /// Moved routines go after the target's own, keeping their order. The habit and routine limits do not apply. The target's settings are kept; the caller reschedules the target's reminders. Returns <see cref="AccountMergeResult.JournalConflict"/>
     /// without changes when both accounts have a journal key, and <see cref="AccountMergeResult.ConsentRequired"/> without changes when the
-    /// target hasn't agreed to the current health-data consent, checked under the row locks.
+    /// target hasn't agreed to the current health-data consent, checked under the row locks. After a merge it stops tracking every entity
+    /// of the database context, since the merge writes past it, so reads later in the same scope (the target user) see the merged account.
     /// </summary>
     public async Task<AccountMergeResult> MergeBotOnlyAccountAsync(Guid targetUserId, Guid sourceUserId, ulong discordUserId,
         Guid? sessionId = null, CancellationToken cancellationToken = default)
@@ -150,6 +151,7 @@ public partial class AccountService
             await transaction.CommitAsync(cancellationToken);
         }
 
+        _db.ChangeTracker.Clear();
         return AccountMergeResult.Merged;
     }
 

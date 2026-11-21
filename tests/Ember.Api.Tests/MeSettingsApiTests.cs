@@ -109,4 +109,17 @@ public class MeSettingsApiTests(PostgresFixture postgres) : ApiTestBase(postgres
         order.Should().Equal($"h:{second}", $"h:{first}");
         order.Should().NotContain($"h:{added}");
     }
+
+    [DockerFact]
+    public async Task A_patch_after_the_session_cookie_is_revalidated_answers_the_stored_settings()
+    {
+        var user = await Host.SignedInAsync();
+        await (await user.Patch("/api/me", new { language = "de", timezone = "Asia/Kolkata" })).Expect(HttpStatusCode.OK);
+        Host.Time.Advance(TimeSpan.FromMinutes(10));
+
+        var patched = await (await user.Patch("/api/me", new { language = "en", timezone = "Pacific/Auckland" })).ExpectJson();
+
+        patched.GetProperty("language").GetString().Should().Be("en");
+        patched.GetProperty("timezone").GetString().Should().Be("Pacific/Auckland");
+    }
 }
