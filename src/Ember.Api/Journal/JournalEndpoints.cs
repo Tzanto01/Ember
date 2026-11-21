@@ -19,7 +19,6 @@ internal static class JournalEndpoints
     public const int MaxLabelLength = 24;
     public const int MaxEmojiLength = 32;
     public const int MaxCipherTextLength = 16384;
-    public const int MaxRangeDays = 366;
     public const int MaxHabitNoteLength = 280;
     public const int MaxHabitNoteCipherTextLength = 4096;
 
@@ -43,11 +42,8 @@ internal static class JournalEndpoints
         {
             var userId = principal.UserId();
             var today = await settings.GetLocalTodayAsync(userId);
-            var errors = new Dictionary<string, string[]>();
-            var end = Formats.DateOr(to, today, "to", errors);
-            var start = Formats.DateOr(from, Formats.DaysBefore(end, MaxRangeDays - 1), "from", errors);
-            if (errors.Count == 0 && start > end) errors["from"] = ["Can't be after to."];
-            if (errors.Count == 0 && end.DayNumber - start.DayNumber >= MaxRangeDays) errors["from"] = [$"At most {MaxRangeDays} days."];
+            var (start, end, errors) = Formats.DayRange(from, to, today, defaultDays: Formats.MaxRangeDays - 1, allowFutureTo: true,
+                limitMessage: Formats.ShortRangeLimitMessage);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             return Results.Ok((await journal.GetDayNotesAsync(userId, start, end)).Select(ToDto).ToList());
@@ -97,11 +93,8 @@ internal static class JournalEndpoints
         {
             var userId = principal.UserId();
             var today = await settings.GetLocalTodayAsync(userId);
-            var errors = new Dictionary<string, string[]>();
-            var end = Formats.DateOr(to, today, "to", errors);
-            var start = Formats.DateOr(from, Formats.DaysBefore(end, MaxRangeDays - 1), "from", errors);
-            if (errors.Count == 0 && start > end) errors["from"] = ["Can't be after to."];
-            if (errors.Count == 0 && end.DayNumber - start.DayNumber >= MaxRangeDays) errors["from"] = [$"At most {MaxRangeDays} days."];
+            var (start, end, errors) = Formats.DayRange(from, to, today, defaultDays: Formats.MaxRangeDays - 1, allowFutureTo: true,
+                limitMessage: Formats.ShortRangeLimitMessage);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             return Results.Ok((await journal.GetHabitNotesAsync(userId, start, end, habitId)).Select(ToDto).ToList());

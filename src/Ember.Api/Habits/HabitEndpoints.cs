@@ -9,8 +9,6 @@ namespace Ember.Api.Habits;
 /// <summary>Habits, their days and the habit templates.</summary>
 internal static class HabitEndpoints
 {
-    public const int MaxDaysPerRequest = 366;
-
     public sealed record DayDto(DateOnly Date, string State, bool? Completed, int Count);
     public sealed record WeekDto(int Done, int Target);
     public sealed record StatsDto(int? Streak, int? GraceUsed, int? BestStreak, int Last7, WeekDto? Week);
@@ -144,7 +142,7 @@ internal static class HabitEndpoints
             UserSettingsService settings) =>
         {
             var userId = principal.UserId();
-            var (start, end, errors) = DayRange(from, to, await settings.GetLocalTodayAsync(userId));
+            var (start, end, errors) = Formats.DayRange(from, to, await settings.GetLocalTodayAsync(userId), defaultDays: 13);
             if (errors.Count > 0) return Problems.Validation(errors);
             if ((await habits.GetHabitKindsAsync(userId)).GetValueOrDefault(id) == HabitKind.LetGo)
                 return Problems.DayEdit(DayEditResult.LetGoHabit)!;
@@ -187,7 +185,7 @@ internal static class HabitEndpoints
             UserSettingsService settings) =>
         {
             var userId = principal.UserId();
-            var (start, end, errors) = DayRange(from, to, await settings.GetLocalTodayAsync(userId));
+            var (start, end, errors) = Formats.DayRange(from, to, await settings.GetLocalTodayAsync(userId), defaultDays: 13);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var slips = await habits.GetSlipsAsync(userId, id, start, end);
@@ -221,7 +219,7 @@ internal static class HabitEndpoints
             UserSettingsService settings) =>
         {
             var userId = principal.UserId();
-            var (start, end, errors) = DayRange(from, to, await settings.GetLocalTodayAsync(userId));
+            var (start, end, errors) = Formats.DayRange(from, to, await settings.GetLocalTodayAsync(userId), defaultDays: 13);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var days = await habits.GetMadeItDaysAsync(userId, id, start, end);
@@ -262,21 +260,6 @@ internal static class HabitEndpoints
     internal const string FrequencyMessage = "Must be daily, weekly or weekdays.";
 
     internal const string KindMessage = "Must be build or letGo.";
-
-    /// <summary>The <c>from</c>/<c>to</c> range of a per-day read: <c>to</c> defaults to today and can't be after it, <c>from</c> defaults to 13 days before <c>to</c>, at most <see cref="MaxDaysPerRequest"/> days.</summary>
-    private static (DateOnly Start, DateOnly End, Dictionary<string, string[]> Errors) DayRange(string? from, string? to, DateOnly today)
-    {
-        var errors = new Dictionary<string, string[]>();
-        var end = Formats.DateOr(to, today, "to", errors);
-        var start = Formats.DateOr(from, Formats.DaysBefore(end, 13), "from", errors);
-        if (errors.Count == 0)
-        {
-            if (end > today) errors["to"] = ["Can't be after today."];
-            else if (start > end) errors["from"] = ["Can't be after to."];
-            else if (end.DayNumber - start.DayNumber + 1 > MaxDaysPerRequest) errors["from"] = [$"At most {MaxDaysPerRequest} days per request."];
-        }
-        return (start, end, errors);
-    }
 
     private static IResult? SlipProblem(SlipResult result) => result switch
     {
