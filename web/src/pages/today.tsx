@@ -53,6 +53,7 @@ import { notTodayOpen, rememberNotTodayOpen, useCalmMode } from '@/lib/theme';
 import {
   habitKey,
   moveKey,
+  type NotTodayReason,
   orderAfterMove,
   planToday,
   routineKey,
@@ -444,7 +445,7 @@ export default function TodayPage() {
   const habitRow = (
     habit: Habit,
     headingLevel: 'h3' | 'h4',
-    extras: { list?: string; reorderKey?: string; menu: ReactNode; doneForWeek?: boolean; checkInPaused?: boolean },
+    extras: { list?: string; reorderKey?: string; menu: ReactNode; notToday?: NotTodayReason; checkInPaused?: boolean },
   ) => (
     <HabitRow
       key={habit.id}
@@ -458,7 +459,7 @@ export default function TodayPage() {
       onUndoOne={() => void toggle(habit, true)}
       onRewardEnd={() => setReward(habit.id, null)}
       menu={extras.menu}
-      doneForWeek={extras.doneForWeek}
+      notToday={extras.notToday}
       checkInPaused={extras.checkInPaused}
       reorderKey={extras.reorderKey}
       grip={!!extras.list && moving?.list === extras.list}
@@ -694,7 +695,7 @@ export default function TodayPage() {
                 {plan.notToday.map((item) =>
                   habitRow(item.habit, 'h3', {
                     checkInPaused: true,
-                    doneForWeek: item.doneForWeek,
+                    notToday: item.reason,
                     menu: <RowMenu name={item.habit.name} move={null} onNote={() => openNote(item.habit)} />,
                   }),
                 )}

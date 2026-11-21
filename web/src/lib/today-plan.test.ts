@@ -61,8 +61,8 @@ describe('planToday sections', () => {
 
     expect(plan.today.map((i) => i.key)).toEqual(['h:1', 'h:2']);
     expect(plan.notToday).toEqual([
-      { key: 'h:3', habit: metBefore, doneForWeek: true },
-      { key: 'h:4', habit: metBeforeAndCheckedInAgain, doneForWeek: true },
+      { key: 'h:3', habit: metBefore, reason: 'doneForWeek' },
+      { key: 'h:4', habit: metBeforeAndCheckedInAgain, reason: 'doneForWeek' },
     ]);
   });
 
@@ -76,17 +76,33 @@ describe('planToday sections', () => {
     expect(topKeys([lowDayCheckedIn])).toEqual(['h:1']);
   });
 
-  it("puts paused habits and a weekdays habit's rest day under Not for today without the weekly line", () => {
+  it('gives each Not for today row its reason, from the schedule rather than the day state', () => {
     const paused = make(1, 'Read', { pausedToday: true, pausedUntil: '2026-11-03' });
-    const rest = make(2, 'Gym', { frequency: 'weekdays', days: ['mon', 'wed'] });
-    const planned = make(3, 'Stretch', { frequency: 'weekdays', days: ['sun'] });
+    const restDays = { frequency: 'weekdays' as const, days: ['mon' as const, 'wed' as const] };
+    const rest = make(2, 'Gym', restDays);
+    const restCheckedIn = make(3, 'Run', {
+      ...restDays,
+      today: { date, state: 'done', completed: true, count: 1 },
+    });
+    const restLowDay = make(4, 'Yoga', {
+      ...restDays,
+      today: { date, state: 'lowday', completed: null, count: 0 },
+    });
+    const notStarted = make(5, 'Walk', {
+      startDate: '2026-11-05',
+      today: { date: '2026-10-31', state: 'beforestart', completed: null, count: 0 },
+    });
+    const planned = make(6, 'Stretch', { frequency: 'weekdays', days: ['sun'] });
 
-    const plan = planToday([paused, rest, planned], [], null, date);
+    const plan = planToday([paused, rest, restCheckedIn, restLowDay, notStarted, planned], [], null, date);
 
-    expect(plan.today.map((i) => i.key)).toEqual(['h:3']);
-    expect(plan.notToday.map(({ key, doneForWeek }) => [key, doneForWeek])).toEqual([
-      ['h:2', false],
-      ['h:1', false],
+    expect(plan.today.map((i) => i.key)).toEqual(['h:6']);
+    expect(plan.notToday.map(({ key, reason }) => [key, reason])).toEqual([
+      ['h:2', 'restDay'],
+      ['h:1', 'paused'],
+      ['h:3', 'restDay'],
+      ['h:5', 'notStarted'],
+      ['h:4', 'restDay'],
     ]);
   });
 

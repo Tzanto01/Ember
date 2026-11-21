@@ -774,6 +774,7 @@
   "today.paused": "Pausiert. Du kannst ihn jederzeit unter „Bearbeiten“ fortsetzen.",
   "today.starts": "Startet am {{date}}.",
   "today.restDay": "Ruhetag, nichts geplant. Abhaken ist trotzdem willkommen.",
+  "today.restDayCheckedIn": "Ruhetag, und du hast trotzdem abgehakt.",
   "today.lowDayRow": "Tief, Zeit zum Ausruhen. Abhaken ist trotzdem willkommen.",
   "today.doneToday": "Heute erledigt",
   "today.countToday": "{{n}} von {{target}} erledigt",

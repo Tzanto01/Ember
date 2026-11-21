@@ -1,5 +1,7 @@
+using System.Globalization;
 using Ember.Bot;
 using Ember.Core.Data;
+using Ember.Core.Data.Migrations;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -396,6 +398,73 @@ public class PostgresMigrationTests(PostgresFixture postgres)
 
         (await db.Users.AsNoTracking().OrderBy(u => u.Id).Select(u => u.CreatedUtc).ToListAsync())
             .Should().Equal(At(9, 15), At(9, 20), null);
+    }
+
+    [DockerFact]
+    public async Task RestoreTodayOrderMigration_FillsTheOldTodayOrderForAccountsWithRowsFromBeforeTheRelease_Once()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        var migrator = db.GetService<IMigrator>();
+        await migrator.MigrateAsync();
+        Guid Id(int n) => Guid.Parse($"00000000-0000-0000-0000-{n:D12}");
+        DateTime At(int month, int day) => new(2026, month, day, 8, 0, 0, DateTimeKind.Utc);
+        var release = DateTimeOffset.Parse(RestoreTodayOrder.TodayOrderRelease, CultureInfo.InvariantCulture).UtcDateTime;
+        db.Users.AddRange(new User { Id = Id(1) }, new User { Id = Id(2), TodayOrder = ["h:30"] }, new User { Id = Id(3) },
+            new User { Id = Id(4) }, new User { Id = Id(5) }, new User { Id = Id(6) });
+        db.Routines.AddRange(
+            new Routine { Id = 1, UserId = Id(1), Name = "Morning", Position = 1, CreatedAt = At(10, 1) },
+            new Routine { Id = 2, UserId = Id(1), Name = "Evening", Position = 0, CreatedAt = At(10, 3) },
+            new Routine { Id = 3, UserId = Id(1), Name = "Noon", Position = 0, CreatedAt = At(10, 2) },
+            new Routine { Id = 4, UserId = Id(1), Name = "Empty", Position = 2, CreatedAt = At(10, 4) },
+            new Routine { Id = 5, UserId = Id(1), Name = "Emptied", Position = 3, CreatedAt = At(10, 4) },
+            new Routine { Id = 6, UserId = Id(4), Name = "Later", Position = 0, CreatedAt = release.AddDays(1) },
+            new Routine { Id = 7, UserId = Id(5), Name = "Someday", Position = 0, CreatedAt = At(10, 1) },
+            new Routine { Id = 8, UserId = Id(1), Name = "Lunch", Position = 0, CreatedAt = At(10, 2) },
+            new Routine { Id = 9, UserId = Id(6), Name = "Morning", Position = 0, CreatedAt = release.AddMinutes(-1) });
+        db.Habits.AddRange(
+            new Habit { Id = 10, UserId = Id(1), RoutineId = 1, Name = "Stretch", CreatedAt = At(10, 1) },
+            new Habit { Id = 11, UserId = Id(1), RoutineId = 2, Name = "Floss", CreatedAt = At(10, 3) },
+            new Habit { Id = 12, UserId = Id(1), RoutineId = 3, Name = "Water", CreatedAt = At(10, 2) },
+            new Habit { Id = 14, UserId = Id(1), RoutineId = 8, Name = "Tea", CreatedAt = At(10, 2) },
+            new Habit { Id = 20, UserId = Id(1), Name = "Read", CreatedAt = At(10, 5) },
+            new Habit { Id = 21, UserId = Id(1), Name = "Snacking", Kind = HabitKind.LetGo, CreatedAt = At(10, 4) },
+            new Habit { Id = 23, UserId = Id(1), Name = "Walk", CreatedAt = At(10, 6) },
+            new Habit { Id = 22, UserId = Id(1), Name = "Journal", Kind = HabitKind.LetGo, CreatedAt = At(10, 6) },
+            new Habit { Id = 30, UserId = Id(2), Name = "Read", CreatedAt = At(10, 1) },
+            new Habit { Id = 31, UserId = Id(2), Name = "Walk", CreatedAt = At(10, 2) },
+            new Habit { Id = 40, UserId = Id(3), Name = "Read", CreatedAt = release },
+            new Habit { Id = 50, UserId = Id(4), Name = "Read", CreatedAt = release.AddMinutes(-1) },
+            new Habit { Id = 51, UserId = Id(4), Name = "Walk", CreatedAt = release.AddDays(1) },
+            new Habit { Id = 52, UserId = Id(4), RoutineId = 6, Name = "Stretch", CreatedAt = release.AddDays(1) },
+            new Habit { Id = 60, UserId = Id(6), RoutineId = 9, Name = "Stretch", CreatedAt = release.AddDays(1) });
+        var removed = new Habit { Id = 13, UserId = Id(1), RoutineId = 5, Name = "Gone", CreatedAt = At(10, 4) };
+        db.Habits.Add(removed);
+        await db.SaveChangesAsync();
+        db.Habits.Remove(removed);
+        await db.SaveChangesAsync();
+
+        async Task<List<List<string>?>> OrdersAsync()
+            => await db.Users.AsNoTracking().OrderBy(u => u.Id).Select(u => u.TodayOrder).ToListAsync();
+        await migrator.MigrateAsync("20261120221811_AddMadeItDays");
+        await migrator.MigrateAsync();
+
+        var orders = await OrdersAsync();
+        orders.Should().BeEquivalentTo(new List<string>?[]
+        {
+            ["r:3", "r:8", "r:2", "r:1", "h:21", "h:20", "h:22", "h:23"],
+            ["h:30"],
+            null,
+            ["r:6", "h:50", "h:51"],
+            null,
+            ["r:9"]
+        }, o => o.WithStrictOrdering());
+
+        await migrator.MigrateAsync("20261120221811_AddMadeItDays");
+        await migrator.MigrateAsync();
+
+        (await OrdersAsync()).Should().BeEquivalentTo(orders, o => o.WithStrictOrdering());
     }
 
     private static async Task<DateOnly> CurrentDateAsync(EmberDbContext db)

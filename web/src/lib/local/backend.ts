@@ -377,6 +377,27 @@ function journalDayCheck(data: LocalData, date: string, today: string, todayWith
   if (start === null || date < start) throw new Problem(422, 'before_habit_start');
 }
 
+/** When the saved Today order went live; devices with a habit made before it get their earlier order once. */
+export const beta4LiveAt = '2026-11-20T02:24:00Z';
+
+/**
+ * The one-time Today order backfill, matching the server migration: data without its own order and with a habit made
+ * before {@link beta4LiveAt} gets `r:<id>` for each routine with members in routine order, then `h:<id>` for each habit
+ * outside a routine in habit order. Either way the profile is marked, and marked data comes back unchanged.
+ */
+export function restoreTodayOrder(data: LocalData): LocalData {
+  if (data.profile.todayOrderRestored) return data;
+  const profile = { ...data.profile, todayOrderRestored: true };
+  const before = Date.parse(beta4LiveAt);
+  if (!profile.todayOrder && data.habits.some((h) => Date.parse(h.createdAt) < before)) {
+    profile.todayOrder = [
+      ...data.routines.filter((r) => data.habits.some((h) => h.routineId === r.id)).map((r) => `r:${r.id}`),
+      ...data.habits.filter((h) => h.routineId === null).map((h) => `h:${h.id}`),
+    ];
+  }
+  return { ...data, profile };
+}
+
 /** The device's seen tips; a missing list reads as `streaks` once the profile has habits (as `showStreaks` reads true). */
 export function deviceTipsSeen(data: LocalData): TipId[] {
   return data.profile.tipsSeen ?? (data.habits.length > 0 ? ['streaks'] : []);
@@ -481,11 +502,12 @@ export class LocalBackend {
   private async data(): Promise<LocalData> {
     const data = await this.store.load();
     if (!data) throw new Problem(401, 'unauthenticated');
-    return data;
+    if (data.profile.todayOrderRestored) return data;
+    return this.store.update(restoreTodayOrder).catch(() => restoreTodayOrder(data));
   }
 
   private update(fn: (data: LocalData) => LocalData): Promise<LocalData> {
-    return this.store.update(fn);
+    return this.store.update((d) => fn(restoreTodayOrder(d)));
   }
 
   private today(data: LocalData): string {
@@ -1222,6 +1244,7 @@ export function newLocalData(profile: Pick<LocalData['profile'], 'timezone' | 't
       theme: profile.theme,
       showStreaks: false,
       tipsSeen: [],
+      todayOrderRestored: true,
       createdAt: now.toISOString(),
       lastBackupAt: null,
       backupReminderSnoozedUntil: null,
