@@ -92,6 +92,32 @@ public class DiagnosticsBodyTests
     }
 }
 
+public class DiagnosticsVocabularyTests
+{
+    private static Dictionary<string, string[]> ErrorsWithEvent(string name)
+    {
+        var request = JsonSerializer.Deserialize<DiagnosticsRequest>(DiagnosticsFixtures.Read("request.json"), JsonSerializerOptions.Web)!;
+        var launches = request.Launches!.ToArray();
+        launches[0] = launches[0]! with { Event = name };
+        return DiagnosticsValidation.Errors(request with { Launches = launches }, DiagnosticsFixtures.GoldenCreatedAt.UtcDateTime);
+    }
+
+    [Theory]
+    [InlineData("visual_state ms=412")]
+    [InlineData("first_draw ms=0")]
+    [InlineData("first_touch ms=3100")]
+    [InlineData("first_touch")]
+    public void The_cold_start_presentation_events_are_accepted(string name) => ErrorsWithEvent(name).Should().BeEmpty();
+
+    [Theory]
+    [InlineData("first_paint ms=412")]
+    [InlineData("first_touch ms=3100 x=123")]
+    [InlineData("first_touch x=123 ms=3100")]
+    [InlineData("first_touch ms=31.5")]
+    [InlineData("visual_state ms=1234567890")]
+    public void Anything_else_about_them_is_refused(string name) => ErrorsWithEvent(name).Should().ContainKey("launches[0].event");
+}
+
 public class DiagnosticsApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     private Task<List<LookoutDiagnostic>> Rows() => Host.Db(db => db.LookoutDiagnostics.AsNoTracking().OrderBy(d => d.Id).ToListAsync());
