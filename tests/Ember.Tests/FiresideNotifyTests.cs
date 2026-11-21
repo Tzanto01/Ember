@@ -2,7 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using Discord;
 using Ember.Bot.Jobs;
-using Ember.Bot.Services;
+using Ember.Bot.Notifications;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;

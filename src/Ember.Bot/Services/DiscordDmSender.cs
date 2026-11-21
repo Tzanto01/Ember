@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
+using Ember.Bot.Notifications;
 
 namespace Ember.Bot.Services;
 

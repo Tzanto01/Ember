@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Jobs;
 using Ember.Bot.Modules;
+using Ember.Bot.Notifications;
 using Ember.Bot.Services;
 using Ember.Core;
 using Ember.Core.Data;

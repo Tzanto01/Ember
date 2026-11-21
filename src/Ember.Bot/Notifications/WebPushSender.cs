@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using WebPushSubscription = Lib.Net.Http.WebPush.PushSubscription;
 
-namespace Ember.Bot.Services;
+namespace Ember.Bot.Notifications;
 
 /// <summary>
 /// Sends Web Push notifications (VAPID, aes128gcm) to a user's push subscriptions: reminders (through

@@ -282,7 +282,7 @@ export const guides: Record<GuideScreen, Guide> = {
         covers: [
           'web/src/lib/device-sync.ts',
           'web/src/lib/native/reminders.ts',
-          'src/Ember.Bot/Services/WebPushReminderChannel.cs',
+          'src/Ember.Bot/Notifications/WebPushReminderChannel.cs',
         ],
       },
       {

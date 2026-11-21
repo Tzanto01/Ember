@@ -1,7 +1,7 @@
 using Discord;
 using Ember.Bot.Discord.Messages;
 using Ember.Bot.Modules;
-using Ember.Bot.Services;
+using Ember.Bot.Notifications;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

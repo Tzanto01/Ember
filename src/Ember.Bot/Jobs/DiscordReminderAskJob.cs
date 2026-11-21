@@ -1,4 +1,5 @@
 using Ember.Bot.Discord.Messages;
+using Ember.Bot.Notifications;
 using Ember.Bot.Services;
 using Ember.Core.Services;
 using Microsoft.Extensions.DependencyInjection;

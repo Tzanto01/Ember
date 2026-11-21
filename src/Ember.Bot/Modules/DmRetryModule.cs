@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Notifications;
 using Ember.Bot.Services;
 using Ember.Core.Services;
 

@@ -1,13 +1,14 @@
 using Discord;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Messages;
+using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Ember.Bot.Services;
+namespace Ember.Bot.Notifications;
 
 /// <summary>
 /// Sends reminders as Discord DMs with Done / Skip / Snooze buttons; routine reminders list the pending habits with a Done button each.

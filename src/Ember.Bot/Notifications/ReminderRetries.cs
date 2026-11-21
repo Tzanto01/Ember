@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Discord.Net;
 
-namespace Ember.Bot.Services;
+namespace Ember.Bot.Notifications;
 
 /// <summary>
 /// In-memory failed attempts per due reminder (kind, id and due time), so a reminder whose send failed transiently, or whose

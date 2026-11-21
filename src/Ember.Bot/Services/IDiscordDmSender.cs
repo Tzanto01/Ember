@@ -1,4 +1,5 @@
 using Discord;
+using Ember.Bot.Notifications;
 
 namespace Ember.Bot.Services;
 

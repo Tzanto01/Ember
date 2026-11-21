@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Ember.Bot;
 using Ember.Bot.Jobs;
-using Ember.Bot.Services;
+using Ember.Bot.Notifications;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;

@@ -2,7 +2,7 @@ using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Services;
 
-namespace Ember.Bot.Services;
+namespace Ember.Bot.Notifications;
 
 public enum DeliveryOutcome
 {

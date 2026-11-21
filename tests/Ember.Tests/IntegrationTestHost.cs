@@ -1,5 +1,6 @@
 using Discord;
 using Ember.Bot;
+using Ember.Bot.Notifications;
 using Ember.Bot.Services;
 using Ember.Core.Data;
 using FluentAssertions;
