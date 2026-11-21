@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -66,7 +67,7 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
             template.WeeklyTarget);
         if (result == HabitWriteResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result == HabitWriteResult.LimitReached)

@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using Ember.Bot.Discord;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -66,7 +67,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         var (result, added) = await _habits.AddHabitAsync(userId, name, reminderTime: null);
         if (result == HabitWriteResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result == HabitWriteResult.LimitReached)
@@ -138,7 +139,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         var result = await _habits.AddCheckInAsync(userId, habitId, today, guildId);
         if (result == DayEditResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result != DayEditResult.Saved)
@@ -170,7 +171,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         var result = await _habits.CheckInAsync(userId, habitId, today, completed: false, guildId);
         if (result == DayEditResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result != DayEditResult.Saved)
@@ -206,7 +207,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         var result = await _habits.AddSlipAsync(userId, habitId, today);
         if (result == SlipResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
         if (result != SlipResult.Saved || await _habits.GetHabitAsync(userId, habitId) is not { } habit)
@@ -311,7 +312,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         var (result, habit) = await _habits.EditHabitAsync(userId, habitId, newName: name, newReminderTime: null, clearReminder: false);
         if (result == HabitWriteResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
 

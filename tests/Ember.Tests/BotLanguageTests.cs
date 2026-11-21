@@ -3,6 +3,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Modules;
 using Ember.Core.Data;
 using Ember.Core.Localization;
@@ -99,7 +100,7 @@ public class BotLanguageTests
         var interaction = FakeInteraction.Create(8, locale);
 
         await host.WithScopeAsync(sp =>
-            ConsentModule.RespondWithPromptAsync(FakeContext.Create(interaction), NoConfig, sp.GetRequiredService<HabitService>(),
+            ConsentPrompt.RespondAsync(FakeContext.Create(interaction), NoConfig, sp.GetRequiredService<HabitService>(),
                 sp.GetRequiredService<ConsentService>()));
 
         var reply = ((FakeInteraction)(object)interaction).Responses.Single();

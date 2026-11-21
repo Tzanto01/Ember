@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -74,7 +75,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
             var result = await _habits.AddCheckInAsync(userId, open[0].Id, date);
             if (result == DayEditResult.ConsentRequired)
             {
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+                await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
                 return;
             }
             if (result != DayEditResult.Saved)
@@ -122,7 +123,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
             var result = await _habits.AddCheckInAsync(userId, habitId, date);
             if (result == DayEditResult.ConsentRequired)
             {
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+                await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
                 return;
             }
             if (result == DayEditResult.Saved) logged++;
@@ -141,7 +142,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
 
         if (await _habits.SetLowDayAsync(userId, date) == DayEditResult.ConsentRequired)
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
 

@@ -118,7 +118,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             case DayEditResult.Saved:
                 break;
             case DayEditResult.ConsentRequired:
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+                await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
                 return;
             case DayEditResult.BeforeHabitStart:
                 await RespondAsync(t.Get("checkin.before-start"), ephemeral: true);

@@ -30,6 +30,14 @@ internal static class ConsentPrompt
         .WithButton(t.Get("consent.decline"), ConsentIds.Decline(userId), ButtonStyle.Secondary)
         .Build();
 
+    /// <summary>Answers the interaction with the consent prompt and notes that it was shown today.</summary>
+    internal static async Task RespondAsync(IInteractionContext context, IConfiguration config, HabitService habits, ConsentService consent)
+    {
+        var t = await BotTexts.ForAsync(habits, context.Interaction);
+        await context.Interaction.RespondAsync(embed: PromptEmbed(t, config), components: PromptButtons(t, context.User.Id), ephemeral: true);
+        await consent.MarkConsentPromptedAsync(await habits.FindDiscordUserAsync(context.User.Id));
+    }
+
     /// <summary>
     /// The answer to "No thanks": <c>consent.declined</c>, or for a user whose consent was already withdrawn (<paramref name="withdrawn"/>),
     /// <c>privacy.withdraw.done</c> with the deletion day (<see cref="ConsentService.DeletionDueUtc"/>) in <paramref name="tz"/>.

@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -53,7 +54,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         switch (await CycleDayAsync(_habits, _settings, userId, habitId, date, Context.Guild?.Id))
         {
             case DayEditResult.ConsentRequired:
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+                await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
                 return;
             case DayEditResult.HabitNotFound:
                 await RespondAsync(t.Get("common.not-found"), ephemeral: true);
@@ -80,7 +81,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
         switch (await ToggleLowDayAsync(_habits, userId, date))
         {
             case DayEditResult.ConsentRequired:
-                await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+                await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
                 return;
             case DayEditResult.InFuture:
                 await RespondAsync(t.Get("history.in-future"), ephemeral: true);

@@ -3,6 +3,7 @@ using Discord;
 using Discord.Interactions;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -72,7 +73,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!await _consent.HasHealthDataConsentAsync(userId))
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
 
@@ -96,7 +97,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
         if (!await _consent.HasHealthDataConsentAsync(userId))
         {
-            await ConsentModule.RespondWithPromptAsync(Context, _config, _habits, _consent);
+            await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
             return;
         }
 

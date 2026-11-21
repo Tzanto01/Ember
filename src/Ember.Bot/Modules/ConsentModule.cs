@@ -5,7 +5,6 @@ using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Services;
-using Microsoft.Extensions.Configuration;
 
 namespace Ember.Bot.Modules;
 
@@ -24,14 +23,6 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
         _habits = habits;
         _consent = consent;
         _settings = settings;
-    }
-
-    /// <summary>Answers the interaction with the consent prompt and notes that it was shown today.</summary>
-    internal static async Task RespondWithPromptAsync(IInteractionContext context, IConfiguration config, HabitService habits, ConsentService consent)
-    {
-        var t = await BotTexts.ForAsync(habits, context.Interaction);
-        await context.Interaction.RespondAsync(embed: ConsentPrompt.PromptEmbed(t, config), components: ConsentPrompt.PromptButtons(t, context.User.Id), ephemeral: true);
-        await consent.MarkConsentPromptedAsync(await habits.FindDiscordUserAsync(context.User.Id));
     }
 
     /// <summary>
