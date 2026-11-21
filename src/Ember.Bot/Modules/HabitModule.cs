@@ -113,9 +113,9 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
                 ? t.Format("habit.freq.weekly", template.WeeklyTarget)
                 : t.Get("habit.freq.daily"));
             menu.AddOption(
-                label: TemplateSelectModule.Name(t, template),
+                label: HabitText.TemplateName(t, template),
                 value: template.Key,
-                description: $"{TemplateSelectModule.Description(t, template)}{freqHint}");
+                description: $"{HabitText.TemplateDescription(t, template)}{freqHint}");
         }
 
         var components = new ComponentBuilder().WithSelectMenu(menu).Build();

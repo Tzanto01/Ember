@@ -1,6 +1,7 @@
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
+using Ember.Core.Services;
 
 namespace Ember.Bot.Discord.Formatting;
 
@@ -43,6 +44,12 @@ internal static class HabitText
         => HabitRules.IsPausedOn(h, today)
             ? " · " + t.Format("habit.list.paused", h.PausedUntil!.Value.ToString(t.Get("date.month-day"), t.Culture))
             : "";
+
+    /// <summary>The template's name with its emoji (<c>☀️ Morning start</c>) in the user's language.</summary>
+    internal static string TemplateName(Texts t, HabitTemplates.Template template) => t.Get($"template.{template.Key}.name");
+
+    /// <summary>The template's one-line description in the user's language.</summary>
+    internal static string TemplateDescription(Texts t, HabitTemplates.Template template) => t.Get($"template.{template.Key}.description");
 
     /// <summary>The short name of a <see cref="ScheduleDayNames"/> day (<c>mon</c> → "Mon" / "Mo").</summary>
     internal static string DayName(Texts t, string name) => t.Get("weekday." + name);

@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Interactions;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -29,12 +30,6 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
         _config = config;
     }
 
-    /// <summary>The template's name with its emoji (<c>☀️ Morning start</c>) in the user's language.</summary>
-    internal static string Name(Texts t, HabitTemplates.Template template) => t.Get($"template.{template.Key}.name");
-
-    /// <summary>The template's one-line description in the user's language.</summary>
-    internal static string Description(Texts t, HabitTemplates.Template template) => t.Get($"template.{template.Key}.description");
-
     [ComponentInteraction(HabitIds.TemplateSelect)]
     public async Task HandleTemplateSelectAsync(string[] selected)
     {
@@ -51,7 +46,7 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
 
         // Strip leading emoji + space. Emoji are multi-char in UTF-16 so we can't
         // use char literals — find the first space and take everything after it.
-        var rawName = Name(t, template);
+        var rawName = HabitText.TemplateName(t, template);
         var spaceIdx = rawName.IndexOf(' ');
         var cleanName = spaceIdx >= 0 ? rawName[(spaceIdx + 1)..].Trim() : rawName;
 
@@ -87,7 +82,7 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
         var embed = new EmbedBuilder()
             .WithColor(0xE8873A)
             .WithTitle(t.Format("template.started.title", rawName))
-            .WithDescription(t.Format("template.started.body", habit.Name, freqLabel, Description(t, template), reminderLabel))
+            .WithDescription(t.Format("template.started.body", habit.Name, freqLabel, HabitText.TemplateDescription(t, template), reminderLabel))
             .WithFooter(t.Get("template.started.footer"))
             .Build();
 
