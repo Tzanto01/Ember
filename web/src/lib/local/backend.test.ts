@@ -8,7 +8,7 @@ import { OfflineQueue } from '../offline-queue';
 import { ApiError, problemToMessage } from '../problem';
 import { LocalBackend, newLocalData } from './backend';
 import { LocalStore } from './store';
-import type { LocalData, LocalHabit } from './types';
+import type { LocalData, LocalHabit, LocalRoutine } from './types';
 
 const now = new Date('2026-11-01T10:00:00Z');
 const today = '2026-11-01';
@@ -30,6 +30,20 @@ function localHabit(id: number, overrides: Partial<LocalHabit> = {}): LocalHabit
     routinePosition: null,
     ...overrides,
   };
+}
+
+function localRoutine(id: number): LocalRoutine {
+  return { id, name: `Routine ${id}`, reminderTime: null, reminderChannels: [] };
+}
+
+/** Device data as saved before 0.10.0-beta.4: no Today order and no backfill mark. */
+function beforeBeta4(habits: LocalHabit[], routines: LocalRoutine[] = []): LocalData {
+  const data = seed(habits);
+  data.routines = routines;
+  data.profile.nextIds.routine = routines.length + 1;
+  delete data.profile.todayOrder;
+  delete data.profile.todayOrderRestored;
+  return data;
 }
 
 function seed(habits: LocalHabit[] = []): LocalData {
@@ -338,6 +352,79 @@ describe('LocalBackend through ApiClient', () => {
     expect((await api.getMe()).todayOrder).toBeNull();
     const tooLong = await rejection(api.setTodayOrder(Array.from({ length: 501 }, () => 'h:1')));
     expect([tooLong.status, tooLong.type]).toEqual([400, 'validation']);
+  });
+
+  describe('Today order from before 0.10.0-beta.4', () => {
+    const afterLive = '2026-11-20T03:00:00Z';
+
+    it('restores the old Today order once: routines with members in routine order, then habits outside routines', async () => {
+      await store.replace(
+        beforeBeta4(
+          [
+            localHabit(1, { routineId: 3, routinePosition: 0 }),
+            localHabit(2),
+            localHabit(3, { routineId: 1, routinePosition: 0 }),
+            localHabit(4, { kind: 'letGo', createdAt: afterLive }),
+            localHabit(5, { routineId: 3, routinePosition: 1 }),
+            localHabit(6),
+          ],
+          [localRoutine(3), localRoutine(2), localRoutine(1)],
+        ),
+      );
+
+      expect((await api.getMe()).todayOrder).toEqual(['r:3', 'r:1', 'h:2', 'h:4', 'h:6']);
+      expect((await store.load())?.profile).toMatchObject({
+        todayOrder: ['r:3', 'r:1', 'h:2', 'h:4', 'h:6'],
+        todayOrderRestored: true,
+      });
+    });
+
+    it('keeps sorting by time when every habit was made after beta.4 went live', async () => {
+      await store.replace(
+        beforeBeta4(
+          [localHabit(1, { createdAt: afterLive }), localHabit(2, { createdAt: afterLive, routineId: 1, routinePosition: 0 })],
+          [localRoutine(1)],
+        ),
+      );
+
+      expect((await api.getMe()).todayOrder).toBeNull();
+      expect((await store.load())?.profile.todayOrderRestored).toBe(true);
+    });
+
+    it('leaves an order the device already saved untouched', async () => {
+      const data = beforeBeta4([localHabit(1), localHabit(2)]);
+      data.profile.todayOrder = ['h:2'];
+      await store.replace(data);
+
+      expect((await api.getMe()).todayOrder).toEqual(['h:2']);
+      expect((await store.load())?.profile.todayOrderRestored).toBe(true);
+    });
+
+    it('runs before a write that comes before any read', async () => {
+      await store.replace(beforeBeta4([localHabit(1), localHabit(2)]));
+
+      await api.markTipSeen('streaks');
+
+      expect((await store.load())?.profile).toMatchObject({ todayOrder: ['h:1', 'h:2'], todayOrderRestored: true });
+    });
+
+    it('does not come back after "Sort by time again"', async () => {
+      await store.replace(beforeBeta4([localHabit(1), localHabit(2)]));
+      expect((await api.getMe()).todayOrder).toEqual(['h:1', 'h:2']);
+
+      expect(await api.setTodayOrder(null)).toBeNull();
+
+      expect((await api.getMe()).todayOrder).toBeNull();
+    });
+
+    it('never backfills a new device', async () => {
+      const data = newLocalData({ timezone: 'Europe/Berlin', theme: null }, now);
+      data.habits = [localHabit(1)];
+      data.profile.nextIds.habit = 2;
+      await store.replace(data);
+
+      expect((await api.getMe()).todayOrder).toBeNull();
+    });
   });
 
   it('saves "Offer a note after check-in" on the device, off until chosen', async () => {

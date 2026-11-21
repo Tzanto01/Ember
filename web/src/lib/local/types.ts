@@ -105,6 +105,11 @@ export interface LocalProfile {
   calmMode?: boolean;
   /** Today's own order (`h:<id>`, `r:<id>`); missing or null sorts by reminder time. */
   todayOrder?: string[] | null;
+  /**
+   * Whether the one-time Today order backfill (`restoreTodayOrder`) ran; missing on data saved before
+   * the backfill existed (then it runs on the next read or write). Once true, it never runs again.
+   */
+  todayOrderRestored?: boolean;
   /** Offer a note after a check-in; missing reads as false. */
   offerHabitNote?: boolean;
   /** Tips answered or dismissed on this device; missing reads as `["streaks"]` with habits, else empty. */
