@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using Ember.Api.Auth;
 using Ember.Api.Hosting;
-using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -44,7 +44,7 @@ internal static class MeEndpoints
             await LoadMe(principal, users, settings, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated());
 
         api.MapPatch("/me", async (JsonElement body, ClaimsPrincipal principal, UserManager<User> users, UserSettingsService settings,
-            ReminderService reminders, ConsentService consent, JournalService journal, EmberDbContext db, TimeProvider time) =>
+            ReminderService reminders, ConsentService consent, JournalService journal, TimeProvider time) =>
         {
             MePatch? patch;
             try
@@ -67,19 +67,10 @@ internal static class MeEndpoints
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var userId = principal.UserId();
-            db.ChangeTracker.Clear();
-            if (patch.GraceDaysPerWeek is { } grace) await settings.SetGraceDaysAsync(userId, grace);
-            if (patch.Theme is { } theme) await settings.SetThemeAsync(userId, theme);
             if (patch.SecondReminderMinutes is { } second) await reminders.SetSecondReminderMinutesAsync(userId, second);
-            if (patch.ShowStreaks is { } showStreaks) await settings.SetShowStreaksAsync(userId, showStreaks);
-            if (patch.Language is { } language) await settings.SetLanguageAsync(userId, language);
-            if (patch.CalmMode is { } calmMode) await settings.SetCalmModeAsync(userId, calmMode);
-            if (patch.OfferHabitNote is { } offer) await settings.SetOfferHabitNoteAsync(userId, offer);
-            if (zone is not null)
-            {
-                await settings.SetTimezoneAsync(userId, zone.Id);
-                await reminders.RescheduleRemindersAsync(userId);
-            }
+            await settings.UpdateAsync(userId, new UserSettingsService.SettingsUpdate(patch.GraceDaysPerWeek, patch.Theme,
+                patch.ShowStreaks, patch.Language, patch.CalmMode, patch.OfferHabitNote, zone?.Id));
+            if (zone is not null) await reminders.RescheduleRemindersAsync(userId);
 
             return await LoadMe(principal, users, settings, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
         });
@@ -129,19 +120,28 @@ internal static class MeEndpoints
             return Results.NoContent();
         });
 
-        api.MapGet("/me/export", async (string? format, ClaimsPrincipal principal, AccountService accounts, TimeProvider time) =>
+        api.MapGet("/me/export", async (string? format, HttpContext http, PartitionedRateLimiter<string> limiter, AccountService accounts,
+            TimeProvider time, CancellationToken cancellationToken) =>
         {
             if (format is not (null or "json" or "csv"))
                 return Problems.Validation("format", "Must be json or csv.");
 
-            var user = await accounts.GetUserForExportAsync(principal.UserId(), withHabitNotes: true);
+            var userId = http.User.UserId();
+            if (RateLimits.AcquireExport(limiter, http, userId) is { } rejected) return rejected;
+
+            var user = await accounts.GetUserForExportAsync(userId, withHabitNotes: true);
             if (user is null) return Problems.NotFound();
 
-            var (content, contentType, extension) = format == "csv"
-                ? (ExportBuilder.BuildCsv(user), "text/csv", "csv")
-                : (ExportBuilder.BuildJson(user), "application/json", "json");
-            return Results.File(Encoding.UTF8.GetBytes(content), contentType,
-                $"ember-export-{time.GetUtcNow():yyyy-MM-dd}.{extension}");
+            var feedbackAndSessions = await accounts.GetFeedbackAndSessionsForExportAsync(userId, cancellationToken);
+            var fileName = $"ember-export-{time.GetUtcNow():yyyy-MM-dd}";
+            if (format == "csv")
+                return Results.File(Encoding.UTF8.GetBytes(ExportBuilder.BuildCsv(user, feedbackAndSessions: feedbackAndSessions)), "text/csv",
+                    $"{fileName}.csv");
+
+            var document = ExportBuilder.BuildDocument(user, feedbackAndSessions: feedbackAndSessions);
+            return Results.Stream(stream => ExportBuilder.WriteJsonAsync(stream, document,
+                    (imageId, ct) => accounts.GetFeedbackImageDataForExportAsync(userId, imageId, ct), cancellationToken),
+                "application/json", $"{fileName}.json");
         });
 
         api.MapPost("/me/widget-key", async (HttpContext http, AuthSessions sessions) =>

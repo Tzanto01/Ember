@@ -4,7 +4,7 @@ import type { DeviceStore } from '../device-store';
 import { type JournalApi, JournalLockedError } from '../journal/types';
 import type { AnyHabit, MoodKey, OwnMood } from '../models';
 import { ApiError, asApiError, problemToMessage } from '../problem';
-import { deviceTipsSeen, earliestStart, exportDocument } from './backend';
+import { deviceTipsSeen, earliestStart, exportDocument, restoreTodayOrder } from './backend';
 import type { LocalMode } from './mode';
 import { habitStartDate } from './rules';
 import type { LocalStore } from './store';
@@ -35,10 +35,13 @@ function leftOut(data: LocalData): { notes: LocalNote[]; lowDays: string[]; habi
   };
 }
 
-/** The import body: the export document without what the account can't take, and without the journal when `journal` is false. */
+/**
+ * The import body: the export document without what the account can't take, without the journal when `journal` is false,
+ * and with the device's Today order (backfilled if the device never ran the backfill) as `settings.today_order`.
+ */
 function importDocument(data: LocalData, journal: boolean): Record<string, unknown> {
   const out = leftOut(data);
-  return exportDocument(
+  const doc = exportDocument(
     {
       ...data,
       notes: data.notes.filter((n) => !out.notes.includes(n)),
@@ -47,6 +50,8 @@ function importDocument(data: LocalData, journal: boolean): Record<string, unkno
     },
     journal,
   );
+  const settings = doc['settings'] as Record<string, unknown>;
+  return { ...doc, settings: { ...settings, today_order: restoreTodayOrder(data).profile.todayOrder ?? null } };
 }
 
 function failed(message: string): UpgradeResult {

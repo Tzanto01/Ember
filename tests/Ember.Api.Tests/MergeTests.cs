@@ -117,6 +117,23 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Merging_signs_the_accounts_other_devices_out_and_keeps_the_merging_device_signed_in()
+    {
+        var user = await Host.SignedInAsync();
+        var tokens = await (await user.Post("/api/auth/login", new Credentials(user.Email, ApiClient.Passphrase))).ExpectJson();
+        var otherDevice = Host.NewClient();
+        otherDevice.Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokens.GetProperty("accessToken").GetString());
+        await (await otherDevice.Get("/api/me")).Expect(HttpStatusCode.OK);
+        var bot = await BotOnlyAsync([]);
+        await StartMergeAsync(user, bot.DiscordId);
+
+        await (await user.Post(MergeUrl)).Expect(HttpStatusCode.NoContent);
+
+        (await otherDevice.Get("/api/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        await (await user.Get("/api/me")).Expect(HttpStatusCode.OK);
+    }
+
+    [DockerFact]
     public async Task Preview_counts_what_would_move_and_shows_the_signed_in_accounts_settings()
     {
         var user = await Host.SignedInAsync();

@@ -62,6 +62,8 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var root = JsonNode.Parse(json)!.AsObject();
         root.Remove("account");
         root.Remove("push_subscriptions");
+        root.Remove("feedback");
+        root.Remove("sessions");
         foreach (var field in IgnoredSettings) root["settings"]!.AsObject().Remove(field);
 
         var habits = Reindex(root["habits"]!);
@@ -139,6 +141,57 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
             .And.Contain("\"second_reminder_minutes\":30").And.Contain("\"show_streaks\":true").And.Contain("\"tips_seen\":[\"streaks\"]")
             .And.Contain("\"language\":\"de\"").And.Contain("\"calm_mode\":true");
         Comparable(reexported).Should().Be(expected);
+    }
+
+    private static Task<HttpResponseMessage> SendFeedbackWithPicture(ApiClient user, string title)
+        => user.Post("/api/feedback", new { title, text = "It closes right away", platform = "web", version = "1.2.3", images = new[] { SyntheticImages.Base64(SyntheticImages.Png()) } });
+
+    [DockerFact]
+    public async Task The_json_export_streams_the_callers_feedback_with_the_stored_picture_bytes_and_their_sessions_without_ids()
+    {
+        var user = await Host.SignedInAsync(consent: false);
+        var userId = await user.IdAsync();
+        var other = await Host.SignedInAsync(consent: false);
+        await (await SendFeedbackWithPicture(user, "Crash on start")).Expect(HttpStatusCode.NoContent);
+        await (await SendFeedbackWithPicture(other, "Someone else's report")).Expect(HttpStatusCode.NoContent);
+        var stored = await Host.Db(db => db.Feedback.AsNoTracking().Include(f => f.Images).SingleAsync(f => f.UserId == userId));
+        var sessionIds = await Host.Db(db => db.AuthSessions.Where(s => s.UserId == userId).Select(s => s.Id).ToListAsync());
+
+        var response = await user.Get("/api/me/export?format=json");
+        var body = await response.Expect(HttpStatusCode.OK);
+
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+        response.Content.Headers.ContentDisposition?.FileName.Should().MatchRegex(@"^ember-export-\d{4}-\d{2}-\d{2}\.json$");
+        var root = JsonNode.Parse(body)!;
+        var report = root["feedback"]!.AsArray().Should().ContainSingle().Subject!;
+        ((string?)report["title"]).Should().Be("Crash on start");
+        ((string?)report["status"]).Should().Be("open");
+        var picture = report["images"]!.AsArray().Should().ContainSingle().Subject!;
+        ((Guid)picture["id"]!).Should().Be(stored.Images.Single().Id);
+        Convert.FromBase64String((string)picture["data"]!).Should().Equal(stored.Images.Single().Data);
+        root["sessions"]!.AsArray().Should().HaveCount(sessionIds.Count).And.OnlyContain(s => !s!.AsObject().ContainsKey("id"));
+        sessionIds.Should().NotBeEmpty().And.OnlyContain(id => !body.Contains(id.ToString()) && !body.Contains(id.ToString("N")));
+        body.Should().NotContain("Someone else's report");
+    }
+
+    [DockerFact]
+    public async Task An_export_with_feedback_a_picture_and_a_session_imports_into_a_fresh_account_without_creating_feedback_or_sessions()
+    {
+        var source = await Host.SignedInAsync();
+        await source.CreateHabitAsync("Water");
+        await (await SendFeedbackWithPicture(source, "Crash on start")).Expect(HttpStatusCode.NoContent);
+        var exported = await (await source.Get("/api/me/export?format=json")).ExpectJson();
+        exported.GetProperty("feedback").GetArrayLength().Should().Be(1);
+        exported.GetProperty("sessions").GetArrayLength().Should().BeGreaterThan(0);
+
+        var target = await Host.SignedInAsync();
+        var targetId = await target.IdAsync();
+        var sessionsBefore = await Host.Db(db => db.AuthSessions.CountAsync(s => s.UserId == targetId));
+        await (await Import(target, exported)).Expect(HttpStatusCode.NoContent);
+
+        (await HabitCountAsync(targetId)).Should().Be(1);
+        (await Host.Db(db => db.Feedback.CountAsync(f => f.UserId == targetId))).Should().Be(0);
+        (await Host.Db(db => db.AuthSessions.CountAsync(s => s.UserId == targetId))).Should().Be(sessionsBefore);
     }
 
     private static object LetGoItem(int id, string name = "Coffee")
@@ -244,7 +297,7 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
-    public async Task Habit_notes_follow_their_habits_new_ids_and_the_offer_setting_imports_but_the_today_order_doesnt()
+    public async Task Habit_notes_the_offer_setting_and_the_today_order_follow_their_habits_new_ids()
     {
         var source = await Host.SignedInAsync();
         int Id(JsonElement e) => e.GetProperty("id").GetInt32();
@@ -265,13 +318,52 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 
         var me = await (await target.Get("/api/me")).ExpectJson();
         me.GetProperty("offerHabitNote").GetBoolean().Should().BeTrue();
-        me.GetProperty("todayOrder").ValueKind.Should().Be(JsonValueKind.Null);
         var names = (await (await target.Get("/api/habits")).ExpectJson()).EnumerateArray()
             .ToDictionary(h => Id(h), h => h.GetProperty("name").GetString());
         names.Keys.Should().NotContain([walk, read]);
+        var newId = names.ToDictionary(n => n.Value!, n => n.Key);
+        me.GetProperty("todayOrder").EnumerateArray().Select(k => k.GetString())
+            .Should().Equal($"h:{newId["Read"]}", $"h:{newId["Walk"]}");
         var notes = (await (await target.Get("/api/habit-notes")).ExpectJson()).EnumerateArray()
             .Select(n => (names[n.GetProperty("habitId").GetInt32()], n.GetProperty("date").GetString(), n.GetProperty("text").GetString()));
         notes.Should().Equal(("Walk", today.AddDays(-2).Iso(), "Short loop"), ("Read", today.Iso(), "Two chapters"));
+    }
+
+    private static JsonElement WithRoutines(object doc, params object[] routines)
+    {
+        var node = JsonSerializer.SerializeToNode(doc)!;
+        node["routines"] = JsonSerializer.SerializeToNode(routines);
+        return JsonSerializer.SerializeToElement(node);
+    }
+
+    [DockerFact]
+    public async Task The_today_order_keeps_only_its_valid_keys_in_order_with_the_new_ids()
+    {
+        var user = await Host.SignedInAsync();
+        var member = new { id = 3, name = "Stretch", frequency = "daily", times_per_day = 1, created_at = "2026-10-20T08:00:00Z", routine_id = 7, routine_position = 0 };
+        var order = new[] { "h:2", "r:7", "h:3", "h:99", "x:1", "h:", "h:02", "h:1", "h:2" };
+
+        await (await Import(user, WithRoutines(Doc(habits: [HabitItem(1, "Water"), HabitItem(2, "Read"), member], settings: new { today_order = order }),
+            new { id = 7, name = "Mornings" }))).Expect(HttpStatusCode.NoContent);
+
+        var habits = (await (await user.Get("/api/habits")).ExpectJson()).EnumerateArray()
+            .ToDictionary(h => h.GetProperty("name").GetString()!, h => h.GetProperty("id").GetInt32());
+        var routine = (await (await user.Get("/api/routines")).ExpectJson()).EnumerateArray().Single().GetProperty("id").GetInt32();
+        var me = await (await user.Get("/api/me")).ExpectJson();
+        me.GetProperty("todayOrder").EnumerateArray().Select(k => k.GetString())
+            .Should().Equal($"h:{habits["Read"]}", $"r:{routine}", $"h:{habits["Water"]}");
+    }
+
+    [DockerFact]
+    public async Task More_than_500_today_order_entries_is_a_400_and_writes_nothing()
+    {
+        var user = await Host.SignedInAsync();
+        var order = Enumerable.Range(0, 501).Select(_ => "h:1").ToArray();
+
+        var errors = await ErrorsAsync(await Import(user, Doc(settings: new { today_order = order })));
+
+        errors.Has("settings.today_order").Should().BeTrue();
+        (await HabitCountAsync(await user.IdAsync())).Should().Be(0);
     }
 
     private static JsonElement WithHabitNotes(object doc, params object[] notes)

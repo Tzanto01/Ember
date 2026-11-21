@@ -1227,7 +1227,7 @@
   "settings.timezone.save": "Save timezone",
   "settings.timezone.empty": "Pick a timezone, or start typing a city.",
   "settings.timezone.unknown": "Ember doesn't know that timezone. Pick one from the list.",
-  "export.intro": "Download everything Ember keeps about you: your settings, every habit (paused ones too), all check-ins and low days, your email and your Discord ID. JSON is handy for other apps, CSV opens in a spreadsheet.",
+  "export.intro": "Download everything Ember keeps about you: your settings, every habit (paused ones too), all check-ins and low days, your email, your Discord ID, the feedback you sent (with its pictures, in the JSON) and your sign-ins. JSON is handy for other apps, CSV opens in a spreadsheet.",
   "export.onWeb": "Download on the web",
   "export.download": "Download {{format}}",
   "settings.privacy.given": "You agreed that Ember may store your habits, check-ins, notes and moods.",

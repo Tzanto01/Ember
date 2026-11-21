@@ -172,6 +172,8 @@ public class HelpsApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
 
         empty.RootElement.GetProperty("helps_encrypted").ValueKind.Should().Be(JsonValueKind.Null);
         json.RootElement.GetProperty("helps_encrypted").GetString().Should().Be("aGVscHM=");
-        csv.Split("\r\n").Should().ContainSingle(l => l.StartsWith("helps,") && l.EndsWith(",aGVscHM=,,,,,,,"));
+        var lines = csv.Split("\r\n");
+        var column = Array.IndexOf(lines[0].Split(','), "helps_encrypted");
+        lines.Should().ContainSingle(l => l.StartsWith("helps,") && l.Split(',')[column] == "aGVscHM=");
     }
 }

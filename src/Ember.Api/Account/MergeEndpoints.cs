@@ -1,6 +1,5 @@
 using Ember.Api.Auth;
 using Ember.Api.Hosting;
-using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Identity;
@@ -30,7 +29,7 @@ internal static class MergeEndpoints
         });
 
         api.MapPost("/account/merge", async (HttpContext http, UserManager<User> users, SignInManager<User> signIn,
-            ReminderService reminders, AccountService accounts, ConsentService consent, EmberDbContext db, AuthSessions sessions) =>
+            ReminderService reminders, AccountService accounts, ConsentService consent, AuthSessions sessions) =>
         {
             var user = await users.GetUserAsync(http.User);
             if (user is null) return Problems.Unauthenticated();
@@ -49,7 +48,6 @@ internal static class MergeEndpoints
             }
 
             PendingMerge.Clear(http);
-            db.ChangeTracker.Clear();
             if (await users.FindByIdAsync(user.Id.ToString()) is { } merged) await signIn.RefreshSignInAsync(merged);
             await reminders.RescheduleRemindersAsync(user.Id);
             return Results.NoContent();

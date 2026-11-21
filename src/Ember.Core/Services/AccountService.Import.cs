@@ -8,12 +8,32 @@ namespace Ember.Core.Services;
 /// The validated, not yet saved content of an export file for <see cref="AccountService.ImportAsync"/>. Habits reference their
 /// routine through <see cref="Habit.Routine"/> and carry their <see cref="Habit.Logs"/>, <see cref="Habit.Slips"/>, <see cref="Habit.MadeItDays"/> and <see cref="Habit.Notes"/>; a day note whose mood is one of the
 /// imported own moods has a null <see cref="DayNote.Mood"/> and that mood as <c>CustomMood</c>. Null settings stay unchanged.
+/// <c>TodayOrder</c> is the file's Today order as entries of these habits and routines (null keeps the account's order, empty
+/// stores an empty one).
 /// </summary>
 public sealed record ImportData(
     IReadOnlyList<Routine> Routines, IReadOnlyList<Habit> Habits, IReadOnlyList<DayMark> DayMarks, IReadOnlyList<Mood> Moods,
     IReadOnlyList<(DayNote Note, Mood? CustomMood)> DayNotes, JournalKey? JournalKey, int? GraceDaysPerWeek, string? Theme,
     int SecondReminderMinutes, bool? ShowStreaks = null, string? Language = null, bool? CalmMode = null,
-    IReadOnlyList<string>? TipsSeen = null, bool? OfferHabitNote = null);
+    IReadOnlyList<string>? TipsSeen = null, bool? OfferHabitNote = null, IReadOnlyList<ImportTodayOrderEntry>? TodayOrder = null);
+
+/// <summary>One entry of <see cref="ImportData.TodayOrder"/>: exactly one of a habit or a routine of the same <see cref="ImportData"/>.</summary>
+public sealed class ImportTodayOrderEntry
+{
+    private readonly Habit? _habit;
+    private readonly Routine? _routine;
+
+    private ImportTodayOrderEntry(Habit? habit, Routine? routine) => (_habit, _routine) = (habit, routine);
+
+    /// <summary>The entry of <paramref name="habit"/>.</summary>
+    public static ImportTodayOrderEntry Of(Habit habit) => new(habit, null);
+
+    /// <summary>The entry of <paramref name="routine"/>.</summary>
+    public static ImportTodayOrderEntry Of(Routine routine) => new(null, routine);
+
+    /// <summary>The <see cref="User.TodayOrder"/> key once the entity is saved: <c>h:&lt;id&gt;</c> or <c>r:&lt;id&gt;</c>.</summary>
+    public string Key => _habit is not null ? $"h:{_habit.Id}" : $"r:{_routine!.Id}";
+}
 
 /// <summary>Outcome of <see cref="AccountService.ImportAsync"/>.</summary>
 public enum ImportResult
@@ -41,7 +61,8 @@ public partial class AccountService
 
     /// <summary>
     /// Writes <paramref name="data"/> into the user's account in one transaction, all or nothing, with new ids. Reminders are
-    /// scheduled in the user's timezone; an imported journal key starts at version 1 and not turning off.
+    /// scheduled in the user's timezone; an imported journal key starts at version 1 and not turning off. A Today order is stored
+    /// with the new ids under the rules of <see cref="UserSettingsService.SetTodayOrderAsync"/>.
     /// </summary>
     public async Task<ImportResult> ImportAsync(Guid userId, ImportData data)
     {
@@ -109,6 +130,7 @@ public partial class AccountService
                 .SetProperty(u => u.CalmMode, u => calmMode ?? u.CalmMode)
                 .SetProperty(u => u.OfferHabitNote, u => offerHabitNote ?? u.OfferHabitNote));
         foreach (var tip in data.TipsSeen ?? []) await _settings.MarkTipSeenAsync(userId, tip);
+        if (data.TodayOrder is { } order) await _settings.SetTodayOrderAsync(userId, order.Select(e => e.Key).ToList());
         await transaction.CommitAsync();
         return ImportResult.Imported;
     }

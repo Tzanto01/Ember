@@ -1,6 +1,8 @@
-# Ember API contract v1.25
+# Ember API contract v1.26
 
-v1.25 (2026-11-21, Send diagnostics): the Android app can send an anonymous technical report (versions, launch events, recent exit reasons) to the Ember team and gets a reference code to quote in Discord (`POST /api/diagnostics`). See "Diagnostics v1.25".
+v1.26 (2026-11-21, Send diagnostics): the Android app can send an anonymous technical report (versions, launch events, recent exit reasons) to the Ember team and gets a reference code to quote in Discord (`POST /api/diagnostics`). See "Diagnostics v1.26".
+
+v1.25 (2026-11-21, Lookout #9 review): an account import keeps the Today order: `settings.today_order` is remapped to the new ids under the `PUT /api/me/today-order` rules, and the no-account upgrade sends the device's order. The web export (`GET /api/me/export`) now holds the account's linked feedback reports with their pictures and its sign-in sessions (decision D7); the bot's `/export` is unchanged. See "Export format v2".
 
 v1.24 (2026-11-20, Nico on a tester's wish for "a passed tick, for the good feeling"): a let-go habit can be marked "made it today", a warm acknowledgement only, with no streak, no effect on days without or any number, and no nudge when it is skipped. See "Made it today v1.24".
 
@@ -73,10 +75,10 @@ Shared interface between `src/Ember.Api` (producer, team `api`) and `web/` (cons
 | 401 | `invalid_code` | An emailed sign-up code that didn't work, for any reason (v1.11) |
 | 410 | `expired` | A reminder action token that can no longer be used (v1.10) |
 | 422 | `before_habit_start` / `in_future` | Day outside the editable range |
-| 413 | `too_large` | A diagnostics upload whose stored report would be over 64 000 bytes (v1.25) |
+| 413 | `too_large` | A diagnostics upload whose stored report would be over 64 000 bytes (v1.26) |
 | 429 | `rate_limited` | Too many attempts; `Retry-After` header set |
 | 500 | `internal` | No detail leaks |
-| 503 | `busy` | The diagnostics queue is full for now; try again later (v1.25) |
+| 503 | `busy` | The diagnostics queue is full for now; try again later (v1.26) |
 
 - Clients send `X-Ember-Client: {platform}/{version}` on their own `/api` calls (platform `web`, `android` or `discord`; version 1 to 32 of `0-9A-Za-z.+_-`, for example `android/1.4.2`). The API stores it on the sign-in session (`AuthSession.Platform`, `AppVersion`) and ignores any other value.
 - Every endpoint acts only on the signed-in user. Another user's habit ID behaves exactly like a missing one (404).
@@ -119,7 +121,7 @@ Custom:
 
 - `POST /api/auth/logout` → 204, clears the cookie and ends this device's session only (cookie or bearer); other devices stay signed in. Anonymous → 204, no-op.
 - `POST /api/auth/logout-everywhere` → 204, same shape and antiforgery rule as logout: ends every session of the account (this device included) and rotates the security stamp. Anonymous → 204, no-op.
-- **Sessions.** Every sign-in (password, 2FA, Discord; cookie or bearer) creates a server-side session whose ID travels in the `ember:sid` claim of the cookie and of both bearer tokens. A cookie, access token or refresh token is accepted only while its session exists and hasn't expired (checks cached up to 60 s in the API process, dropped at once when a session ends); one without the claim, issued before sessions existed, is rejected, so its holder signs in again. A session lives 14 days, like the cookie and the refresh token, and slides forward while in use; a user keeps at most 50, and a new sign-in ends the oldest beyond that. Expired sessions are deleted daily. A new cookie sign-in (password, 2FA or Discord) on a browser that already has a session ends that session. A password reset ends every session; turning 2FA on or off, linking or unlinking Discord and an account merge end every other session and keep the current one (cookie or bearer, refresh token included). Starting 2FA setup (`/me/2fa/setup`, a new authenticator key while 2FA is off) ends no session. Account deletion ends every session at once, and a merge ends every session of the merged-away account; the data export doesn't include sessions.
+- **Sessions.** Every sign-in (password, 2FA, Discord; cookie or bearer) creates a server-side session whose ID travels in the `ember:sid` claim of the cookie and of both bearer tokens. A cookie, access token or refresh token is accepted only while its session exists and hasn't expired (checks cached up to 60 s in the API process, dropped at once when a session ends); one without the claim, issued before sessions existed, is rejected, so its holder signs in again. A session lives 14 days, like the cookie and the refresh token, and slides forward while in use; a user keeps at most 50, and a new sign-in ends the oldest beyond that. Expired sessions are deleted daily. A new cookie sign-in (password, 2FA or Discord) on a browser that already has a session ends that session. A password reset ends every session; turning 2FA on or off, linking or unlinking Discord and an account merge end every other session and keep the current one (cookie or bearer, refresh token included). Starting 2FA setup (`/me/2fa/setup`, a new authenticator key while 2FA is off) ends no session. Account deletion ends every session at once, and a merge ends every session of the merged-away account; the web export lists the sessions without their ids (v1.25).
 
 Identity options: confirmed email required to sign in, unique emails, lockout after 5 failures for 15 minutes; a successful password reset lifts the lockout. Security stamp changes on password reset, Discord link, unlink and merge; cookies revalidate every 5 minutes, and the cookie and refresh token are accepted whatever their stamp while their session is live (sessions are what signs devices out).
 
@@ -360,8 +362,12 @@ snake_case like today, plus `"format_version": 2` at the top level (an export wi
 - `moods`: `[{ id, label, emoji, archived }]` or, when encrypted, `[{ id, encrypted: { v, iv, ct }, archived }]`.
 - `day_notes`: `[{ date, text, mood }]` or, when encrypted, `[{ date, encrypted: { v, iv, ct } }]`.
 - `journal_key`: `{ passphrase: { salt, iterations, iv, wrapped }, recovery: { salt, iv, wrapped } }` or null.
-- Ids in a file are only references inside that file; import assigns new ids and remaps `routine_id`, log `habit_id` and `custom:<id>` moods inside plaintext notes. `account`, push subscriptions, DM state and consent fields are ignored on import.
+- Ids in a file are only references inside that file; import assigns new ids and remaps `routine_id`, log `habit_id`, `custom:<id>` moods inside plaintext notes and the `h:<id>`/`r:<id>` keys of `settings.today_order` (more than 500 entries → 400 on `settings.today_order`). `account`, push subscriptions, DM state and consent fields are ignored on import.
 - The CSV export gets the matching columns and record types; import is JSON only.
+- `feedback` (v1.25, web export only, decision D7): the reports linked to the account, oldest first: `[{ id, platform, version, title, text, created_at, status, resolved_at, images: [{ id, content_type, size, data }] }]`. `version` is the app version, `status` lowercase as stored, times UTC (`resolved_at` null while open, planned or implemented), image `id` a GUID and `data` the picture as base64, or null when the picture was deleted while the export ran. Anonymous reports are never included, nor the digest time. CSV: one `feedback` row per report (`feedback_id`, `platform`, `app_version`, `title`, `text`, `created_at`, `status`, `resolved_at`) and one `feedback_image` row per picture (`feedback_id`, `image_id`, `content_type`, `size`, never the bytes).
+- `sessions` (v1.25, web export only, decision D7): the account's sign-in sessions, oldest first: `[{ created_at, expires_at, last_seen_at, platform, app_version, widget_key_set }]` (times UTC, `last_seen_at`, `platform` and `app_version` may be null). The session id (a credential) and the widget key hash are never exported. CSV: one `session` row per session (`created_at`, `expires_at`, `last_seen_at`, `platform`, `app_version`, `widget_key_set`).
+- Import ignores `feedback` and `sessions`. An export with pictures can exceed the import's 5 MiB body limit (413).
+- Rate limit (v1.25): `GET /api/me/export` (JSON or CSV) runs at most once at a time per account and at most `ExportPerHour` (`Ember:RateLimits`, default 10) times per account per hour, in memory (a restart resets it). An export while another one is still running, or past the hourly limit, → 429 `rate_limited` with `Retry-After`; a rejected concurrent export doesn't count against the hour.
 - A `journal_key` in an import needs the login password inside it (`journal_key.password`) on accounts that have one, like `PUT /api/me/journal-key` (wrong or missing → 400 on `password`).
 - Before importing, the client sends `PATCH /api/me { timezone }` with the device's zone (as for any new account); otherwise a first-day log can fall before a habit's start and the whole import is refused.
 - Import answers 204. On account merge, the signed-in account's day note wins when both accounts have one for the same date, and same-label plaintext moods are combined.
@@ -559,7 +565,7 @@ Exactly like push subscriptions (v1.10): ending a session deletes the phones it 
 
 ### Storage and retention
 
-- Table `Feedback`: id, account (nullable), platform (`web`, `android`, `discord`), version, text, created and digested times. Deleted with the account; an account merge moves it to the target. Not part of the export.
+- Table `Feedback`: id, account (nullable), platform (`web`, `android`, `discord`), version, text, created and digested times. Deleted with the account; an account merge moves it to the target. Linked reports are in the web export (v1.25, see "Export format v2").
 - Feedback is deleted 12 months after it was submitted (on each digest run).
 
 ### Daily digest
@@ -595,7 +601,7 @@ Replaces the parts of "Feedback v1.13" it names; the rest stays.
 
 - `Feedback` gains `Title` (existing reports got the first line of their text) and `ResolvedAt` (null until handled). New table `FeedbackImages`: id (opaque UUID), report (cascade), content type, size, bytes (Postgres `bytea`).
 - `Feedback` gains `Status` (text: `open`, `planned`, `implemented`, `released` or `declined`; default `open`, reports already handled became `released`). `ResolvedAt` is the closed time: set when the status becomes released or declined, cleared when it goes back. Operator-only (`--feedback-status`), no HTTP or UI change.
-- Pictures are deleted 30 days after their report is closed (released or declined), and never kept past 12 months after the report (the daily digest run deletes them; a report is deleted after 12 months as before). Deleted with the account through the report, unless the report was anonymous (it has no link to the account). An account merge moves reports with their pictures. Not part of the export. No HTTP endpoint serves pictures.
+- Pictures are deleted 30 days after their report is closed (released or declined), and never kept past 12 months after the report (the daily digest run deletes them; a report is deleted after 12 months as before). Deleted with the account through the report, unless the report was anonymous (it has no link to the account). An account merge moves reports with their pictures. The web export carries the pictures of linked reports (v1.25, see "Export format v2"); no other HTTP endpoint serves pictures.
 
 ### Daily digest
 
@@ -784,7 +790,7 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 - `Me` gains `todayOrder: string[] | null`. Keys: `h:<habitId>` for a habit outside a routine (let-go habits too), `r:<routineId>` for a routine. Null means automatic (reminder time, then name). The order inside a routine stays the routine's own `habitIds`.
 - `PUT /api/me/today-order` `{ "order": string[] | null }` → 200 `{ "order": string[] | null }`. The server keeps only well-formed keys (canonical ids, no leading zeros) of the caller's own habits outside a routine and own routines, each once at its first place, and drops the rest (malformed, unknown, foreign, routine member, duplicate). Null resets. More than 500 entries → 400 `validation` on `order` and nothing changes. Not consent-gated (it holds ids only). The client sends the full list and adopts the trimmed response.
 - The server never inserts keys; the client places items missing from the saved order. Stored keys of habits deleted or moved into a routine later stay until the next save.
-- Export: `settings.today_order` (JSON) and `today_order` (CSV, keys joined with `;`), full export only. Import ignores it, because ids change. Deleted with the account.
+- Export: `settings.today_order` (JSON) and `today_order` (CSV, keys joined with `;`), full export only. Import remaps its keys to the new ids like `routine_id` and stores it under the `PUT` rules above (missing or null keeps the account's order; more than 500 entries → 400 `validation` on `settings.today_order` and nothing is written). The no-account upgrade sends the device's order there. Deleted with the account.
 
 ### Habit note offer
 
@@ -838,7 +844,7 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 
 The Discord bot (it shows no tick; its slips still clear the mark through Core) and the Android widget.
 
-## Diagnostics v1.25
+## Diagnostics v1.26
 
 ### `POST /api/diagnostics`
 

@@ -15,9 +15,11 @@ namespace Ember.Api.Hosting;
 /// the Discord OAuth callback, which the authentication handler answers before any endpoint runs), on the widget check-in (its
 /// own <see cref="WidgetPolicy"/> policy, so widget taps never use up sign-in attempts), and on the mail-sending
 /// endpoints per endpoint, normalized email and client IP, per email, per client IP and in total per day, <c>POST /api/feedback</c> per user (with a daily picture byte budget), or per client IP and in total per
-/// day for anonymous senders, and <c>POST /api/diagnostics</c> per client IP, per installation and in total per hour (the singleton
-/// <see cref="PartitionedRateLimiter{TResource}"/> of <see cref="string"/>, keyed by <see cref="MailKeys"/>, <see cref="FeedbackKeys"/> and
-/// <see cref="DiagnosticsKeys"/>, which never share a partition).
+/// day for anonymous senders, <c>GET /api/me/export</c> per user, one at a time and <see cref="RateLimitSettings.ExportPerHour"/> per hour,
+/// and <c>POST /api/diagnostics</c> per client IP, per installation and in total per hour (the singleton
+/// <see cref="PartitionedRateLimiter{TResource}"/> of <see cref="string"/>, keyed by <see cref="MailKeys"/>, <see cref="FeedbackKeys"/>,
+/// <see cref="ExportKeys"/> and <see cref="DiagnosticsKeys"/>, which never share a partition). The export is limited there, not by a policy,
+/// because policies are evaluated before authentication and so can't partition by user.
 /// </summary>
 internal static class RateLimits
 {
@@ -35,6 +37,9 @@ internal static class RateLimits
     private const string FeedbackDayKey = "fb-day";
     private const string FeedbackBytesPrefix = "fb-bytes:";
     private const string FeedbackBigBodyPrefix = "fb-big:";
+    private static readonly TimeSpan ExportRunningRetryAfter = TimeSpan.FromMinutes(1);
+    private const string ExportRunningPrefix = "export-running:";
+    private const string ExportHourPrefix = "export-hour:";
     private const string DiagnosticsIpPrefix = "dg-ip:";
     private const string DiagnosticsInstallationPrefix = "dg-inst:";
     private const string DiagnosticsHourKey = "dg-hour";
@@ -46,8 +51,12 @@ internal static class RateLimits
         services.AddSingleton(sp =>
         {
             var settings = sp.GetRequiredService<IOptions<RateLimitSettings>>().Value;
-            return PartitionedRateLimiter.Create<string, string>(key => RateLimitPartition.GetFixedWindowLimiter(key, _ => key switch
+            return PartitionedRateLimiter.Create<string, string>(key => key.StartsWith(ExportRunningPrefix, StringComparison.Ordinal)
+                ? RateLimitPartition.GetConcurrencyLimiter(key, _ => new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 })
+                : RateLimitPartition.GetFixedWindowLimiter(key, _ => key switch
             {
+                _ when key.StartsWith(ExportHourPrefix, StringComparison.Ordinal)
+                    => new FixedWindowRateLimiterOptions { PermitLimit = settings.ExportPerHour, Window = MailWindow },
                 FeedbackDayKey => new FixedWindowRateLimiterOptions { PermitLimit = settings.FeedbackPerDay, Window = MailDayWindow },
                 _ when key.StartsWith(FeedbackBytesPrefix, StringComparison.Ordinal)
                     => new FixedWindowRateLimiterOptions { PermitLimit = (int)FeedbackService.MaxFeedbackImageBytesPerUserPerDay, Window = MailDayWindow },
@@ -127,6 +136,32 @@ internal static class RateLimits
     /// <see cref="RateLimitSettings.FeedbackPerHour"/> per hour, valid or not.
     /// </summary>
     internal static string FeedbackBigBodyKey(Guid userId) => FeedbackBigBodyPrefix + userId.ToString("N");
+
+    /// <summary>
+    /// The export limiter keys of a user, in the order to take them: the running export (a concurrency permit, held until the response is
+    /// written), then the hourly count, so an export rejected because another one is running doesn't use up the hourly allowance.
+    /// </summary>
+    internal static string[] ExportKeys(Guid userId)
+        => [ExportRunningPrefix + userId.ToString("N"), ExportHourPrefix + userId.ToString("N")];
+
+    /// <summary>
+    /// Takes the <see cref="ExportKeys"/> of <paramref name="userId"/> and returns null, keeping the running-export permit until
+    /// <paramref name="http"/>'s response is done; or the 429 problem (with <c>Retry-After</c> one minute while another export runs, else
+    /// when the hourly window ends).
+    /// </summary>
+    internal static IResult? AcquireExport(PartitionedRateLimiter<string> limiter, HttpContext http, Guid userId)
+    {
+        var keys = ExportKeys(userId);
+        var running = limiter.AttemptAcquire(keys[0]);
+        if (!running.IsAcquired)
+        {
+            using (running) return Reject(http, running, ExportRunningRetryAfter);
+        }
+        http.Response.RegisterForDispose(running);
+
+        using var hourly = limiter.AttemptAcquire(keys[1]);
+        return hourly.IsAcquired ? null : Reject(http, hourly, MailWindow);
+    }
 
     /// <summary>The per-IP partition: an IPv4 address (also when IPv4-mapped), or the /64 network of an IPv6 address.</summary>
     internal static string ClientKey(IPAddress? address)
