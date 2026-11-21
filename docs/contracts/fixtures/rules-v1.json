@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed } where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done, with counts above it clamped to it). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today), in routine order. expected.routineDone[routineId]: whether a routine reminder for today has nothing left to remind of: the routine has build members and every one due today is done (none pending, partial or not done), so its Discord reminder closes as logged and its notifications clear. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done, { completed: null } clears the day, { count } sets the count), expected (the day\u0027s log after, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after, by date) }. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
+  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed, skipped } (skipped optional, false when missing) where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done, with counts above it clamped to it). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count, skipped } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial); skipped is the log\u0027s skip marker (true for a day written by a not done, false without a log); a skipped day keeps its state (pending on an open day, notdone on a closed one). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today and not skipped today), in routine order. expected.routineDone[routineId]: whether a routine reminder for today has nothing left to remind of: the routine has build members and every one due today is done (none pending, partial or not done; a member skipped today is still pending, so it keeps the routine open), so its Discord reminder closes as logged and its notifications clear. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done (a skip: count 0, skipped true), { completed: null } clears the day, { count } sets the count and clears skipped, also for 0), expected (the day\u0027s log after { date, count, completed, skipped }, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after { date, count, completed, skipped }, by date) }. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
   "cases": [
     {
       "name": "daily streak with one grace day used",
@@ -92,85 +92,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -387,85 +401,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -687,85 +715,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -1065,85 +1107,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -1151,85 +1207,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": false,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -1467,85 +1537,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -1820,85 +1904,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -1906,85 +2004,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -2340,85 +2452,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -2426,85 +2552,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "3": [
@@ -2512,85 +2652,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "offday",
               "completed": false,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "4": [
@@ -2598,85 +2752,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -2950,85 +3118,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "partial",
               "completed": null,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "partial",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ]
         },
@@ -3225,43 +3407,50 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "partial",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ]
         },
@@ -3409,43 +3598,50 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 4
+              "count": 4,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "partial",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 3
+              "count": 3,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "partial",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             }
           ]
         },
@@ -3601,61 +3797,71 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -3663,61 +3869,71 @@
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "notdone",
               "completed": false,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -3891,49 +4107,57 @@
               "date": "2027-03-07",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -4161,43 +4385,50 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -4205,43 +4436,50 @@
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "3": [
@@ -4249,43 +4487,50 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "4": [
@@ -4293,43 +4538,50 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "5": [
@@ -4337,43 +4589,50 @@
               "date": "2027-03-08",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "partial",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "lowday",
               "completed": null,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": false,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -4668,7 +4927,8 @@
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ],
           "2": [
@@ -4676,7 +4936,8 @@
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "3": [
@@ -4684,7 +4945,8 @@
               "date": "2027-03-13",
               "state": "partial",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ],
           "4": [
@@ -4692,7 +4954,8 @@
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "5": [
@@ -4700,7 +4963,8 @@
               "date": "2027-03-13",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "6": [
@@ -4708,7 +4972,8 @@
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "7": [
@@ -4716,7 +4981,8 @@
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ],
           "8": [
@@ -4724,7 +4990,8 @@
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -5002,7 +5269,8 @@
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ],
           "2": [
@@ -5010,7 +5278,8 @@
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "3": [
@@ -5018,7 +5287,8 @@
               "date": "2027-03-13",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "4": [
@@ -5026,7 +5296,8 @@
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ],
           "5": [
@@ -5034,7 +5305,8 @@
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "6": [
@@ -5042,7 +5314,8 @@
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -5218,7 +5491,8 @@
               "date": "2027-03-13",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -5226,7 +5500,8 @@
               "date": "2027-03-13",
               "state": "lowday",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ]
         },
@@ -5373,49 +5648,57 @@
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ],
           "2": [
@@ -5423,49 +5706,57 @@
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "pending",
               "completed": false,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -5648,43 +5939,50 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -5692,43 +5990,50 @@
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "notdone",
               "completed": false,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -5905,55 +6210,64 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -6140,85 +6454,99 @@
               "date": "2027-03-01",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ]
         },
@@ -6435,43 +6763,50 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -6604,37 +6939,43 @@
               "date": "2027-03-09",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "beforestart",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ]
         },
@@ -6800,61 +7141,71 @@
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "partial",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -7041,79 +7392,92 @@
               "date": "2027-03-02",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ],
           "2": [
@@ -7121,79 +7485,92 @@
               "date": "2027-03-02",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-03",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-04",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-05",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-06",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-07",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-08",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "paused",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "paused",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ]
         },
@@ -7410,61 +7787,71 @@
               "date": "2027-03-08",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             }
           ],
           "2": [
@@ -7472,61 +7859,71 @@
               "date": "2027-03-08",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-09",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "beforestart",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -7753,55 +8150,64 @@
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -7809,55 +8215,64 @@
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "partial",
               "completed": null,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "partial",
               "completed": null,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 2
+              "count": 2,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "paused",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "3": [
@@ -7865,55 +8280,64 @@
               "date": "2027-03-09",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "lowday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -8123,49 +8547,57 @@
               "date": "2027-03-10",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "offday",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ],
           "2": [
@@ -8173,49 +8605,57 @@
               "date": "2027-03-10",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-11",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-12",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-13",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-14",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-15",
               "state": "notdone",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             },
             {
               "date": "2027-03-16",
               "state": "done",
               "completed": true,
-              "count": 1
+              "count": 1,
+              "skipped": false
             },
             {
               "date": "2027-03-17",
               "state": "pending",
               "completed": null,
-              "count": 0
+              "count": 0,
+              "skipped": false
             }
           ]
         },
@@ -8317,6 +8757,237 @@
               "done": 4,
               "possible": 4,
               "streak": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a skip today stays pending but leaves the routine reminder, a count of 0 is no skip, and a closed skipped day is not done",
+      "today": "2027-03-13",
+      "from": "2027-03-11",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "habits": [
+        {
+          "id": 1,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "logs": [
+            {
+              "date": "2027-03-13",
+              "count": 0,
+              "completed": false,
+              "skipped": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "logs": [
+            {
+              "date": "2027-03-13",
+              "count": 0,
+              "completed": false
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 2,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "logs": [
+            {
+              "date": "2027-03-11",
+              "count": 0,
+              "completed": false,
+              "skipped": true
+            }
+          ]
+        }
+      ],
+      "routines": [
+        {
+          "id": 1,
+          "habitIds": [
+            1,
+            2
+          ]
+        }
+      ],
+      "expected": {
+        "days": {
+          "1": [
+            {
+              "date": "2027-03-11",
+              "state": "notdone",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-12",
+              "state": "pending",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-13",
+              "state": "pending",
+              "completed": false,
+              "count": 0,
+              "skipped": true
+            }
+          ],
+          "2": [
+            {
+              "date": "2027-03-11",
+              "state": "notdone",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-12",
+              "state": "pending",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-13",
+              "state": "pending",
+              "completed": false,
+              "count": 0,
+              "skipped": false
+            }
+          ],
+          "3": [
+            {
+              "date": "2027-03-11",
+              "state": "notdone",
+              "completed": false,
+              "count": 0,
+              "skipped": true
+            },
+            {
+              "date": "2027-03-12",
+              "state": "pending",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-13",
+              "state": "pending",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            }
+          ]
+        },
+        "stats": {
+          "1": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          },
+          "2": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          },
+          "3": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          }
+        },
+        "dayStats": [
+          {
+            "date": "2027-03-11",
+            "scheduled": 3,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-12",
+            "scheduled": 3,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-13",
+            "scheduled": 3,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          }
+        ],
+        "routinePending": {
+          "1": [
+            2
+          ]
+        },
+        "routineDone": {
+          "1": false
+        },
+        "weekly": {
+          "totalDone": 0,
+          "totalPossible": 21,
+          "headline": "It\u0027s been a quiet week, and that\u0027s okay. \uD83D\uDC99\nWhenever you\u0027re ready, your habits are here waiting.",
+          "footer": "No pressure. Progress happens at its own pace.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            },
+            {
+              "habitId": 3,
+              "name": "Habit 3",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
             }
           ]
         }
@@ -8439,7 +9110,8 @@
         "expected": {
           "date": "2027-03-17",
           "count": 1,
-          "completed": true
+          "completed": true,
+          "skipped": false
         }
       },
       {
@@ -8453,7 +9125,8 @@
         "expected": {
           "date": "2027-03-17",
           "count": 3,
-          "completed": true
+          "completed": true,
+          "skipped": false
         }
       },
       {
@@ -8467,7 +9140,8 @@
         "expected": {
           "date": "2027-03-17",
           "count": 0,
-          "completed": false
+          "completed": false,
+          "skipped": true
         }
       },
       {
@@ -8485,7 +9159,8 @@
         "expected": {
           "date": "2027-03-17",
           "count": 0,
-          "completed": false
+          "completed": false,
+          "skipped": true
         }
       },
       {
@@ -8523,7 +9198,8 @@
         "expected": {
           "date": "2027-03-17",
           "count": 2,
-          "completed": false
+          "completed": false,
+          "skipped": false
         }
       },
       {
@@ -8541,7 +9217,8 @@
         "expected": {
           "date": "2027-03-12",
           "count": 3,
-          "completed": true
+          "completed": true,
+          "skipped": false
         }
       },
       {
@@ -8559,7 +9236,8 @@
         "expected": {
           "date": "2027-03-17",
           "count": 2,
-          "completed": false
+          "completed": false,
+          "skipped": false
         }
       },
       {
@@ -8577,7 +9255,8 @@
         "expected": {
           "date": "2027-03-12",
           "count": 2,
-          "completed": true
+          "completed": true,
+          "skipped": false
         }
       },
       {
@@ -8595,7 +9274,8 @@
         "expected": {
           "date": "2027-03-12",
           "count": 3,
-          "completed": true
+          "completed": true,
+          "skipped": false
         }
       },
       {
@@ -8613,7 +9293,8 @@
         "expected": {
           "date": "2027-03-12",
           "count": 1,
-          "completed": false
+          "completed": false,
+          "skipped": false
         }
       },
       {
@@ -8631,7 +9312,67 @@
         "expected": {
           "date": "2027-03-17",
           "count": 0,
+          "completed": false,
+          "skipped": false
+        }
+      },
+      {
+        "name": "not done on a partly done day skips it with count 0",
+        "timesPerDay": 2,
+        "date": "2027-03-17",
+        "log": {
+          "date": "2027-03-17",
+          "count": 1,
           "completed": false
+        },
+        "edit": {
+          "completed": false
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 0,
+          "completed": false,
+          "skipped": true
+        }
+      },
+      {
+        "name": "a count of 0 on a skipped day is no longer a skip",
+        "timesPerDay": 2,
+        "date": "2027-03-17",
+        "log": {
+          "date": "2027-03-17",
+          "count": 0,
+          "completed": false,
+          "skipped": true
+        },
+        "edit": {
+          "count": 0
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 0,
+          "completed": false,
+          "skipped": false
+        }
+      },
+      {
+        "name": "a check-in on a skipped day clears the skip",
+        "timesPerDay": 2,
+        "date": "2027-03-17",
+        "log": {
+          "date": "2027-03-17",
+          "count": 0,
+          "completed": false,
+          "skipped": true
+        },
+        "edit": {
+          "count": 1
+        },
+        "expected": {
+          "date": "2027-03-17",
+          "count": 1,
+          "completed": false,
+          "skipped": false
         }
       }
     ],
@@ -8661,17 +9402,20 @@
           {
             "date": "2027-03-15",
             "count": 1,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-16",
             "count": 1,
-            "completed": false
+            "completed": false,
+            "skipped": false
           },
           {
             "date": "2027-03-17",
             "count": 1,
-            "completed": false
+            "completed": false,
+            "skipped": false
           }
         ]
       },
@@ -8700,17 +9444,20 @@
           {
             "date": "2027-03-14",
             "count": 2,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-15",
             "count": 1,
-            "completed": false
+            "completed": false,
+            "skipped": false
           },
           {
             "date": "2027-03-17",
             "count": 1,
-            "completed": false
+            "completed": false,
+            "skipped": false
           }
         ]
       },
@@ -8734,12 +9481,14 @@
           {
             "date": "2027-03-15",
             "count": 1,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-17",
             "count": 1,
-            "completed": true
+            "completed": true,
+            "skipped": false
           }
         ]
       },
@@ -8778,27 +9527,32 @@
           {
             "date": "2027-03-13",
             "count": 2,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-14",
             "count": 2,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-15",
             "count": 2,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-16",
             "count": 1,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-17",
             "count": 2,
-            "completed": true
+            "completed": true,
+            "skipped": false
           }
         ]
       },
@@ -8827,17 +9581,20 @@
           {
             "date": "2027-03-15",
             "count": 1,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-16",
             "count": 1,
-            "completed": true
+            "completed": true,
+            "skipped": false
           },
           {
             "date": "2027-03-17",
             "count": 1,
-            "completed": true
+            "completed": true,
+            "skipped": false
           }
         ]
       }

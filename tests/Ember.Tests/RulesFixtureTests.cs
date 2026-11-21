@@ -23,7 +23,7 @@ public partial class RulesFixtureTests
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
-    private sealed record LogInput(DateOnly Date, int Count, bool Completed);
+    private sealed record LogInput(DateOnly Date, int Count, bool Completed, bool Skipped = false);
 
     private sealed record HabitInput(int Id, string Frequency, int? WeeklyTarget, List<string>? Days, int TimesPerDay, DateOnly StartDate,
         DateOnly? PausedFrom, DateOnly? PausedUntil, int? RoutineId, List<LogInput> Logs);
@@ -33,7 +33,7 @@ public partial class RulesFixtureTests
     private sealed record CaseInput(string Name, DateOnly Today, DateOnly From, string Timezone, int GraceDaysPerWeek, List<DateOnly> LowDays,
         List<HabitInput> Habits, List<RoutineInput> Routines);
 
-    private sealed record DayOut(DateOnly Date, string State, bool? Completed, int Count);
+    private sealed record DayOut(DateOnly Date, string State, bool? Completed, int Count, bool Skipped);
 
     private sealed record WeekOut(int Done, int Target);
 
@@ -52,7 +52,7 @@ public partial class RulesFixtureTests
 
     private sealed record PauseCase(string Name, DateOnly? PausedFrom, DateOnly? PausedUntil, DateOnly? Until);
 
-    private sealed record LogOut(DateOnly Date, int Count, bool Completed);
+    private sealed record LogOut(DateOnly Date, int Count, bool Completed, bool Skipped);
 
     private sealed record DayEdit(bool? Completed, int? Count);
 
@@ -218,7 +218,7 @@ public partial class RulesFixtureTests
             habit.TimesPerDay = timesPerDay;
             configure?.Invoke(habit);
             foreach (var log in logs ?? [])
-                db.HabitLogs.Add(new HabitLog { HabitId = habitId, Date = log.Date, Count = log.Count, Completed = log.Completed });
+                db.HabitLogs.Add(new HabitLog { HabitId = habitId, Date = log.Date, Count = log.Count, Completed = log.Completed, Skipped = log.Skipped });
             await db.SaveChangesAsync();
             return habitId;
         });
@@ -226,7 +226,7 @@ public partial class RulesFixtureTests
 
     private static Task<List<LogOut>> LogsAsync(IntegrationTestHost host, int habitId)
         => host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.AsNoTracking()
-            .Where(l => l.HabitId == habitId).OrderBy(l => l.Date).Select(l => new LogOut(l.Date, l.Count, l.Completed)).ToListAsync());
+            .Where(l => l.HabitId == habitId).OrderBy(l => l.Date).Select(l => new LogOut(l.Date, l.Count, l.Completed, l.Skipped)).ToListAsync());
 
     private static ExpectedOut Compute(CaseInput input)
     {
@@ -244,7 +244,7 @@ public partial class RulesFixtureTests
         var dates = Enumerable.Range(0, input.Today.DayNumber - input.From.DayNumber + 1).Select(input.From.AddDays).ToList();
         return new ExpectedOut(
             habits.ToDictionary(h => Key(h.Id), h => dates.Select(d => HabitRules.DayOn(h, d, input.Today, tz, lowDays))
-                .Select(d => new DayOut(d.Date, d.State.ToString().ToLowerInvariant(), d.Completed, d.Count)).ToList()),
+                .Select(d => new DayOut(d.Date, d.State.ToString().ToLowerInvariant(), d.Completed, d.Count, d.Skipped)).ToList()),
             habits.ToDictionary(h => Key(h.Id), h => ToStats(HabitRules.StatsOn(h, input.Today, input.GraceDaysPerWeek, lowDays, tz))),
             dates.Select(d => HabitRules.DayStatsOn(habits, d, tz))
                 .Select(s => new DayStatsOut(s.Date, s.Scheduled, s.Done, s.Partial, s.ShowedUp)).ToList(),
@@ -300,7 +300,7 @@ public partial class RulesFixtureTests
             RoutineId = input.RoutineId,
         };
         foreach (var log in input.Logs)
-            habit.Logs.Add(new HabitLog { Date = log.Date, Count = log.Count, Completed = log.Completed });
+            habit.Logs.Add(new HabitLog { Date = log.Date, Count = log.Count, Completed = log.Completed, Skipped = log.Skipped });
         return habit;
     }
 
