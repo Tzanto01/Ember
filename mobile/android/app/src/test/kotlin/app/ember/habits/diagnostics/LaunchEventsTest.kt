@@ -17,7 +17,12 @@ class LaunchEventsTest {
                 }
             }
             LaunchSource.entries.forEach { add(LaunchEvents.newIntent(it)) }
-            listOf(0L, 820L, 999_999_999L, 1_000_000_000L, -5L).forEach { add(LaunchEvents.pageLoaded(it)) }
+            for (ms in listOf(0L, 820L, 999_999_999L, 1_000_000_000L, -5L)) {
+                add(LaunchEvents.pageLoaded(ms))
+                add(LaunchEvents.visualState(ms))
+                add(LaunchEvents.firstDraw(ms))
+                add(LaunchEvents.firstTouch(ms))
+            }
             for (crashed in listOf(true, false, null)) for (priority in listOf(0, 2, null, -1)) {
                 RendererThen.entries.forEach { add(LaunchEvents.rendererGone(crashed, priority, it)) }
             }
@@ -48,6 +53,9 @@ class LaunchEventsTest {
             "launch( cold=$BOOL)?( saved=$BOOL)?( source=$SOURCE)?( history=$BOOL)?( webview=[0-9A-Za-z._-]{1,40})?",
             "new_intent( source=$SOURCE)?",
             "page_loaded( ms=$INT)?",
+            "visual_state( ms=$INT)?",
+            "first_draw( ms=$INT)?",
+            "first_touch( ms=$INT)?",
             "renderer_gone( crashed=$BOOL)?( priority=$INT)?( then=(recreate|finish|none))?",
             "route_ignored( reason=(restoring|no_bridge|from_history|rejected))?",
             "destroy( finishing=$BOOL)?( config_change=$BOOL)?",

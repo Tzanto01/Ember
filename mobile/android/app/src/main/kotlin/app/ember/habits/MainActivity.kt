@@ -5,13 +5,16 @@ import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
+import android.view.MotionEvent
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.VisibleForTesting
 import androidx.core.app.ActivityCompat
 import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import app.ember.habits.diagnostics.CrashRecorder
 import app.ember.habits.diagnostics.IgnoredRoute
 import app.ember.habits.diagnostics.LaunchEvents
@@ -34,6 +37,9 @@ class MainActivity : BridgeActivity() {
     private var starting = false
     private var createdAt = 0L
     private var pageLoaded = false
+    private var committed = false
+    private var focused = false
+    private var touched = false
     private val launches by lazy { RecordFile.launches(applicationContext) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,8 +66,10 @@ class MainActivity : BridgeActivity() {
                 override fun onPageLoaded(webView: WebView) {
                     if (pageLoaded) return
                     pageLoaded = true
-                    record(LaunchEvents.pageLoaded(SystemClock.elapsedRealtime() - createdAt))
+                    record(LaunchEvents.pageLoaded(sinceCreate()))
                 }
+
+                override fun onPageCommitVisible(view: WebView, url: String?) = presentFirstCommit(view)
 
                 override fun onRenderProcessGone(webView: WebView, detail: RenderProcessGoneDetail?) =
                     recover(webView, detail)
@@ -72,6 +80,7 @@ class MainActivity : BridgeActivity() {
         super.onCreate(savedInstanceState)
         starting = false
         restoring = false
+        bridge?.webView?.setBackgroundColor(getColor(R.color.ember_background))
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
@@ -83,6 +92,56 @@ class MainActivity : BridgeActivity() {
             },
         )
     }
+
+    /**
+     * On the first page commit after create, asks [webView] to redraw now, again once its visual state is ready, and
+     * records when that state was ready and when the window first drew a frame after the commit, the nudged one
+     * included. Records are written after the frame, never inside its draw pass.
+     */
+    private fun presentFirstCommit(webView: WebView) {
+        if (committed) return
+        committed = true
+        webView.postInvalidate()
+        webView.viewTreeObserver.addOnDrawListener(
+            object : ViewTreeObserver.OnDrawListener {
+                private var drawn = false
+
+                override fun onDraw() {
+                    if (drawn) return
+                    drawn = true
+                    val event = LaunchEvents.firstDraw(sinceCreate())
+                    webView.post {
+                        webView.viewTreeObserver.removeOnDrawListener(this)
+                        record(event)
+                    }
+                }
+            },
+        )
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.VISUAL_STATE_CALLBACK)) {
+            WebViewCompat.postVisualStateCallback(webView, 0L) {
+                record(LaunchEvents.visualState(sinceCreate()))
+                webView.postInvalidate()
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus || focused) return
+        focused = true
+        bridge?.webView?.postInvalidate()
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (!touched && event.actionMasked == MotionEvent.ACTION_DOWN) {
+            touched = true
+            val event = LaunchEvents.firstTouch(sinceCreate())
+            window.decorView.post { record(event) }
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
+    private fun sinceCreate() = SystemClock.elapsedRealtime() - createdAt
 
     /**
      * Replaces a WebView whose render process died or was killed by recreating the activity, so Ember never stays
