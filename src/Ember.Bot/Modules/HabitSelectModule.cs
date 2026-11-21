@@ -173,23 +173,30 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
         var habit = await _habits.GetHabitAsync(userId, habitId);
         if (habit is null) { await NotFoundAsync(t); return; }
 
-        var isPaused = habit.PausedUntil.HasValue &&
-                       habit.PausedUntil >= await _settings.GetLocalTodayAsync(userId);
-
-        var builder = new ComponentBuilder()
-            .WithButton(t.Get("habit.pause.today"), HabitActionIds.Pause(habitId, "today"), ButtonStyle.Secondary)
-            .WithButton(t.Get("habit.pause.3days"), HabitActionIds.Pause(habitId, "3days"), ButtonStyle.Secondary)
-            .WithButton(t.Get("habit.pause.1week"), HabitActionIds.Pause(habitId, "1week"), ButtonStyle.Primary);
-
-        if (isPaused)
-            builder.WithButton(t.Get("habit.pause.resume-button"), HabitActionIds.Pause(habitId, "resume"), ButtonStyle.Success);
+        var components = PauseComponents(t, habit, await _settings.GetLocalTodayAsync(userId));
 
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
                 m.Content = t.Format("habit.pause.question", habit.Name);
-                m.Components = builder.Build();
+                m.Components = components;
             });
+    }
+
+    /// <summary>
+    /// The pause buttons (today, 3 days, 1 week), plus Resume while the habit is paused on the user's local <paramref name="today"/>
+    /// (<see cref="HabitRules.IsPausedOn"/>), not before a pause that starts later.
+    /// </summary>
+    internal static MessageComponent PauseComponents(Texts t, Habit habit, DateOnly today)
+    {
+        var builder = new ComponentBuilder()
+            .WithButton(t.Get("habit.pause.today"), HabitActionIds.Pause(habit.Id, "today"), ButtonStyle.Secondary)
+            .WithButton(t.Get("habit.pause.3days"), HabitActionIds.Pause(habit.Id, "3days"), ButtonStyle.Secondary)
+            .WithButton(t.Get("habit.pause.1week"), HabitActionIds.Pause(habit.Id, "1week"), ButtonStyle.Primary);
+
+        if (HabitRules.IsPausedOn(habit, today))
+            builder.WithButton(t.Get("habit.pause.resume-button"), HabitActionIds.Pause(habit.Id, "resume"), ButtonStyle.Success);
+        return builder.Build();
     }
 
     // ── habit:select:frequency ────────────────────────────────────────────────

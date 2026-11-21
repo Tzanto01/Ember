@@ -160,8 +160,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             {
                 var todayMark = h.Kind == HabitKind.LetGo ? HabitText.LetGoMark(LetGoRules.DayOn(h, today, tz).State) : HabitText.DayMark(h, today);
                 var reminderStr = HabitText.FormatReminder(t, h.ReminderTimes);
-                var pauseStr = h.PausedUntil.HasValue && h.PausedUntil >= today
-                    ? " · " + t.Format("habit.list.paused", h.PausedUntil.Value.ToString(t.Get("date.month-day"), t.Culture)) : "";
+                var pauseStr = HabitText.PausedSuffix(t, h, today);
 
                 var progressStr = HabitText.ListProgress(t, h, today, grace, lowDays, tz, showStreaks);
 
