@@ -23,8 +23,8 @@ describe('renderLegal', () => {
     const boxes = [...doc.querySelectorAll('div:has(> table)')];
     expect(boxes.map((box) => [box.getAttribute('role'), box.getAttribute('tabindex'), box.getAttribute('aria-label')])).toEqual([
       ['group', '0', 'Ohne, Abschnitt'],
-      ['group', '0', '3.8 Speicher'],
-      ['group', '0', '3.8 Speicher'],
+      ['group', '0', '3.8 Speicher: Wo, Name'],
+      ['group', '0', '3.8 Speicher: Was, Wann'],
     ]);
   });
 

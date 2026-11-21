@@ -17,7 +17,7 @@ function safeHref(href: string): boolean {
 
 const englishSummary = /^\W*English summary\b/;
 
-/** A table token with the text of the heading it sits under, if any, which names its scroll box. */
+/** A table token with the text of the heading it sits under, if any, for its scroll box's name. */
 type LabelledTable = Tokens.Table & { label?: string };
 
 const legalMarked = new Marked({
@@ -46,7 +46,8 @@ const legalMarked = new Marked({
             `<tr>${row.map((cell, i) => `<td data-label="${labels[i] ?? ''}">${this.parser.parseInline(cell.tokens)}</td>`).join('')}</tr>`,
         )
         .join('');
-      const name = escapeHtml(label ?? header.map((cell) => cell.text).join(', '));
+      const columns = header.map((cell) => cell.text).join(', ');
+      const name = escapeHtml(label ? `${label}: ${columns}` : columns);
       return `<div role="group" tabindex="0" aria-label="${name}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>\n`;
     },
   },
@@ -62,9 +63,9 @@ export interface LegalDocument {
 /**
  * Renders a legal markdown text. Raw HTML in the source comes out as escaped text, and links other than relative,
  * `https:` and `mailto:` ones render as their plain text, so the output is safe to inject. A leading `#` heading is
- * taken out and returned as `heading`. Each table sits in a focusable box, named after the heading above it or else its
- * column headings, so a table wider than the screen can be scrolled from the keyboard. With `hideEnglishSummary`, a leading "English summary" quote and the rule right
- * after it are left out.
+ * taken out and returned as `heading`. Each table sits in a focusable box named after the heading above it and its
+ * column headings, so a table wider than the screen can be scrolled from the keyboard. With `hideEnglishSummary`, a
+ * leading "English summary" quote and the rule right after it are left out.
  */
 export function renderLegal(markdown: string, hideEnglishSummary = false): LegalDocument {
   const tokens = legalMarked.lexer(markdown);
