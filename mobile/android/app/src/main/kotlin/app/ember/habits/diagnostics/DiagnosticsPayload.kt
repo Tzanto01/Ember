@@ -75,7 +75,8 @@ internal data class DeviceDiagnostics(
 }
 
 /**
- * Builds [DeviceDiagnostics] from recorded launches and exits: only the 7 days up to `now`, newest first, at most
+ * Builds [DeviceDiagnostics] from recorded launches and exits: only the [DiagnosticsGrammar.REPORT_MS] up to `now`
+ * (7 days less an hour), newest first, at most
  * [MAX_LAUNCHES] launches and [MAX_EXITS] exits, at most [Frames.MAX_FRAMES] frames and [MAX_FRAME_BYTES] bytes of
  * frames per exit, every string re-checked against [DiagnosticsGrammar], and the
  * `launches` + `exits` JSON kept under [BUDGET_BYTES] UTF-8 bytes by dropping frames from the end of the oldest exit
@@ -127,7 +128,7 @@ internal object DiagnosticsPayload {
             .take(MAX_DEVICE).trim().ifEmpty { null }
 
     private fun <T> recent(items: List<T>, now: Long, at: (T) -> Long): List<T> =
-        items.filter { at(it) in (now - DiagnosticsGrammar.KEEP_MS)..now }.sortedByDescending(at)
+        items.filter { at(it) in (now - DiagnosticsGrammar.REPORT_MS)..now }.sortedByDescending(at)
 
     private fun clean(exit: Exit): Exit? {
         if (exit.reason !in DiagnosticsGrammar.REASONS) return null

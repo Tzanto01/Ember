@@ -15,7 +15,7 @@ import java.io.InputStream
 internal class ExitRecord(val at: Long, val reason: Int, val status: Int, val trace: () -> InputStream?)
 
 /**
- * Ember's recent process exits from `ActivityManager.getHistoricalProcessExitReasons` (API 30+): the last 7 days,
+ * Ember's recent process exits from `ActivityManager.getHistoricalProcessExitReasons` (API 30+): the last 7 days less an hour,
  * newest first, at most [DiagnosticsPayload.MAX_EXITS]. Each carries its reason name, the signal for `CRASH_NATIVE`
  * and `SIGNALED`, for `CRASH` the matching record of Ember's own [CrashRecorder], for `ANR` the main thread's frames
  * and for `CRASH_NATIVE` the crashing thread's tombstone frames, all through the [Frames] allowlist parser. It never
@@ -39,7 +39,7 @@ internal object ExitReasons {
 
     /** [records] turned into exits as of [now] on API level [sdk], each crash matched against [crashes]. */
     fun from(records: List<ExitRecord>, crashes: List<JSONObject>, now: Long, sdk: Int): List<Exit> =
-        records.filter { it.at in (now - DiagnosticsGrammar.KEEP_MS)..now }
+        records.filter { it.at in (now - DiagnosticsGrammar.REPORT_MS)..now }
             .sortedByDescending { it.at }
             .take(DiagnosticsPayload.MAX_EXITS)
             .map { exit(it, crashes, sdk) }

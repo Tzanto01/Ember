@@ -55,12 +55,12 @@ class DiagnosticsPayloadTest {
     }
 
     @Test
-    fun onlyTheLastSevenDaysNewestFirstWithinTheCaps() {
+    fun onlyTheLastSevenDaysLessAnHourNewestFirstWithinTheCaps() {
         val launches = (0 until 60).map { Launch(now - it * minute, "new_intent source=user") } +
-            Launch(now - DiagnosticsGrammar.KEEP_MS - 1, "destroy finishing=true config_change=false") +
+            Launch(now - DiagnosticsGrammar.REPORT_MS - 1, "destroy finishing=true config_change=false") +
             Launch(now + minute, "destroy finishing=false config_change=false") +
             Launch(now - 5, "Launch with Habit Walk")
-        val exits = (0 until 7).map { exit(now - it * minute) } + exit(now - DiagnosticsGrammar.KEEP_MS - 1)
+        val exits = (0 until 7).map { exit(now - it * minute) } + exit(now - DiagnosticsGrammar.REPORT_MS - 1)
 
         val result = build(launches.shuffled(), exits.shuffled())
 
@@ -68,6 +68,18 @@ class DiagnosticsPayloadTest {
         assertEquals((0 until 50).map { now - it * minute }, result.launches.map { it.at })
         assertTrue(result.launches.all { it.event == "new_intent source=user" })
         assertEquals((0 until 5).map { now - it * minute }, result.exits.map { it.at })
+    }
+
+    @Test
+    fun theOldestEntriesKeptAreAnHourInsideTheServersSevenDays() {
+        val edge = now - DiagnosticsGrammar.REPORT_MS
+        val launches = listOf(Launch(edge, "new_intent source=user"), Launch(edge - 1, "new_intent source=system"))
+
+        val result = build(launches, listOf(exit(edge), exit(edge - 1)))
+
+        assertEquals(now - 7 * 24 * 60 * minute + 60 * minute, edge)
+        assertEquals(listOf(edge), result.launches.map { it.at })
+        assertEquals(listOf(edge), result.exits.map { it.at })
     }
 
     @Test

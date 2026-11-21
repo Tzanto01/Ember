@@ -15,11 +15,11 @@ internal object Frames {
     const val MAX_EXCEPTIONS = 10
 
     private val JAVA_LINE = Regex("""^\s*at ([^\s(]+)\((.*)\)$""")
-    private val NATIVE_LINE = Regex("""^\s*(?:native: )?#(\d+) pc ([0-9a-f]+)\s+(\S+)(.*)$""")
+    private val NATIVE_LINE = Regex("""^\s*(?:native: )?#([0-9]+) pc ([0-9a-f]+)\s+(\S+)(.*)$""")
     private val BUILD_ID = Regex("""\s*\(BuildId: [^)]*\)\s*$""")
     private val MAP_OFFSET = Regex("""^\s*\(offset 0x[0-9a-f]+\)""")
     private val SYMBOL = Regex("""^\s*\((.*)\)\s*$""")
-    private val SYMBOL_OFFSET = Regex("""\+\d+$""")
+    private val SYMBOL_OFFSET = Regex("""\+[0-9]+$""")
 
     /** The type names of [throwable]'s cause chain, outermost first. */
     fun exceptionChain(throwable: Throwable): List<String> {

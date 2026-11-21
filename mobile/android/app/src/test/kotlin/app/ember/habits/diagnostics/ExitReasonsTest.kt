@@ -25,7 +25,7 @@ class ExitReasonsTest {
         .put(CrashRecorder.FRAMES, JSONArray(listOf("app.ember.habits.$type.run($type.kt:1)")))
 
     @Test
-    fun exitsAreTheLastSevenDaysNewestFirstWithReasonAndSignalNames() {
+    fun exitsAreTheLastSevenDaysLessAnHourNewestFirstWithReasonAndSignalNames() {
         val records = listOf(
             ExitRecord(now - 10, 2, 9, noTrace),
             ExitRecord(now - 20, 5, 11, noTrace),
@@ -33,7 +33,7 @@ class ExitReasonsTest {
             ExitRecord(now - 40, 3, 9, noTrace),
             ExitRecord(now - 50, 99, 0, noTrace),
             ExitRecord(now - 60, 10, 0, noTrace),
-            ExitRecord(now - DiagnosticsGrammar.KEEP_MS - 1, 4, 0, noTrace),
+            ExitRecord(now - DiagnosticsGrammar.REPORT_MS - 1, 4, 0, noTrace),
         ).shuffled()
 
         val exits = ExitReasons.from(records, emptyList(), now, 34)

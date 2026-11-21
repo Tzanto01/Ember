@@ -4,6 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 
 /**
  * Ember's own uncaught-exception recorder: it stores the type names of the cause chain and the outermost throwable's
@@ -36,12 +37,27 @@ internal class CrashRecorder(
 
         private val installed = AtomicBoolean(false)
 
-        /** Installs the recorder as the default handler, once per process, chained to the one before it. */
+        /**
+         * Installs the recorder as the default handler, once per process, chained to the one before it, and prunes the
+         * crash and launch files to [DiagnosticsGrammar.KEEP_MS] in the background ([pruneInBackground]).
+         */
         fun install(context: Context) {
             if (!installed.compareAndSet(false, true)) return
-            val records = RecordFile.crashes(context.applicationContext ?: context)
+            val app = context.applicationContext ?: context
+            val records = RecordFile.crashes(app)
             Thread.setDefaultUncaughtExceptionHandler(CrashRecorder(records, Thread.getDefaultUncaughtExceptionHandler()))
+            pruneInBackground(listOf(records, RecordFile.launches(app)))
         }
+
+        /** Prunes [files] as of [clock] on a low-priority daemon thread and returns it; any failure is ignored. */
+        fun pruneInBackground(files: List<RecordFile>, clock: () -> Long = System::currentTimeMillis): Thread =
+            thread(name = "ember-diagnostics-prune", isDaemon = true, priority = Thread.MIN_PRIORITY) {
+                try {
+                    val now = clock()
+                    files.forEach { it.prune(now) }
+                } catch (ignored: Throwable) {
+                }
+            }
 
         /** The stored form of [throwable] at [at]: `{ at, exception: [...], frames: [...] }`. */
         fun record(throwable: Throwable, at: Long): JSONObject = JSONObject()

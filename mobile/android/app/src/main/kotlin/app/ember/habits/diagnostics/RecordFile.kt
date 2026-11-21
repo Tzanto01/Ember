@@ -39,6 +39,11 @@ internal class RecordFile(private val file: File, private val keepMs: Long, priv
             kept
         }
 
+    /** Deletes the records older than [keepMs] before [now] from the file. */
+    fun prune(now: Long) {
+        read(now)
+    }
+
     private fun recent(records: List<JSONObject>, now: Long) =
         records.filter { it.optLong(AT) >= now - keepMs }.sortedBy { it.optLong(AT) }
 
