@@ -58,11 +58,14 @@ jobs:
 
       - name: New migrations sort after main's
         run: |
+          set -euo pipefail
           dir=src/Ember.Core/Data/Migrations
           ids() { sed -n 's|.*/\([0-9]\{14\}\)_[^/]*\.cs$|\1|p' | sort -u; }
           last=$(git ls-tree --name-only origin/main "$dir/" | ids | tail -1)
+          [ -n "$last" ] || { echo "::error::No migrations found on origin/main"; exit 1; }
+          added=$(git diff --name-only --no-renames --diff-filter=A origin/main...HEAD -- "$dir" | ids)
           fail=0
-          for id in $(git diff --name-only --diff-filter=A origin/main...HEAD -- "$dir" | ids); do
+          for id in $added; do
             if [[ ! "$id" > "$last" ]]; then
               echo "::error::Migration $id sorts before $last on main; create it with dotnet ef migrations add"
               fail=1
