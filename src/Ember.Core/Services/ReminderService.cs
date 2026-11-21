@@ -82,6 +82,24 @@ public partial class ReminderService
     }
 
     /// <summary>
+    /// Gives each habit with reminder times and no next reminder its next one, for rows written before Ember stored the next
+    /// reminder per habit.
+    /// </summary>
+    public async Task BackfillNextRemindersAsync(CancellationToken cancellationToken = default)
+    {
+        var now = _time.GetUtcNow().UtcDateTime;
+        var habits = await _db.Habits
+            .Where(h => h.ReminderTimes.Count > 0 && h.NextReminderUtc == null)
+            .Include(h => h.User)
+            .ToListAsync(cancellationToken);
+
+        foreach (var habit in habits)
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc, now);
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Marks the "your DM reminders are paused" notice as shown. Returns true only for the one
     /// call that should show it: the user's DM reminders are paused and they haven't been told yet.
     /// </summary>

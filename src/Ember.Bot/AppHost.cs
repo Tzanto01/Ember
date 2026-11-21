@@ -8,7 +8,6 @@ using Ember.Bot.Notifications;
 using Ember.Bot.Services;
 using Ember.Core;
 using Ember.Core.Data;
-using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -152,19 +151,7 @@ public static class AppHost
         else
             await db.Database.MigrateAsync(cancellationToken);
 
-        var now = host.Services.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
-        var habits = await db.Habits
-            .Where(h => h.ReminderTimes.Count > 0 && h.NextReminderUtc == null)
-            .Include(h => h.User)
-            .ToListAsync(cancellationToken);
-
-        foreach (var habit in habits)
-        {
-            var tz = TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
-            habit.NextReminderUtc = TimeZones.NextOccurrenceUtc(habit.ReminderTimes, tz, now);
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<ReminderService>().BackfillNextRemindersAsync(cancellationToken);
     }
 
     private sealed class NullDiscordDmSender : IDiscordDmSender
