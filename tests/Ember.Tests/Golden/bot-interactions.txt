@@ -67,10 +67,13 @@ component habitaction:delete:cancel
 component habitaction:delete:confirm:*
 component habitaction:edit:rename:*
 component habitaction:freq:*:*
+component habitaction:madeit:*
 component habitaction:pause:*:*
 component habitaction:slip:*
 component history:day:*:*:*
 component history:low:*:*
+component letgo:madeit-undo:*:*
+component letgo:madeit:*
 component letgo:slip:*
 component onboard:region:*
 component onboard:timezone:*

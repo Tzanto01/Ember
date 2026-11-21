@@ -112,6 +112,9 @@ public class BotRoutingTests
             DiscordRemindersAsk.AskButtons(t, Owner), DiscordRemindersAsk.TurnOnButton(t, Owner),
             HistoryModule.BuildGrid(t, Owner, buildId, days, new HashSet<DateOnly> { Today }),
             HistoryModule.BuildLetGoGrid(t, habit!, Today, TimeZoneInfo.Utc),
+            LetGoButtons.Question(t, habit!, new LetGoDay(Today, LetGoDayState.Free, 0, MadeIt: false)),
+            LetGoButtons.Question(t, habit!, new LetGoDay(Today, LetGoDayState.Free, 0, MadeIt: true)),
+            LetGoButtons.Undo(t, letGoId, Today),
         };
         ids.AddRange(statics.SelectMany(Ids));
 

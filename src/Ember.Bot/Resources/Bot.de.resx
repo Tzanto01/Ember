@@ -1355,6 +1355,24 @@ Ember bietet dir dann an, deine Habits von hier in dieses Konto zu übernehmen. 
   <data name="habit.letgo.slip-button.named" xml:space="preserve">
     <value>Ausgerutscht: {0}</value>
   </data>
+  <data name="habit.letgo.made-it-button" xml:space="preserve">
+    <value>Heute geschafft</value>
+  </data>
+  <data name="habit.letgo.made-it-button.named" xml:space="preserve">
+    <value>Heute geschafft: {0}</value>
+  </data>
+  <data name="habit.letgo.made-it.ack" xml:space="preserve">
+    <value>Schön. Das darf sich gut anfühlen.</value>
+  </data>
+  <data name="habit.letgo.made-it.undo-button" xml:space="preserve">
+    <value>Rückgängig</value>
+  </data>
+  <data name="habit.letgo.made-it.undone" xml:space="preserve">
+    <value>Zurückgenommen.</value>
+  </data>
+  <data name="habit.letgo.made-it.not-free" xml:space="preserve">
+    <value>„Heute geschafft“ gibt es für einen Tag ohne Ausrutscher, außerhalb einer Pause.</value>
+  </data>
   <data name="habit.letgo.noted.one" xml:space="preserve">
     <value>Notiert. Deine längste Strecke bisher ist {0} Tag.</value>
   </data>
@@ -1380,7 +1398,7 @@ Tage ohne diesen Monat: **{2}**</value>
   </data>
   <data name="history.letgo.grid" xml:space="preserve">
     <value>**{0}** · {2}
-Letzte {1} Tage: 🌿 Tag ohne, 🍂 Ausrutscher notiert, ⏸️ pausiert. Frühere Tage kannst du im Web oder in der App ändern.</value>
+Letzte {1} Tage: 🌿 Tag ohne, 🌿✓ geschafft, 🍂 Ausrutscher notiert, ⏸️ pausiert. Frühere Tage kannst du im Web oder in der App ändern.</value>
   </data>
   <data name="fireside.off" xml:space="preserve">
     <value>Am Lagerfeuer ist für dein Konto noch aus. Schalte es in der Ember-App oder im Web ein und wähl dort deinen Namen.</value>

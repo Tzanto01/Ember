@@ -159,7 +159,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
 
             foreach (var h in slice)
             {
-                var todayMark = h.Kind == HabitKind.LetGo ? HabitText.LetGoMark(LetGoRules.DayOn(h, today, tz).State) : HabitText.DayMark(h, today);
+                var todayMark = h.Kind == HabitKind.LetGo ? HabitText.LetGoMark(LetGoRules.DayOn(h, today, tz)) : HabitText.DayMark(h, today);
                 var reminderStr = HabitText.FormatReminder(t, h.ReminderTimes);
                 var pauseStr = HabitText.PausedSuffix(t, h, today);
 
@@ -172,28 +172,13 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             }
 
             embed.WithFooter(t.Get("habit.list.footer"));
-            var slips = SlipButtons(t, slice);
+            var buttons = LetGoButtons.List(t, slice, today, tz);
 
             if (page == 0)
-                await RespondAsync(embed: embed.Build(), components: slips, ephemeral: true);
+                await RespondAsync(embed: embed.Build(), components: buttons, ephemeral: true);
             else
-                await FollowupAsync(embed: embed.Build(), components: slips, ephemeral: true);
+                await FollowupAsync(embed: embed.Build(), components: buttons, ephemeral: true);
         }
-    }
-
-    /// <summary>One "I slipped: {name}" button per let-go habit in <paramref name="habits"/> (<c>letgo:slip:{habitId}</c>), null without any.</summary>
-    internal static MessageComponent? SlipButtons(Texts t, IReadOnlyList<Habit> habits)
-    {
-        var letGo = habits.Where(h => h.Kind == HabitKind.LetGo).Take(25).ToList();
-        if (letGo.Count == 0) return null;
-        var builder = new ComponentBuilder();
-        for (var i = 0; i < letGo.Count; i++)
-        {
-            var label = t.Format("habit.letgo.slip-button.named", letGo[i].Name);
-            if (label.Length > ButtonBuilder.MaxButtonLabelLength) label = label[..(ButtonBuilder.MaxButtonLabelLength - 1)] + "…";
-            builder.WithButton(label, LetGoIds.Slip(letGo[i].Id), ButtonStyle.Secondary, row: i / 5);
-        }
-        return builder.Build();
     }
 
     // ── /habit checkin ────────────────────────────────────────────────────────

@@ -33,6 +33,7 @@ component habit:streaks:off -> habit:streaks:*
 component habitaction:checkin:done:12 -> habitaction:checkin:done:*
 component habitaction:checkin:skip:12 -> habitaction:checkin:skip:*
 component habitaction:slip:12 -> habitaction:slip:*
+component habitaction:madeit:12 -> habitaction:madeit:*
 component habitaction:delete:confirm:12 -> habitaction:delete:confirm:*
 component habitaction:delete:cancel -> habitaction:delete:cancel
 component habitaction:edit:rename:12 -> habitaction:edit:rename:*
@@ -44,6 +45,8 @@ component habitaction:freq:12:daily -> habitaction:freq:*:*
 component history:day:345:12:20270115 -> history:day:*:*:*
 component history:low:345:12 -> history:low:*:*
 component letgo:slip:12 -> letgo:slip:*
+component letgo:madeit:12 -> letgo:madeit:*
+component letgo:madeit-undo:12:20270115 -> letgo:madeit-undo:*:*
 component onboard:timezone:12 -> onboard:timezone:*
 component onboard:region:12 -> onboard:region:*
 component onboard:tz:12 -> onboard:tz:*

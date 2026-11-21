@@ -187,7 +187,7 @@ public class HistoryModule : InteractionModuleBase<SocketInteractionContext>
             var day = LetGoRules.DayOn(habit, today.AddDays(i + 1 - Days), tz);
             var date = day.Date.ToString(t.Get("date.button"), t.Culture);
             builder.WithButton(
-                day.State == LetGoDayState.BeforeStart ? date : $"{date} {HabitText.LetGoMark(day.State)}",
+                day.State == LetGoDayState.BeforeStart ? date : $"{date} {HabitText.LetGoMark(day)}",
                 HistoryIds.LetGo(habit.Id, day.Date),
                 ButtonStyle.Secondary,
                 disabled: true,

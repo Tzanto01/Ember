@@ -6,6 +6,7 @@ internal static class HabitActionIds
     public const string CheckInDonePattern = "habitaction:checkin:done:*";
     public const string CheckInSkipPattern = "habitaction:checkin:skip:*";
     public const string SlipPattern = "habitaction:slip:*";
+    public const string MadeItPattern = "habitaction:madeit:*";
     public const string DeleteConfirmPattern = "habitaction:delete:confirm:*";
 
     /// <summary>Cancels a delete; it has no arguments, so the id is its own handler pattern.</summary>
@@ -20,6 +21,8 @@ internal static class HabitActionIds
     public static string CheckInSkip(int habitId) => $"habitaction:checkin:skip:{habitId}";
 
     public static string Slip(int habitId) => $"habitaction:slip:{habitId}";
+
+    public static string MadeIt(int habitId) => $"habitaction:madeit:{habitId}";
 
     public static string DeleteConfirm(int habitId) => $"habitaction:delete:confirm:{habitId}";
 

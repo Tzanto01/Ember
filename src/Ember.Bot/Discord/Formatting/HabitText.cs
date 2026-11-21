@@ -83,6 +83,9 @@ internal static class HabitText
         _ => "▫️",
     };
 
+    /// <summary>The day's <see cref="LetGoMark(LetGoDayState)"/>, with a check after the 🌿 of a free day marked made it.</summary>
+    internal static string LetGoMark(LetGoDay day) => day.MadeIt ? "🌿✓" : LetGoMark(day.State);
+
     /// <summary>
     /// The reply after a check-in that added one: <paramref name="doneText"/> once the day is done (with the count for
     /// multi-count habits), else the count so far, for today or for <paramref name="dayLabel"/>.

@@ -41,15 +41,14 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
 
         if (habit.Kind == HabitKind.LetGo)
         {
-            var daysFree = LetGoRules.StatsOn(habit, await _settings.GetLocalTodayAsync(userId),
-                await _settings.GetTimeZoneAsync(userId)).DaysFree;
+            var today = await _settings.GetLocalTodayAsync(userId);
+            var tz = await _settings.GetTimeZoneAsync(userId);
+            var daysFree = LetGoRules.StatsOn(habit, today, tz).DaysFree;
             await ((SocketMessageComponent)Context.Interaction)
                 .UpdateAsync(m =>
                 {
                     m.Content = t.Format("habit.letgo.question", habit.Name, HabitText.DaysFreeText(t, daysFree));
-                    m.Components = new ComponentBuilder()
-                        .WithButton(t.Get("habit.letgo.slip-button"), HabitActionIds.Slip(habitId), ButtonStyle.Secondary)
-                        .Build();
+                    m.Components = LetGoButtons.Question(t, habit, LetGoRules.DayOn(habit, today, tz));
                 });
             return;
         }

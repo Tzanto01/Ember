@@ -1,3 +1,4 @@
+using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -21,6 +22,9 @@ namespace Ember.Bot.Modules;
 ///   habitaction:checkin:skip:{habitId}
 ///   habitaction:slip:{habitId}  (a let-go habit's "I slipped" from /habit checkin: today's slip, then the gentle line in place)
 ///   letgo:slip:{habitId}  (the same from a /habit list button, answered as a new ephemeral message)
+///   habitaction:madeit:{habitId}  (a let-go habit's "Made it today" from /habit checkin: marks today, then the warm line and Undo in place)
+///   letgo:madeit:{habitId}  (the same from a /habit list button, answered as a new ephemeral message)
+///   letgo:madeit-undo:{habitId}:{yyyyMMdd}  (takes that day's made-it mark back, then "Taken back." in place)
 ///   habitaction:delete:confirm:{habitId}
 ///   habitaction:delete:cancel
 ///   habitaction:edit:rename:{habitId}
@@ -228,6 +232,84 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             .UpdateAsync(m =>
             {
                 m.Content = text;
+                m.Components = new ComponentBuilder().Build();
+            });
+    }
+
+    // ── habitaction:madeit:{habitId} / letgo:madeit:{habitId} ──────────────────
+
+    [ComponentInteraction(HabitActionIds.MadeItPattern)]
+    public async Task OnMadeItAsync(string habitIdStr) => await MadeItAsync(habitIdStr, inPlace: true);
+
+    [ComponentInteraction(LetGoIds.MadeItPattern)]
+    public async Task OnListMadeItAsync(string habitIdStr) => await MadeItAsync(habitIdStr, inPlace: false);
+
+    /// <summary>
+    /// Marks the user's local today as made it (<see cref="HabitService.MarkMadeItAsync"/>) and answers with the warm line and an
+    /// undo for that day; a day that isn't free (a slip noted, paused) gets a short note and nothing is written.
+    /// </summary>
+    private async Task MadeItAsync(string habitIdStr, bool inPlace)
+    {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        if (!int.TryParse(habitIdStr, out var habitId)) { await BadIdAsync(t); return; }
+
+        var today = await _settings.GetLocalTodayAsync(userId);
+        switch (await _habits.MarkMadeItAsync(userId, habitId, today))
+        {
+            case MadeItResult.Saved:
+                break;
+            case MadeItResult.ConsentRequired:
+                await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
+                return;
+            case MadeItResult.HabitNotFound or MadeItResult.NotLetGo:
+                await NotFoundAsync(t);
+                return;
+            default:
+                await RespondAsync(t.Get("habit.letgo.made-it.not-free"), ephemeral: true);
+                return;
+        }
+
+        var text = t.Get("habit.letgo.made-it.ack");
+        var undo = LetGoButtons.Undo(t, habitId, today);
+        if (!inPlace)
+        {
+            await RespondAsync(text, components: undo, ephemeral: true);
+            return;
+        }
+
+        await ((SocketMessageComponent)Context.Interaction)
+            .UpdateAsync(m =>
+            {
+                m.Content = text;
+                m.Components = undo;
+            });
+    }
+
+    // ── letgo:madeit-undo:{habitId}:{yyyyMMdd} ─────────────────────────────────
+
+    [ComponentInteraction(LetGoIds.UndoMadeItPattern)]
+    public async Task OnUndoMadeItAsync(string habitIdStr, string dateStr)
+    {
+        var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
+        var t = await BotTexts.ForAsync(_habits, Context.Interaction);
+        if (!int.TryParse(habitIdStr, out var habitId)
+            || !DateOnly.TryParseExact(dateStr, HistoryIds.DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            await BadIdAsync(t);
+            return;
+        }
+
+        if (await _habits.RemoveMadeItAsync(userId, habitId, date) != MadeItResult.Saved)
+        {
+            await NotFoundAsync(t);
+            return;
+        }
+
+        await ((SocketMessageComponent)Context.Interaction)
+            .UpdateAsync(m =>
+            {
+                m.Content = t.Get("habit.letgo.made-it.undone");
                 m.Components = new ComponentBuilder().Build();
             });
     }
