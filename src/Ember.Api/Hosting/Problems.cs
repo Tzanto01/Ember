@@ -56,6 +56,18 @@ internal static class Problems
     public static IResult PasswordRequired() => Problem(StatusCodes.Status401Unauthorized, "password_required",
         "Enter your password to finish on this device.");
 
+    /// <summary>
+    /// A Discord sign-in that didn't go through, in the shape of Identity's own login failure:
+    /// type <c>unauthenticated</c> and detail <c>Failed</c>.
+    /// </summary>
+    public static IResult SignInFailed() => TypedResults.Problem(statusCode: StatusCodes.Status401Unauthorized, detail: "Failed");
+
+    /// <summary>
+    /// A Discord sign-in that still needs the second factor, in the shape of Identity's own login answer:
+    /// type <c>unauthenticated</c> and detail <c>RequiresTwoFactor</c>.
+    /// </summary>
+    public static IResult RequiresTwoFactor() => TypedResults.Problem(statusCode: StatusCodes.Status401Unauthorized, detail: "RequiresTwoFactor");
+
     public static IResult ConsentRequired() => Problem(StatusCodes.Status403Forbidden, "consent_required");
 
     /// <summary>Turning Fireside on needs the current Fireside consent (<see cref="FiresideService.CurrentConsentVersion"/>).</summary>

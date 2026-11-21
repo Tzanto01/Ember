@@ -119,18 +119,18 @@ internal static class DiscordEndpoints
             IMemoryCache cache, TimeProvider time) =>
         {
             var key = request.Code is { Length: > 0 } code ? NativeKey(code) : null;
-            if (key is null || !cache.TryGetValue(key, out NativeGrant? grant) || grant is null || !grant.TryTake()) return Failed();
+            if (key is null || !cache.TryGetValue(key, out NativeGrant? grant) || grant is null || !grant.TryTake()) return Problems.SignInFailed();
             if (grant.ExpiresUtc <= time.GetUtcNow() || !VerifierMatches(request.Verifier, grant.Challenge))
             {
                 cache.Remove(key);
-                return Failed();
+                return Problems.SignInFailed();
             }
 
             var user = await users.FindByIdAsync(grant.UserId.ToString());
             if (user is null)
             {
                 cache.Remove(key);
-                return Failed();
+                return Problems.SignInFailed();
             }
 
             if (user.TwoFactorEnabled)
@@ -144,13 +144,13 @@ internal static class DiscordEndpoints
                         cache.Set(key, grant, NativeTwoFactorLifetime);
                     }
                     grant.Release();
-                    return TypedResults.Problem("RequiresTwoFactor", statusCode: StatusCodes.Status401Unauthorized);
+                    return Problems.RequiresTwoFactor();
                 }
 
                 if (!await SecondFactorPassedAsync(users, user, request.TwoFactorCode, request.TwoFactorRecoveryCode))
                 {
                     grant.Release();
-                    return Failed();
+                    return Problems.SignInFailed();
                 }
             }
 
@@ -189,7 +189,7 @@ internal static class DiscordEndpoints
         {
             var user = await signIn.GetTwoFactorAuthenticationUserAsync();
             if (user is null || !user.TwoFactorEnabled || !await SecondFactorPassedAsync(users, user, request.Code, request.RecoveryCode))
-                return Failed();
+                return Problems.SignInFailed();
 
             await http.SignOutAsync(IdentityConstants.TwoFactorUserIdScheme);
             await signIn.SignInAsync(user, isPersistent: true, authenticationMethod: DiscordLogin.Provider);
@@ -372,8 +372,6 @@ internal static class DiscordEndpoints
     {
         public int Taken;
     }
-
-    private static IResult Failed() => TypedResults.Problem("Failed", statusCode: StatusCodes.Status401Unauthorized);
 
     /// <summary>
     /// A local ASCII path (a single leading <c>/</c>, no <c>//</c>, <c>/\</c> or control characters, also after percent-decoding),
