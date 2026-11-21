@@ -9,7 +9,7 @@ internal static class Problems
     [
         "validation", "unauthenticated", "forbidden", "consent_required", "antiforgery", "not_found",
         "habit_limit", "conflict", "before_habit_start", "in_future", "rate_limited", "internal",
-        "invalid_code", "password_required", "fireside_consent_required",
+        "invalid_code", "password_required", "fireside_consent_required", "expired",
     ];
 
     /// <summary>
