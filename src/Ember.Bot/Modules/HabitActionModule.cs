@@ -103,8 +103,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         await RespondAsync(embed: embed, components: components.Build(), ephemeral: true);
 
         // DM confirmation / onboarding
-        var allHabits = await _habits.GetHabitsAsync(userId);
-        if (allHabits.Count == 1)
+        if (await _habits.CountHabitsAsync(userId) == 1)
         {
             try
             {

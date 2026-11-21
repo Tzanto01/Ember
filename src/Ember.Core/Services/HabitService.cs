@@ -86,6 +86,28 @@ public partial class HabitService
     }
 
     /// <summary>
+    /// The user's habits in creation order with their slips but no logs or made-it days: enough to list them by name and schedule,
+    /// with <see cref="LetGoRules.StatsOn"/> for let-go habits.
+    /// </summary>
+    public Task<List<Habit>> GetHabitsWithSlipsAsync(Guid userId)
+        => _db.Habits
+            .Where(h => h.UserId == userId)
+            .Include(h => h.Slips)
+            .OrderBy(h => h.CreatedAt)
+            .ToListAsync();
+
+    /// <summary>The user's habits in creation order with only their logs of the local <paramref name="date"/> loaded.</summary>
+    public Task<List<Habit>> GetHabitsWithLogsOnAsync(Guid userId, DateOnly date)
+        => _db.Habits
+            .Where(h => h.UserId == userId)
+            .Include(h => h.Logs.Where(l => l.Date == date))
+            .OrderBy(h => h.CreatedAt)
+            .ToListAsync();
+
+    /// <summary>How many habits the user has.</summary>
+    public Task<int> CountHabitsAsync(Guid userId) => _db.Habits.CountAsync(h => h.UserId == userId);
+
+    /// <summary>
     /// Logs the habit as done (<see cref="HabitLog.Count"/> = <see cref="Habit.TimesPerDay"/>) or explicitly not done (count 0)
     /// on the user's local <paramref name="date"/>, replacing any earlier log of that day.
     /// Any day from the habit's local start day (<see cref="HabitRules.StartDate"/>) to the user's local today can be logged,
