@@ -1,4 +1,7 @@
+using System.Buffers.Text;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Microsoft.AspNetCore.Authentication;
@@ -112,6 +115,31 @@ internal sealed class AuthSessions(EmberDbContext db, IMemoryCache cache, TimePr
         return entry is not null && entry.UserId == userId && entry.ExpiresUtc > now;
     }
 
+    /// <summary>
+    /// Gives the session <paramref name="id"/> a new home screen widget key, which replaces (and so revokes) its earlier one. The session
+    /// stores only the key's SHA-256 of its UTF-8 bytes. Null when the session no longer exists.
+    /// </summary>
+    public async Task<string?> IssueWidgetKeyAsync(Guid id)
+    {
+        var key = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
+        var hash = WidgetKeyHash(key);
+        var updated = await db.AuthSessions.Where(s => s.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.WidgetKeyHash, hash));
+        return updated == 0 ? null : key;
+    }
+
+    /// <summary>The user of the live session that holds the widget <paramref name="key"/>, or null. Using the key doesn't extend the session.</summary>
+    public async Task<Guid?> FindWidgetUserAsync(string key)
+    {
+        var hash = WidgetKeyHash(key);
+        var now = time.GetUtcNow();
+        var session = await db.AuthSessions.AsNoTracking()
+            .Where(s => s.WidgetKeyHash == hash && s.ExpiresUtc > now)
+            .Select(s => new { s.UserId, s.WidgetKeyHash })
+            .FirstOrDefaultAsync();
+        return session?.WidgetKeyHash is { } stored && CryptographicOperations.FixedTimeEquals(stored, hash) ? session.UserId : null;
+    }
+
     public Task EndAsync(Guid id) => EndManyAsync([id]);
 
     /// <summary>
@@ -176,6 +204,8 @@ internal sealed class AuthSessions(EmberDbContext db, IMemoryCache cache, TimePr
             }
             await stampCheck(context);
         };
+
+    private static byte[] WidgetKeyHash(string key) => SHA256.HashData(Encoding.UTF8.GetBytes(key));
 
     private static string Key(Guid id) => "auth-session:" + id;
 

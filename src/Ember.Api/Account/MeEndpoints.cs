@@ -1,10 +1,7 @@
-using System.Buffers.Text;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Ember.Api.Auth;
-using Ember.Api.Habits;
 using Ember.Api.Hosting;
 using Ember.Core.Data;
 using Ember.Core.Localization;
@@ -13,7 +10,6 @@ using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Account;
 
@@ -149,16 +145,12 @@ internal static class MeEndpoints
                 $"ember-export-{time.GetUtcNow():yyyy-MM-dd}.{extension}");
         });
 
-        api.MapPost("/me/widget-key", async (HttpContext http, EmberDbContext db) =>
+        api.MapPost("/me/widget-key", async (HttpContext http, AuthSessions sessions) =>
         {
             if (!(await http.AuthenticateAsync(IdentityConstants.BearerScheme)).Succeeded || AuthSessions.IdOf(http.User) is not { } session)
                 return Problems.NotFound();
 
-            var key = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
-            var hash = WidgetEndpoints.KeyHash(key);
-            var updated = await db.AuthSessions.Where(s => s.Id == session)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.WidgetKeyHash, hash));
-            return updated == 0 ? Problems.Unauthenticated() : Results.Ok(new WidgetKeyDto(key));
+            return await sessions.IssueWidgetKeyAsync(session) is { } key ? Results.Ok(new WidgetKeyDto(key)) : Problems.Unauthenticated();
         });
 
         api.MapPost("/me/delete", async (DeleteRequest request, ClaimsPrincipal principal, UserManager<User> users,
