@@ -146,12 +146,12 @@ public sealed class WebPushReminderChannel : IReminderChannel
         var t = BotTexts.For(reminder.Language);
         var body = t.Get(reminder.LetGo ? "letgo.reminder.nameless" : reminder.Second ? "push.reminder.second" : "push.reminder.first");
         var namedBody = reminder.LetGo
-            ? t.Format("letgo.reminder", reminder.HabitName)
-            : t.Format((reminder.PendingHabits is null ? "push.reminder.habit" : "push.reminder.routine")
-                + (reminder.Second ? ".second" : ".first"), reminder.HabitName);
-        var url = reminder.LetGo ? $"/history/{reminder.HabitId}" : "/today";
+            ? t.Format("letgo.reminder", reminder.ItemName)
+            : t.Format((reminder.IsRoutine ? "push.reminder.routine" : "push.reminder.habit")
+                + (reminder.Second ? ".second" : ".first"), reminder.ItemName);
+        var url = reminder.LetGo ? $"/history/{reminder.ItemId}" : "/today";
         string? doneToken = null;
-        var tag = reminder.PendingHabits is null ? HabitTag(reminder.HabitId) : RoutineTag(reminder.HabitId);
+        var tag = reminder.IsRoutine ? RoutineTag(reminder.ItemId) : HabitTag(reminder.ItemId);
         var allowed = reminder.PushSubscriptionIds ?? [];
         using (var scope = _scopes.CreateScope())
         {
@@ -161,8 +161,8 @@ public sealed class WebPushReminderChannel : IReminderChannel
             if (subscriptions.Count == 0) return DeliveryOutcome.UserNotFound;
 
             liveSessions = await reminders.GetLiveSessionIdsAsync(reminder.UserId, cancellationToken);
-            if (reminder.PendingHabits is null && !reminder.LetGo && subscriptions.Any(s => s.SessionId is { } id && liveSessions.Contains(id)))
-                doneToken = await reminders.CreateReminderActionTokenAsync(reminder.UserId, reminder.HabitId, reminder.Day,
+            if (!reminder.IsRoutine && !reminder.LetGo && subscriptions.Any(s => s.SessionId is { } id && liveSessions.Contains(id)))
+                doneToken = await reminders.CreateReminderActionTokenAsync(reminder.UserId, reminder.ItemId, reminder.Day,
                     cancellationToken);
         }
 
@@ -177,7 +177,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
         {
             using var scope = _scopes.CreateScope();
             await scope.ServiceProvider.GetRequiredService<ReminderService>().AddPushReminderAsync(reminder.UserId,
-                reminder.PendingHabits is null ? reminder.HabitId : null, reminder.PendingHabits is null ? null : reminder.HabitId,
+                reminder.IsRoutine ? null : reminder.ItemId, reminder.IsRoutine ? reminder.ItemId : null,
                 reminder.Day, cancellationToken);
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)

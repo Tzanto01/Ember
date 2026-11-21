@@ -38,9 +38,9 @@ public class DiscordDmReminderChannel : IReminderChannel
     {
         if (reminder.DiscordUserId is not { } discordUserId) return DeliveryOutcome.UserNotFound;
         var (message, components) = reminder.LetGo
-            ? LetGoMessage(BotTexts.For(reminder.Language), reminder.HabitName, discordUserId)
+            ? LetGoMessage(BotTexts.For(reminder.Language), reminder.ItemName, discordUserId)
             : reminder.PendingHabits is { } pending
-            ? RoutineMessage(BotTexts.For(reminder.Language), reminder.HabitName, pending, reminder.Second, discordUserId)
+            ? RoutineMessage(BotTexts.For(reminder.Language), reminder.ItemName, pending, reminder.Second, discordUserId)
             : HabitMessage(reminder, discordUserId);
 
         var sent = await _discord.SendTrackedMessageAsync(discordUserId, message, components, cancellationToken);
@@ -54,7 +54,7 @@ public class DiscordDmReminderChannel : IReminderChannel
     private (string, MessageComponent) HabitMessage(Reminder reminder, ulong discordUserId)
     {
         var t = BotTexts.For(reminder.Language);
-        var name = reminder.HabitName;
+        var name = reminder.ItemName;
         string intro = t.Format(reminder.Snoozed
             ? "reminder.intro.snoozed"
             : reminder.RecentCompletions >= 4
@@ -69,9 +69,9 @@ public class DiscordDmReminderChannel : IReminderChannel
 
         var now = _time.GetUtcNow().ToUnixTimeSeconds();
         var components = new ComponentBuilder()
-            .WithButton(t.Get("reminder.done"), CheckInIds.Done(reminder.HabitId, now), ButtonStyle.Success)
-            .WithButton(ReminderDm.SkipLabel(t), CheckInIds.Skip(reminder.HabitId, now), ButtonStyle.Secondary)
-            .WithButton(t.Get("reminder.snooze"), CheckInIds.Snooze(reminder.HabitId, now), ButtonStyle.Secondary)
+            .WithButton(t.Get("reminder.done"), CheckInIds.Done(reminder.ItemId, now), ButtonStyle.Success)
+            .WithButton(ReminderDm.SkipLabel(t), CheckInIds.Skip(reminder.ItemId, now), ButtonStyle.Secondary)
+            .WithButton(t.Get("reminder.snooze"), CheckInIds.Snooze(reminder.ItemId, now), ButtonStyle.Secondary)
             .WithButton(DiscordRemindersAsk.StopButton(t, discordUserId), row: 1)
             .Build();
 
@@ -124,8 +124,8 @@ public class DiscordDmReminderChannel : IReminderChannel
         {
             using var scope = _scopes.CreateScope();
             var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
-            int? habitId = reminder.PendingHabits is null ? reminder.HabitId : null;
-            int? routineId = reminder.PendingHabits is null ? null : reminder.HabitId;
+            int? habitId = reminder.IsRoutine ? null : reminder.ItemId;
+            int? routineId = reminder.IsRoutine ? reminder.ItemId : null;
 
             var superseded = reminder.Second
                 ? await reminders.GetReminderMessagesAsync(habitId, routineId, reminder.Day)
@@ -149,7 +149,7 @@ public class DiscordDmReminderChannel : IReminderChannel
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not track the Discord reminder for {HabitId} of user {UserId}.", reminder.HabitId, reminder.UserId);
+            _logger.LogWarning(ex, "Could not track the Discord reminder for {HabitId} of user {UserId}.", reminder.ItemId, reminder.UserId);
         }
     }
 }

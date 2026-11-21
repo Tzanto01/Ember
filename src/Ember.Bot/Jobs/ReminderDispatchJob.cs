@@ -550,13 +550,13 @@ public class ReminderDispatchJob : IJob
             var outcome = await channel.SendAsync(reminder, cancellationToken);
             if (outcome != DeliveryOutcome.Delivered)
                 _logger.LogWarning("{Channel} reminder for habit {HabitId} to user {UserId} was not delivered: {Outcome}.",
-                    channel.Channel, reminder.HabitId, reminder.UserId, outcome);
+                    channel.Channel, reminder.ItemId, reminder.UserId, outcome);
             return (outcome, false);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send {Channel} reminder for habit {HabitId} to user {UserId}.",
-                channel.Channel, reminder.HabitId, reminder.UserId);
+                channel.Channel, reminder.ItemId, reminder.UserId);
             return (null, ReminderRetries.IsTransient(ex));
         }
     }

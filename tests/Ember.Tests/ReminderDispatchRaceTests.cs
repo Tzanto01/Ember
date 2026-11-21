@@ -76,7 +76,7 @@ internal static class Race
         time.Advance(TimeSpan.FromMinutes(1));
         await RunAsync(host);
 
-        channel.Sent.Should().ContainSingle().Which.HabitId.Should().Be(1);
+        channel.Sent.Should().ContainSingle().Which.ItemId.Should().Be(1);
         (await NextReminderAsync(host, 1)).Should().Be(edited);
     }
 
@@ -116,7 +116,7 @@ internal static class Race
         time.Advance(TimeSpan.FromMinutes(1));
         await RunAsync(host);
 
-        channel.Sent.Should().ContainSingle().Which.HabitId.Should().Be(1);
+        channel.Sent.Should().ContainSingle().Which.ItemId.Should().Be(1);
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Routines.Select(r => r.NextReminderUtc).SingleAsync()))
             .Should().Be(TodayThreeBerlin);
     }
