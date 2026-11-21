@@ -12,10 +12,10 @@ public partial class ReminderService
 {
     /// <summary>
     /// Bot only: creates a random 256-bit token (base64url) that checks in <paramref name="habitId"/> for the local
-    /// <paramref name="day"/> once, until <paramref name="expiresLocal"/> on the user's wall clock. Stores only its hash.
+    /// <paramref name="day"/> once, until the day's reminders expire on the user's wall clock (<see cref="ReminderExpiry.ExpiresLocal"/>).
+    /// Stores only its hash.
     /// </summary>
-    public async Task<string> CreateReminderActionTokenAsync(Guid userId, int habitId, DateOnly day, DateTime expiresLocal,
-        CancellationToken cancellationToken = default)
+    public async Task<string> CreateReminderActionTokenAsync(Guid userId, int habitId, DateOnly day, CancellationToken cancellationToken = default)
     {
         var token = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
         var tz = await _settings.GetTimeZoneAsync(userId);
@@ -25,7 +25,7 @@ public partial class ReminderService
             UserId = userId,
             HabitId = habitId,
             Day = day,
-            ExpiresUtc = TimeZones.LocalToUtc(expiresLocal, tz),
+            ExpiresUtc = TimeZones.LocalToUtc(ReminderExpiry.ExpiresLocal(day), tz),
         });
         await _db.SaveChangesAsync(cancellationToken);
         return token;

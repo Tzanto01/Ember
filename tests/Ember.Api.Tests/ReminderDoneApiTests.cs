@@ -21,7 +21,7 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
 
     /// <summary>A token for the habit on the host's today, expiring like a reminder: 10:00 local the next day.</summary>
     private Task<string> TokenAsync(Guid userId, int habitId)
-        => Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, habitId, Host.Today, Host.Today.AddDays(1).ToDateTime(new TimeOnly(10, 0))));
+        => Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, habitId, Host.Today));
 
     private Task<int?> CountAsync(int habitId, DateOnly day)
         => Host.Db(db => db.HabitLogs.Where(l => l.HabitId == habitId && l.Date == day).Select(l => (int?)l.Count).SingleOrDefaultAsync());
@@ -126,8 +126,8 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
     public async Task A_rejected_write_leaves_the_token_unused_instead_of_replaying_as_logged()
     {
         var (_, userId, habitId) = await HabitAsync();
-        var token = await Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, habitId, Host.Today.AddDays(-1),
-            Host.Today.ToDateTime(new TimeOnly(10, 0)).AddDays(1)));
+        await Host.Db(db => db.Users.Where(u => u.Id == userId).ExecuteUpdateAsync(s => s.SetProperty(u => u.Timezone, "Pacific/Honolulu")));
+        var token = await Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, habitId, Host.Today.AddDays(-1)));
 
         await (await Host.NewClient().Post(Done, new { token })).ExpectProblem(HttpStatusCode.Gone, "expired");
         await (await Host.NewClient().Post(Done, new { token })).ExpectProblem(HttpStatusCode.Gone, "expired");

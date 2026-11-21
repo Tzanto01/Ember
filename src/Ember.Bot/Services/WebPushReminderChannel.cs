@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Ember.Bot.Jobs;
 using Ember.Core.Localization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Lib.Net.Http.WebPush;
 using Lib.Net.Http.WebPush.Authentication;
@@ -22,7 +22,7 @@ namespace Ember.Bot.Services;
 /// A subscription the push service reports as gone (404/410) is deleted. Delivered when at least one subscription accepted the
 /// message; a delivered reminder is remembered (<see cref="ReminderService.AddPushReminderAsync"/>) until its item is done or it expires.
 /// A single-habit reminder also carries a "Done ✅" action with a one-time token (<see cref="ReminderService.CreateReminderActionTokenAsync"/>)
-/// that expires with the reminder (<see cref="ReminderDispatchJob.IsExpired"/>), sent only to subscriptions registered by a
+/// that expires with the reminder (<see cref="ReminderExpiry.IsExpired"/>), sent only to subscriptions registered by a
 /// sign-in session that is still live; other subscriptions and routine reminders get the plain payload.
 /// A let-go habit's reminder (<see cref="Reminder.LetGo"/>) is the quiet check-in text (nameless unless the subscription opted in) with
 /// no action and no token, opens <c>/history/{habitId}</c> and is not remembered.
@@ -163,7 +163,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
             liveSessions = await reminders.GetLiveSessionIdsAsync(reminder.UserId, cancellationToken);
             if (reminder.PendingHabits is null && !reminder.LetGo && subscriptions.Any(s => s.SessionId is { } id && liveSessions.Contains(id)))
                 doneToken = await reminders.CreateReminderActionTokenAsync(reminder.UserId, reminder.HabitId, reminder.Day,
-                    reminder.Day.AddDays(1).ToDateTime(new TimeOnly(MissedDayReflectionJob.LocalSendHour, 0)), cancellationToken);
+                    cancellationToken);
         }
 
         var delivered = await SendAsync(reminder.UserId, subscriptions,

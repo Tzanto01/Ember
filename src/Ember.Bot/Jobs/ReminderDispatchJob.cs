@@ -34,7 +34,7 @@ namespace Ember.Bot.Jobs;
 /// A <see cref="Core.Models.HabitKind.LetGo"/> habit's reminder is its quiet check-in (<see cref="Reminder.LetGo"/>): sent at its time
 /// unless stale or paused that day (no done, weekly or low-day checks), never snoozed and never followed by a second reminder.
 /// Each run then closes the open Discord reminder messages whose habits are done for their day, or whose buttons expired
-/// (<see cref="IsExpired"/>), and for each web push reminder delivered for an item that is now done for its day sends the clear push
+/// (<see cref="ReminderExpiry.IsExpired"/>), and for each web push reminder delivered for an item that is now done for its day sends the clear push
 /// (<see cref="WebPushReminderChannel.SendClearAsync"/>) to the user's push subscriptions that are targets of that item; then forgets
 /// it, as it forgets expired ones without a push.
 /// </summary>
@@ -69,13 +69,6 @@ public class ReminderDispatchJob : IJob
         _logger = logger;
         _time = time;
     }
-
-    /// <summary>
-    /// True once a reminder for the local <paramref name="day"/> can no longer be used: from <see cref="MissedDayReflectionJob.LocalSendHour"/>:00
-    /// local time on the next day, when the "Log yesterday" check-in takes over.
-    /// </summary>
-    public static bool IsExpired(DateOnly day, DateTime localNow)
-        => localNow >= day.AddDays(1).ToDateTime(new TimeOnly(MissedDayReflectionJob.LocalSendHour, 0));
 
     public Task Execute(IJobExecutionContext context) => RunAsync(context.CancellationToken);
 
@@ -196,7 +189,7 @@ public class ReminderDispatchJob : IJob
         foreach (var (reminder, timezone, habitDone) in open)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            var expired = IsExpired(reminder.Date, TimeZones.LocalNow(timezone, _time.GetUtcNow()).DateTime);
+            var expired = ReminderExpiry.IsExpired(reminder.Date, TimeZones.LocalNow(timezone, _time.GetUtcNow()).DateTime);
             if (reminder.HabitId is not null && !habitDone && !expired) continue;
             try
             {
@@ -247,7 +240,7 @@ public class ReminderDispatchJob : IJob
         foreach (var (message, timezone, habitDone, language) in open)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            var expired = IsExpired(message.Date, TimeZones.LocalNow(timezone, _time.GetUtcNow()).DateTime);
+            var expired = ReminderExpiry.IsExpired(message.Date, TimeZones.LocalNow(timezone, _time.GetUtcNow()).DateTime);
             if (message.HabitId is not null && !habitDone && !expired) continue;
             try
             {

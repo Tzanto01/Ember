@@ -26,8 +26,11 @@ public class MissedDayReflectionJob : IJob
 {
     public static readonly JobKey Key = new("missed-day-reflection", "reflections");
 
-    /// <summary>Local hour at which each user receives the reflection.</summary>
-    public const int LocalSendHour = 10;
+    /// <summary>
+    /// Local hour at which each user receives the reflection: when the reminders of the day before expire
+    /// (<see cref="ReminderExpiry.LocalHour"/>).
+    /// </summary>
+    public const int LocalSendHour = ReminderExpiry.LocalHour;
 
     /// <summary>How many <c>missedday.closing.N</c> lines the reflection rotates through, one per day.</summary>
     private const int ClosingLineCount = 5;

@@ -3,9 +3,9 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
-using Ember.Bot.Jobs;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
+using Ember.Core.Rules;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -15,7 +15,7 @@ namespace Ember.Bot.Modules;
 /// Handles the "Done ✅", "Skip for today" and "Snooze 1h ⏰" button interactions sent in DM reminders.
 /// Custom ids: <see cref="CheckInIds"/>.
 /// Done and skip log the user's local day the reminder was sent on, until the reminder expires
-/// (<see cref="ReminderDispatchJob.IsExpired"/>); after that they close the message instead.
+/// (<see cref="ReminderExpiry.IsExpired"/>); after that they close the message instead.
 /// Snooze only works within <see cref="ReminderService.SnoozeWindow"/> of the send time and while the snoozed reminder stays on the local day
 /// the reminder was sent.
 /// A tap that removes a reminder's buttons forgets its <see cref="Core.Models.ReminderMessage"/>.
@@ -55,7 +55,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
         string timestampStr, IEnumerable<IMessageComponent> components)
     {
         if (await SentDayAsync(settings, userId, timestampStr) is not { } day
-            || !ReminderDispatchJob.IsExpired(day, TimeZoneInfo.ConvertTime(time.GetUtcNow(), await settings.GetTimeZoneAsync(userId)).DateTime))
+            || !ReminderExpiry.IsExpired(day, TimeZoneInfo.ConvertTime(time.GetUtcNow(), await settings.GetTimeZoneAsync(userId)).DateTime))
             return null;
 
         var habitIds = components.OfType<ActionRowComponent>().SelectMany(r => r.Components).OfType<ButtonComponent>()

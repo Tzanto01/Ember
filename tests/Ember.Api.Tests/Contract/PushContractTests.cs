@@ -59,20 +59,20 @@ public class PushContractTests(PostgresFixture postgres) : ContractTestBase(post
         var userId = await user.IdAsync();
         var habit = (await user.CreateHabitAsync("Water")).GetProperty("id").GetInt32();
         var letGo = (await (await user.Post("/api/habits", new { name = "Coffee", kind = "letGo", frequency = "daily" })).ExpectJson(HttpStatusCode.Created)).GetProperty("id").GetInt32();
-        Task<string> Token(int id, TimeSpan lifetime)
-            => Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, id, Host.Today, Host.Time.GetUtcNow().UtcDateTime + lifetime));
+        Task<string> Token(int id, DateOnly day)
+            => Host.Service<ReminderService, string>(r => r.CreateReminderActionTokenAsync(userId, id, day));
 
         var anonymous = Host.NewClient();
-        var token = await Token(habit, TimeSpan.FromHours(10));
+        var token = await Token(habit, Host.Today);
         await Rec("done.ok", Done, anonymous.Post(Done, new { token }));
         await Rec("done.again", Done, anonymous.Post(Done, new { token }));
         await Rec("done.unknown-token", Done, anonymous.Post(Done, new { token = "unknown" }));
         await Rec("done.missing-token", Done, anonymous.Post(Done, new { }));
         await Rec("done.token-too-long", Done, anonymous.Post(Done, new { token = new string('a', 129) }));
-        await Rec("done.let-go", Done, anonymous.Post(Done, new { token = await Token(letGo, TimeSpan.FromHours(10)) }));
+        await Rec("done.let-go", Done, anonymous.Post(Done, new { token = await Token(letGo, Host.Today) }));
 
-        var expiring = await Token(habit, TimeSpan.FromMinutes(5));
-        var withdrawn = await Token(habit, TimeSpan.FromHours(10));
+        var expiring = await Token(habit, Host.Today.AddDays(-2));
+        var withdrawn = await Token(habit, Host.Today);
         Host.Time.Advance(TimeSpan.FromMinutes(10));
         await Rec("done.expired", Done, anonymous.Post(Done, new { token = expiring }));
         await user.Post("/api/me/consent/withdraw");

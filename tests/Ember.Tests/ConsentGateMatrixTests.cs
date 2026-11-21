@@ -40,7 +40,7 @@ public class ConsentGateMatrixTests
     private static readonly Dictionary<string, Func<ReminderService, int, int, Task<string>>> ReminderOperations = new()
     {
         ["UseReminderActionToken"] = (s, b, _) => Outcome(async () =>
-            await s.UseReminderActionTokenAsync(await s.CreateReminderActionTokenAsync(UserId, b, Today, Now.UtcDateTime.AddHours(5)))),
+            await s.UseReminderActionTokenAsync(await s.CreateReminderActionTokenAsync(UserId, b, Today))),
     };
 
     private static readonly Dictionary<string, Func<AccountService, int, int, Task<string>>> AccountOperations = new()

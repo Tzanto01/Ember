@@ -369,7 +369,7 @@ v1.8 (2026-11-10, Nico): old reminder buttons disappear once they can no longer 
 ### Reminder buttons close (Discord)
 
 - A Discord reminder (habit or routine) keeps its buttons from the moment it is sent until the first of:
-  1. 10:00 local time on the day after the reminder's local day (`MissedDayReflectionJob.LocalSendHour`, when the "Log yesterday" check-in takes over) *(default)*;
+  1. 10:00 local time on the day after the reminder's local day (`ReminderExpiry.ExpiresLocal`, when the "Log yesterday" check-in takes over) *(default)*;
   2. every habit on it being done for that day, logged anywhere (bot, web, app, widget);
   3. a second reminder for the same habit or routine and day being sent (see below);
   4. the user tapping a button on it (as today).
@@ -405,7 +405,7 @@ v1.10 (2026-11-11, Nico: "Done action on reminders outside Discord", including o
 
 - The bot creates one random 256-bit token (base64url, 43 characters) per sent reminder, shared by the user's push subscriptions. The database stores only its SHA-256 hash, with the user, habit and the reminder's local day; a lookup is by hash. Tokens are never logged.
 - Only push subscriptions registered by a sign-in session that is still live (not ended, not expired) get the token; any other subscription (saved before v1.10, or its session expired) gets the plain nudge without "Done".
-- A token expires when the reminder's Discord buttons would (10:00 local time on the day after the reminder's day, `ReminderDispatchJob.IsExpired`), works once, and is deleted with the user or habit. An account merge moves them with the habits. Expired tokens are purged by the daily account cleanup job. Not part of the export.
+- A token expires when the reminder's Discord buttons would (10:00 local time on the day after the reminder's day, `ReminderExpiry.IsExpired`), works once, and is deleted with the user or habit. An account merge moves them with the habits. Expired tokens are purged by the daily account cleanup job. Not part of the export.
 
 ### Push subscriptions follow their session
 
