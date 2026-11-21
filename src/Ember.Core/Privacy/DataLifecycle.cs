@@ -137,5 +137,7 @@ public static class DataLifecycle
             "A pseudonymous reference for the feedback board.", MergeRule.Moves, ""),
         new(typeof(LookoutOutbox), "UserRef (no foreign key)", WithdrawalRule.Kept, false, ExportRule.Never,
             "The queue to the feedback board, keyed by reference, not by user.", MergeRule.Untouched, ""),
+        new(typeof(LookoutDiagnostic), "None (anonymous uploads)", WithdrawalRule.Kept, false, ExportRule.Never,
+            "Anonymous diagnostics uploads queued for the feedback board, not tied to a user.", MergeRule.Untouched, ""),
     ];
 }

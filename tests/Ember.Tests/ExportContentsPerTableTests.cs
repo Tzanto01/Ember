@@ -56,6 +56,7 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
         [typeof(Warmth)] = ["zz-warmth-msg"],
         [typeof(LookoutUserRef)] = ["zz-marker-lookout-ref"],
         [typeof(LookoutOutbox)] = ["zz-marker-outbox-key"],
+        [typeof(LookoutDiagnostic)] = ["zz-marker-diag-key", "zz-marker-diag-body"],
     };
 
     private static readonly string[] SecretMarkers = ["zz-marker-password-hash", "zz-marker-email-code-hash"];
@@ -128,6 +129,8 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
             db.Warmth.Add(new Warmth { FromUserId = FriendId, ToUserId = UserId, Message = "zz-warmth-msg", SentAtUtc = Now.UtcDateTime });
             db.LookoutUserRefs.Add(new LookoutUserRef { Ref = "zz-marker-lookout-ref", UserId = UserId, CreatedAt = Now.UtcDateTime });
             db.LookoutOutbox.Add(new LookoutOutbox { Kind = LookoutOutbox.Ticket, Key = "zz-marker-outbox-key", Feedback = feedback, CreatedAt = Now.UtcDateTime });
+            db.LookoutDiagnostics.Add(new LookoutDiagnostic
+            { Key = "zz-marker-diag-key", Ref = "EMB-ZZ000000", Body = "zz-marker-diag-body"u8.ToArray(), CreatedAt = Now.UtcDateTime });
             db.Set<IdentityUserClaim<Guid>>().Add(new IdentityUserClaim<Guid>
             { UserId = UserId, ClaimType = "zz-marker-claim-type", ClaimValue = "zz-marker-claim-value" });
             db.Set<IdentityUserToken<Guid>>().Add(new IdentityUserToken<Guid>

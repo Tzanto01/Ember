@@ -37,6 +37,7 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
     public DbSet<Warmth> Warmth => Set<Warmth>();
     public DbSet<LookoutUserRef> LookoutUserRefs => Set<LookoutUserRef>();
     public DbSet<LookoutOutbox> LookoutOutbox => Set<LookoutOutbox>();
+    public DbSet<LookoutDiagnostic> LookoutDiagnostics => Set<LookoutDiagnostic>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -390,6 +391,16 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
                   .WithMany()
                   .HasForeignKey(o => o.FeedbackId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LookoutDiagnostic>(entity =>
+        {
+            entity.HasKey(d => d.Id);
+            entity.Property(d => d.Key).HasMaxLength(32).IsRequired();
+            entity.Property(d => d.Ref).HasMaxLength(12).IsRequired();
+            entity.Property(d => d.Body).IsRequired();
+            entity.HasIndex(d => d.Key).IsUnique();
+            entity.HasIndex(d => d.Ref).IsUnique();
         });
     }
 }
