@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Ember.Api.Auth;
 using Ember.Api.Habits;
 using Ember.Api.Hosting;
 using Ember.Api.Journal;
@@ -57,7 +58,7 @@ internal static class ImportEndpoints
                 return Problems.Validation("format_version", $"Must be {ExportBuilder.CurrentFormatVersion}.");
 
             if (doc.JournalKey is not null && await users.GetUserAsync(principal) is { } user
-                && await JournalEndpoints.PasswordProblem(user, doc.JournalKey.Password, users, signIn) is { } passwordProblem)
+                && await PasswordChecks.PasswordProblemAsync(user, doc.JournalKey.Password, users, signIn) is { } passwordProblem)
                 return passwordProblem;
 
             if (doc.Habits?.Count > Limits.HabitsPerUser) return Problems.HabitLimit();

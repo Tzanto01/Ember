@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Ember.Api.Auth;
 using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -211,7 +212,7 @@ internal static class JournalEndpoints
 
             var user = await users.GetUserAsync(principal);
             if (user is null) return Problems.Unauthenticated();
-            if (await PasswordProblem(user, request.Password, users, signIn) is { } problem) return problem;
+            if (await PasswordChecks.PasswordProblemAsync(user, request.Password, users, signIn) is { } problem) return problem;
 
             return await journal.PutJournalKeyAsync(user.Id, material!, request.IfVersion) is { } key
                 ? Results.Ok(ToDto(key))
@@ -223,7 +224,7 @@ internal static class JournalEndpoints
         {
             var user = await users.GetUserAsync(principal);
             if (user is null) return Problems.Unauthenticated();
-            if (await PasswordProblem(user, request?.Password, users, signIn) is { } problem) return problem;
+            if (await PasswordChecks.PasswordProblemAsync(user, request?.Password, users, signIn) is { } problem) return problem;
 
             return await journal.TurnOffJournalAsync(user.Id) is { } key ? Results.Ok(ToDto(key)) : Problems.NotFound();
         }).RequireRateLimiting(RateLimits.AuthPolicy);
@@ -233,7 +234,7 @@ internal static class JournalEndpoints
         {
             var user = await users.GetUserAsync(principal);
             if (user is null) return Problems.Unauthenticated();
-            if (await PasswordProblem(user, request?.Password, users, signIn) is { } problem) return problem;
+            if (await PasswordChecks.PasswordProblemAsync(user, request?.Password, users, signIn) is { } problem) return problem;
 
             return await journal.DeleteJournalKeyAsync(user.Id, request?.DiscardEncrypted == true)
                 ? Results.NoContent()
@@ -245,13 +246,6 @@ internal static class JournalEndpoints
 
     private static IResult MoodLimit()
         => Problems.Conflict($"You already have {JournalService.MaxActiveMoodsPerUser} active moods. Archive one to add another.");
-
-    /// <summary>A 400 on <c>password</c> when the account has a login password and <paramref name="password"/> isn't it (counts toward lockout), else null.</summary>
-    internal static async Task<IResult?> PasswordProblem(User user, string? password, UserManager<User> users, SignInManager<User> signIn)
-        => await users.HasPasswordAsync(user)
-            && !(await signIn.CheckPasswordSignInAsync(user, password ?? "", lockoutOnFailure: true)).Succeeded
-                ? Problems.Validation("password", "The password is not correct.")
-                : null;
 
     private static async Task<bool> IsAllowedMoodAsync(Guid userId, DateOnly day, string mood, JournalService journal)
     {

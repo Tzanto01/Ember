@@ -298,15 +298,15 @@ internal static class DiscordEndpoints
 
     /// <summary>
     /// The authenticator <paramref name="code"/> or else the <paramref name="recoveryCode"/> of an account that isn't locked out.
-    /// A failed recovery code counts towards lockout (a failed authenticator code does in <see cref="TwoFactorEndpoints.CheckCodeAsync"/>);
-    /// a pass resets the count.
+    /// A failed recovery code counts towards lockout (a failed authenticator code does in
+    /// <see cref="PasswordChecks.CheckAuthenticatorCodeAsync"/>); a pass resets the count.
     /// </summary>
     private static async Task<bool> SecondFactorPassedAsync(UserManager<User> users, User user, string? code, string? recoveryCode)
     {
         if (await users.IsLockedOutAsync(user)) return false;
 
         var passed = code is { Length: > 0 }
-            ? await TwoFactorEndpoints.CheckCodeAsync(users, user, code)
+            ? await PasswordChecks.CheckAuthenticatorCodeAsync(users, user, code)
             : recoveryCode is { Length: > 0 } && (await users.RedeemTwoFactorRecoveryCodeAsync(user, recoveryCode)).Succeeded;
         if (!passed)
         {
