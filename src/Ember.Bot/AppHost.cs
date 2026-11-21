@@ -100,12 +100,13 @@ public static class AppHost
                 services.AddHttpClient(FeedbackModule.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(15))
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
                     .RemoveAllLoggers();
-                services.AddHttpClient(WebPushReminderChannel.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10))
+                services.AddHttpClient(WebPushSender.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10))
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
                     .RemoveAllLoggers();
-                if (WebPushReminderChannel.IsConfigured(context.Configuration))
+                if (WebPushSender.IsConfigured(context.Configuration))
                 {
-                    services.AddSingleton(WebPushReminderChannel.CreateVapidAuthentication(context.Configuration));
+                    services.AddSingleton(WebPushSender.CreateVapidAuthentication(context.Configuration));
+                    services.AddSingleton<WebPushSender>();
                     services.AddSingleton<IReminderChannel, WebPushReminderChannel>();
                 }
 

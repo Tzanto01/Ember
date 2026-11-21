@@ -238,7 +238,7 @@ public class ReminderBoundaryTests
         var (publicKey, privateKey) = NewKeyPair();
         await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(sentAt),
             args: [$"--WebPush:PublicKey={publicKey}", $"--WebPush:PrivateKey={privateKey}", "--WebPush:Subject=mailto:test@example.test"],
-            configureServices: services => services.AddHttpClient(WebPushReminderChannel.HttpClientName)
+            configureServices: services => services.AddHttpClient(WebPushSender.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => push));
         await host.WithScopeAsync(async sp =>
         {

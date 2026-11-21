@@ -140,7 +140,7 @@ public class NotificationLanguageTests
             [DueHabit(4, 40, "Lesen")],
             args: [$"--WebPush:PublicKey={Base64Url(PublicKey(vapidKey.Q))}", $"--WebPush:PrivateKey={Base64Url(vapidKey.D!)}",
                 "--WebPush:Subject=mailto:test@example.test"],
-            configureServices: services => services.AddHttpClient(WebPushReminderChannel.HttpClientName)
+            configureServices: services => services.AddHttpClient(WebPushSender.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => push),
             seed: db => db.PushSubscriptions.Add(new Ember.Core.Models.PushSubscription
             {

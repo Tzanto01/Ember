@@ -35,7 +35,7 @@ namespace Ember.Bot.Jobs;
 /// unless stale or paused that day (no done, weekly or low-day checks), never snoozed and never followed by a second reminder.
 /// Each run then closes the open Discord reminder messages whose habits are done for their day, or whose buttons expired
 /// (<see cref="ReminderExpiry.IsExpired"/>), and for each web push reminder delivered for an item that is now done for its day sends the clear push
-/// (<see cref="WebPushReminderChannel.SendClearAsync"/>) to the user's push subscriptions that are targets of that item; then forgets
+/// (<see cref="WebPushSender.SendClearAsync"/>) to the user's push subscriptions that are targets of that item; then forgets
 /// it, as it forgets expired ones without a push.
 /// </summary>
 [DisallowConcurrentExecution]
@@ -52,13 +52,14 @@ public class ReminderDispatchJob : IJob
     private readonly ILogger<ReminderDispatchJob> _logger;
     private readonly TimeProvider _time;
     private readonly ReminderRetries _retries;
+    private readonly WebPushSender? _push;
 
     private const string HabitKind = "habit", RoutineKind = "routine", SecondHabitKind = "second-habit", SecondRoutineKind = "second-routine";
 
     private enum Delivery { Delivered, NotDelivered, Retry }
 
     public ReminderDispatchJob(IServiceProvider services, IEnumerable<IReminderChannel> channels, IDiscordDmSender discord,
-        ILogger<ReminderDispatchJob> logger, TimeProvider time, ReminderRetries retries)
+        ILogger<ReminderDispatchJob> logger, TimeProvider time, ReminderRetries retries, WebPushSender? push = null)
     {
         _retries = retries;
         _services = services;
@@ -66,6 +67,7 @@ public class ReminderDispatchJob : IJob
         _discord = discord;
         _logger = logger;
         _time = time;
+        _push = push;
     }
 
     public Task Execute(IJobExecutionContext context) => RunAsync(context.CancellationToken);
@@ -183,7 +185,6 @@ public class ReminderDispatchJob : IJob
         using (var scope = _services.CreateScope())
             open = await scope.ServiceProvider.GetRequiredService<ReminderService>().GetPushRemindersAsync(cancellationToken);
 
-        var push = _channels.OfType<WebPushReminderChannel>().FirstOrDefault();
         foreach (var (reminder, timezone, habitDone) in open)
         {
             if (cancellationToken.IsCancellationRequested) return;
@@ -201,16 +202,16 @@ public class ReminderDispatchJob : IJob
                     if (reminder.HabitId is { } habitId)
                     {
                         if (await reminders.GetHabitWithUserAsync(habitId, cancellationToken) is { } habit)
-                            (user, exclusions, tag) = (habit.User, habit.ReminderExclusions, WebPushReminderChannel.HabitTag(habitId));
+                            (user, exclusions, tag) = (habit.User, habit.ReminderExclusions, WebPushSender.HabitTag(habitId));
                     }
                     else if (await reminders.GetRoutineWithUserAsync(reminder.RoutineId!.Value, cancellationToken) is { } routine)
                     {
                         if (!HabitRules.IsRoutineDone(routine, reminder.Date)) continue;
-                        (user, exclusions, tag) = (routine.User, routine.ReminderExclusions, WebPushReminderChannel.RoutineTag(routine.Id));
+                        (user, exclusions, tag) = (routine.User, routine.ReminderExclusions, WebPushSender.RoutineTag(routine.Id));
                     }
-                    if (user is not null && push is not null
+                    if (user is not null && _push is not null
                         && ReminderDestinations.Resolve(user, exclusions).PushSubscriptionIds is { Count: > 0 } ids)
-                        await push.SendClearAsync(user.Id, ids, tag, user.Language, cancellationToken);
+                        await _push.SendClearAsync(user.Id, ids, tag, user.Language, cancellationToken);
                 }
                 await reminders.DeletePushReminderAsync(reminder.Id, CancellationToken.None);
             }

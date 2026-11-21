@@ -30,15 +30,14 @@ public class FiresideNotifyJob : IJob
 
     private readonly IServiceProvider _services;
     private readonly IDiscordDmSender _discord;
-    private readonly WebPushReminderChannel? _push;
+    private readonly WebPushSender? _push;
     private readonly ILogger<FiresideNotifyJob> _logger;
 
-    public FiresideNotifyJob(IServiceProvider services, IDiscordDmSender discord, IEnumerable<IReminderChannel> channels,
-        ILogger<FiresideNotifyJob> logger)
+    public FiresideNotifyJob(IServiceProvider services, IDiscordDmSender discord, ILogger<FiresideNotifyJob> logger, WebPushSender? push = null)
     {
         _services = services;
         _discord = discord;
-        _push = channels.OfType<WebPushReminderChannel>().FirstOrDefault();
+        _push = push;
         _logger = logger;
     }
 

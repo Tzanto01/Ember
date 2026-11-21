@@ -20,13 +20,13 @@ public class FiresideNotifyTests
 {
     private static readonly DateTimeOffset Now = new(2027, 1, 15, 8, 0, 0, TimeSpan.Zero);
 
-    private static async Task<(IntegrationTestHost Host, FakePushService Push)> CreateAsync()
+    private static async Task<(IntegrationTestHost Host, FakePushService Push)> CreateAsync(bool withVapid = true)
     {
         var push = new FakePushService();
         var (publicKey, privateKey) = NewKeyPair();
         var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(Now),
-            args: [$"--WebPush:PublicKey={publicKey}", $"--WebPush:PrivateKey={privateKey}", "--WebPush:Subject=mailto:test@example.test"],
-            configureServices: services => services.AddHttpClient(WebPushReminderChannel.HttpClientName)
+            args: withVapid ? [$"--WebPush:PublicKey={publicKey}", $"--WebPush:PrivateKey={privateKey}", "--WebPush:Subject=mailto:test@example.test"] : null,
+            configureServices: services => services.AddHttpClient(WebPushSender.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => push));
         return (host, push);
     }
@@ -113,6 +113,22 @@ public class FiresideNotifyTests
         var receiverLink = await LinkIdAsync(host, 10, 20);
         ButtonIds(dm.Components).Should().Equal($"fireside:back:{receiverLink}", $"fireside:ok:{receiverLink}:{await WarmthIdAsync(host, 10)}");
         push.Endpoints.Should().Equal(Endpoint(10));
+    }
+
+    [Fact]
+    public async Task Without_web_push_keys_new_warmth_still_reaches_the_receiver_by_discord_dm_and_pushes_nothing()
+    {
+        var (host, push) = await CreateAsync(withVapid: false);
+        await using var hostScope = host;
+        await SeedAsync(host, 10, "Rae", notify: true, push: true);
+        await SeedAsync(host, 20, "Sam");
+        await LinkAsync(host, 10, "Rae", 20, "Sam");
+        await SendAsync(host, 20, 10);
+
+        await RunJobAsync(host);
+
+        host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(10UL);
+        push.Endpoints.Should().BeEmpty();
     }
 
     [Fact]

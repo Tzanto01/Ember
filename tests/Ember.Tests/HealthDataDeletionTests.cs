@@ -25,7 +25,7 @@ public class HealthDataDeletionTests
         var (publicKey, privateKey) = NewKeyPair();
         var host = await IntegrationTestHost.CreateAsync(start: false, time: time,
             args: [$"--WebPush:PublicKey={publicKey}", $"--WebPush:PrivateKey={privateKey}", "--WebPush:Subject=mailto:test@example.test"],
-            configureServices: services => services.AddHttpClient(WebPushReminderChannel.HttpClientName)
+            configureServices: services => services.AddHttpClient(WebPushSender.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => push));
         return (host, push);
     }
@@ -150,6 +150,23 @@ public class HealthDataDeletionTests
 
         push.Count.Should().Be(1);
         (await ClaimAsync(host, 14)).Should().Be(time.GetUtcNow().UtcDateTime);
+    }
+
+    [Fact]
+    public async Task Without_web_push_keys_a_user_with_only_push_subscriptions_has_no_target_and_keeps_the_claim()
+    {
+        var time = new FakeTimeProvider(Now);
+        var push = new FakePushService();
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: time,
+            configureServices: services => services.AddHttpClient(WebPushSender.HttpClientName)
+                .ConfigurePrimaryHttpMessageHandler(() => push));
+        await SeedWithdrawnUserAsync(host, 18, discord: false, push: true);
+
+        time.Advance(TimeSpan.FromDays(27));
+        await RunJobAsync(host);
+
+        push.Count.Should().Be(0);
+        (await ClaimAsync(host, 18)).Should().Be(time.GetUtcNow().UtcDateTime);
     }
 
     [Fact]

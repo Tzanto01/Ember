@@ -1,25 +1,17 @@
-using System.Net;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
-using Lib.Net.Http.WebPush;
-using Lib.Net.Http.WebPush.Authentication;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using WebPushSubscription = Lib.Net.Http.WebPush.PushSubscription;
 
 namespace Ember.Bot.Services;
 
 /// <summary>
-/// Sends reminders as Web Push notifications (VAPID, aes128gcm) to the user's push subscriptions in
+/// Sends reminders as Web Push notifications through <see cref="WebPushSender"/> to the user's push subscriptions in
 /// <see cref="Reminder.PushSubscriptionIds"/>. The notification names no habit, since it can show on a lock screen, unless the
 /// subscription opted in (<see cref="Core.Models.PushSubscription.ShowNames"/>); then it names the habit or routine. Its tag
-/// (<see cref="HabitTag"/>, <see cref="RoutineTag"/>) lets a later reminder or the clear push (<see cref="SendClearAsync"/>) replace it.
-/// A subscription the push service reports as gone (404/410) is deleted. Delivered when at least one subscription accepted the
+/// (<see cref="WebPushSender.HabitTag"/>, <see cref="WebPushSender.RoutineTag"/>) lets a later reminder or the clear push
+/// (<see cref="WebPushSender.SendClearAsync"/>) replace it. Delivered when at least one subscription accepted the
 /// message; a delivered reminder is remembered (<see cref="ReminderService.AddPushReminderAsync"/>) until its item is done or it expires.
 /// A single-habit reminder also carries a "Done ✅" action with a one-time token (<see cref="ReminderService.CreateReminderActionTokenAsync"/>)
 /// that expires with the reminder (<see cref="ReminderExpiry.IsExpired"/>), sent only to subscriptions registered by a
@@ -29,112 +21,21 @@ namespace Ember.Bot.Services;
 /// </summary>
 public sealed class WebPushReminderChannel : IReminderChannel
 {
-    /// <summary>Name of the <see cref="IHttpClientFactory"/> client used to reach push services.</summary>
-    public const string HttpClientName = "web-push";
-
-    /// <summary>How long (seconds) a push service keeps an undelivered reminder; a later one is pointless.</summary>
-    public const int TimeToLiveSeconds = 12 * 60 * 60;
-
-    private static readonly JsonSerializerOptions PayloadJson = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
-
     /// <summary>The Angular service worker notification payload, in English.</summary>
-    public static readonly string Payload = BuildPayload(BotTexts.English.Get("push.reminder.first"));
+    public static readonly string Payload = WebPushSender.BuildPayload(BotTexts.English.Get("push.reminder.first"));
 
     /// <summary>The payload of a second reminder, in English: the same notification with its own body.</summary>
-    public static readonly string SecondPayload = BuildPayload(BotTexts.English.Get("push.reminder.second"));
-
-    /// <summary>The notification tag of a habit's reminders.</summary>
-    public static string HabitTag(int habitId) => $"habit-{habitId}";
-
-    /// <summary>The notification tag of a routine's reminders.</summary>
-    public static string RoutineTag(int routineId) => $"routine-{routineId}";
-
-    /// <summary>
-    /// The clear payload for <paramref name="tag"/>: a v1.14 service worker closes the notifications with that tag; an older one
-    /// shows the "Logged" notification in <paramref name="t"/> (English when null).
-    /// </summary>
-    public static string ClearPayload(string tag, Texts? t = null) => JsonSerializer.Serialize(new
-    {
-        clear = new { tag },
-        notification = new
-        {
-            title = "Ember",
-            body = (t ?? BotTexts.English).Get("push.logged"),
-            data = new { onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url = "/today" } } },
-        },
-    }, PayloadJson);
-
-    /// <summary>
-    /// The notification payload with <paramref name="body"/>, plus the "Done" action (labelled in <paramref name="t"/>, English when null)
-    /// when <paramref name="doneToken"/> is set and the <paramref name="tag"/> when set; a click opens <paramref name="url"/>. The title
-    /// is <paramref name="title"/>, "Ember" when null.
-    /// </summary>
-    internal static string BuildPayload(string body, string? doneToken = null, string? tag = null, Texts? t = null, string url = "/today",
-        string? title = null)
-        => JsonSerializer.Serialize(new
-        {
-            notification = new
-            {
-                title = title ?? "Ember",
-                body,
-                tag,
-                actions = doneToken is null ? null : new[] { new { action = "done", title = (t ?? BotTexts.English).Get("reminder.done") } },
-                data = new
-                {
-                    onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url } },
-                    doneToken,
-                },
-            },
-        }, PayloadJson);
+    public static readonly string SecondPayload = WebPushSender.BuildPayload(BotTexts.English.Get("push.reminder.second"));
 
     private readonly IServiceScopeFactory _scopes;
-    private readonly IHttpClientFactory _httpClients;
-    private readonly VapidAuthentication _vapid;
+    private readonly WebPushSender _sender;
     private readonly ILogger<WebPushReminderChannel> _logger;
 
-    public WebPushReminderChannel(IServiceScopeFactory scopes, IHttpClientFactory httpClients, VapidAuthentication vapid,
-        ILogger<WebPushReminderChannel> logger)
+    public WebPushReminderChannel(IServiceScopeFactory scopes, WebPushSender sender, ILogger<WebPushReminderChannel> logger)
     {
         _scopes = scopes;
-        _httpClients = httpClients;
-        _vapid = vapid;
+        _sender = sender;
         _logger = logger;
-    }
-
-    /// <summary>Builds the VAPID authentication from <c>WebPush:PublicKey</c>, <c>WebPush:PrivateKey</c> and <c>WebPush:Subject</c>.</summary>
-    /// <exception cref="InvalidOperationException">A key or the subject is missing or invalid.</exception>
-    public static VapidAuthentication CreateVapidAuthentication(IConfiguration config)
-    {
-        try
-        {
-            return new VapidAuthentication(config["WebPush:PublicKey"], config["WebPush:PrivateKey"])
-            {
-                Subject = config["WebPush:Subject"],
-            };
-        }
-        catch (Exception ex) when (ex is ArgumentException or FormatException or System.Security.Cryptography.CryptographicException)
-        {
-            throw new InvalidOperationException(InvalidConfigMessage, ex);
-        }
-    }
-
-    private static readonly string[] VapidSettings = ["WebPush:PublicKey", "WebPush:PrivateKey", "WebPush:Subject"];
-
-    private const string InvalidConfigMessage =
-        "Invalid web push configuration: set all or none of WebPush:PublicKey, WebPush:PrivateKey and WebPush:Subject " +
-        "(base64url VAPID keys; subject a mailto: or https: URL).";
-
-    /// <summary>True when the VAPID public key, private key and subject are all configured, false when none is.</summary>
-    /// <exception cref="InvalidOperationException">Only some of them are configured.</exception>
-    public static bool IsConfigured(IConfiguration config)
-    {
-        var set = VapidSettings.Count(key => !string.IsNullOrWhiteSpace(config[key]));
-        return set switch
-        {
-            0 => false,
-            3 => true,
-            _ => throw new InvalidOperationException(InvalidConfigMessage),
-        };
     }
 
     public ReminderChannels Channel => ReminderChannels.WebPush;
@@ -151,7 +52,7 @@ public sealed class WebPushReminderChannel : IReminderChannel
                 + (reminder.Second ? ".second" : ".first"), reminder.ItemName);
         var url = reminder.LetGo ? $"/history/{reminder.ItemId}" : "/today";
         string? doneToken = null;
-        var tag = reminder.IsRoutine ? RoutineTag(reminder.ItemId) : HabitTag(reminder.ItemId);
+        var tag = reminder.IsRoutine ? WebPushSender.RoutineTag(reminder.ItemId) : WebPushSender.HabitTag(reminder.ItemId);
         var allowed = reminder.PushSubscriptionIds ?? [];
         using (var scope = _scopes.CreateScope())
         {
@@ -166,8 +67,8 @@ public sealed class WebPushReminderChannel : IReminderChannel
                     cancellationToken);
         }
 
-        var delivered = await SendAsync(reminder.UserId, subscriptions,
-            s => BuildPayload(s.ShowNames ? namedBody : body,
+        var delivered = await _sender.SendAsync(reminder.UserId, subscriptions,
+            s => WebPushSender.BuildPayload(s.ShowNames ? namedBody : body,
                 s.SessionId is { } sessionId && liveSessions.Contains(sessionId) ? doneToken : null, tag, t, url),
             cancellationToken);
         if (!delivered) return DeliveryOutcome.Undeliverable;
@@ -185,86 +86,5 @@ public sealed class WebPushReminderChannel : IReminderChannel
             _logger.LogWarning(ex, "Could not remember the web push reminder for {Tag} of user {UserId}.", tag, reminder.UserId);
         }
         return DeliveryOutcome.Delivered;
-    }
-
-    /// <summary>
-    /// Sends the clear payload (<see cref="ClearPayload"/>) for <paramref name="tag"/> in <paramref name="language"/> to the user's push
-    /// subscriptions in <paramref name="subscriptionIds"/>.
-    /// </summary>
-    public async Task SendClearAsync(Guid userId, IReadOnlyCollection<int> subscriptionIds, string tag, string language,
-        CancellationToken cancellationToken = default)
-    {
-        List<Core.Models.PushSubscription> subscriptions;
-        using (var scope = _scopes.CreateScope())
-            subscriptions = (await scope.ServiceProvider.GetRequiredService<ReminderService>().GetPushSubscriptionsAsync(userId, cancellationToken))
-                .Where(s => subscriptionIds.Contains(s.Id)).ToList();
-        var payload = ClearPayload(tag, BotTexts.For(language));
-        await SendAsync(userId, subscriptions, _ => payload, cancellationToken);
-    }
-
-    /// <summary>
-    /// Sends a plain notification (<paramref name="namedBody"/> to subscriptions that show names, else <paramref name="body"/>) with
-    /// <paramref name="tag"/>, opening <paramref name="url"/>, to the user's push subscriptions in <paramref name="subscriptionIds"/>.
-    /// The title is <paramref name="title"/>, "Ember" when null. True when at least one accepted it.
-    /// </summary>
-    public async Task<bool> SendNoticeAsync(Guid userId, IReadOnlyCollection<int> subscriptionIds, string body, string namedBody,
-        string tag, string url, CancellationToken cancellationToken = default, string? title = null)
-    {
-        List<Core.Models.PushSubscription> subscriptions;
-        using (var scope = _scopes.CreateScope())
-            subscriptions = (await scope.ServiceProvider.GetRequiredService<ReminderService>().GetPushSubscriptionsAsync(userId, cancellationToken))
-                .Where(s => subscriptionIds.Contains(s.Id)).ToList();
-        if (subscriptions.Count == 0) return false;
-        return await SendAsync(userId, subscriptions, s => BuildPayload(s.ShowNames ? namedBody : body, tag: tag, url: url, title: title), cancellationToken);
-    }
-
-    /// <summary>Pushes each subscription its payload; deletes ones the push service reports gone. True when at least one accepted it.</summary>
-    private async Task<bool> SendAsync(Guid userId, List<Core.Models.PushSubscription> subscriptions,
-        Func<Core.Models.PushSubscription, string> payloadFor, CancellationToken cancellationToken)
-    {
-        var client = new PushServiceClient(_httpClients.CreateClient(HttpClientName))
-        {
-            DefaultAuthentication = _vapid,
-            AutoRetryAfter = false,
-        };
-
-        var delivered = false;
-        foreach (var subscription in subscriptions)
-        {
-            var target = new WebPushSubscription { Endpoint = subscription.Endpoint, Keys = new Dictionary<string, string>() };
-            target.SetKey(PushEncryptionKeyName.P256DH, subscription.P256dh);
-            target.SetKey(PushEncryptionKeyName.Auth, subscription.Auth);
-
-            var payload = payloadFor(subscription);
-            try
-            {
-                await client.RequestPushMessageDeliveryAsync(target, new PushMessage(payload) { TimeToLive = TimeToLiveSeconds },
-                    cancellationToken);
-                delivered = true;
-            }
-            catch (PushServiceClientException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
-            {
-                try
-                {
-                    using var scope = _scopes.CreateScope();
-                    await scope.ServiceProvider.GetRequiredService<ReminderService>()
-                        .DeletePushSubscriptionByEndpointAsync(subscription.Endpoint, cancellationToken);
-                    _logger.LogInformation("Removed an expired push subscription {SubscriptionId} of user {UserId}.",
-                        subscription.Id, userId);
-                }
-                catch (Exception deleteEx) when (!cancellationToken.IsCancellationRequested)
-                {
-                    _logger.LogWarning(deleteEx, "Could not remove the expired push subscription {SubscriptionId} of user {UserId}.",
-                        subscription.Id, userId);
-                }
-            }
-            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogWarning(ex, "Web push to subscription {SubscriptionId} of user {UserId} failed.",
-                    subscription.Id, userId);
-            }
-        }
-
-        return delivered;
     }
 }

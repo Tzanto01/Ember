@@ -41,7 +41,7 @@ public class WebPushReminderTests
         var (publicKey, privateKey) = NewKeyPair();
         var host = await IntegrationTestHost.CreateAsync(start: false, time: time,
             args: withVapid ? [$"--WebPush:PublicKey={publicKey}", $"--WebPush:PrivateKey={privateKey}", "--WebPush:Subject=mailto:test@example.test"] : null,
-            configureServices: services => services.AddHttpClient(WebPushReminderChannel.HttpClientName)
+            configureServices: services => services.AddHttpClient(WebPushSender.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => push));
 
         await host.WithScopeAsync(async sp =>
@@ -200,7 +200,7 @@ public class WebPushReminderTests
         var delivered = push.Requests.Single(r => r.Endpoint == Endpoint("ok"));
         delivered.ContentEncoding.Should().Be("aes128gcm");
         delivered.Authorization!.ToLowerInvariant().Should().StartWith("vapid ");
-        delivered.Ttl.Should().Be(WebPushReminderChannel.TimeToLiveSeconds.ToString());
+        delivered.Ttl.Should().Be(WebPushSender.TimeToLiveSeconds.ToString());
         delivered.BodyLength.Should().BeGreaterThan(0);
 
         var payload = JsonElement.Parse(WebPushReminderChannel.Payload).GetProperty("notification");
@@ -245,8 +245,8 @@ public class WebPushReminderTests
         token.ExpiresUtc.Should().Be(new DateTime(2027, 1, 16, 9, 0, 0, DateTimeKind.Utc));
         token.UsedUtc.Should().BeNull();
         token.TokenHash.Should().HaveCount(32);
-        var withToken = WebPushReminderChannel.BuildPayload("A gentle nudge from Ember", new string('x', 43), WebPushReminderChannel.HabitTag(30));
-        var plain = WebPushReminderChannel.BuildPayload("A gentle nudge from Ember", tag: WebPushReminderChannel.RoutineTag(routineId));
+        var withToken = WebPushSender.BuildPayload("A gentle nudge from Ember", new string('x', 43), WebPushSender.HabitTag(30));
+        var plain = WebPushSender.BuildPayload("A gentle nudge from Ember", tag: WebPushSender.RoutineTag(routineId));
         var bodyLength = (string endpoint) => push.Requests.Single(r => r.Endpoint == Endpoint(endpoint)).BodyLength;
         (bodyLength("habit") - bodyLength("routine")).Should().Be(withToken.Length - plain.Length);
     }
@@ -283,10 +283,10 @@ public class WebPushReminderTests
 
         push.Endpoints.Should().Equal(Endpoint("build"), Endpoint("letgo"));
         var length = (string endpoint) => push.Requests.Single(r => r.Endpoint == Endpoint(endpoint)).BodyLength;
-        var expected = WebPushReminderChannel.BuildPayload(Ember.Bot.BotTexts.English.Get("letgo.reminder.nameless"),
-            tag: WebPushReminderChannel.HabitTag(40), url: "/history/40").Length;
-        var build = WebPushReminderChannel.BuildPayload(Ember.Bot.BotTexts.English.Get("push.reminder.first"),
-            new string('x', 43), WebPushReminderChannel.HabitTag(30)).Length;
+        var expected = WebPushSender.BuildPayload(Ember.Bot.BotTexts.English.Get("letgo.reminder.nameless"),
+            tag: WebPushSender.HabitTag(40), url: "/history/40").Length;
+        var build = WebPushSender.BuildPayload(Ember.Bot.BotTexts.English.Get("push.reminder.first"),
+            new string('x', 43), WebPushSender.HabitTag(30)).Length;
         (length("letgo") - length("build")).Should().Be(expected - build);
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().ReminderActionTokens.CountAsync())).Should().Be(1);
         (await PushRemindersAsync(host)).Should().Be(1);
@@ -304,7 +304,7 @@ public class WebPushReminderTests
 
         (await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().ReminderActionTokens.CountAsync())).Should().Be(1);
         var bodyLength = (string endpoint) => push.Requests.Single(r => r.Endpoint == Endpoint(endpoint)).BodyLength;
-        var extra = WebPushReminderChannel.BuildPayload("A gentle nudge from Ember", new string('x', 43)).Length - WebPushReminderChannel.Payload.Length;
+        var extra = WebPushSender.BuildPayload("A gentle nudge from Ember", new string('x', 43)).Length - WebPushReminderChannel.Payload.Length;
         (bodyLength("live") - bodyLength("legacy")).Should().Be(extra);
         bodyLength("expired").Should().Be(bodyLength("legacy"));
     }
@@ -324,11 +324,11 @@ public class WebPushReminderTests
 
         await RunJobAsync(host);
 
-        var tag = WebPushReminderChannel.HabitTag(30);
+        var tag = WebPushSender.HabitTag(30);
         var bodyLength = (string endpoint) => push.Requests.Single(r => r.Endpoint == Endpoint(endpoint)).BodyLength;
         (bodyLength("named") - bodyLength("generic")).Should().Be(
-            WebPushReminderChannel.BuildPayload("A gentle nudge for Stretch for ten minutes", tag: tag).Length
-            - WebPushReminderChannel.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
+            WebPushSender.BuildPayload("A gentle nudge for Stretch for ten minutes", tag: tag).Length
+            - WebPushSender.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
     }
 
     [Fact]
@@ -363,7 +363,7 @@ public class WebPushReminderTests
     public void The_done_payload_adds_the_action_and_token_and_still_names_no_habit()
     {
         var plain = JsonNode.Parse(WebPushReminderChannel.Payload)!["notification"]!;
-        var done = JsonNode.Parse(WebPushReminderChannel.BuildPayload("A gentle nudge from Ember", "the-token"))!["notification"]!;
+        var done = JsonNode.Parse(WebPushSender.BuildPayload("A gentle nudge from Ember", "the-token"))!["notification"]!;
 
         plain.AsObject().ContainsKey("actions").Should().BeFalse();
         plain["data"]!.AsObject().ContainsKey("doneToken").Should().BeFalse();
@@ -515,22 +515,22 @@ public class WebPushReminderTests
 
         var requests = push.Requests;
         requests.Select(r => r.Endpoint).Should().Equal(Endpoint("a"), Endpoint("a"));
-        var tag = WebPushReminderChannel.HabitTag(20);
+        var tag = WebPushSender.HabitTag(20);
         (requests[1].BodyLength - requests[0].BodyLength).Should()
-            .Be(WebPushReminderChannel.ClearPayload(tag).Length - WebPushReminderChannel.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
+            .Be(WebPushSender.ClearPayload(tag).Length - WebPushSender.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
         (await PushRemindersAsync(host)).Should().Be(0);
     }
 
     [Fact]
     public void The_clear_payload_names_the_tag_and_shows_a_logged_notification_for_old_service_workers()
     {
-        var payload = JsonNode.Parse(WebPushReminderChannel.ClearPayload("routine-7"))!;
+        var payload = JsonNode.Parse(WebPushSender.ClearPayload("routine-7"))!;
 
         payload["clear"]!["tag"]!.GetValue<string>().Should().Be("routine-7");
         payload["notification"]!["title"]!.GetValue<string>().Should().Be("Ember");
         payload["notification"]!["body"]!.GetValue<string>().Should().Be("Logged. Nice work. ✅");
         payload["notification"]!["data"]!["onActionClick"]!["default"]!["url"]!.GetValue<string>().Should().Be("/today");
-        JsonNode.Parse(WebPushReminderChannel.BuildPayload("x", tag: "habit-3"))!["notification"]!["tag"]!.GetValue<string>().Should().Be("habit-3");
+        JsonNode.Parse(WebPushSender.BuildPayload("x", tag: "habit-3"))!["notification"]!["tag"]!.GetValue<string>().Should().Be("habit-3");
     }
 
     [Fact]
@@ -615,9 +615,9 @@ public class WebPushReminderTests
         await RunJobAsync(host);
 
         var requests = push.Requests.Should().HaveCount(2).And.Subject.ToList();
-        var tag = WebPushReminderChannel.RoutineTag(routineId);
+        var tag = WebPushSender.RoutineTag(routineId);
         (requests[1].BodyLength - requests[0].BodyLength).Should()
-            .Be(WebPushReminderChannel.ClearPayload(tag).Length - WebPushReminderChannel.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
+            .Be(WebPushSender.ClearPayload(tag).Length - WebPushSender.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
         (await PushRemindersAsync(host)).Should().Be(0);
     }
 }

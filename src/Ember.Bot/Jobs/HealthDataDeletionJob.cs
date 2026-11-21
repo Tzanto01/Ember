@@ -35,17 +35,17 @@ public class HealthDataDeletionJob : IJob
 
     private readonly IServiceProvider _services;
     private readonly IDiscordDmSender _discord;
-    private readonly WebPushReminderChannel? _push;
+    private readonly WebPushSender? _push;
     private readonly ILogger<HealthDataDeletionJob> _logger;
     private readonly TimeProvider _time;
     private readonly IConfiguration _config;
 
-    public HealthDataDeletionJob(IServiceProvider services, IDiscordDmSender discord, IEnumerable<IReminderChannel> channels,
-        ILogger<HealthDataDeletionJob> logger, TimeProvider time, IConfiguration config)
+    public HealthDataDeletionJob(IServiceProvider services, IDiscordDmSender discord, ILogger<HealthDataDeletionJob> logger,
+        TimeProvider time, IConfiguration config, WebPushSender? push = null)
     {
         _services = services;
         _discord = discord;
-        _push = channels.OfType<WebPushReminderChannel>().FirstOrDefault();
+        _push = push;
         _logger = logger;
         _time = time;
         _config = config;
