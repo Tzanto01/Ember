@@ -4877,6 +4877,291 @@
       }
     },
     {
+      "name": "a routine is done once every member due today is done, with others on a rest day or paused",
+      "today": "2027-03-13",
+      "from": "2027-03-13",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "habits": [
+        {
+          "id": 1,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "logs": [
+            {
+              "date": "2027-03-13",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "frequency": "weekdays",
+          "weeklyTarget": null,
+          "days": [
+            "mon",
+            "wed",
+            "fri"
+          ],
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "logs": []
+        },
+        {
+          "id": 3,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": "2027-03-12",
+          "pausedUntil": "2027-03-14",
+          "routineId": 1,
+          "logs": []
+        },
+        {
+          "id": 4,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 2,
+          "logs": [
+            {
+              "date": "2027-03-13",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "frequency": "weekdays",
+          "weeklyTarget": null,
+          "days": [
+            "mon",
+            "wed",
+            "fri"
+          ],
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 2,
+          "logs": []
+        },
+        {
+          "id": 6,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 2,
+          "logs": []
+        }
+      ],
+      "routines": [
+        {
+          "id": 1,
+          "habitIds": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "id": 2,
+          "habitIds": [
+            4,
+            5,
+            6
+          ]
+        }
+      ],
+      "expected": {
+        "days": {
+          "1": [
+            {
+              "date": "2027-03-13",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            }
+          ],
+          "2": [
+            {
+              "date": "2027-03-13",
+              "state": "offday",
+              "completed": null,
+              "count": 0
+            }
+          ],
+          "3": [
+            {
+              "date": "2027-03-13",
+              "state": "paused",
+              "completed": null,
+              "count": 0
+            }
+          ],
+          "4": [
+            {
+              "date": "2027-03-13",
+              "state": "done",
+              "completed": true,
+              "count": 1
+            }
+          ],
+          "5": [
+            {
+              "date": "2027-03-13",
+              "state": "offday",
+              "completed": null,
+              "count": 0
+            }
+          ],
+          "6": [
+            {
+              "date": "2027-03-13",
+              "state": "pending",
+              "completed": null,
+              "count": 0
+            }
+          ]
+        },
+        "stats": {
+          "1": {
+            "streak": 1,
+            "graceUsed": 0,
+            "bestStreak": 1,
+            "last7": 1,
+            "week": null
+          },
+          "2": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          },
+          "3": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          },
+          "4": {
+            "streak": 1,
+            "graceUsed": 0,
+            "bestStreak": 1,
+            "last7": 1,
+            "week": null
+          },
+          "5": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          },
+          "6": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          }
+        },
+        "dayStats": [
+          {
+            "date": "2027-03-13",
+            "scheduled": 3,
+            "done": 2,
+            "partial": 0,
+            "showedUp": true
+          }
+        ],
+        "routinePending": {
+          "1": [],
+          "2": [
+            6
+          ]
+        },
+        "routineDone": {
+          "1": true,
+          "2": false
+        },
+        "weekly": {
+          "totalDone": 0,
+          "totalPossible": 33,
+          "headline": "It\u0027s been a quiet week, and that\u0027s okay. \uD83D\uDC99\nWhenever you\u0027re ready, your habits are here waiting.",
+          "footer": "No pressure. Progress happens at its own pace.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 0,
+              "possible": 7,
+              "streak": 1
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 0,
+              "possible": 3,
+              "streak": 0
+            },
+            {
+              "habitId": 3,
+              "name": "Habit 3",
+              "done": 0,
+              "possible": 6,
+              "streak": 0
+            },
+            {
+              "habitId": 4,
+              "name": "Habit 4",
+              "done": 0,
+              "possible": 7,
+              "streak": 1
+            },
+            {
+              "habitId": 5,
+              "name": "Habit 5",
+              "done": 0,
+              "possible": 3,
+              "streak": 0
+            },
+            {
+              "habitId": 6,
+              "name": "Habit 6",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "routine pending on a low day lists nothing",
       "today": "2027-03-13",
       "from": "2027-03-13",

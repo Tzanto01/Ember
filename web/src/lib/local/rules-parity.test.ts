@@ -110,8 +110,8 @@ function sortedLogs(logs: LocalLog[]): Omit<LocalLog, 'habitId'>[] {
 }
 
 describe('client rules match the Core rules fixture', () => {
-  it('has all 26 cases', () => {
-    expect(fixture.cases).toHaveLength(26);
+  it('has all 27 cases', () => {
+    expect(fixture.cases).toHaveLength(27);
   });
 
   it.each(fixture.cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {
