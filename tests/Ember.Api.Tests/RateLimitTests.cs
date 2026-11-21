@@ -1,6 +1,8 @@
 using System.Net;
+using System.Threading.RateLimiting;
 using Ember.Api.Hosting;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ember.Api.Tests;
 
@@ -107,5 +109,41 @@ public class MailKeyTests
 
         keys[0].Should().Be("ip:203.0.113.7");
         keys.Should().OnlyContain(key => key.Length <= 128);
+    }
+}
+
+public class ExportRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
+{
+    protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:ExportPerHour"] = "2" };
+
+    [DockerFact]
+    public async Task The_export_is_limited_per_account_per_hour_with_a_429_problem_and_retry_after()
+    {
+        var user = await Host.SignedInAsync(consent: false);
+        await (await user.Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
+        await (await user.Get("/api/me/export?format=csv")).Expect(HttpStatusCode.OK);
+
+        var limited = await user.Get("/api/me/export?format=json");
+
+        await limited.ExpectProblem((HttpStatusCode)429, "rate_limited");
+        limited.Headers.RetryAfter!.Delta.Should().BeGreaterThan(TimeSpan.FromMinutes(1));
+        await (await (await Host.SignedInAsync(consent: false)).Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
+    }
+
+    [DockerFact]
+    public async Task An_export_while_another_one_runs_is_a_429_that_does_not_count_against_the_hour()
+    {
+        var user = await Host.SignedInAsync(consent: false);
+        var limiter = Host.Services.GetRequiredService<PartitionedRateLimiter<string>>();
+        var running = limiter.AttemptAcquire(RateLimits.ExportKeys(await user.IdAsync())[0]);
+        running.IsAcquired.Should().BeTrue();
+
+        var concurrent = await user.Get("/api/me/export?format=json");
+
+        await concurrent.ExpectProblem((HttpStatusCode)429, "rate_limited");
+        concurrent.Headers.RetryAfter!.Delta.Should().Be(TimeSpan.FromMinutes(1));
+        running.Dispose();
+        await (await user.Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
+        await (await user.Get("/api/me/export?format=json")).Expect(HttpStatusCode.OK);
     }
 }

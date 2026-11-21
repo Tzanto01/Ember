@@ -449,6 +449,41 @@ public class ExportBuilderTests
         fetched.Should().Equal(Picture1, Picture2, Picture3);
     }
 
+    [Theory]
+    [InlineData("no feedback")]
+    [InlineData("a report without pictures")]
+    [InlineData("a picture deleted before it is fetched")]
+    [InlineData("an empty picture")]
+    [InlineData("a picture over one base64 chunk")]
+    [InlineData("a title with non-ASCII and escaped characters")]
+    public async Task StreamedJson_IsByteIdenticalToBuildJson_For(string edgeCase)
+    {
+        var user = SampleUser();
+        var at = new DateTime(2025, 6, 3, 10, 0, 0, DateTimeKind.Utc);
+        ExportBuilder.FeedbackRecord Report(string title, params ExportBuilder.FeedbackImageRecord[] images)
+            => new(7, "web", "1.4.0", title, "Text", at, "open", null, [.. images]);
+        ExportBuilder.FeedbackImageRecord Image(byte[]? data) => new(Picture1, "image/webp", data?.Length ?? 3, data);
+        List<ExportBuilder.FeedbackRecord> feedback = edgeCase switch
+        {
+            "no feedback" => [],
+            "a report without pictures" => [Report("Crash")],
+            "a picture deleted before it is fetched" => [Report("Crash", Image(null))],
+            "an empty picture" => [Report("Crash", Image([]))],
+            "a picture over one base64 chunk" => [Report("Crash", Image([.. Enumerable.Range(0, 150_001).Select(i => (byte)(i * 13))]))],
+            "a title with non-ASCII and escaped characters" => [Report("Grüße \"quoted\" <b>&</b> \\ \n\t 😀 ✓", Image(PictureBytes[Picture2]))],
+            _ => throw new ArgumentOutOfRangeException(nameof(edgeCase)),
+        };
+        var stored = feedback.SelectMany(r => r.Images).ToDictionary(i => i.Id, i => i.Data);
+        var streamed = new ExportBuilder.FeedbackAndSessions([.. feedback.Select(r => r with { Images = [.. r.Images.Select(i => i with { Data = null })] })], []);
+        using var stream = new MemoryStream();
+
+        await ExportBuilder.WriteJsonAsync(stream, ExportBuilder.BuildDocument(user, feedbackAndSessions: streamed),
+            (id, _) => Task.FromResult(stored[id]));
+
+        System.Text.Encoding.UTF8.GetString(stream.ToArray())
+            .Should().Be(ExportBuilder.BuildJson(user, feedbackAndSessions: new ExportBuilder.FeedbackAndSessions(feedback, [])));
+    }
+
     [Fact]
     public async Task StreamedJson_OfTheDiscordExport_IsByteIdenticalToBuildJson_AndFetchesNoPicture()
     {

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using Ember.Api.Auth;
 using Ember.Api.Hosting;
 using Ember.Core.Models;
@@ -119,12 +120,15 @@ internal static class MeEndpoints
             return Results.NoContent();
         });
 
-        api.MapGet("/me/export", async (string? format, ClaimsPrincipal principal, AccountService accounts, TimeProvider time, CancellationToken cancellationToken) =>
+        api.MapGet("/me/export", async (string? format, HttpContext http, PartitionedRateLimiter<string> limiter, AccountService accounts,
+            TimeProvider time, CancellationToken cancellationToken) =>
         {
             if (format is not (null or "json" or "csv"))
                 return Problems.Validation("format", "Must be json or csv.");
 
-            var userId = principal.UserId();
+            var userId = http.User.UserId();
+            if (RateLimits.AcquireExport(limiter, http, userId) is { } rejected) return rejected;
+
             var user = await accounts.GetUserForExportAsync(userId, withHabitNotes: true);
             if (user is null) return Problems.NotFound();
 

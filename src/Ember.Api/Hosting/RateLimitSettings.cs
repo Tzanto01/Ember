@@ -12,4 +12,5 @@ internal sealed class RateLimitSettings
     public int MailPerDay { get; set; } = 200;
     public int FeedbackPerHour { get; set; } = 5;
     public int FeedbackPerDay { get; set; } = 200;
+    public int ExportPerHour { get; set; } = 10;
 }

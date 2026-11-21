@@ -143,7 +143,8 @@ public static class ExportBuilder
     public sealed record AccountRecord(string? Email, string? DiscordId, DateTime? CreatedAt = null);
 
     /// <summary>
-    /// One picture of a feedback report. <c>Data</c> is the picture's bytes (base64 in JSON); null when it was not loaded or no longer exists.
+    /// One picture of a feedback report. <c>Data</c> is the picture's bytes (base64 in JSON), or null when it was not loaded or no longer exists (also in the streamed
+    /// export, for a picture deleted while it runs).
     /// </summary>
     public sealed record FeedbackImageRecord(Guid Id, string ContentType, int Size, byte[]? Data);
 
@@ -253,14 +254,18 @@ public static class ExportBuilder
     private static EncryptedRecord? Encrypted(int? version, string? iv, string? ct)
         => version is { } v ? new EncryptedRecord(v, iv ?? "", ct ?? "") : null;
 
+    /// <summary>Picture bytes per base64 chunk of <see cref="WriteJsonAsync"/>: 48 KiB, a multiple of 3, so only the last chunk is padded.</summary>
+    private const int Base64ChunkBytes = 48 * 1024;
+
     /// <summary>The export as JSON; see <see cref="BuildDocument"/> for <paramref name="forDiscord"/> and <paramref name="feedbackAndSessions"/>.</summary>
     public static string BuildJson(User user, bool forDiscord = false, FeedbackAndSessions? feedbackAndSessions = null)
         => JsonSerializer.Serialize(BuildDocument(user, forDiscord, feedbackAndSessions), JsonOptions);
 
     /// <summary>
     /// Writes <paramref name="document"/> to <paramref name="stream"/> as the same bytes <see cref="BuildJson"/> gives for it with every
-    /// picture's data loaded, fetching each picture's data through <paramref name="imageData"/> only as it is written and sending the buffered output to
-    /// <paramref name="stream"/> after each picture, so at most one picture (and its base64) is held in memory. Writes to
+    /// picture's data loaded, fetching each picture's data through <paramref name="imageData"/> only as it is written (null when the picture
+    /// no longer exists) and writing its base64 in chunks of <see cref="Base64ChunkBytes"/> input bytes, sending the buffered output to
+    /// <paramref name="stream"/> after each chunk, so at most one picture's bytes and one chunk of base64 are held in memory. Writes to
     /// <paramref name="stream"/> only asynchronously.
     /// </summary>
     public static async Task WriteJsonAsync(Stream stream, ExportDocument document, Func<Guid, CancellationToken, Task<byte[]?>> imageData,
@@ -295,8 +300,22 @@ public static class ExportBuilder
                     foreach (var image in report.Images)
                     {
                         var data = image.Data ?? await imageData(image.Id, cancellationToken);
-                        JsonSerializer.Serialize(writer, image with { Data = data }, JsonOptions);
-                        await SendAsync();
+                        await WriteObjectAsync(writer, image with { Data = null }, "data", async () =>
+                        {
+                            if (data is null)
+                            {
+                                writer.WriteNullValue();
+                                return;
+                            }
+                            var offset = 0;
+                            do
+                            {
+                                var length = Math.Min(Base64ChunkBytes, data.Length - offset);
+                                writer.WriteBase64StringSegment(data.AsSpan(offset, length), isFinalSegment: offset + length == data.Length);
+                                offset += length;
+                                await SendAsync();
+                            } while (offset < data.Length);
+                        });
                     }
                     writer.WriteEndArray();
                 });
