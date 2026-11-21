@@ -40,11 +40,21 @@ function publicOrigin(origin: string): Plugin {
 }
 
 /**
+ * Takes the `color-scheme` meta tag out of the mobile shell. In a dark WebView it swaps the WebView's own background,
+ * Ember's, for Chromium's grey canvas until the stylesheet loads; the stylesheet sets the colour scheme itself.
+ */
+function dropColorScheme(html: string): string {
+  const tag = /\s*<meta name="color-scheme"[^>]*>/;
+  if (!tag.test(html)) throw new Error('index.html has no color-scheme meta tag to drop for the mobile build.');
+  return html.replace(tag, '');
+}
+
+/**
  * Web build (`vite build`): PWA with the custom service worker in `src/sw.ts`, output `dist/ember-web/browser`.
  * Mobile build (`vite build --mode mobile`, settings in `.env.mobile`): no service worker (the PWA plugin is
  * disabled, so `virtual:pwa-register` resolves to a no-op), output
  * `dist/ember-mobile/browser` for Capacitor, with a CSP meta tag mirroring the API's header (the WebView serves the
- * bundle without one).
+ * bundle without one) and without the `color-scheme` meta tag (see `dropColorScheme`).
  * Web build: `VITE_PUBLIC_ORIGIN` (for example `https://ember-glow.app`) sets the canonical and sitemap host.
  */
 export default defineConfig(({ mode }) => {
@@ -62,17 +72,20 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       mobile && {
-        name: 'ember-mobile-csp',
-        transformIndexHtml: () => [
-          {
-            tag: 'meta',
-            attrs: {
-              'http-equiv': 'Content-Security-Policy',
-              content: `default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'self' ${new URL(vars['VITE_API_BASE']!).origin}`,
+        name: 'ember-mobile-html',
+        transformIndexHtml: (html: string) => ({
+          html: dropColorScheme(html),
+          tags: [
+            {
+              tag: 'meta',
+              attrs: {
+                'http-equiv': 'Content-Security-Policy',
+                content: `default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; connect-src 'self' ${new URL(vars['VITE_API_BASE']!).origin}`,
+              },
+              injectTo: 'head-prepend',
             },
-            injectTo: 'head-prepend',
-          },
-        ],
+          ],
+        }),
       },
       !mobile && publicOrigin(origin),
       VitePWA({
