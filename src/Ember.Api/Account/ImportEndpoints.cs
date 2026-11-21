@@ -27,7 +27,7 @@ internal static class ImportEndpoints
     public sealed record ImportHabit(int? Id, string? Name, string? Frequency, int? WeeklyTarget, TimeOnly? ReminderTime,
         DateOnly? PausedUntil, DateOnly? PausedFrom, DateTimeOffset? CreatedAt, string?[]? Days,
         int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind);
-    public sealed record ImportLog(int? HabitId, DateOnly? Date, bool? Completed, int? Count);
+    public sealed record ImportLog(int? HabitId, DateOnly? Date, bool? Completed, int? Count, bool? Skipped);
     public sealed record ImportSlip(int? HabitId, DateOnly? Date, int? Count, List<string?>? Reasons);
     public sealed record ImportMadeItDay(int? HabitId, DateOnly? Date);
     public sealed record ImportDayMark(DateOnly? Date, string? Kind);
@@ -179,7 +179,9 @@ internal static class ImportEndpoints
             if (count < 0 || count > target) local["count"] = [$"Must be between 0 and {target}."];
             var completed = l.Completed == true || count >= target;
             if (completed && count == 0) local["completed"] = ["Must be false when count is 0."];
-            habit?.Logs.Add(new HabitLog { Date = l.Date ?? default, Count = count, Completed = completed });
+            var skipped = l.Skipped == true;
+            if (skipped && (count != 0 || completed)) local["skipped"] = ["Must be false unless count is 0 and completed is false."];
+            habit?.Logs.Add(new HabitLog { Date = l.Date ?? default, Count = count, Completed = completed, Skipped = skipped });
             Nest(errors, path, local);
         }
 

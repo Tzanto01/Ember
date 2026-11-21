@@ -34,7 +34,7 @@ public static class ExportBuilder
     /// a made_it uses <c>habit_id</c> and <c>date</c>. A feedback row uses <c>feedback_id</c>, <c>platform</c>, <c>app_version</c>, <c>title</c>,
     /// <c>text</c>, <c>created_at</c>, <c>status</c> and <c>resolved_at</c>; a feedback_image row <c>feedback_id</c>, <c>image_id</c>,
     /// <c>content_type</c> and <c>size</c> (never the bytes); a session row <c>created_at</c>, <c>expires_at</c>, <c>last_seen_at</c>,
-    /// <c>platform</c>, <c>app_version</c> and <c>widget_key_set</c>.
+    /// <c>platform</c>, <c>app_version</c> and <c>widget_key_set</c>. <c>skipped</c> (log) is true for a day written by a skip.
     /// </summary>
     public const string CsvHeader =
         "record_type,timezone,grace_days_per_week,theme," +
@@ -47,7 +47,8 @@ public static class ExportBuilder
         "passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped," +
         "second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen," +
         "fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order," +
-        "feedback_id,platform,app_version,title,status,resolved_at,image_id,content_type,size,expires_at,last_seen_at,widget_key_set";
+        "feedback_id,platform,app_version,title,status,resolved_at,image_id,content_type,size,expires_at,last_seen_at,widget_key_set," +
+        "skipped";
 
     private static readonly string[] CsvColumns = CsvHeader.Split(',');
 
@@ -129,9 +130,10 @@ public static class ExportBuilder
 
     /// <summary>
     /// One check-in log. <c>GuildId</c> is a string because Discord snowflakes exceed JSON's safe integer range.
-    /// <c>Completed</c> is the stored done flag (set when <c>Count</c> reached the target at the time of the check-in).
+    /// <c>Completed</c> is the stored done flag (set when <c>Count</c> reached the target at the time of the check-in);
+    /// <c>Skipped</c> is true for a day written by a skip (<see cref="HabitLog.Skipped"/>).
     /// </summary>
-    public sealed record LogRecord(int HabitId, DateOnly Date, bool Completed, string? GuildId, int Count);
+    public sealed record LogRecord(int HabitId, DateOnly Date, bool Completed, string? GuildId, int Count, bool Skipped);
 
     /// <summary>One mark on a local day, such as a low day (<c>Kind</c> = <c>low_day</c>).</summary>
     public sealed record DayMarkRecord(DateOnly Date, string Kind);
@@ -211,7 +213,7 @@ public static class ExportBuilder
                 h.RoutineId is null ? null : h.RoutinePosition, h.ReminderTimes.ToList(),
                 h.Kind == HabitKind.LetGo ? "let_go" : "build")).ToList(),
             habits.SelectMany(h => h.Logs.OrderBy(l => l.Date).Select(l => new LogRecord(
-                h.Id, l.Date, l.Completed, l.GuildId?.ToString(CultureInfo.InvariantCulture), l.Count))).ToList(),
+                h.Id, l.Date, l.Completed, l.GuildId?.ToString(CultureInfo.InvariantCulture), l.Count, l.Skipped))).ToList(),
             user.DayMarks.OrderBy(m => m.Date).ThenBy(m => m.Kind)
                 .Select(m => new DayMarkRecord(m.Date, JsonNamingPolicy.SnakeCaseLower.ConvertName(m.Kind.ToString()))).ToList(),
             full ? new AccountRecord(user.Email, user.DiscordId() is { } discordId ? DiscordLogin.Key(discordId) : null, AsUtc(user.CreatedUtc)) : null,
@@ -387,7 +389,7 @@ public static class ExportBuilder
 
         foreach (var l in doc.Logs)
             AppendRow(csv, "log", ("habit_id", Num(l.HabitId)), ("date", Date(l.Date)), ("completed", Bool(l.Completed)),
-                ("guild_id", l.GuildId ?? ""), ("count", Num(l.Count)));
+                ("guild_id", l.GuildId ?? ""), ("count", Num(l.Count)), ("skipped", Bool(l.Skipped)));
 
         foreach (var sl in doc.Slips ?? [])
             AppendRow(csv, "slip", ("habit_id", Num(sl.HabitId)), ("date", Date(sl.Date)), ("count", Num(sl.Count)),

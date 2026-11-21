@@ -54,6 +54,7 @@ public class ExportCsvGoldenTests
         };
         read.Logs.Add(new HabitLog { Date = new DateOnly(2027, 1, 14), Completed = true, Count = 2, GuildId = 123456789012345678 });
         read.Logs.Add(new HabitLog { Date = new DateOnly(2027, 1, 15), Completed = false, Count = 1 });
+        read.Logs.Add(new HabitLog { Date = new DateOnly(2027, 1, 16), Completed = false, Count = 0, Skipped = true });
         read.Notes.Add(new HabitNote { Date = new DateOnly(2027, 1, 14), Text = "Two chapters" });
         read.Notes.Add(new HabitNote { Date = new DateOnly(2027, 1, 15), CipherVersion = 1, CipherIv = "aXY=", CipherText = "Y3Q=" });
 
