@@ -20,6 +20,13 @@ public class HabitLog
     /// <summary>Number of check-ins that day, 0 to the habit's <see cref="Habit.TimesPerDay"/>.</summary>
     public int Count { get; set; }
 
+    /// <summary>
+    /// True when the day was written by a skip ("not done" from Discord, a DM button or the API), with <see cref="Count"/> 0.
+    /// Any other write (a check-in, a count change, including to 0) resets it. A skip of the user's local today ends that day's reminders.
+    /// Logs written before the marker existed carry false.
+    /// </summary>
+    public bool Skipped { get; set; }
+
     /// <summary>Guild in which the check-in was performed. Null if done via DM.</summary>
     public long? GuildId { get; set; }
 

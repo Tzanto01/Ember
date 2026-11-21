@@ -384,6 +384,9 @@ namespace Ember.Core.Data.Migrations
                     b.Property<int>("HabitId")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("Skipped")
+                        .HasColumnType("boolean");
+
                     b.HasKey("Id");
 
                     b.HasIndex("HabitId", "Date")
