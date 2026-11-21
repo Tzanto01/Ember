@@ -32,7 +32,8 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
 
     // ── Static timezone data ──────────────────────────────────────────────────
 
-    private static readonly (string Id, string Emoji)[] Regions =
+    /// <summary>The region picker's options.</summary>
+    internal static readonly (string Id, string Emoji)[] Regions =
     [
         ("americas", "🌎"),
         ("europe",   "🌍"),
@@ -42,7 +43,8 @@ public class OnboardingModule : InteractionModuleBase<SocketInteractionContext>
         ("utc",      "🌐"),
     ];
 
-    private static readonly Dictionary<string, string[]> Timezones = new()
+    /// <summary>The timezone picker's options per region id.</summary>
+    internal static readonly Dictionary<string, string[]> Timezones = new()
     {
         ["americas"] =
         [
