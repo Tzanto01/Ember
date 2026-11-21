@@ -180,7 +180,7 @@ internal static class ImportEndpoints
             var completed = l.Completed == true || count >= target;
             if (completed && count == 0) local["completed"] = ["Must be false when count is 0."];
             var skipped = l.Skipped == true;
-            if (skipped && (count != 0 || completed)) local["skipped"] = ["Must be false unless count is 0 and completed is false."];
+            if (skipped && completed) local["skipped"] = ["Must be false when the day is completed."];
             habit?.Logs.Add(new HabitLog { Date = l.Date ?? default, Count = count, Completed = completed, Skipped = skipped });
             Nest(errors, path, local);
         }

@@ -144,31 +144,36 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
-    public async Task A_log_without_skipped_imports_as_not_skipped_and_a_skip_with_check_ins_is_refused()
+    public async Task A_log_without_skipped_imports_as_not_skipped_a_partial_skip_imports_and_a_skip_of_a_done_day_is_refused()
     {
         var user = await Host.SignedInAsync();
+        var water = new { id = 1, name = "Water", frequency = "daily", times_per_day = 2, created_at = "2026-10-20T08:00:00Z" };
         var refused = Doc(logs:
         [
             new { habit_id = 1, date = "2026-10-24", completed = false, count = 0, skipped = true },
             new { habit_id = 1, date = "2026-10-25", completed = false, count = 1, skipped = true },
             new { habit_id = 1, date = "2026-10-26", completed = true, count = 1, skipped = true },
-        ], habits: [new { id = 1, name = "Water", frequency = "daily", times_per_day = 2, created_at = "2026-10-20T08:00:00Z" }]);
+            new { habit_id = 1, date = "2026-10-27", completed = false, count = 2, skipped = true },
+        ], habits: [water]);
 
         var errors = await ErrorsAsync(await Import(user, refused));
 
         errors.Has("logs[0].skipped").Should().BeFalse();
-        errors.Has("logs[1].skipped").Should().BeTrue();
+        errors.Has("logs[1].skipped").Should().BeFalse();
         errors.Has("logs[2].skipped").Should().BeTrue();
+        errors.Has("logs[3].skipped").Should().BeTrue();
         (await HabitCountAsync(await user.IdAsync())).Should().Be(0);
 
         await (await Import(user, Doc(logs:
         [
             new { habit_id = 1, date = "2026-10-24", completed = false, count = 0 },
             new { habit_id = 1, date = "2026-10-25", completed = false, count = 0, skipped = true },
-        ]))).Expect(HttpStatusCode.NoContent);
+            new { habit_id = 1, date = "2026-10-26", completed = false, count = 1, skipped = true },
+        ], habits: [water]))).Expect(HttpStatusCode.NoContent);
         var userId = await user.IdAsync();
-        (await Host.Db(db => db.HabitLogs.Where(l => l.Habit.UserId == userId).OrderBy(l => l.Date).Select(l => l.Skipped).ToListAsync()))
-            .Should().Equal(false, true);
+        (await Host.Db(db => db.HabitLogs.Where(l => l.Habit.UserId == userId).OrderBy(l => l.Date)
+                .Select(l => new { l.Count, l.Completed, l.Skipped }).ToListAsync()))
+            .Select(l => (l.Count, l.Completed, l.Skipped)).Should().Equal((0, false, false), (0, false, true), (1, false, true));
     }
 
     private static Task<HttpResponseMessage> SendFeedbackWithPicture(ApiClient user, string title)

@@ -108,8 +108,9 @@ public partial class HabitService
     public Task<int> CountHabitsAsync(Guid userId) => _db.Habits.CountAsync(h => h.UserId == userId);
 
     /// <summary>
-    /// Logs the habit as done (<see cref="HabitLog.Count"/> = <see cref="Habit.TimesPerDay"/>) or skipped (count 0,
-    /// <see cref="HabitLog.Skipped"/>) on the user's local <paramref name="date"/>, replacing any earlier log of that day.
+    /// Logs the habit as done (<see cref="HabitLog.Count"/> = <see cref="Habit.TimesPerDay"/>) or explicitly not done (count 0,
+    /// <see cref="HabitLog.Skipped"/>, also on a partly done day) on the user's local <paramref name="date"/>, replacing any earlier log
+    /// of that day; <see cref="SkipDayAsync"/> skips and keeps the count.
     /// Any day from the habit's local start day (<see cref="HabitRules.StartDate"/>) to the user's local today can be logged,
     /// so past days can be backfilled or corrected; future days are refused. Needs the health-data consent, like every check-in write
     /// (<see cref="DayEditResult.ConsentRequired"/>); <see cref="ClearDayAsync"/> doesn't. A skip (not done) on the local today ends that
@@ -117,6 +118,14 @@ public partial class HabitService
     /// </summary>
     public Task<DayEditResult> CheckInAsync(Guid userId, int habitId, DateOnly date, bool completed, ulong? guildId = null)
         => WriteCountAsync(userId, habitId, date, guildId, (habit, _) => completed ? habit.TimesPerDay : 0, skip: !completed);
+
+    /// <summary>
+    /// Skips the user's local <paramref name="date"/> by the same day rules as <see cref="CheckInAsync"/>: keeps the day's check-in count
+    /// (0 without a log) and marks it <see cref="HabitLog.Skipped"/>, so it stays not done. A day already done stays done and isn't marked.
+    /// On the local today it ends that day's reminders either way.
+    /// </summary>
+    public Task<DayEditResult> SkipDayAsync(Guid userId, int habitId, DateOnly date, ulong? guildId = null)
+        => WriteCountAsync(userId, habitId, date, guildId, (_, current) => current, skip: true);
 
     /// <summary>
     /// Sets the day's check-in count to the absolute <paramref name="count"/> (0 to <see cref="Habit.TimesPerDay"/>),
@@ -182,7 +191,7 @@ public partial class HabitService
     {
         log.Completed = count >= habit.TimesPerDay || (log.Completed && count > 0 && count >= log.Count);
         log.Count = count;
-        log.Skipped = skip;
+        log.Skipped = skip && !log.Completed;
     }
 
     /// <summary>

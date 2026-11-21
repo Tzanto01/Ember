@@ -155,7 +155,7 @@ public class CheckInCountTests
         => host.WithScopeAsync(async sp => await action(sp.GetRequiredService<HabitService>(), await TestUsers.UserIdAsync(sp, UserId)));
 
     [Fact]
-    public async Task ReminderSkipButton_OnAPartlyDoneDay_SkipsTheDay()
+    public async Task ReminderSkipButton_OnAPartlyDoneDay_KeepsTheCountAndMarksTheDaySkipped()
     {
         var (host, habitId) = await CreateAsync(timesPerDay: 3);
         await using var _ = host;
@@ -170,11 +170,11 @@ public class CheckInCountTests
             await CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<UserSettingsService>(),
                 await TestUsers.UserIdAsync(sp, UserId), habitId, sentUnix, completed: false, null));
 
-        (await SkipLogsAsync(host, habitId)).Should().Equal((Today, 0, false, true));
+        (await SkipLogsAsync(host, habitId)).Should().Equal((Today, 2, false, true));
     }
 
     [Fact]
-    public async Task ReminderSkipButton_TappedTheNextDayOnAPartlyDoneDay_SkipsThatDay()
+    public async Task ReminderSkipButton_TappedTheNextDayOnAPartlyDoneDay_SkipsThatDayKeepingItsCount()
     {
         var (host, habitId) = await CreateAsync(timesPerDay: 3);
         await using var _ = host;
@@ -188,7 +188,7 @@ public class CheckInCountTests
 
         result.Should().Be(DayEditResult.Saved);
         (day, keptDone).Should().Be((yesterday, false));
-        (await SkipLogsAsync(host, habitId)).Should().Equal((yesterday, 0, false, true));
+        (await SkipLogsAsync(host, habitId)).Should().Equal((yesterday, 1, false, true));
     }
 
     [Fact]

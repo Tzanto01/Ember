@@ -220,7 +220,7 @@ public class BotHandlerFlowTests
     }
 
     [Fact]
-    public async Task Check_in_skip_button_and_reminder_skip_button_on_a_partly_done_day_both_store_a_skip_with_count_zero()
+    public async Task Check_in_skip_button_and_reminder_skip_button_on_a_partly_done_day_both_skip_it_keeping_the_count()
     {
         await using var host = await HostAsync();
         var (checkinId, reminderId) = await host.WithScopeAsync(async sp =>
@@ -241,7 +241,27 @@ public class BotHandlerFlowTests
 
         var logs = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.AsNoTracking().OrderBy(l => l.HabitId).ToListAsync());
         logs.Select(l => (l.HabitId, l.Date, l.Completed, l.Count, l.Skipped))
-            .Should().Equal((checkinId, Today, false, 0, true), (reminderId, Today, false, 0, true));
+            .Should().Equal((checkinId, Today, false, 1, true), (reminderId, Today, false, 1, true));
+    }
+
+    [Fact]
+    public async Task Check_in_skip_button_on_a_done_day_keeps_it_done_and_unskipped()
+    {
+        await using var host = await HostAsync();
+        var habitId = await host.WithScopeAsync(async sp =>
+        {
+            var service = sp.GetRequiredService<HabitService>();
+            await sp.GetRequiredService<ConsentService>().GiveHealthDataConsentAsync(await TestUsers.ResolveOrCreateAsync(sp, User));
+            var userId = await service.FindDiscordUserAsync(User);
+            var id = (await service.AddHabitAsync(userId, "Water", null)).Habit!.Id;
+            await service.AddCheckInAsync(userId, id, Today);
+            return id;
+        });
+
+        await HabitActionAsync(host, m => m.OnCheckinSkipAsync(habitId.ToString()));
+
+        var log = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.AsNoTracking().SingleAsync());
+        (log.Date, log.Completed, log.Count, log.Skipped).Should().Be((Today, true, 1, false));
     }
 
     [Fact]

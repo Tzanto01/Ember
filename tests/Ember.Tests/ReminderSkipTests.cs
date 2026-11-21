@@ -56,7 +56,7 @@ public class ReminderSkipTests
     }
 
     [Fact]
-    public async Task Skipping_from_the_reminder_dm_after_a_partial_check_in_skips_the_day_and_silences_the_later_reminder_times()
+    public async Task Skipping_from_the_reminder_dm_after_a_partial_check_in_keeps_the_count_and_silences_the_later_reminder_times()
     {
         var time = new FakeTimeProvider(NineBerlin.AddMinutes(-30));
         var (host, habitId) = await SeedAsync(time, 2, new TimeOnly(8, 0), new TimeOnly(20, 0));
@@ -66,12 +66,16 @@ public class ReminderSkipTests
         await host.WithScopeAsync(async sp => await CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(),
             sp.GetRequiredService<UserSettingsService>(), await TestUsers.UserIdAsync(sp, DiscordUser), habitId,
             time.GetUtcNow().ToUnixTimeSeconds().ToString(), completed: false, guildId: null));
+        await WithHabitsAsync(host, (habits, userId) => habits.EditHabitAsync(userId, habitId, null, null, clearReminder: false,
+            newReminderTimes: [new TimeOnly(19, 0), new TimeOnly(20, 0)]));
+        time.SetUtcNow(EveningBerlin.AddHours(-1));
+        await ReminderDispatchTests.RunJobAsync(host);
         time.SetUtcNow(EveningBerlin);
         await ReminderDispatchTests.RunJobAsync(host);
 
         host.Discord.Messages.Should().BeEmpty();
         var log = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.AsNoTracking().SingleAsync(l => l.HabitId == habitId));
-        (log.Count, log.Completed, log.Skipped).Should().Be((0, false, true));
+        (log.Count, log.Completed, log.Skipped).Should().Be((1, false, true));
     }
 
     [Fact]

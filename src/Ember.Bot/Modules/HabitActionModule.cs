@@ -172,7 +172,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
 
         var guildId = Context.Guild?.Id;
         var today = await _settings.GetLocalTodayAsync(userId);
-        var result = await _habits.CheckInAsync(userId, habitId, today, completed: false, guildId);
+        var result = await _habits.SkipDayAsync(userId, habitId, today, guildId);
         if (result == DayEditResult.ConsentRequired)
         {
             await ConsentPrompt.RespondAsync(Context, _config, _habits, _consent);
@@ -184,10 +184,11 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
+        var keptDone = (await _habits.GetHabitAsync(userId, habitId))?.Logs.Any(l => l.Date == today && l.Completed) == true;
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
             {
-                m.Content = t.Get("common.skipped-today");
+                m.Content = t.Get(keptDone ? "checkin.kept-done" : "common.skipped-today");
                 m.Components = new ComponentBuilder().Build();
             });
     }
