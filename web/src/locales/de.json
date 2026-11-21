@@ -660,7 +660,7 @@
   "habitFields.allDays": "Alle sieben Tage sind dasselbe wie jeden Tag, deshalb wird es als „Jeden Tag“ gespeichert.",
   "habitFields.timesPerDay": "Wie oft am Tag",
   "habitFields.timesPerDayHint": "Öfter als einmal, wie Wasser über den Tag verteilt? Jeder Check-in zählt eins dazu.",
-  "habitFields.pastDaysStay": "Vergangene Tage bleiben, wie sie sind.",
+  "habitFields.pastDaysStay": "Vergangene Tage mit mehr Check-ins werden auf die neue Zahl gekürzt.",
   "habitFields.timesPerWeek": "Wie oft pro Woche",
   "habitFields.reminderTime": "Erinnerungszeit",
   "habitFields.reminderTimeHint": "Ember schickt dir zu dieser Zeit einen sanften Stupser.",

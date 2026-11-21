@@ -660,7 +660,7 @@
   "habitFields.allDays": "All seven days is the same as every day, so it saves as every day.",
   "habitFields.timesPerDay": "Times a day",
   "habitFields.timesPerDayHint": "More than once, like water through the day? Each check-in adds one.",
-  "habitFields.pastDaysStay": "Past days stay as they are.",
+  "habitFields.pastDaysStay": "Past days with more check-ins are trimmed to the new number.",
   "habitFields.timesPerWeek": "Times per week",
   "habitFields.reminderTime": "Reminder time",
   "habitFields.reminderTimeHint": "Ember sends a gentle nudge at this time.",

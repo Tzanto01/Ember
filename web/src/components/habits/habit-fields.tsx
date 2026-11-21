@@ -192,7 +192,7 @@ export interface HabitFieldsProps {
   errors?: Record<string, string>;
   /** Fixed id of the name input, so the page can focus it. */
   nameId?: string;
-  /** The saved times per day (edit); a lower choice gets a note that past days stay as they are. */
+  /** The saved times per day (edit); a lower choice gets a note that past days with more check-ins are trimmed. */
   savedTimesPerDay?: number;
   /** Shown under the reminder time, for example when a routine's reminder replaces this one. */
   reminderNote?: ReactNode;
