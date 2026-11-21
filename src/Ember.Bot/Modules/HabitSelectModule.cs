@@ -245,11 +245,11 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
         });
 
     private static EmbedBuilder BuildShareEmbedBase(Texts t, Habit habit, int grace, string username, DateOnly today, IReadOnlySet<DateOnly> lowDays,
-        bool showStreaks, TimeZoneInfo? tz)
+        bool showStreaks, TimeZoneInfo tz)
     {
         if (habit.Kind == HabitKind.LetGo)
         {
-            var stats = LetGoRules.StatsOn(habit, today, tz ?? TimeZoneInfo.Utc);
+            var stats = LetGoRules.StatsOn(habit, today, tz);
             return new EmbedBuilder()
                 .WithColor(0xE8873A)
                 .WithTitle($"🌿 {habit.Name} _({HabitText.FrequencyLabel(t, habit)})_")
@@ -292,7 +292,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
         }
         else if (!showStreaks)
         {
-            var last30 = HabitRules.FlexibleStreak(habit, today, 30, lowDays: null, TimeZoneInfo.Utc);
+            var last30 = HabitRules.FlexibleStreak(habit, today, 30, lowDays, tz);
             titleLine = t.Format("habit.share.flexible.title", last30);
             statsLine = t.Format("habit.share.flexible.stats", last30, habit.Logs.Count(l => l.Completed));
         }
@@ -300,7 +300,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
         {
             var (streak, graceUsed) = HabitRules.ConsecutiveStreak(habit, today, grace, lowDays);
             var best = HabitRules.BestStreak(habit, today, grace, lowDays);
-            var last30 = HabitRules.FlexibleStreak(habit, today, 30, lowDays: null, TimeZoneInfo.Utc);
+            var last30 = HabitRules.FlexibleStreak(habit, today, 30, lowDays, tz);
             var total = habit.Logs.Count(l => l.Completed);
             var graceStr = graceUsed > 0 ? " " + t.Plural("habit.progress.grace", graceUsed) : "";
             var fireCount = Math.Min(streak / 7 + 1, 5);
@@ -316,8 +316,12 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             .WithTimestamp(DateTimeOffset.UtcNow);
     }
 
-    /// <summary>The public share card; a let-go habit's card shows days free, longest stretch and free days this month in <paramref name="tz"/> (UTC when null), never a streak.</summary>
+    /// <summary>
+    /// The public share card. Its "last 30 days" counts the user's <paramref name="lowDays"/> as kept, like <c>/habit streak</c>, while its
+    /// grid shows them like any gap. A let-go habit's card shows days free, longest stretch and free days this month in <paramref name="tz"/>,
+    /// never a streak.
+    /// </summary>
     internal static Embed BuildShareEmbed(Texts t, Habit habit, int grace, string username, DateOnly today, IReadOnlySet<DateOnly> lowDays,
-        bool showStreaks, TimeZoneInfo? tz = null) =>
+        bool showStreaks, TimeZoneInfo tz) =>
         BuildShareEmbedBase(t, habit, grace, username, today, lowDays, showStreaks, tz).Build();
 }
