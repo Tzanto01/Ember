@@ -33,7 +33,7 @@ function Answer({ entry, onShow }: { entry: GuideEntry; onShow: (target: string)
  * The header's "How this works" button and the guide it opens for the current screen. Opened below `lg` it is a modal
  * bottom sheet (Android Back closes it); opened from `lg` it is a side panel under the header that leaves the page
  * usable and in the tab order, makes room for itself beside `#main` and follows the user between screens. The mode
- * is fixed when it opens. Renders nothing on a screen without a guide. "Show me" closes the guide, scrolls its target
+ * is set when it opens; a side panel turns into the sheet once the window narrows below `lg`. Renders nothing on a screen without a guide. "Show me" closes the guide, scrolls its target
  * to the middle, rings it briefly and focuses it when it can take focus.
  */
 export function Guide() {
@@ -66,6 +66,16 @@ export function Guide() {
       gone = true;
       remove?.();
     };
+  }, [open, side]);
+
+  useEffect(() => {
+    const query = window.matchMedia?.(sideQuery);
+    if (!open || !side || !query) return;
+    const narrowed = () => {
+      if (!query.matches) setSide(null);
+    };
+    query.addEventListener('change', narrowed);
+    return () => query.removeEventListener('change', narrowed);
   }, [open, side]);
 
   useEffect(() => {

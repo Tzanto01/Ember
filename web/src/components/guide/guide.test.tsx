@@ -54,9 +54,23 @@ async function openQuestion(name: string) {
   await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name }));
 }
 
+const media = { wide: false, changed: new Set<() => void>() };
+
 function stubWide(wide: boolean) {
+  media.wide = wide;
   window.matchMedia = (query: string) =>
-    ({ matches: wide && query === '(min-width: 64rem)', addEventListener: () => undefined, removeEventListener: () => undefined }) as unknown as MediaQueryList;
+    ({
+      get matches() {
+        return media.wide && query === '(min-width: 64rem)';
+      },
+      addEventListener: (_event: string, listener: () => void) => media.changed.add(listener),
+      removeEventListener: (_event: string, listener: () => void) => media.changed.delete(listener),
+    }) as unknown as MediaQueryList;
+}
+
+function resize(wide: boolean) {
+  media.wide = wide;
+  act(() => media.changed.forEach((listener) => listener()));
 }
 
 describe('Guide', () => {
@@ -69,6 +83,7 @@ describe('Guide', () => {
   });
 
   afterEach(() => {
+    media.changed.clear();
     applyCalm(false);
     localStorage.clear();
     env.native = false;
@@ -197,12 +212,32 @@ describe('Guide', () => {
     expect(feedback).toHaveFocus();
   });
 
-  it('keeps the mode it opened in when the screen narrows', async () => {
+  it('stays open but turns into the sheet and gives the page its width back when the screen narrows', async () => {
+    env.native = true;
+    back.handler = null;
+    stubWide(true);
+    renderAt('/today');
+    const main = document.getElementById('main')!;
+    const panelWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(384);
+    main.getBoundingClientRect = () => ({ right: window.innerWidth - 100 }) as DOMRect;
+    await userEvent.click(guideButton());
+    expect(main.style.paddingRight).not.toBe('');
+    expect(back.handler).toBeNull();
+
+    resize(false);
+
+    expect(screen.getByRole('dialog', { name: 'Today, explained' })).toBeInTheDocument();
+    expect(main.style.paddingRight).toBe('');
+    await waitFor(() => expect(back.handler).not.toBeNull());
+    panelWidth.mockRestore();
+  });
+
+  it('keeps the side panel while the screen stays wide', async () => {
     stubWide(true);
     renderAt('/today');
     await userEvent.click(guideButton());
 
-    stubWide(false);
+    resize(true);
     await userEvent.click(screen.getByRole('button', { name: 'Check in Walk for today' }));
 
     expect(screen.getByRole('dialog', { name: 'Today, explained' })).toBeInTheDocument();
