@@ -2,7 +2,10 @@ using System.Globalization;
 
 namespace Ember.Api.Hosting;
 
-/// <summary>The contract's wire formats: local dates as <c>yyyy-MM-dd</c>, times of day as <c>HH:mm</c>.</summary>
+/// <summary>
+/// The contract's wire formats: local dates as <c>yyyy-MM-dd</c>, times of day as <c>HH:mm</c>; and the <c>from</c>/<c>to</c> range
+/// of the per-day reads (<see cref="DayRange"/>).
+/// </summary>
 internal static class Formats
 {
     public static bool TryParseDate(string? value, out DateOnly date)
