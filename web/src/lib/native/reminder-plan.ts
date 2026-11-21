@@ -160,6 +160,11 @@ function lowDaysOf(habits: Habit[]): Set<LocalDateString> {
   return new Set(habits.filter((habit) => habit.today.state === 'lowday').map((habit) => habit.today.date));
 }
 
+/** True when `habit.today` shows `date` as written by a skip (v1.27 `skipped`). */
+function skippedOn(habit: Habit, date: LocalDateString): boolean {
+  return habit.today.date === date && habit.today.skipped;
+}
+
 function pendingOn(habit: Habit, date: LocalDateString): boolean {
   if (habit.today.date === date) return habit.today.state === 'pending' || habit.today.state === 'partial';
   return scheduledOn(habit, date);
@@ -168,7 +173,8 @@ function pendingOn(habit: Habit, date: LocalDateString): boolean {
 /**
  * True when a reminder for `reminder`'s habit or routine on its `date` has nothing left to remind of, by the plan's
  * rules read from `habit.today` alone: the habit is done that day, or a weekly habit's target is met that week; every
- * member of the routine is known for that day and none is still pending or partial. Unknown and let-go items, and
+ * member of the routine is known for that day and none is still pending or partial (a skipped member is still open,
+ * as on the server). Unknown and let-go items, and
  * days `habit.today` doesn't show, are never settled.
  */
 export function settled(
@@ -193,11 +199,11 @@ export function settled(
  * Habits fire at each of their reminder times on scheduled days only (started, not paused, a listed weekday), not
  * once today is done, and for weekly habits not for the rest of the week (Monday to Sunday) once its target is met.
  * A routine with a reminder time fires once a day while any member habit is still pending or partial (today from
- * `habit.today`, later days when scheduled); its members' own reminders are skipped. Instants already past are
+ * `habit.today`, later days when scheduled) and not skipped that day; its members' own reminders are skipped. Instants already past are
  * dropped. With `secondMinutes` above 0 each reminder gets a follow-up (`second`) that many minutes later (in the
  * account mode not for items with `serverReminders`), unless it falls on another local day or the habit's next
- * reminder time that day comes first, or (like the server's skip) a habit's first reminder already fired on a day
- * `habit.today` shows as skipped (`completed` false). Nothing fires on a low day (from `habit.today`). A let-go habit gets one
+ * reminder time that day comes first. Like the server, nothing fires for a habit on a day `habit.today` shows as
+ * `skipped` (a count of 0 is not a skip and keeps its reminders). Nothing fires on a low day (from `habit.today`). A let-go habit gets one
  * quiet check-in (`letGo`) at its first reminder time on each day from its start while not paused, low days included,
  * never a second one. Sorted soonest first, capped at {@link planCap}, with ids from {@link reminderId} (a collision moves to the next free id).
  */
@@ -213,14 +219,8 @@ export function planReminders(
   const habits = buildHabits(all);
   const low = lowDaysOf(habits);
   const planned: Omit<PlannedReminder, 'id'>[] = [];
-  const plan = (
-    item: Remindable,
-    reminder: Omit<PlannedReminder, 'id' | 'second'>,
-    nextAt = Infinity,
-    skipped = false,
-  ) => {
+  const plan = (item: Remindable, reminder: Omit<PlannedReminder, 'id' | 'second'>, nextAt = Infinity) => {
     if (reminder.at > now) planned.push(reminder);
-    else if (skipped) return;
     if (secondMinutes <= 0 || (target.mode === 'account' && item.serverReminders === true)) return;
     const at = reminder.at + secondMinutes * 60_000;
     if (at > now && at < nextAt && localDate(at, timeZone) === reminder.date)
@@ -234,11 +234,11 @@ export function planReminders(
     for (let offset = 0; offset < planDays; offset++) {
       const date = addDays(today, offset);
       if (low.has(date) || !scheduledOn(habit, date) || doneToday(habit, date) || weekMet(habit, date)) continue;
+      if (skippedOn(habit, date)) continue;
       const instants = times.map((time) => zonedToUtc(date, time, timeZone));
-      const skipped = habit.today.date === date && habit.today.completed === false;
       times.forEach((time, i) => {
         if (i === 0 || instants[i] !== instants[i - 1])
-          plan(habit, { habitId: habit.id, date, time, at: instants[i] }, instants[i + 1], skipped);
+          plan(habit, { habitId: habit.id, date, time, at: instants[i] }, instants[i + 1]);
       });
     }
   }
@@ -257,7 +257,7 @@ export function planReminders(
     const members = habits.filter((habit) => routine.habitIds.includes(habit.id));
     for (let offset = 0; offset < planDays; offset++) {
       const date = addDays(today, offset);
-      if (low.has(date) || !members.some((habit) => pendingOn(habit, date))) continue;
+      if (low.has(date) || !members.some((habit) => pendingOn(habit, date) && !skippedOn(habit, date))) continue;
       plan(routine, {
         routineId: routine.id,
         date,

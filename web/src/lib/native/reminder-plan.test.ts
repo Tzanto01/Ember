@@ -6,6 +6,7 @@ import {
   planReminders,
   type ReminderTarget,
   reminderId,
+  settled,
   zonedToUtc,
 } from './reminder-plan';
 
@@ -331,19 +332,57 @@ describe('planReminders', () => {
     expect(plan[1]).toMatchObject({ date: '2026-11-03' });
   });
 
-  it('drops the second reminder of a first one that already fired once today is skipped, and keeps later ones', () => {
+  it('plans nothing more on a day skipped today, neither first nor second reminders, and keeps tomorrow', () => {
     const skipped = habit({
+      reminderTime: null,
+      reminderTimes: ['13:00', '20:00'],
+      today: { date: '2026-11-02', state: 'pending', completed: false, count: 0, skipped: true },
+    });
+    const plan = planReminders([skipped], 'Europe/Berlin', Date.parse('2026-11-02T12:10:00Z'), [], 30);
+
+    expect(plan.filter((r) => r.date === '2026-11-02')).toEqual([]);
+    expect(plan.filter((r) => r.date === '2026-11-03').map((r) => [r.time, r.second ?? false])).toEqual([
+      ['13:00', false],
+      ['13:00', true],
+      ['20:00', false],
+      ['20:00', true],
+    ]);
+  });
+
+  it('keeps the reminders of a day whose count went back to 0, which is not a skip', () => {
+    const cleared = habit({
       reminderTime: null,
       reminderTimes: ['13:00', '20:00'],
       today: { date: '2026-11-02', state: 'pending', completed: false, count: 0, skipped: false },
     });
-    const plan = planReminders([skipped], 'Europe/Berlin', Date.parse('2026-11-02T12:10:00Z'), [], 30);
+    const plan = planReminders([cleared], 'Europe/Berlin', Date.parse('2026-11-02T12:10:00Z'), [], 30);
 
     expect(
       plan.filter((r) => r.date === '2026-11-02').map((r) => [new Date(r.at).toISOString(), r.second ?? false]),
     ).toEqual([
+      ['2026-11-02T12:30:00.000Z', true],
       ['2026-11-02T19:00:00.000Z', false],
       ['2026-11-02T19:30:00.000Z', true],
+    ]);
+  });
+
+  it('plans no routine reminder today when its only open members are skipped, and plans it tomorrow', () => {
+    const routine: Routine = { id: 7, name: 'Evening', reminderTime: '18:00', reminderChannels: ['mobile'], habitIds: [1, 2] };
+    const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 1, skipped: false };
+    const skipped = { date: '2026-11-02', state: 'pending' as const, completed: false, count: 0, skipped: true };
+
+    const plan = planReminders(
+      [habit({ id: 1, today: done }), habit({ id: 2, today: skipped })],
+      'Europe/Berlin',
+      berlinMorning,
+      [routine],
+      30,
+    );
+
+    expect(plan.filter((r) => r.date === '2026-11-02')).toEqual([]);
+    expect(plan.filter((r) => r.date === '2026-11-03').map((r) => [r.routineId, r.second ?? false])).toEqual([
+      [7, false],
+      [7, true],
     ]);
   });
 
@@ -523,5 +562,18 @@ describe('zonedToUtc', () => {
       ]);
       expect(plan.filter((r) => r.date === '2026-11-02').map((r) => r.second ?? false)).toEqual([false, false, true]);
     });
+  });
+});
+
+describe('settled', () => {
+  it('keeps a routine with a member skipped today open, as the server does', () => {
+    const routine: Routine = { id: 7, name: 'Evening', reminderTime: '18:00', reminderChannels: ['mobile'], habitIds: [1, 2] };
+    const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 1, skipped: false };
+    const skipped = { date: '2026-11-02', state: 'pending' as const, completed: false, count: 0, skipped: true };
+    const habits = [habit({ id: 1, today: done }), habit({ id: 2, today: skipped })];
+
+    expect(settled(habits, [routine], { routineId: 7, date: '2026-11-02' })).toBe(false);
+    expect(settled(habits, [routine], { habitId: 2, date: '2026-11-02' })).toBe(false);
+    expect(settled([habit({ id: 1, today: done }), habit({ id: 2, today: done })], [routine], { routineId: 7, date: '2026-11-02' })).toBe(true);
   });
 });
