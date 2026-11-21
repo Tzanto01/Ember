@@ -100,4 +100,45 @@ public class ReminderSkipTests
 
         host.Discord.Messages.Should().ContainSingle().Which.Text.Should().Contain("Stretch");
     }
+
+    [Fact]
+    public async Task Skipping_yesterday_keeps_todays_second_reminder()
+    {
+        var time = new FakeTimeProvider(NineBerlin);
+        var (host, habitId) = await SeedAsync(time, reminderTimes: new TimeOnly(20, 0));
+        await using var _ = host;
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var habit = await db.Habits.FindAsync(habitId);
+            habit!.CreatedAt = habit.CreatedAt.AddDays(-2);
+            (await db.Users.FindAsync(TestUsers.Id(DiscordUser)))!.SecondReminderMinutes = 30;
+            await db.SaveChangesAsync();
+        });
+        time.SetUtcNow(EveningBerlin);
+        await ReminderDispatchTests.RunJobAsync(host);
+
+        time.SetUtcNow(EveningBerlin.AddMinutes(5));
+        await WithHabitsAsync(host, (habits, userId) => habits.CheckInAsync(userId, habitId, Today.AddDays(-1), completed: false));
+        time.SetUtcNow(EveningBerlin.AddMinutes(31));
+        await ReminderDispatchTests.RunJobAsync(host);
+
+        host.Discord.Messages.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task A_check_in_after_a_skip_brings_the_later_reminder_back()
+    {
+        var time = new FakeTimeProvider(NineBerlin);
+        var (host, habitId) = await SeedAsync(time, 2, new TimeOnly(20, 0));
+        await using var _ = host;
+
+        await WithHabitsAsync(host, (habits, userId) => habits.CheckInAsync(userId, habitId, Today, completed: false));
+        time.SetUtcNow(NineBerlin.AddHours(1));
+        await WithHabitsAsync(host, (habits, userId) => habits.AddCheckInAsync(userId, habitId, Today));
+        time.SetUtcNow(EveningBerlin);
+        await ReminderDispatchTests.RunJobAsync(host);
+
+        host.Discord.Messages.Should().ContainSingle().Which.Text.Should().Contain("Stretch");
+    }
 }

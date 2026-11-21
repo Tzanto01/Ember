@@ -216,6 +216,9 @@ public partial class HabitService
         habit.SecondReminderUtc = null;
         habit.NextReminderUtc = HabitRules.NextReminderAfterDayUtc(habit, TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc, date,
             _time.GetUtcNow().UtcDateTime);
+        var entry = _db.Entry(habit);
+        entry.Property(h => h.SecondReminderUtc).IsModified = true;
+        entry.Property(h => h.NextReminderUtc).IsModified = true;
     }
 
     /// <summary>Brings back the rest of today's reminders that a skip of the local today moved past it.</summary>
