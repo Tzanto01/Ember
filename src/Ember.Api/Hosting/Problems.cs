@@ -9,7 +9,7 @@ internal static class Problems
     [
         "validation", "unauthenticated", "forbidden", "consent_required", "antiforgery", "not_found",
         "habit_limit", "conflict", "before_habit_start", "in_future", "rate_limited", "internal",
-        "invalid_code", "password_required", "fireside_consent_required", "expired",
+        "invalid_code", "password_required", "fireside_consent_required", "expired", "too_large", "busy",
     ];
 
     /// <summary>
@@ -85,6 +85,12 @@ internal static class Problems
     public static IResult Conflict(string detail) => Problem(StatusCodes.Status409Conflict, "conflict", detail);
 
     public static IResult RateLimited() => Problem(StatusCodes.Status429TooManyRequests, "rate_limited");
+
+    /// <summary>A request whose stored form would be over its size limit.</summary>
+    public static IResult TooLarge() => Problem(StatusCodes.Status413PayloadTooLarge, "too_large");
+
+    /// <summary>A queue that is full for now; the client tries again later.</summary>
+    public static IResult Busy() => Problem(StatusCodes.Status503ServiceUnavailable, "busy");
 
     /// <summary>The problem for a day edit that wasn't saved; null for <see cref="DayEditResult.Saved"/>.</summary>
     public static IResult? DayEdit(DayEditResult result) => result switch

@@ -1,3 +1,4 @@
+using Ember.Api.Diagnostics;
 using Ember.Api.Lookout;
 using Ember.Core;
 using Ember.Core.Data;
@@ -7,12 +8,15 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api;
 
 /// <summary>
-/// Delivers <see cref="LookoutOutbox"/> rows to Lookout's ingest one at a time, run by <c>--lookout-sender</c> in its own container:
-/// user deletions first, then tickets, each in id order. Deleting an account cascades away that user's unsent tickets, so a deletion
-/// still follows every ticket of that user, and a ticket stuck on a quota can't hold up an erasure. Sends nothing unless
-/// <see cref="LookoutIngest.TryGetEndpoint"/> accepts the configuration. A transient failure keeps the row at the head and waits
-/// <see cref="LookoutIngest.Backoff"/>; a permanent refusal parks a ticket and moves on, while a deletion is never parked, only
-/// retried. Logs row id, kind and status or exception type only.
+/// Delivers <see cref="LookoutOutbox"/> and <see cref="LookoutDiagnostic"/> rows to Lookout's ingest one at a time, run by
+/// <c>--lookout-sender</c> in its own container: user deletions first, then tickets, each in id order, then diagnostics uploads in id
+/// order. Deleting an account cascades away that user's unsent tickets, so a deletion still follows every ticket of that user, and a
+/// ticket stuck on a quota can't hold up an erasure. Sends nothing unless <see cref="LookoutIngest.TryGetEndpoint"/> accepts the
+/// configuration. A transient failure keeps an outbox row at the head and waits <see cref="LookoutIngest.Backoff"/>; a permanent
+/// refusal parks a ticket and moves on, while a deletion is never parked, only retried. A diagnostics upload never holds up the
+/// outbox: each step first drops uploads unsent for <see cref="DiagnosticsEndpoints.MaxUnsentAge"/>; an upload Lookout accepted or
+/// refused for good is deleted, and any other answer defers only that upload by its own backoff (<see cref="LookoutDiagnostic.NextAttemptAt"/>).
+/// Logs row id, kind and status or exception type only.
 /// </summary>
 internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http, IConfiguration configuration, TimeProvider time,
     ILogger<LookoutSender> logger) : BackgroundService
@@ -36,7 +40,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
     {
         if (!LookoutIngest.TryGetEndpoint(configuration, out _, out _))
         {
-            logger.LogWarning("Lookout ingest is not configured; feedback stays in the outbox.");
+            logger.LogWarning("Lookout ingest is not configured; feedback and diagnostics stay queued.");
             return;
         }
 
@@ -48,8 +52,9 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
     }
 
     /// <summary>
-    /// Handles the head of the outbox once and returns how long to wait before the next step: zero after a delivery, a park or a row
-    /// whose feedback is gone, <see cref="PollInterval"/> when the outbox is empty, the backoff after a transient failure. Does
+    /// Drops expired diagnostics uploads, then handles the head of the outbox once, or with the outbox empty the next due diagnostics
+    /// upload, and returns how long to wait before the next step: zero after a delivery, a park, a row whose feedback is gone or any
+    /// answer to an upload, <see cref="PollInterval"/> when nothing is due, the backoff after a transient outbox failure. Does
     /// nothing and returns <see cref="PollInterval"/> when Lookout isn't configured.
     /// </summary>
     internal async Task<TimeSpan> StepAsync(CancellationToken cancellationToken)
@@ -58,9 +63,12 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
 
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<EmberDbContext>();
+        var now = time.GetUtcNow().UtcDateTime;
+        if (await DiagnosticsEndpoints.DeleteExpiredAsync(db, now, cancellationToken) is > 0 and var expired)
+            logger.LogInformation("Dropped {Count} diagnostics uploads unsent for 30 days.", expired);
         var row = await db.LookoutOutbox.AsNoTracking().Where(o => o.SentAt == null && o.ParkedAt == null)
             .OrderBy(o => o.Kind == LookoutOutbox.UserDelete ? 0 : 1).ThenBy(o => o.Id).FirstOrDefaultAsync(cancellationToken);
-        if (row is null) return PollInterval;
+        if (row is null) return await StepDiagnosticAsync(db, endpoint, keyFile, now, cancellationToken);
         var rows = db.LookoutOutbox.Where(o => o.Id == row.Id);
 
         HttpMethod method;
@@ -96,7 +104,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
             return Failed(row, e.GetType().Name);
         }
 
-        var now = time.GetUtcNow().UtcDateTime;
+        now = time.GetUtcNow().UtcDateTime;
         if (status is >= 200 and < 300)
         {
             if (row.Kind == LookoutOutbox.UserDelete) await rows.ExecuteDeleteAsync(cancellationToken);
@@ -109,6 +117,40 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         await rows.ExecuteUpdateAsync(s => s.SetProperty(o => o.ParkedAt, now).SetProperty(o => o.ParkedStatus, status), cancellationToken);
         logger.LogError("Lookout refused outbox row {Id} ({Kind}) with {Status}; parked.", row.Id, row.Kind, status);
         _failures = 0;
+        return TimeSpan.Zero;
+    }
+
+    private async Task<TimeSpan> StepDiagnosticAsync(EmberDbContext db, Uri endpoint, string keyFile, DateTime now, CancellationToken cancellationToken)
+    {
+        var row = await db.LookoutDiagnostics.AsNoTracking().Where(d => d.NextAttemptAt == null || d.NextAttemptAt <= now)
+            .OrderBy(d => d.Id).FirstOrDefaultAsync(cancellationToken);
+        if (row is null) return PollInterval;
+        var rows = db.LookoutDiagnostics.Where(d => d.Id == row.Id);
+
+        string reason;
+        try
+        {
+            using var response = await LookoutIngest.SendAsync(db, http, endpoint, keyFile, HttpMethod.Put, LookoutIngest.DiagnosticsPath(row.Key),
+                row.Body, cancellationToken, logger);
+            var status = (int)response.StatusCode;
+            if (status is 200 or 201 || LookoutIngest.IsRefused(status))
+            {
+                await rows.ExecuteDeleteAsync(cancellationToken);
+                if (status is not (200 or 201)) logger.LogError("Lookout refused diagnostics row {Id} with {Status}; dropped.", row.Id, status);
+                return TimeSpan.Zero;
+            }
+            reason = status.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (Exception e) when (LookoutIngest.IsTransient(e, cancellationToken))
+        {
+            reason = e.GetType().Name;
+        }
+
+        var attempts = row.Attempts + 1;
+        var wait = LookoutIngest.Backoff(attempts);
+        var next = time.GetUtcNow().UtcDateTime + wait;
+        await rows.ExecuteUpdateAsync(s => s.SetProperty(d => d.Attempts, attempts).SetProperty(d => d.NextAttemptAt, next), cancellationToken);
+        logger.LogWarning("Lookout diagnostics row {Id} failed with {Reason}; retrying in {Wait}.", row.Id, reason, wait);
         return TimeSpan.Zero;
     }
 

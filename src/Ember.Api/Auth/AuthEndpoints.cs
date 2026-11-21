@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
+using Ember.Api.Diagnostics;
 using Ember.Api.Email;
 using Ember.Api.Habits;
 using Ember.Api.Hosting;
@@ -40,7 +41,7 @@ internal static class AuthEndpoints
     [
         Register, "/api/auth/login", "/api/auth/refresh", "/api/auth/resendConfirmationEmail",
         ForgotPassword, ResetPassword, ConfirmEmail, "/api/auth/discord/2fa", ReminderEndpoints.DonePath,
-        "/api/auth/discord/native/token", "/api/auth/confirm-email-code",
+        "/api/auth/discord/native/token", "/api/auth/confirm-email-code", DiagnosticsEndpoints.Path,
     ];
 
     public sealed record ConfirmEmailRequest(string? UserId, string? Code, string? Password);

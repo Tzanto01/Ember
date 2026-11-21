@@ -14,9 +14,10 @@ namespace Ember.Api.Hosting;
 /// other <c>/api/auth</c> request (the loose <see cref="AuthOtherPolicy"/> policy, and the same limit as a global limiter on
 /// the Discord OAuth callback, which the authentication handler answers before any endpoint runs), on the widget check-in (its
 /// own <see cref="WidgetPolicy"/> policy, so widget taps never use up sign-in attempts), and on the mail-sending
-/// endpoints per endpoint, normalized email and client IP, per email, per client IP and in total per day, and <c>POST /api/feedback</c> per user (with a daily picture byte budget), or per client IP and in total per
-/// day for anonymous senders (the singleton <see cref="PartitionedRateLimiter{TResource}"/> of <see cref="string"/>, keyed by <see cref="MailKeys"/> and
-/// <see cref="FeedbackKeys"/>, which never share a partition).
+/// endpoints per endpoint, normalized email and client IP, per email, per client IP and in total per day, <c>POST /api/feedback</c> per user (with a daily picture byte budget), or per client IP and in total per
+/// day for anonymous senders, and <c>POST /api/diagnostics</c> per client IP, per installation and in total per hour (the singleton
+/// <see cref="PartitionedRateLimiter{TResource}"/> of <see cref="string"/>, keyed by <see cref="MailKeys"/>, <see cref="FeedbackKeys"/> and
+/// <see cref="DiagnosticsKeys"/>, which never share a partition).
 /// </summary>
 internal static class RateLimits
 {
@@ -34,6 +35,10 @@ internal static class RateLimits
     private const string FeedbackDayKey = "fb-day";
     private const string FeedbackBytesPrefix = "fb-bytes:";
     private const string FeedbackBigBodyPrefix = "fb-big:";
+    private const string DiagnosticsIpPrefix = "dg-ip:";
+    private const string DiagnosticsInstallationPrefix = "dg-inst:";
+    private const string DiagnosticsHourKey = "dg-hour";
+    private static readonly byte[] InstallationKey = RandomNumberGenerator.GetBytes(32);
 
     public static IServiceCollection AddEmberRateLimits(this IServiceCollection services, IConfiguration configuration)
     {
@@ -49,6 +54,11 @@ internal static class RateLimits
                 _ when key.StartsWith(FeedbackUserPrefix, StringComparison.Ordinal) || key.StartsWith(FeedbackIpPrefix, StringComparison.Ordinal)
                     || key.StartsWith(FeedbackBigBodyPrefix, StringComparison.Ordinal)
                     => new FixedWindowRateLimiterOptions { PermitLimit = settings.FeedbackPerHour, Window = MailWindow },
+                DiagnosticsHourKey => new FixedWindowRateLimiterOptions { PermitLimit = settings.DiagnosticsPerHour, Window = MailWindow },
+                _ when key.StartsWith(DiagnosticsIpPrefix, StringComparison.Ordinal)
+                    => new FixedWindowRateLimiterOptions { PermitLimit = settings.DiagnosticsPerIpPerDay, Window = MailDayWindow },
+                _ when key.StartsWith(DiagnosticsInstallationPrefix, StringComparison.Ordinal)
+                    => new FixedWindowRateLimiterOptions { PermitLimit = settings.DiagnosticsPerInstallationPerDay, Window = MailDayWindow },
                 MailDayKey => new FixedWindowRateLimiterOptions { PermitLimit = settings.MailPerDay, Window = MailDayWindow },
                 _ when key.StartsWith(MailIpPrefix, StringComparison.Ordinal)
                     => new FixedWindowRateLimiterOptions { PermitLimit = settings.MailPerIpPerHour, Window = MailWindow },
@@ -95,6 +105,16 @@ internal static class RateLimits
     /// </summary>
     internal static string[] FeedbackKeys(Guid? userId, IPAddress? address)
         => userId is { } id ? [FeedbackUserPrefix + id.ToString("N")] : [FeedbackIpPrefix + ClientKey(address), FeedbackDayKey];
+
+    /// <summary>
+    /// The diagnostics limiter keys for one upload, in the order to take them: the client IP first, then the installation, and the
+    /// hourly total of all senders last, so a sender over a narrower limit doesn't use up the shared allowance. The installation id
+    /// goes in only as an HMAC-SHA256 with a random per-process key, so the keys never hold it and can't be matched to it later.
+    /// </summary>
+    internal static string[] DiagnosticsKeys(string installation, IPAddress? address)
+        => [DiagnosticsIpPrefix + ClientKey(address),
+            DiagnosticsInstallationPrefix + Convert.ToHexString(HMACSHA256.HashData(InstallationKey, Encoding.UTF8.GetBytes(installation))),
+            DiagnosticsHourKey];
 
     /// <summary>
     /// The limiter key of a signed-in user's picture bytes, one permit per decoded byte, at most

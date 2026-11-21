@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Ember.Api.Lookout;
 
 /// <summary>
-/// The client side of Lookout's ingest API (<c>PUT tickets/{key}</c>, <c>DELETE users/{userRef}</c>), shared by
+/// The client side of Lookout's ingest API (<c>PUT tickets/{key}</c>, <c>DELETE users/{userRef}</c>, <c>PUT diagnostics/{key}</c>), shared by
 /// <see cref="LookoutSender"/> and <see cref="LookoutImportCli"/>. Never logs or throws the key, a body or a user ref.
 /// </summary>
 internal static class LookoutIngest
@@ -102,6 +102,9 @@ internal static class LookoutIngest
 
     /// <summary>The path of <c>PUT tickets/{key}</c>.</summary>
     public static string TicketPath(string key) => "tickets/" + Uri.EscapeDataString(key);
+
+    /// <summary>The path of <c>PUT diagnostics/{key}</c>.</summary>
+    public static string DiagnosticsPath(string key) => "diagnostics/" + Uri.EscapeDataString(key);
 
     /// <summary>The path of <c>DELETE users/{userRef}</c>.</summary>
     public static string UserPath(string userRef) => "users/" + Uri.EscapeDataString(userRef);

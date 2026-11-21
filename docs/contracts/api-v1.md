@@ -1,4 +1,6 @@
-# Ember API contract v1.24
+# Ember API contract v1.25
+
+v1.25 (2026-11-21, Send diagnostics): the Android app can send an anonymous technical report (versions, launch events, recent exit reasons) to the Ember team and gets a reference code to quote in Discord (`POST /api/diagnostics`). See "Diagnostics v1.25".
 
 v1.24 (2026-11-20, Nico on a tester's wish for "a passed tick, for the good feeling"): a let-go habit can be marked "made it today", a warm acknowledgement only, with no streak, no effect on days without or any number, and no nudge when it is skipped. See "Made it today v1.24".
 
@@ -71,8 +73,10 @@ Shared interface between `src/Ember.Api` (producer, team `api`) and `web/` (cons
 | 401 | `invalid_code` | An emailed sign-up code that didn't work, for any reason (v1.11) |
 | 410 | `expired` | A reminder action token that can no longer be used (v1.10) |
 | 422 | `before_habit_start` / `in_future` | Day outside the editable range |
+| 413 | `too_large` | A diagnostics upload whose stored report would be over 64 000 bytes (v1.25) |
 | 429 | `rate_limited` | Too many attempts; `Retry-After` header set |
 | 500 | `internal` | No detail leaks |
+| 503 | `busy` | The diagnostics queue is full for now; try again later (v1.25) |
 
 - Clients send `X-Ember-Client: {platform}/{version}` on their own `/api` calls (platform `web`, `android` or `discord`; version 1 to 32 of `0-9A-Za-z.+_-`, for example `android/1.4.2`). The API stores it on the sign-in session (`AuthSession.Platform`, `AppVersion`) and ignores any other value.
 - Every endpoint acts only on the signed-in user. Another user's habit ID behaves exactly like a missing one (404).
@@ -833,3 +837,25 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 ### Out of scope
 
 The Discord bot (it shows no tick; its slips still clear the mark through Core) and the Android widget.
+
+## Diagnostics v1.25
+
+### `POST /api/diagnostics`
+
+- Anonymous for everyone, outside the signed-in group: the API never reads the user, a cookie or the `Authorization` header, so an upload is never linked to an account, signed in or not. No `X-XSRF-TOKEN` needed. Clients send it without credentials.
+- Body: `{ installation, platform, version, os, device, launches: [{ at, event }], exits: [{ at, reason, signal, exception: string[], frames: string[] }] }`; unknown members are ignored.
+  - `installation`: 16 to 64 of `A-Za-z0-9_-`, random per install, used only for the rate limit (as an HMAC with a per-process key; never stored or logged).
+  - `platform`: `android`. `version`: as for feedback, or null. `os`: `Android {release} (API {level})`, release 1 to 20 of `A-Za-z0-9._`. `device`: 1 to 64 of `A-Za-z0-9 ._+()-`, or null.
+  - Every `at`: UTC cut to the minute, exactly `yyyy-MM-ddTHH:mm:00Z`. `launches` (at most 50) and `exits` (at most 5) newest first.
+  - `event`: one of the fixed launch vocabulary, `name key=value ...` with the keys in this order, each optional: `launch` (`cold`, `saved`, `source`, `history`, `webview`), `new_intent` (`source`), `page_loaded` (`ms`), `renderer_gone` (`crashed`, `priority`, `then`), `route_ignored` (`reason`), `destroy` (`finishing`, `config_change`). Booleans `true|false`, integers 1 to 9 digits, `source` `user|notification|system`, `then` `recreate|finish|none`, `reason` `restoring|no_bridge|from_history|rejected`, `webview` 1 to 40 of `0-9A-Za-z._-`.
+  - `reason`: an `ApplicationExitInfo` `REASON_*` name without the prefix (`UNKNOWN`, `EXIT_SELF`, `SIGNALED`, `LOW_MEMORY`, `CRASH`, `CRASH_NATIVE`, `ANR`, `INITIALIZATION_FAILURE`, `PERMISSION_CHANGE`, `EXCESSIVE_RESOURCE_USAGE`, `USER_REQUESTED`, `USER_STOPPED`, `DEPENDENCY_DIED`, `OTHER`, `FREEZER`, `PACKAGE_STATE_CHANGE`, `PACKAGE_UPDATED`). `signal`: a Linux signal name, `SIGHUP` to `SIGSYS` (1 to 31), or null.
+  - `exception`: at most 10 type names, each 1 to 200 of `A-Za-z0-9_$.`. `frames`: at most 40, each a Java frame `name(location)` (name 1 to 300 of `A-Za-z0-9_$.<>/-`, location 0 to 200 of `A-Za-z0-9_$.: -`) or a native frame `#NN pc {hex} {library} ({symbol})` (symbol optional, of `A-Za-z0-9_:~<>,. -`). ASCII only; anything else is refused, never cleaned up.
+- Launches and exits from before `createdAt - 7 days + 1 minute` or after `createdAt + 1 hour` (device clock skew) are dropped, never stored.
+- Order: 400 `validation` (field-named, for example `exits[0].frames`; the value is never echoed), then 503 `busy` while 200 uploads wait to be sent, then the rate limits (`Ember:RateLimits`): `DiagnosticsPerIpPerDay` (default 6) per client IP (an IPv6 caller by its /64), `DiagnosticsPerInstallationPerDay` (default 3) per installation and `DiagnosticsPerHour` (default 20) across all senders, each 429 `rate_limited` with `Retry-After`. Then the API builds the stored report; over 64 000 UTF-8 bytes → 413 `too_large`.
+- 201 `{ "ref": "EMB-XXXXXXXX" }`: the reference code, `EMB-` and 8 Crockford base32 characters (`0-9`, `A-Z` without `I`, `L`, `O`, `U`) from 40 random bits.
+- The stored report is Lookout's `DiagnosticsInput`: compact JSON `{ ref, platform, version, os, device, createdAt, userRef: null, launches, exits }` in that order, the same bytes as the web preview's `JSON.stringify` (golden pairs in `tests/fixtures/diagnostics`). `createdAt` is the server time, `yyyy-MM-ddTHH:mm:ss.fffZ`.
+
+### Data
+
+- New table `LookoutDiagnostics`: `Id` (send order), `Key` (version 7 GUID, unique), `Ref` (unique), `Body` (the exact bytes sent), `CreatedAt`, `NextAttemptAt`, `Attempts`. No user, installation or IP. Not part of the export; untouched by merges and account deletion. An upload unsent for 30 days is deleted.
+- The `lookout-sender` sends uploads with `PUT diagnostics/{key}` after every user deletion and ticket. 200 or 201 deletes the row; 400, 409, 413 or 415 drop it; any other answer or a network failure retries only that upload later, with its own backoff, so it never holds up tickets or deletions. Logs row id and status only; the API never logs an upload.

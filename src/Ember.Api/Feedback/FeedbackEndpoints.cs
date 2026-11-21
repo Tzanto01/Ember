@@ -139,6 +139,6 @@ internal static class FeedbackEndpoints
         }
     }
 
-    private static bool IsVersion(string version)
+    internal static bool IsVersion(string version)
         => version is { Length: > 0 and <= MaxVersionLength } && version.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '+' or '_' or '-');
 }

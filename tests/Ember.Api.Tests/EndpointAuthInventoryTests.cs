@@ -98,6 +98,7 @@ public class EndpointAuthInventoryTests(PostgresFixture postgres) : ApiTestBase(
         POST /api/auth/register -> anonymous
         POST /api/auth/resendConfirmationEmail -> anonymous
         POST /api/auth/resetPassword -> anonymous
+        POST /api/diagnostics -> anonymous
         POST /api/feedback -> anonymous
         POST /api/fireside/code -> authenticated
         POST /api/fireside/friends/{id:int}/acknowledge -> authenticated

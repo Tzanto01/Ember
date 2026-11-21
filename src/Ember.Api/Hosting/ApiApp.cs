@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Net;
 using Ember.Api.Account;
 using Ember.Api.Auth;
+using Ember.Api.Diagnostics;
 using Ember.Api.Email;
 using Ember.Api.Feedback;
 using Ember.Api.Fireside;
@@ -203,6 +204,7 @@ public static class ApiApp
         api.MapReminders();
         api.MapWidget();
         api.MapFeedback();
+        api.MapDiagnostics();
 
         mapExtra?.Invoke(app);
 
