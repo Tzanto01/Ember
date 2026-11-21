@@ -108,8 +108,8 @@ public partial class HabitService
     public Task<int> CountHabitsAsync(Guid userId) => _db.Habits.CountAsync(h => h.UserId == userId);
 
     /// <summary>
-    /// Logs the habit as done (<see cref="HabitLog.Count"/> = <see cref="Habit.TimesPerDay"/>) or explicitly not done (count 0)
-    /// on the user's local <paramref name="date"/>, replacing any earlier log of that day.
+    /// Logs the habit as done (<see cref="HabitLog.Count"/> = <see cref="Habit.TimesPerDay"/>) or skipped (count 0,
+    /// <see cref="HabitLog.Skipped"/>) on the user's local <paramref name="date"/>, replacing any earlier log of that day.
     /// Any day from the habit's local start day (<see cref="HabitRules.StartDate"/>) to the user's local today can be logged,
     /// so past days can be backfilled or corrected; future days are refused. Needs the health-data consent, like every check-in write
     /// (<see cref="DayEditResult.ConsentRequired"/>); <see cref="ClearDayAsync"/> doesn't. A skip (not done) on the local today ends that
@@ -121,6 +121,7 @@ public partial class HabitService
     /// <summary>
     /// Sets the day's check-in count to the absolute <paramref name="count"/> (0 to <see cref="Habit.TimesPerDay"/>),
     /// by the same day rules as <see cref="CheckInAsync"/>. The day is done once the count reaches the habit's target.
+    /// This is never a skip, not even for a count of 0: it clears <see cref="HabitLog.Skipped"/>.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="count"/> is outside 0 to the habit's <see cref="Habit.TimesPerDay"/>; nothing is written.</exception>
     public Task<DayEditResult> SetCountAsync(Guid userId, int habitId, DateOnly date, int count, ulong? guildId = null)
@@ -128,7 +129,10 @@ public partial class HabitService
             ? count
             : throw new ArgumentOutOfRangeException(nameof(count), count, $"Must be between 0 and {habit.TimesPerDay}."));
 
-    /// <summary>Adds one check-in to the day, capped at the habit's <see cref="Habit.TimesPerDay"/>, by the same day rules as <see cref="CheckInAsync"/>.</summary>
+    /// <summary>
+    /// Adds one check-in to the day, capped at the habit's <see cref="Habit.TimesPerDay"/>, by the same day rules as <see cref="CheckInAsync"/>.
+    /// Clears <see cref="HabitLog.Skipped"/>.
+    /// </summary>
     public Task<DayEditResult> AddCheckInAsync(Guid userId, int habitId, DateOnly date, ulong? guildId = null)
         => WriteCountAsync(userId, habitId, date, guildId, (habit, current) => Math.Min(current + 1, habit.TimesPerDay));
 
@@ -152,7 +156,7 @@ public partial class HabitService
                 Date = date,
                 GuildId = guildId.HasValue ? (long)guildId.Value : null
             };
-            ApplyCount(log, nextCount(habit, 0), habit);
+            ApplyCount(log, nextCount(habit, 0), habit, skip);
             _db.HabitLogs.Add(log);
             try
             {
@@ -168,16 +172,17 @@ public partial class HabitService
             }
         }
 
-        ApplyCount(existing, nextCount(habit, existing.Count), habit);
+        ApplyCount(existing, nextCount(habit, existing.Count), habit, skip);
         if (guildId.HasValue) existing.GuildId = (long)guildId.Value;
         await _db.SaveChangesAsync();
         return DayEditResult.Saved;
     }
 
-    private static void ApplyCount(HabitLog log, int count, Habit habit)
+    private static void ApplyCount(HabitLog log, int count, Habit habit, bool skip)
     {
         log.Completed = count >= habit.TimesPerDay || (log.Completed && count > 0 && count >= log.Count);
         log.Count = count;
+        log.Skipped = skip;
     }
 
     /// <summary>
@@ -197,7 +202,7 @@ public partial class HabitService
 
     /// <summary>
     /// Ends the habit's reminders for the user's local today, as a skip does: drops its pending second reminder and moves its next
-    /// reminder to the first one after today (<see cref="HabitRules.NextReminderAfterDayUtc"/>). For a skip that keeps a day's check-ins.
+    /// reminder to the first one after today (<see cref="HabitRules.NextReminderAfterDayUtc"/>). For a skip that keeps a day already done.
     /// </summary>
     public async Task SkipTodayRemindersAsync(Guid userId, int habitId)
     {
