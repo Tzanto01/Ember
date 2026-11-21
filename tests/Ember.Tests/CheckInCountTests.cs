@@ -129,6 +129,28 @@ public class CheckInCountTests
     }
 
     [Fact]
+    public async Task LoweringTimesPerDay_OnASkippedPartlyDoneDay_MakesItDoneAndNoLongerSkipped()
+    {
+        var (host, habitId) = await CreateAsync(timesPerDay: 3);
+        await using var _ = host;
+        var yesterday = Today.AddDays(-1);
+        await host.WithScopeAsync(async sp =>
+        {
+            var service = sp.GetRequiredService<HabitService>();
+            var userId = await TestUsers.UserIdAsync(sp, UserId);
+            await service.AddCheckInAsync(userId, habitId, yesterday);
+            await service.AddCheckInAsync(userId, habitId, yesterday);
+            await service.SkipDayAsync(userId, habitId, yesterday);
+            await service.AddCheckInAsync(userId, habitId, Today);
+            await service.SkipDayAsync(userId, habitId, Today);
+        });
+
+        await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().SetScheduleAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, FrequencyType.Daily, null, null, 2));
+
+        (await SkipLogsAsync(host, habitId)).Should().Equal((yesterday, 2, true, false), (Today, 1, false, true));
+    }
+
+    [Fact]
     public async Task ReminderDoneButton_AddsOneCheckIn()
     {
         var (host, habitId) = await CreateAsync(timesPerDay: 2);

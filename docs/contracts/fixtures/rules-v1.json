@@ -9896,6 +9896,39 @@
             "skipped": false
           }
         ]
+      },
+      {
+        "name": "lowering the target makes a skipped partial day it reaches done and no longer skipped",
+        "timesPerDay": 3,
+        "newTimesPerDay": 2,
+        "logs": [
+          {
+            "date": "2027-03-16",
+            "count": 2,
+            "completed": false,
+            "skipped": true
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": false,
+            "skipped": true
+          }
+        ],
+        "expected": [
+          {
+            "date": "2027-03-16",
+            "count": 2,
+            "completed": true,
+            "skipped": false
+          },
+          {
+            "date": "2027-03-17",
+            "count": 1,
+            "completed": false,
+            "skipped": true
+          }
+        ]
       }
     ]
   },

@@ -410,6 +410,7 @@ public partial class HabitService
                 .Where(l => l.HabitId == habitId && (l.Date == today || l.Count >= target))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(l => l.Completed, l => l.Count >= target)
+                    .SetProperty(l => l.Skipped, l => l.Skipped && l.Count < target)
                     .SetProperty(l => l.Count, l => l.Count > target ? target : l.Count));
         }
         await transaction.CommitAsync();
