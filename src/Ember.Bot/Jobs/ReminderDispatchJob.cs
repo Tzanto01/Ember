@@ -34,7 +34,8 @@ namespace Ember.Bot.Jobs;
 /// (and a weekly habit's week) is still open then, and never followed by another.
 /// A <see cref="Core.Models.HabitKind.LetGo"/> habit's reminder is its quiet check-in (<see cref="Reminder.LetGo"/>): sent at its time
 /// unless stale or paused that day (no done, weekly or low-day checks), never snoozed and never followed by a second reminder.
-/// Each run then closes the open Discord reminder messages whose habits are done for their day, or whose buttons expired
+/// Each run then closes the open Discord reminder messages whose habits are done for their day (a routine's: every member due that
+/// day, <see cref="HabitRules.IsRoutineDone"/>), or whose buttons expired
 /// (<see cref="ReminderExpiry.IsExpired"/>), and for each web push reminder delivered for an item that is now done for its day sends the clear push
 /// (<see cref="WebPushSender.SendClearAsync"/>) to the user's push subscriptions that are targets of that item; then forgets
 /// it, as it forgets expired ones without a push.
@@ -207,7 +208,7 @@ public class ReminderDispatchJob : IJob
                     }
                     else if (await reminders.GetRoutineWithUserAsync(reminder.RoutineId!.Value, cancellationToken) is { } routine)
                     {
-                        if (!HabitRules.IsRoutineDone(routine, reminder.Date)) continue;
+                        if (!await IsRoutineDoneAsync(scope.ServiceProvider, routine, reminder.Date)) continue;
                         (user, exclusions, tag) = (routine.User, routine.ReminderExclusions, WebPushSender.RoutineTag(routine.Id));
                     }
                     if (user is not null && _push is not null
@@ -246,7 +247,9 @@ public class ReminderDispatchJob : IJob
             {
                 using var scope = _services.CreateScope();
                 var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
-                var done = message.HabitId is not null ? habitDone : await IsRoutineDoneAsync(reminders, message, cancellationToken);
+                var done = message.HabitId is not null ? habitDone
+                    : message.RoutineId is { } routineId && await reminders.GetRoutineWithUserAsync(routineId, cancellationToken) is { } routine
+                    && await IsRoutineDoneAsync(scope.ServiceProvider, routine, message.Date);
                 if (!done && !expired) continue;
 
                 await _discord.CloseMessageAsync(message.ChannelId, message.MessageId,
@@ -265,11 +268,17 @@ public class ReminderDispatchJob : IJob
         }
     }
 
-    /// <summary>True when the routine still has members and every one of them is done on the message's day.</summary>
-    private static async Task<bool> IsRoutineDoneAsync(ReminderService reminders, ReminderMessage message, CancellationToken cancellationToken)
-        => message.RoutineId is { } routineId
-            && await reminders.GetRoutineWithUserAsync(routineId, cancellationToken) is { } routine
-            && HabitRules.IsRoutineDone(routine, message.Date);
+    /// <summary>
+    /// Whether the routine (loaded with its user and recent logs) is done for its reminder on the user's local <paramref name="date"/>
+    /// (<see cref="HabitRules.IsRoutineDone"/>): every member due that day is done.
+    /// </summary>
+    private async Task<bool> IsRoutineDoneAsync(IServiceProvider services, Routine routine, DateOnly date)
+    {
+        var user = routine.User;
+        var lowDays = await services.GetRequiredService<HabitService>().GetLowDaysAsync(user.Id);
+        return HabitRules.IsRoutineDone(routine.Habits, date, TimeZones.LocalToday(user.Timezone, _time.GetUtcNow()),
+            TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc, lowDays);
+    }
 
     /// <summary>
     /// Sends the habit's due second reminder when <see cref="ReminderPolicy.ShouldSendSecondReminder"/> says so; then drops it either way.

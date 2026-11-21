@@ -360,7 +360,47 @@ public class ReminderMessageTests
     }
 
     [Fact]
-    public async Task A_routine_reminder_whose_open_habit_is_paused_is_not_closed_as_logged_and_closes_at_10_the_next_morning()
+    public async Task A_routine_reminder_with_a_rest_day_member_closes_as_logged_once_the_members_due_today_are_done_on_the_web()
+    {
+        var time = new FakeTimeProvider(Now);
+        var daily = new Habit
+        {
+            Id = 1, UserId = TestUsers.Id(DiscordUser), Name = "Habit 1", RoutinePosition = 0, CreatedAt = Now.UtcDateTime.AddDays(-30),
+        };
+        var mondays = new Habit
+        {
+            Id = 2, UserId = TestUsers.Id(DiscordUser), Name = "Habit 2", RoutinePosition = 1, CreatedAt = Now.UtcDateTime.AddDays(-30),
+            FrequencyType = FrequencyType.Weekdays, Days = ScheduleDays.Mon,
+        };
+        await using var host = await CreateHostAsync(time, 0, daily, mondays);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            db.Routines.Add(new Routine
+            {
+                Id = 1,
+                UserId = TestUsers.Id(DiscordUser),
+                Name = "Morning",
+                ReminderTime = new TimeOnly(9, 0),
+                NextReminderUtc = Now.UtcDateTime,
+            });
+            await db.SaveChangesAsync();
+            await db.Habits.ExecuteUpdateAsync(s => s.SetProperty(h => h.RoutineId, 1));
+        });
+        await RunJobAsync(host);
+        var first = host.Discord.Messages.Should().ContainSingle().Subject;
+        first.Text.Should().Contain("Habit 1").And.NotContain("Habit 2");
+
+        await CheckInAsync(host, 1);
+        time.Advance(TimeSpan.FromMinutes(1));
+        await RunJobAsync(host);
+
+        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.LoggedLine(Ember.Bot.BotTexts.English)));
+        (await OpenMessagesAsync(host)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_routine_reminder_whose_open_habit_is_paused_meanwhile_has_nothing_left_due_and_closes_as_logged()
     {
         var time = new FakeTimeProvider(Now);
         Habit Member(int id, int position) => new()
@@ -394,11 +434,8 @@ public class ReminderMessageTests
         await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(TestUsers.Id(DiscordUser), 1, Today));
         time.Advance(TimeSpan.FromMinutes(1));
         await RunJobAsync(host);
-        host.Discord.Changes.Should().BeEmpty();
 
-        time.SetUtcNow(new DateTimeOffset(2027, 1, 16, 9, 0, 0, TimeSpan.Zero));
-        await RunJobAsync(host);
-
-        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.ClosedLine(Ember.Bot.BotTexts.English)));
+        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.LoggedLine(Ember.Bot.BotTexts.English)));
+        (await OpenMessagesAsync(host)).Should().BeEmpty();
     }
 }

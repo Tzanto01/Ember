@@ -239,10 +239,16 @@ public static class HabitRules
             .Where(h => h.Kind == HabitKind.Build && DayOn(h, today, today, tz, lowDays).State is DayState.Pending or DayState.Partial)
             .ToList();
 
-    /// <summary>True when the routine has build members and every one of them is done on <paramref name="date"/>. Needs that day's logs loaded.</summary>
-    public static bool IsRoutineDone(Routine routine, DateOnly date)
-        => routine.Habits.Where(h => h.Kind != HabitKind.LetGo).ToList() is { Count: > 0 } members
-            && members.All(h => h.Logs.Any(l => l.Date == date && l.Completed));
+    /// <summary>
+    /// Whether a routine reminder for the user's local <paramref name="date"/> has nothing left to remind of, given the user's local
+    /// <paramref name="today"/>: the routine has build members and every one due that day is done. A member whose day
+    /// (<see cref="DayOn"/>) is pending, partial or not done is still due; offday, paused, low and not-started days are not.
+    /// On <paramref name="today"/> this is <see cref="PendingRoutineHabits"/> coming back empty. Needs each habit's log of
+    /// <paramref name="date"/> loaded, if there is one.
+    /// </summary>
+    public static bool IsRoutineDone(IEnumerable<Habit> members, DateOnly date, DateOnly today, TimeZoneInfo tz, IReadOnlySet<DateOnly> lowDays)
+        => members.Where(h => h.Kind == HabitKind.Build).ToList() is { Count: > 0 } build
+            && build.All(h => DayOn(h, date, today, tz, lowDays).State is not (DayState.Pending or DayState.Partial or DayState.NotDone));
 
     /// <summary>
     /// Whether a daily or weekdays habit is active, scheduled and unpaused on <paramref name="date"/> but not logged as done yet

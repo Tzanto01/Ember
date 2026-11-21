@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../../../../docs/contracts/fixtures/rules-v1.json';
 import { firesideLimits } from '../fireside-limits';
+import { settled } from '../native/reminder-plan';
 import { limits } from './limits';
 import { dayStats, habitDays, habitView, pause, retarget, weeklySummary, writeDay } from './rules';
 import type { LocalData, LocalHabit, LocalLog } from './types';
@@ -22,7 +23,7 @@ interface FixtureUser {
   timezone: string;
   graceDaysPerWeek: number;
   lowDays: string[];
-  routines: { id: number }[];
+  routines: { id: number; habitIds: number[] }[];
   habits: FixtureHabit[];
 }
 
@@ -133,6 +134,11 @@ describe('client rules match the Core rules fixture', () => {
       });
       expect(pending).toEqual(
         (c.expected.routinePending as Record<string, number[]>)[String(r.id)],
+      );
+      const routine = { id: r.id, name: `Routine ${r.id}`, reminderTime: null, reminderChannels: [], habitIds: r.habitIds };
+      const views = c.habits.map((h) => habitView(data, h.id, c.today));
+      expect(settled(views, [routine], { routineId: r.id, date: c.today })).toBe(
+        (c.expected.routineDone as Record<string, boolean>)[String(r.id)],
       );
     }
 
