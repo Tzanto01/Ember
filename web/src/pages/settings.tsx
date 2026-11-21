@@ -16,6 +16,7 @@ import { AppearanceCard } from '@/components/settings/appearance-card';
 import { AppUpdatesSettings } from '@/components/settings/app-updates-settings';
 import { ConsentCard } from '@/components/settings/consent-card';
 import { DeleteCard } from '@/components/settings/delete-card';
+import { DiagnosticsCard } from '@/components/settings/diagnostics-card';
 import { DiscordCard } from '@/components/settings/discord-card';
 import { DmRemindersCard } from '@/components/settings/dm-reminders-card';
 import { ExportCard } from '@/components/settings/export-card';
@@ -42,6 +43,7 @@ import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMePatchField } from '@/hooks/use-me-patch';
 import { env } from '@/lib/env';
+import { diagnosticsAvailable } from '@/lib/native/diagnostics';
 import { updaterAvailable } from '@/lib/native/updater';
 import { api, auth, localMode, push } from '@/lib/services';
 import type { SecondReminderMinutes } from '@/lib/models';
@@ -179,6 +181,7 @@ export default function SettingsPage() {
     { id: 'delete', title: local ? t('settings.card.deleteDevice') : t('settings.card.deleteAccount') },
     { id: 'feedback', title: t('settings.card.feedback') },
     { id: 'help', title: t('settings.card.help') },
+    ...(diagnosticsAvailable() ? [{ id: 'diagnostics', title: t('settings.card.diagnostics') }] : []),
   ];
   const title = (id: string) => sections.find((section) => section.id === id)?.title ?? '';
   const groups = settingsGroups
@@ -460,6 +463,8 @@ export default function SettingsPage() {
                   </p>
                 </SettingsCard>
               )}
+
+              {shown('diagnostics') && <DiagnosticsCard title={title('diagnostics')} />}
             </>
           ) : (
             <>

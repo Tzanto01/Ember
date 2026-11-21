@@ -58,7 +58,7 @@ export const settingsGroups: SettingsGroup[] = [
     slug: 'help',
     nameKey: 'settings.group.help',
     icon: LifeBuoy,
-    cards: ['help'],
+    cards: ['help', 'diagnostics'],
     summaryKey: 'settings.group.helpSummary',
   },
 ];

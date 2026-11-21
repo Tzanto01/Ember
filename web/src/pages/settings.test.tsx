@@ -1,6 +1,8 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
+import { Capacitor } from '@capacitor/core';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { env } from '@/lib/env';
 import { renderPage } from '@/test/test-utils';
 import { auth, localMode, push } from '@/lib/services';
 import { me, mockFetch } from '@/test/test-support';
@@ -34,6 +36,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
   afterEach(() => {
     exactAlarms.beta = false;
+    vi.restoreAllMocks();
     resetSettings();
   });
 
@@ -230,6 +233,23 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(lines.getByText("Ember isn't a crisis service and doesn't read what you write.")).toBeInTheDocument();
     await settle();
     expect(fetch.pending).toHaveLength(0);
+  });
+
+  it('Help right now ends with Send a tech report in the Android app', async () => {
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android');
+    env.native = true;
+    await openSettings('/settings/help');
+
+    expect([...document.querySelectorAll('section')].map((section) => section.id)).toEqual(['help', 'diagnostics']);
+    const card = within(screen.getByRole('region', { name: 'Send a tech report' }));
+    expect(card.getByRole('button', { name: 'Look at the report' })).toBeInTheDocument();
+  });
+
+  it('leaves Send a tech report out on the web', async () => {
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android');
+    await openSettings('/settings/help');
+
+    expect([...document.querySelectorAll('section')].map((section) => section.id)).toEqual(['help']);
   });
 
   it('waits for the grace PATCH before sending the theme one, across groups', async () => {
