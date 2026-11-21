@@ -463,6 +463,54 @@ public class ReminderMessageTests
     }
 
     [Theory]
+    [InlineData("skip", false)]
+    [InlineData("low", false)]
+    [InlineData("done", true)]
+    public async Task A_routine_reminder_with_nothing_left_says_logged_only_when_a_member_is_done(string settle, bool logged)
+    {
+        var time = new FakeTimeProvider(Now);
+        Habit Member(int id, int position) => new()
+        {
+            Id = id, UserId = TestUsers.Id(DiscordUser), Name = $"Habit {id}", RoutinePosition = position, CreatedAt = Now.UtcDateTime.AddDays(-30),
+        };
+        await using var host = await CreateHostAsync(time, 0, Member(1, 0), Member(2, 1));
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            db.Routines.Add(new Routine
+            {
+                Id = 1, UserId = TestUsers.Id(DiscordUser), Name = "Morning", ReminderTime = new TimeOnly(9, 0), NextReminderUtc = Now.UtcDateTime,
+            });
+            await db.SaveChangesAsync();
+            await db.Habits.ExecuteUpdateAsync(s => s.SetProperty(h => h.RoutineId, 1));
+        });
+        await RunJobAsync(host);
+        var first = host.Discord.Messages.Should().ContainSingle().Subject;
+
+        await host.WithScopeAsync(async sp =>
+        {
+            var habits = sp.GetRequiredService<HabitService>();
+            var user = TestUsers.Id(DiscordUser);
+            if (settle == "low")
+            {
+                await habits.SetLowDayAsync(user, Today);
+                return;
+            }
+            await habits.SkipDayAsync(user, 1, Today);
+            if (settle == "done") await habits.CheckInAsync(user, 2, Today, completed: true);
+            else await habits.SkipDayAsync(user, 2, Today);
+        });
+        time.Advance(TimeSpan.FromMinutes(1));
+        await RunJobAsync(host);
+
+        var t = Ember.Bot.BotTexts.English;
+        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, logged ? ReminderDm.LoggedLine(t) : ReminderDm.NothingLeftLine(t)));
+        ReminderDm.NothingLeftLine(t).Should().Be("-# Nothing left for today.");
+        ReminderDm.NothingLeftLine(Ember.Bot.BotTexts.For("de")).Should().Be("-# Für heute ist nichts mehr offen.");
+        (await OpenMessagesAsync(host)).Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task A_routine_reminder_whose_other_member_is_skipped_today_closes_as_logged_once_the_listed_one_is_done(bool doneListed)

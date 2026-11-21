@@ -113,6 +113,16 @@ describe('handlePush tags and clears (v1.14)', () => {
     expect(other.close).not.toHaveBeenCalled();
   });
 
+  it('shows the clear payload body in its silent notification, so a routine with nothing done never says Logged', async () => {
+    const reminder = { tag: 'routine-3', close: vi.fn() };
+    const reg = registration([reminder]);
+
+    await handlePush({ json: () => ({ clear: { tag: 'routine-3' }, notification: { title: 'Ember', body: 'Nothing left for today.' } }) }, reg);
+
+    expect(reg.showNotification).toHaveBeenCalledWith('Ember', { tag: 'routine-3', body: 'Nothing left for today.', silent: true });
+    expect(reminder.close).toHaveBeenCalled();
+  });
+
   it.each([
     ['a tag that is not a string', { clear: { tag: 7 } }],
     ['an empty tag', { clear: { tag: '' } }],

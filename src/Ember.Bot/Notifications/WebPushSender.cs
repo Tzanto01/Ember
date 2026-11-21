@@ -36,15 +36,16 @@ public sealed class WebPushSender
 
     /// <summary>
     /// The clear payload for <paramref name="tag"/>: a v1.14 service worker closes the notifications with that tag; an older one
-    /// shows the "Logged" notification in <paramref name="t"/> (English when null).
+    /// shows the "Logged" notification in <paramref name="t"/> (English when null), or "Nothing left for today" when not
+    /// <paramref name="logged"/>.
     /// </summary>
-    public static string ClearPayload(string tag, Texts? t = null) => JsonSerializer.Serialize(new
+    public static string ClearPayload(string tag, Texts? t = null, bool logged = true) => JsonSerializer.Serialize(new
     {
         clear = new { tag },
         notification = new
         {
             title = "Ember",
-            body = (t ?? BotTexts.English).Get("push.logged"),
+            body = (t ?? BotTexts.English).Get(logged ? "push.logged" : "push.nothing-left"),
             data = new { onActionClick = new { @default = new { operation = "navigateLastFocusedOrOpen", url = "/today" } } },
         },
     }, PayloadJson);
@@ -122,17 +123,17 @@ public sealed class WebPushSender
     }
 
     /// <summary>
-    /// Sends the clear payload (<see cref="ClearPayload"/>) for <paramref name="tag"/> in <paramref name="language"/> to the user's push
-    /// subscriptions in <paramref name="subscriptionIds"/>.
+    /// Sends the clear payload (<see cref="ClearPayload"/>) for <paramref name="tag"/> in <paramref name="language"/>, "Logged" when
+    /// <paramref name="logged"/>, to the user's push subscriptions in <paramref name="subscriptionIds"/>.
     /// </summary>
-    public async Task SendClearAsync(Guid userId, IReadOnlyCollection<int> subscriptionIds, string tag, string language,
+    public async Task SendClearAsync(Guid userId, IReadOnlyCollection<int> subscriptionIds, string tag, bool logged, string language,
         CancellationToken cancellationToken = default)
     {
         List<Core.Models.PushSubscription> subscriptions;
         using (var scope = _scopes.CreateScope())
             subscriptions = (await scope.ServiceProvider.GetRequiredService<ReminderService>().GetPushSubscriptionsAsync(userId, cancellationToken))
                 .Where(s => subscriptionIds.Contains(s.Id)).ToList();
-        var payload = ClearPayload(tag, BotTexts.For(language));
+        var payload = ClearPayload(tag, BotTexts.For(language), logged);
         await SendAsync(userId, subscriptions, _ => payload, cancellationToken);
     }
 
