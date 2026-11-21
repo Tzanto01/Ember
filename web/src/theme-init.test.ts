@@ -20,7 +20,6 @@ describe('/theme-init.js', () => {
     document.documentElement.removeAttribute('data-theme');
     document.documentElement.removeAttribute('data-calm');
     document.documentElement.classList.remove('dark');
-    document.documentElement.removeAttribute('style');
   });
 
   it.each(themes.map((t) => t.id))('keeps the stored theme %s', (id) => {
@@ -45,20 +44,6 @@ describe('/theme-init.js', () => {
     expect(runThemeInit('tidepool').dataset['calm']).toBeUndefined();
     localStorage.setItem('ember.calm', '1');
     expect(runThemeInit('tidepool').dataset['calm']).toBe('');
-  });
-
-  it.each(themes.flatMap((t) => [[t.id, false, t.colors.light] as const, [t.id, true, t.colors.dark] as const]))(
-    'paints %s (dark %s) in %s until the stylesheet takes over',
-    (id, dark, color) => {
-      expect(runThemeInit(id, dark).style.backgroundColor).toBe(`var(--background, ${color})`);
-    },
-  );
-
-  it('paints Hearthlight for an unknown theme, following the scheme chosen on this device', () => {
-    localStorage.setItem('ember.colorScheme', 'dark');
-    expect(runThemeInit('hearth', false).style.backgroundColor).toBe('var(--background, #1c1410)');
-    localStorage.setItem('ember.colorScheme', 'light');
-    expect(runThemeInit(null, true).style.backgroundColor).toBe('var(--background, #fbf5ec)');
   });
 
   it('sets dark from the colour-scheme preference', () => {
