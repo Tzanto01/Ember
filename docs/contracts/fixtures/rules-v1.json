@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed, skipped } (skipped optional, false when missing) where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done, with counts above it clamped to it). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count, skipped } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial); skipped is the log\u0027s skip marker (true for a day written by a not done, false without a log); a skipped day keeps its state (pending on an open day, notdone on a closed one). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today and not skipped today), in routine order. expected.routineDone[routineId]: whether a routine reminder for today has nothing left to remind of: the routine has build members and every one due today is done (none pending, partial or not done; a member skipped today is still pending, so it keeps the routine open), so its Discord reminder closes as logged and its notifications clear. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done (a skip: count 0, skipped true), { completed: null } clears the day, { count } sets the count and clears skipped, also for 0), expected (the day\u0027s log after { date, count, completed, skipped }, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after { date, count, completed, skipped }, by date) }. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
+  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed, skipped } (skipped optional, false when missing) where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done, with counts above it clamped to it). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count, skipped } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial); skipped is the log\u0027s skip marker (true for a day written by a skip, false without a log; a skipped day is never done); a skipped day keeps its state (pending on an open day, notdone on a closed one, partial when the skip kept some check-ins). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today and not skipped today), in routine order. expected.routineDone[routineId]: whether a routine reminder for today has nothing left to remind of: the routine has build members and every one is settled today: done, or skipped today whatever its state (a member pending, partial or not done and not skipped keeps the routine open), so its Discord reminder closes as logged and its notifications clear. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done (a skip: count 0, skipped true), { completed: null } clears the day, { count } sets the count and clears skipped, also for 0), expected (the day\u0027s log after { date, count, completed, skipped }, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after { date, count, completed, skipped }, by date) }. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
   "cases": [
     {
       "name": "daily streak with one grace day used",
@@ -8988,6 +8988,305 @@
               "done": 0,
               "possible": 7,
               "streak": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a skip that kept some check-ins stays partial and skipped, and a routine whose members left are skipped or done is done",
+      "today": "2027-03-13",
+      "from": "2027-03-11",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "habits": [
+        {
+          "id": 1,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 2,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "logs": [
+            {
+              "date": "2027-03-11",
+              "count": 1,
+              "completed": false,
+              "skipped": true
+            },
+            {
+              "date": "2027-03-13",
+              "count": 1,
+              "completed": false,
+              "skipped": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "logs": [
+            {
+              "date": "2027-03-13",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 2,
+          "logs": [
+            {
+              "date": "2027-03-13",
+              "count": 0,
+              "completed": false,
+              "skipped": true
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 2,
+          "logs": [
+            {
+              "date": "2027-03-13",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        }
+      ],
+      "routines": [
+        {
+          "id": 1,
+          "habitIds": [
+            1,
+            2
+          ]
+        },
+        {
+          "id": 2,
+          "habitIds": [
+            3,
+            4
+          ]
+        }
+      ],
+      "expected": {
+        "days": {
+          "1": [
+            {
+              "date": "2027-03-11",
+              "state": "partial",
+              "completed": null,
+              "count": 1,
+              "skipped": true
+            },
+            {
+              "date": "2027-03-12",
+              "state": "pending",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-13",
+              "state": "partial",
+              "completed": null,
+              "count": 1,
+              "skipped": true
+            }
+          ],
+          "2": [
+            {
+              "date": "2027-03-11",
+              "state": "notdone",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-12",
+              "state": "pending",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-13",
+              "state": "done",
+              "completed": true,
+              "count": 1,
+              "skipped": false
+            }
+          ],
+          "3": [
+            {
+              "date": "2027-03-11",
+              "state": "notdone",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-12",
+              "state": "pending",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-13",
+              "state": "pending",
+              "completed": false,
+              "count": 0,
+              "skipped": true
+            }
+          ],
+          "4": [
+            {
+              "date": "2027-03-11",
+              "state": "notdone",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-12",
+              "state": "pending",
+              "completed": null,
+              "count": 0,
+              "skipped": false
+            },
+            {
+              "date": "2027-03-13",
+              "state": "done",
+              "completed": true,
+              "count": 1,
+              "skipped": false
+            }
+          ]
+        },
+        "stats": {
+          "1": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          },
+          "2": {
+            "streak": 1,
+            "graceUsed": 0,
+            "bestStreak": 1,
+            "last7": 1,
+            "week": null
+          },
+          "3": {
+            "streak": 0,
+            "graceUsed": 0,
+            "bestStreak": 0,
+            "last7": 0,
+            "week": null
+          },
+          "4": {
+            "streak": 1,
+            "graceUsed": 0,
+            "bestStreak": 1,
+            "last7": 1,
+            "week": null
+          }
+        },
+        "dayStats": [
+          {
+            "date": "2027-03-11",
+            "scheduled": 4,
+            "done": 0,
+            "partial": 1,
+            "showedUp": true
+          },
+          {
+            "date": "2027-03-12",
+            "scheduled": 4,
+            "done": 0,
+            "partial": 0,
+            "showedUp": false
+          },
+          {
+            "date": "2027-03-13",
+            "scheduled": 4,
+            "done": 2,
+            "partial": 1,
+            "showedUp": true
+          }
+        ],
+        "routinePending": {
+          "1": [],
+          "2": []
+        },
+        "routineDone": {
+          "1": true,
+          "2": true
+        },
+        "weekly": {
+          "totalDone": 0,
+          "totalPossible": 28,
+          "headline": "It\u0027s been a quiet week, and that\u0027s okay. \uD83D\uDC99\nWhenever you\u0027re ready, your habits are here waiting.",
+          "footer": "No pressure. Progress happens at its own pace.",
+          "habits": [
+            {
+              "habitId": 1,
+              "name": "Habit 1",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            },
+            {
+              "habitId": 2,
+              "name": "Habit 2",
+              "done": 0,
+              "possible": 7,
+              "streak": 1
+            },
+            {
+              "habitId": 3,
+              "name": "Habit 3",
+              "done": 0,
+              "possible": 7,
+              "streak": 0
+            },
+            {
+              "habitId": 4,
+              "name": "Habit 4",
+              "done": 0,
+              "possible": 7,
+              "streak": 1
             }
           ]
         }
