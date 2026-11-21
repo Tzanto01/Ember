@@ -7,7 +7,7 @@ public enum FeedbackStatus { Open, Planned, Implemented, Released, Declined }
 /// One piece of in-app feedback from the web app, the Android app or Discord. Linked to the sender's account when they were
 /// signed in and didn't choose to send anonymously (deleted with it, moved by an account merge), else anonymous. Mailed to the
 /// operator in the daily digest and deleted 12 months after it was submitted; its <see cref="Images"/> are deleted 30 days after
-/// <see cref="ResolvedAt"/>. Not part of the export.
+/// <see cref="ResolvedAt"/>. A linked report is in the web export (without <see cref="DigestedAt"/>), not in the Discord export.
 /// </summary>
 public class Feedback
 {

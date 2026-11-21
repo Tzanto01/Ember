@@ -12,8 +12,9 @@ using static Ember.Core.Services.ExportBuilder;
 namespace Ember.Tests;
 
 /// <summary>
-/// Pins, on Postgres, which part of the export holds each registry entity through the real web and Discord loaders, and that the
-/// entities registered as never exported leave no trace in the JSON or CSV (feedback and session metadata among them, decision D7).
+/// Pins, on Postgres, which part of the export holds each registry entity through the real web and Discord loaders (feedback and session
+/// metadata among them, web only, decision D7), and that the entities registered as never exported, the session id and widget key hash,
+/// the feedback digest time and other people's or anonymous feedback leave no trace in the JSON or CSV.
 /// </summary>
 [Collection("Postgres")]
 public class ExportContentsPerTableTests(PostgresFixture postgres)
@@ -39,6 +40,9 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
         [typeof(JournalKey)] = d => d.JournalKey,
         [typeof(Ember.Core.Models.PushSubscription)] = d => d.PushSubscriptions,
         [typeof(ReminderPhone)] = d => d.Phones,
+        [typeof(AuthSession)] = d => d.Sessions,
+        [typeof(Feedback)] = d => d.Feedback,
+        [typeof(FeedbackImage)] = d => d.Feedback?.SelectMany(f => f.Images).ToList(),
     };
 
     private static readonly Dictionary<Type, string[]> NeverExportedMarkers = new()
@@ -48,9 +52,6 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
         [typeof(ReminderMessage)] = [],
         [typeof(PushReminder)] = [],
         [typeof(ReminderActionToken)] = [],
-        [typeof(AuthSession)] = ["zz-sess-plat", "zz-marker-session-version"],
-        [typeof(Feedback)] = ["zz-marker-feedback-title", "zz-marker-feedback-text", "zz-fb-plat"],
-        [typeof(FeedbackImage)] = ["zz-img-type"],
         [typeof(FiresideCode)] = ["zz-marker-code-hash", "zz-marker-code-protected"],
         [typeof(FiresideLink)] = ["zz-marker-known-name"],
         [typeof(Warmth)] = ["zz-warmth-msg"],
@@ -58,7 +59,18 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
         [typeof(LookoutOutbox)] = ["zz-marker-outbox-key"],
     };
 
-    private static readonly string[] SecretMarkers = ["zz-marker-password-hash", "zz-marker-email-code-hash"];
+    private static readonly Guid SessionId = new("0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b");
+    private static readonly byte[] WidgetKeyHash = [.. Enumerable.Range(0, 32).Select(i => (byte)(0xA0 + i))];
+    private static readonly DateTime DigestedAt = new(2026, 3, 4, 5, 6, 7, DateTimeKind.Utc);
+    private static readonly Guid FriendImageId = new("0190a1b2-c3d4-7e5f-8a9b-00000000f00d");
+
+    private static readonly string[] SecretMarkers =
+    [
+        "zz-marker-password-hash", "zz-marker-email-code-hash",
+        SessionId.ToString(), SessionId.ToString("N"), Convert.ToBase64String(WidgetKeyHash), Convert.ToHexString(WidgetKeyHash),
+        Convert.ToHexString(WidgetKeyHash).ToLowerInvariant(), "2026-03-04T05:06:07",
+        "zz-marker-friend-feedback", "zz-friend-img", "zz-marker-anonymous-feedback", "zz-anon-img",
+    ];
 
     private async Task<IntegrationTestHost> SeededHostAsync()
     {
@@ -106,21 +118,31 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
                 Title = "zz-marker-feedback-title",
                 Text = "zz-marker-feedback-text",
                 CreatedAt = Now.UtcDateTime,
+                DigestedAt = DigestedAt,
             };
-            feedback.Images.Add(new FeedbackImage { ContentType = "zz-img-type", Size = 3, Data = [1, 2, 3] });
+            feedback.Images.Add(new FeedbackImage { Id = Guid.CreateVersion7(), ContentType = "zz-img-type", Size = 3, Data = [1, 2, 3] });
             db.Feedback.Add(feedback);
+            var friendFeedback = new Feedback
+            { UserId = FriendId, Platform = "web", Title = "zz-marker-friend-feedback", Text = "zz-marker-friend-feedback", CreatedAt = Now.UtcDateTime };
+            friendFeedback.Images.Add(new FeedbackImage { Id = FriendImageId, ContentType = "zz-friend-img", Size = 1, Data = [9] });
+            db.Feedback.Add(friendFeedback);
+            var anonymous = new Feedback
+            { Platform = "web", Title = "zz-marker-anonymous-feedback", Text = "zz-marker-anonymous-feedback", CreatedAt = Now.UtcDateTime };
+            anonymous.Images.Add(new FeedbackImage { Id = Guid.CreateVersion7(), ContentType = "zz-anon-img", Size = 1, Data = [8] });
+            db.Feedback.Add(anonymous);
             db.ReminderMessages.Add(new ReminderMessage { UserId = UserId, HabitId = habit.Id, Date = new DateOnly(2027, 1, 14), ChannelId = 5, MessageId = 6 });
             db.PushReminders.Add(new PushReminder { UserId = UserId, HabitId = habit.Id, Date = new DateOnly(2027, 1, 14) });
             db.ReminderActionTokens.Add(new ReminderActionToken
             { TokenHash = [1, 2, 3], UserId = UserId, HabitId = habit.Id, Day = new DateOnly(2027, 1, 14), ExpiresUtc = Now.UtcDateTime.AddDays(1) });
             db.AuthSessions.Add(new AuthSession
             {
-                Id = Guid.NewGuid(),
+                Id = SessionId,
                 UserId = UserId,
                 CreatedUtc = Now,
                 ExpiresUtc = Now.AddDays(30),
                 Platform = "zz-sess-plat",
                 AppVersion = "zz-marker-session-version",
+                WidgetKeyHash = WidgetKeyHash,
             });
             db.FiresideCodes.Add(new FiresideCode
             { UserId = UserId, CodeHash = "zz-marker-code-hash", CodeProtected = "zz-marker-code-protected", ExpiresAtUtc = Now.UtcDateTime.AddDays(1) });
@@ -183,8 +205,12 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
     {
         await using var host = await SeededHostAsync();
 
-        var user = await host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().GetUserForExportAsync(UserId, withHabitNotes: true));
-        var document = BuildDocument(user!);
+        var document = await host.WithScopeAsync(async sp =>
+        {
+            var accounts = sp.GetRequiredService<AccountService>();
+            return BuildDocument((await accounts.GetUserForExportAsync(UserId, withHabitNotes: true))!,
+                feedbackAndSessions: await accounts.GetFeedbackAndSessionsForExportAsync(UserId));
+        });
 
         foreach (var (type, part) in ExportedPart)
             IsPresent(part(document)).Should().BeTrue($"the web export holds {type.Name}");
@@ -195,9 +221,12 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
     {
         await using var host = await SeededHostAsync();
 
-        var user = await host.WithScopeAsync(async sp => await sp.GetRequiredService<AccountService>()
-            .GetUserForExportAsync(await sp.GetRequiredService<HabitService>().FindDiscordUserAsync((ulong)TestUsers.DiscordIdOf(UserId))));
-        var document = BuildDocument(user!, forDiscord: true);
+        var document = await host.WithScopeAsync(async sp =>
+        {
+            var accounts = sp.GetRequiredService<AccountService>();
+            var user = await accounts.GetUserForExportAsync(await sp.GetRequiredService<HabitService>().FindDiscordUserAsync((ulong)TestUsers.DiscordIdOf(UserId)));
+            return BuildDocument(user!, forDiscord: true, await accounts.GetFeedbackAndSessionsForExportAsync(user!.Id));
+        });
 
         foreach (var entity in DataLifecycle.Entities.Where(e => e.Export != ExportRule.Never))
         {
@@ -207,14 +236,26 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
     }
 
     [DockerFact]
-    public async Task NeverExportedEntities_FeedbackAndSessionMetadataIncluded_AreInNeitherTheJsonNorTheCsvOfEitherExport()
+    public async Task NeverExportedEntitiesAndSecrets_AreInNeitherTheJsonNorTheCsvOfEitherExport_AndAnotherUsersPictureIsNotFetched()
     {
         await using var host = await SeededHostAsync();
 
-        var web = await host.WithScopeAsync(sp => sp.GetRequiredService<AccountService>().GetUserForExportAsync(UserId, withHabitNotes: true));
-        var discord = await host.WithScopeAsync(async sp => await sp.GetRequiredService<AccountService>()
-            .GetUserForExportAsync(await sp.GetRequiredService<HabitService>().FindDiscordUserAsync((ulong)TestUsers.DiscordIdOf(UserId))));
-        var outputs = new[] { BuildJson(web!), BuildCsv(web!), BuildJson(discord!, forDiscord: true), BuildCsv(discord!, forDiscord: true) };
+        var outputs = await host.WithScopeAsync(async sp =>
+        {
+            var accounts = sp.GetRequiredService<AccountService>();
+            var web = (await accounts.GetUserForExportAsync(UserId, withHabitNotes: true))!;
+            var linked = await accounts.GetFeedbackAndSessionsForExportAsync(UserId);
+            using var stream = new MemoryStream();
+            await WriteJsonAsync(stream, BuildDocument(web, feedbackAndSessions: linked),
+                (id, ct) => accounts.GetFeedbackImageDataForExportAsync(UserId, id, ct));
+            (await accounts.GetFeedbackImageDataForExportAsync(UserId, FriendImageId)).Should().BeNull();
+
+            var discord = (await accounts.GetUserForExportAsync(
+                await sp.GetRequiredService<HabitService>().FindDiscordUserAsync((ulong)TestUsers.DiscordIdOf(UserId))))!;
+            var json = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+            json.Should().Contain(Convert.ToBase64String([1, 2, 3]));
+            return new[] { json, BuildCsv(web, feedbackAndSessions: linked), BuildJson(discord, forDiscord: true), BuildCsv(discord, forDiscord: true) };
+        });
 
         foreach (var marker in NeverExportedMarkers.Values.SelectMany(m => m).Concat(SecretMarkers))
             foreach (var output in outputs)

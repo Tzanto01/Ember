@@ -2,7 +2,8 @@ namespace Ember.Core.Models;
 
 /// <summary>
 /// One picture attached to a <see cref="Models.Feedback"/>, stored with its metadata already stripped. Deleted with the feedback
-/// and 30 days after the feedback was resolved. Not part of the export.
+/// and 30 days after the feedback was resolved. In the web export with its feedback: base64 in the JSON, listed without the bytes
+/// in the CSV.
 /// </summary>
 public class FeedbackImage
 {

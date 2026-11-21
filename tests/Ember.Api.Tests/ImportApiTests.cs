@@ -62,6 +62,8 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var root = JsonNode.Parse(json)!.AsObject();
         root.Remove("account");
         root.Remove("push_subscriptions");
+        root.Remove("feedback");
+        root.Remove("sessions");
         foreach (var field in IgnoredSettings) root["settings"]!.AsObject().Remove(field);
 
         var habits = Reindex(root["habits"]!);
@@ -139,6 +141,57 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
             .And.Contain("\"second_reminder_minutes\":30").And.Contain("\"show_streaks\":true").And.Contain("\"tips_seen\":[\"streaks\"]")
             .And.Contain("\"language\":\"de\"").And.Contain("\"calm_mode\":true");
         Comparable(reexported).Should().Be(expected);
+    }
+
+    private static Task<HttpResponseMessage> SendFeedbackWithPicture(ApiClient user, string title)
+        => user.Post("/api/feedback", new { title, text = "It closes right away", platform = "web", version = "1.2.3", images = new[] { SyntheticImages.Base64(SyntheticImages.Png()) } });
+
+    [DockerFact]
+    public async Task The_json_export_streams_the_callers_feedback_with_the_stored_picture_bytes_and_their_sessions_without_ids()
+    {
+        var user = await Host.SignedInAsync(consent: false);
+        var userId = await user.IdAsync();
+        var other = await Host.SignedInAsync(consent: false);
+        await (await SendFeedbackWithPicture(user, "Crash on start")).Expect(HttpStatusCode.NoContent);
+        await (await SendFeedbackWithPicture(other, "Someone else's report")).Expect(HttpStatusCode.NoContent);
+        var stored = await Host.Db(db => db.Feedback.AsNoTracking().Include(f => f.Images).SingleAsync(f => f.UserId == userId));
+        var sessionIds = await Host.Db(db => db.AuthSessions.Where(s => s.UserId == userId).Select(s => s.Id).ToListAsync());
+
+        var response = await user.Get("/api/me/export?format=json");
+        var body = await response.Expect(HttpStatusCode.OK);
+
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+        response.Content.Headers.ContentDisposition?.FileName.Should().MatchRegex(@"^ember-export-\d{4}-\d{2}-\d{2}\.json$");
+        var root = JsonNode.Parse(body)!;
+        var report = root["feedback"]!.AsArray().Should().ContainSingle().Subject!;
+        ((string?)report["title"]).Should().Be("Crash on start");
+        ((string?)report["status"]).Should().Be("open");
+        var picture = report["images"]!.AsArray().Should().ContainSingle().Subject!;
+        ((Guid)picture["id"]!).Should().Be(stored.Images.Single().Id);
+        Convert.FromBase64String((string)picture["data"]!).Should().Equal(stored.Images.Single().Data);
+        root["sessions"]!.AsArray().Should().HaveCount(sessionIds.Count).And.OnlyContain(s => !s!.AsObject().ContainsKey("id"));
+        sessionIds.Should().NotBeEmpty().And.OnlyContain(id => !body.Contains(id.ToString()) && !body.Contains(id.ToString("N")));
+        body.Should().NotContain("Someone else's report");
+    }
+
+    [DockerFact]
+    public async Task An_export_with_feedback_a_picture_and_a_session_imports_into_a_fresh_account_without_creating_feedback_or_sessions()
+    {
+        var source = await Host.SignedInAsync();
+        await source.CreateHabitAsync("Water");
+        await (await SendFeedbackWithPicture(source, "Crash on start")).Expect(HttpStatusCode.NoContent);
+        var exported = await (await source.Get("/api/me/export?format=json")).ExpectJson();
+        exported.GetProperty("feedback").GetArrayLength().Should().Be(1);
+        exported.GetProperty("sessions").GetArrayLength().Should().BeGreaterThan(0);
+
+        var target = await Host.SignedInAsync();
+        var targetId = await target.IdAsync();
+        var sessionsBefore = await Host.Db(db => db.AuthSessions.CountAsync(s => s.UserId == targetId));
+        await (await Import(target, exported)).Expect(HttpStatusCode.NoContent);
+
+        (await HabitCountAsync(targetId)).Should().Be(1);
+        (await Host.Db(db => db.Feedback.CountAsync(f => f.UserId == targetId))).Should().Be(0);
+        (await Host.Db(db => db.AuthSessions.CountAsync(s => s.UserId == targetId))).Should().Be(sessionsBefore);
     }
 
     private static object LetGoItem(int id, string name = "Coffee")

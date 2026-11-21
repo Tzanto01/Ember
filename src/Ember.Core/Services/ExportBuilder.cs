@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -9,7 +10,8 @@ namespace Ember.Core.Services;
 /// <summary>
 /// Builds a user's complete data export (GDPR Art. 15/20): settings, every habit (including habits
 /// without logs), every log, every slip, every made-it day, every day mark, every push subscription endpoint, every registered phone, every routine, journal entry, habit note
-/// and own mood, the wrapped private-journal key and the encrypted "What helps me" list. Expects <see cref="User.Habits"/>, each habit's logs, slips, made-it
+/// and own mood, the wrapped private-journal key, the encrypted "What helps me" list and, in the web export, the linked feedback reports with their
+/// pictures and the sign-in sessions (decision D7, passed in as <see cref="FeedbackAndSessions"/>). Expects <see cref="User.Habits"/>, each habit's logs, slips, made-it
 /// days and (for the full export) notes, <see cref="User.DayMarks"/>,
 /// <see cref="User.Routines"/>, <see cref="User.DayNotes"/>, <see cref="User.Moods"/>, <see cref="User.JournalKey"/> and <see cref="User.Helps"/> to be loaded.
 /// The JSON document is also the import format.
@@ -29,7 +31,10 @@ public static class ExportBuilder
     /// with <c>;</c>); <c>offer_habit_note</c>, <c>today_order</c> (settings, the order keys joined with <c>;</c>). A habit_note uses <c>habit_id</c>,
     /// <c>date</c>, <c>text</c> and the cipher columns. <c>reminder_exclusions</c> joins a habit's or routine's excluded reminder destination ids with <c>;</c>. <c>kind</c> is
     /// <c>build</c> or <c>let_go</c> for a habit, the mark's kind for a day_mark; a slip uses <c>habit_id</c>, <c>date</c> and <c>count</c>;
-    /// a made_it uses <c>habit_id</c> and <c>date</c>.
+    /// a made_it uses <c>habit_id</c> and <c>date</c>. A feedback row uses <c>feedback_id</c>, <c>platform</c>, <c>app_version</c>, <c>title</c>,
+    /// <c>text</c>, <c>created_at</c>, <c>status</c> and <c>resolved_at</c>; a feedback_image row <c>feedback_id</c>, <c>image_id</c>,
+    /// <c>content_type</c> and <c>size</c> (never the bytes); a session row <c>created_at</c>, <c>expires_at</c>, <c>last_seen_at</c>,
+    /// <c>platform</c>, <c>app_version</c> and <c>widget_key_set</c>.
     /// </summary>
     public const string CsvHeader =
         "record_type,timezone,grace_days_per_week,theme," +
@@ -41,7 +46,8 @@ public static class ExportBuilder
         "cipher_version,cipher_iv,cipher_text,version,turning_off," +
         "passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped," +
         "second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen," +
-        "fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order";
+        "fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order," +
+        "feedback_id,platform,app_version,title,status,resolved_at,image_id,content_type,size,expires_at,last_seen_at,widget_key_set";
 
     private static readonly string[] CsvColumns = CsvHeader.Split(',');
 
@@ -137,14 +143,39 @@ public static class ExportBuilder
     public sealed record AccountRecord(string? Email, string? DiscordId, DateTime? CreatedAt = null);
 
     /// <summary>
+    /// One picture of a feedback report. <c>Data</c> is the picture's bytes (base64 in JSON); null when it was not loaded or no longer exists.
+    /// </summary>
+    public sealed record FeedbackImageRecord(Guid Id, string ContentType, int Size, byte[]? Data);
+
+    /// <summary>
+    /// One feedback report linked to the account. <c>Version</c> is the app version the client reported; <c>Status</c> is lowercase as stored.
+    /// Timestamps are UTC; <c>ResolvedAt</c> is null while the report is open, planned or implemented.
+    /// </summary>
+    public sealed record FeedbackRecord(int Id, string Platform, string? Version, string Title, string Text, DateTime CreatedAt, string Status,
+        DateTime? ResolvedAt, List<FeedbackImageRecord> Images);
+
+    /// <summary>
+    /// One sign-in session: when (UTC) it was created, expires and was last used, the client's platform and app version and whether a widget
+    /// key is set. The session id (a credential) and the widget key hash are never exported.
+    /// </summary>
+    public sealed record SessionRecord(DateTime CreatedAt, DateTime ExpiresAt, DateTime? LastSeenAt, string? Platform, string? AppVersion,
+        bool WidgetKeySet);
+
+    /// <summary>The account's linked feedback reports (oldest first, pictures in upload order) and sign-in sessions, for the web export.</summary>
+    public sealed record FeedbackAndSessions(List<FeedbackRecord> Feedback, List<SessionRecord> Sessions);
+
+    /// <summary>
     /// The JSON export document. <c>JournalKey</c> is null while the private journal is off. <c>HelpsEncrypted</c> is the "What helps me"
     /// ciphertext as stored, or null when there is none. <c>Slips</c> holds the let-go habits' slips and <c>MadeItDays</c> their made-it marks. <c>HabitNotes</c> holds the notes on habits.
+    /// <c>Feedback</c> and <c>Sessions</c> are only in the web export and left out of the JSON when null.
     /// </summary>
     public sealed record ExportDocument(SettingsRecord Settings, List<HabitRecord> Habits, List<LogRecord> Logs, List<DayMarkRecord> DayMarks,
         AccountRecord? Account = null, List<PushSubscriptionRecord>? PushSubscriptions = null,
         List<RoutineRecord>? Routines = null, List<DayNoteRecord>? DayNotes = null, List<MoodRecord>? Moods = null,
         JournalKeyRecord? JournalKey = null, List<PhoneRecord>? Phones = null, string? HelpsEncrypted = null, List<SlipRecord>? Slips = null,
-        List<HabitNoteRecord>? HabitNotes = null, List<MadeItDayRecord>? MadeItDays = null)
+        List<HabitNoteRecord>? HabitNotes = null, List<MadeItDayRecord>? MadeItDays = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<FeedbackRecord>? Feedback = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<SessionRecord>? Sessions = null)
     {
         /// <summary>The export format version (<see cref="CurrentFormatVersion"/>), written first.</summary>
         [JsonPropertyOrder(-1)]
@@ -154,11 +185,13 @@ public static class ExportBuilder
     /// <summary>
     /// Builds the export. <see cref="ExportDocument.Account"/> needs <see cref="User.Logins"/> loaded for the Discord ID,
     /// <see cref="ExportDocument.PushSubscriptions"/> needs <see cref="User.PushSubscriptions"/>, <see cref="ExportDocument.Phones"/>
-    /// needs <see cref="User.ReminderPhones"/>.
+    /// needs <see cref="User.ReminderPhones"/>. <see cref="ExportDocument.Feedback"/> and <see cref="ExportDocument.Sessions"/> come from
+    /// <paramref name="feedbackAndSessions"/> (null leaves them out).
     /// With <paramref name="forDiscord"/> it holds only what the bot shows (settings, habits, logs, slips, made-it days, day marks and routines):
-    /// account, push subscriptions, phones, day notes, habit notes, the Today order, moods, the journal key and the "What helps me" list are left out.
+    /// account, push subscriptions, phones, day notes, habit notes, the Today order, moods, the journal key, the "What helps me" list, feedback and
+    /// sessions are left out.
     /// </summary>
-    public static ExportDocument BuildDocument(User user, bool forDiscord = false)
+    public static ExportDocument BuildDocument(User user, bool forDiscord = false, FeedbackAndSessions? feedbackAndSessions = null)
     {
         var habits = user.Habits.OrderBy(h => h.CreatedAt).ThenBy(h => h.Id).ToList();
         var full = !forDiscord;
@@ -212,27 +245,101 @@ public static class ExportBuilder
                 ? habits.SelectMany(h => h.Notes.OrderBy(n => n.Date).Select(n => new HabitNoteRecord(
                     h.Id, n.Date, n.Text, Encrypted(n.CipherVersion, n.CipherIv, n.CipherText)))).ToList()
                 : null,
-            habits.SelectMany(h => h.MadeItDays.OrderBy(m => m.Date).Select(m => new MadeItDayRecord(h.Id, m.Date))).ToList());
+            habits.SelectMany(h => h.MadeItDays.OrderBy(m => m.Date).Select(m => new MadeItDayRecord(h.Id, m.Date))).ToList(),
+            full ? feedbackAndSessions?.Feedback : null,
+            full ? feedbackAndSessions?.Sessions : null);
     }
 
     private static EncryptedRecord? Encrypted(int? version, string? iv, string? ct)
         => version is { } v ? new EncryptedRecord(v, iv ?? "", ct ?? "") : null;
 
-    /// <summary>The export as JSON; see <see cref="BuildDocument"/> for <paramref name="forDiscord"/>.</summary>
-    public static string BuildJson(User user, bool forDiscord = false) => JsonSerializer.Serialize(BuildDocument(user, forDiscord), JsonOptions);
+    /// <summary>The export as JSON; see <see cref="BuildDocument"/> for <paramref name="forDiscord"/> and <paramref name="feedbackAndSessions"/>.</summary>
+    public static string BuildJson(User user, bool forDiscord = false, FeedbackAndSessions? feedbackAndSessions = null)
+        => JsonSerializer.Serialize(BuildDocument(user, forDiscord, feedbackAndSessions), JsonOptions);
+
+    /// <summary>
+    /// Writes <paramref name="document"/> to <paramref name="stream"/> as the same bytes <see cref="BuildJson"/> gives for it with every
+    /// picture's data loaded, fetching each picture's data through <paramref name="imageData"/> only as it is written and sending the buffered output to
+    /// <paramref name="stream"/> after each picture, so at most one picture (and its base64) is held in memory. Writes to
+    /// <paramref name="stream"/> only asynchronously.
+    /// </summary>
+    public static async Task WriteJsonAsync(Stream stream, ExportDocument document, Func<Guid, CancellationToken, Task<byte[]?>> imageData,
+        CancellationToken cancellationToken = default)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
+        {
+            Encoder = JsonOptions.Encoder,
+            Indented = JsonOptions.WriteIndented,
+            IndentCharacter = JsonOptions.IndentCharacter,
+            IndentSize = JsonOptions.IndentSize,
+            NewLine = JsonOptions.NewLine,
+            MaxDepth = JsonOptions.MaxDepth,
+        });
+
+        async Task SendAsync()
+        {
+            writer.Flush();
+            await stream.WriteAsync(buffer.WrittenMemory, cancellationToken);
+            buffer.ResetWrittenCount();
+        }
+
+        var feedback = document.Feedback;
+        await WriteObjectAsync(writer, document with { Feedback = feedback is null ? null : [] }, "feedback", async () =>
+        {
+            writer.WriteStartArray();
+            foreach (var report in feedback!)
+                await WriteObjectAsync(writer, report with { Images = [] }, "images", async () =>
+                {
+                    writer.WriteStartArray();
+                    foreach (var image in report.Images)
+                    {
+                        var data = image.Data ?? await imageData(image.Id, cancellationToken);
+                        JsonSerializer.Serialize(writer, image with { Data = data }, JsonOptions);
+                        await SendAsync();
+                    }
+                    writer.WriteEndArray();
+                });
+            writer.WriteEndArray();
+        });
+        await SendAsync();
+        await stream.FlushAsync(cancellationToken);
+    }
+
+    private static async Task WriteObjectAsync<T>(Utf8JsonWriter writer, T value, string streamedProperty, Func<Task> writeStreamedValue)
+    {
+        using var json = JsonSerializer.SerializeToDocument(value, JsonOptions);
+        writer.WriteStartObject();
+        foreach (var property in json.RootElement.EnumerateObject())
+        {
+            if (property.NameEquals(streamedProperty))
+            {
+                writer.WritePropertyName(streamedProperty);
+                await writeStreamedValue();
+            }
+            else
+            {
+                property.WriteTo(writer);
+            }
+        }
+        writer.WriteEndObject();
+    }
 
     /// <summary>
     /// One CSV file with <see cref="CsvHeader"/> columns: a <c>settings</c> row, one <c>habit</c> row per habit,
     /// one <c>log</c> row per log, one <c>slip</c> row per slip day, one <c>made_it</c> row per made-it day, one <c>day_mark</c> row per day mark, one <c>push_subscription</c> row per push subscription,
     /// one <c>phone</c> row per registered phone, one <c>routine</c> row per routine, one <c>day_note</c> row per journal entry, one <c>habit_note</c> row per habit note,
     /// one <c>mood</c> row per own mood and a
-    /// <c>journal_key</c> row when the private journal is on and a <c>helps</c> row when there is a "What helps me" list (reminder exclusions and a habit's reminder times are joined with <c>;</c>); columns that don't apply to a record type are empty.
+    /// <c>journal_key</c> row when the private journal is on, a <c>helps</c> row when there is a "What helps me" list, one <c>feedback</c> row per
+    /// feedback report followed by one <c>feedback_image</c> row per picture (metadata only, never the bytes) and one <c>session</c> row per
+    /// sign-in session (reminder exclusions and a habit's reminder times are joined with <c>;</c>); columns that don't apply to a record type are empty.
     /// Cells starting with a formula character are prefixed with <c>'</c> so spreadsheets don't evaluate them, except the base64
-    /// cipher and journal key columns, which are written verbatim. See <see cref="BuildDocument"/> for <paramref name="forDiscord"/>.
+    /// cipher and journal key columns, which are written verbatim. See <see cref="BuildDocument"/> for <paramref name="forDiscord"/> and
+    /// <paramref name="feedbackAndSessions"/>.
     /// </summary>
-    public static string BuildCsv(User user, bool forDiscord = false)
+    public static string BuildCsv(User user, bool forDiscord = false, FeedbackAndSessions? feedbackAndSessions = null)
     {
-        var doc = BuildDocument(user, forDiscord);
+        var doc = BuildDocument(user, forDiscord, feedbackAndSessions);
         var csv = new StringBuilder();
         csv.Append(CsvHeader).Append("\r\n");
 
@@ -303,6 +410,19 @@ public static class ExportBuilder
 
         if (doc.HelpsEncrypted is { } helps)
             AppendRow(csv, "helps", ("helps_encrypted", helps));
+
+        foreach (var f in doc.Feedback ?? [])
+        {
+            AppendRow(csv, "feedback", ("feedback_id", Num(f.Id)), ("platform", f.Platform), ("app_version", f.Version ?? ""), ("title", f.Title),
+                ("text", f.Text), ("created_at", Utc(f.CreatedAt)), ("status", f.Status), ("resolved_at", Utc(f.ResolvedAt)));
+            foreach (var i in f.Images)
+                AppendRow(csv, "feedback_image", ("feedback_id", Num(f.Id)), ("image_id", i.Id.ToString()), ("content_type", i.ContentType),
+                    ("size", Num(i.Size)));
+        }
+
+        foreach (var x in doc.Sessions ?? [])
+            AppendRow(csv, "session", ("created_at", Utc(x.CreatedAt)), ("expires_at", Utc(x.ExpiresAt)), ("last_seen_at", Utc(x.LastSeenAt)),
+                ("platform", x.Platform ?? ""), ("app_version", x.AppVersion ?? ""), ("widget_key_set", Bool(x.WidgetKeySet)));
 
         return csv.ToString();
     }

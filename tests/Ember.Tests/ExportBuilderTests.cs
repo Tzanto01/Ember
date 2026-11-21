@@ -403,4 +403,104 @@ public class ExportBuilderTests
         rows.Should().NotContain(r => r["record_type"] == "habit_note");
         rows.Should().ContainSingle(r => r["record_type"] == "settings" && r["today_order"] == "");
     }
+
+    private static readonly Guid Picture1 = new("0190a1b2-c3d4-7e5f-8a9b-000000000001");
+    private static readonly Guid Picture2 = new("0190a1b2-c3d4-7e5f-8a9b-000000000002");
+    private static readonly Guid Picture3 = new("0190a1b2-c3d4-7e5f-8a9b-000000000003");
+
+    internal static readonly Dictionary<Guid, byte[]> PictureBytes = new()
+    {
+        [Picture1] = [.. Enumerable.Range(0, 40_000).Select(i => (byte)(i * 7))],
+        [Picture2] = [0xFF, 0xD8, 0xFF, 0x00, 0x22, 0x5C],
+        [Picture3] = [0x52, 0x49, 0x46, 0x46],
+    };
+
+    /// <summary>Two linked reports (one with a formula-like title, one resolved) with pictures, and two sessions; <c>Data</c> only with <paramref name="withData"/>.</summary>
+    internal static ExportBuilder.FeedbackAndSessions SampleFeedbackAndSessions(bool withData = false)
+    {
+        ExportBuilder.FeedbackImageRecord Image(Guid id, string type)
+            => new(id, type, PictureBytes[id].Length, withData ? PictureBytes[id] : null);
+        return new(
+            [
+                new(3, "web", "1.4.0", "=1+1", "Der \"Speichern\"-Knopf fehlt seit gestern", new DateTime(2025, 6, 3, 10, 0, 0, DateTimeKind.Utc), "open", null,
+                    [Image(Picture1, "image/webp"), Image(Picture2, "image/jpeg")]),
+                new(5, "android", null, "Dark mode", "Please", new DateTime(2025, 6, 5, 10, 0, 0, DateTimeKind.Utc), "released",
+                    new DateTime(2025, 6, 9, 12, 30, 0, DateTimeKind.Utc), [Image(Picture3, "image/png")]),
+            ],
+            [
+                new(new DateTime(2025, 6, 1, 8, 0, 0, DateTimeKind.Utc), new DateTime(2025, 6, 15, 8, 0, 0, DateTimeKind.Utc),
+                    new DateTime(2025, 6, 2, 9, 0, 0, DateTimeKind.Utc), "android", "1.4.0", true),
+                new(new DateTime(2025, 6, 4, 8, 0, 0, DateTimeKind.Utc), new DateTime(2025, 6, 18, 8, 0, 0, DateTimeKind.Utc), null, null, null, false),
+            ]);
+    }
+
+    [Fact]
+    public async Task StreamedJson_IsByteIdenticalToBuildJson_FetchingEachPictureOnceInOrder()
+    {
+        var user = SampleUser();
+        var fetched = new List<Guid>();
+        using var stream = new MemoryStream();
+
+        await ExportBuilder.WriteJsonAsync(stream, ExportBuilder.BuildDocument(user, feedbackAndSessions: SampleFeedbackAndSessions()),
+            (id, _) => { fetched.Add(id); return Task.FromResult<byte[]?>(PictureBytes[id]); });
+
+        stream.ToArray().Should().Equal(System.Text.Encoding.UTF8.GetBytes(
+            ExportBuilder.BuildJson(user, feedbackAndSessions: SampleFeedbackAndSessions(withData: true))));
+        fetched.Should().Equal(Picture1, Picture2, Picture3);
+    }
+
+    [Fact]
+    public async Task StreamedJson_OfTheDiscordExport_IsByteIdenticalToBuildJson_AndFetchesNoPicture()
+    {
+        var user = SampleUser();
+        using var stream = new MemoryStream();
+
+        await ExportBuilder.WriteJsonAsync(stream, ExportBuilder.BuildDocument(user, forDiscord: true, SampleFeedbackAndSessions()),
+            (_, _) => throw new InvalidOperationException("The Discord export has no pictures."));
+
+        System.Text.Encoding.UTF8.GetString(stream.ToArray()).Should().Be(ExportBuilder.BuildJson(user, forDiscord: true));
+    }
+
+    [Fact]
+    public void Json_HoldsFeedbackWithBase64PicturesAndSessionsWithoutIds_AndTheDiscordExportHasNeitherSection()
+    {
+        var user = SampleUser();
+
+        using var web = JsonDocument.Parse(ExportBuilder.BuildJson(user, feedbackAndSessions: SampleFeedbackAndSessions(withData: true)));
+        using var discord = JsonDocument.Parse(ExportBuilder.BuildJson(user, forDiscord: true, SampleFeedbackAndSessions(withData: true)));
+
+        var resolved = web.RootElement.GetProperty("feedback")[1];
+        resolved.EnumerateObject().Select(p => p.Name).Should()
+            .Equal("id", "platform", "version", "title", "text", "created_at", "status", "resolved_at", "images");
+        resolved.GetProperty("status").GetString().Should().Be("released");
+        resolved.GetProperty("resolved_at").GetString().Should().Be("2025-06-09T12:30:00Z");
+        var picture = resolved.GetProperty("images")[0];
+        picture.EnumerateObject().Select(p => p.Name).Should().Equal("id", "content_type", "size", "data");
+        picture.GetProperty("id").GetGuid().Should().Be(Picture3);
+        picture.GetProperty("data").GetBytesFromBase64().Should().Equal(PictureBytes[Picture3]);
+        web.RootElement.GetProperty("sessions")[0].EnumerateObject().Select(p => p.Name).Should()
+            .Equal("created_at", "expires_at", "last_seen_at", "platform", "app_version", "widget_key_set");
+        discord.RootElement.TryGetProperty("feedback", out _).Should().BeFalse();
+        discord.RootElement.TryGetProperty("sessions", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Csv_HasFeedbackPictureAndSessionRows_WithoutPictureBytes_AndGuardsAFormulaTitle()
+    {
+        var csv = ExportBuilder.BuildCsv(SampleUser(), feedbackAndSessions: SampleFeedbackAndSessions(withData: true));
+        var rows = Rows(csv);
+
+        rows.Where(r => r["record_type"] == "feedback").Select(r => (r["feedback_id"], r["platform"], r["app_version"], r["title"], r["text"],
+                r["created_at"], r["status"], r["resolved_at"]))
+            .Should().Equal(("3", "web", "1.4.0", "'=1+1", "\"Der \"\"Speichern\"\"-Knopf fehlt seit gestern\"", "2025-06-03T10:00:00Z", "open", ""),
+                ("5", "android", "", "Dark mode", "Please", "2025-06-05T10:00:00Z", "released", "2025-06-09T12:30:00Z"));
+        rows.Where(r => r["record_type"] == "feedback_image").Select(r => (r["feedback_id"], r["image_id"], r["content_type"], r["size"]))
+            .Should().Equal(("3", Picture1.ToString(), "image/webp", "40000"), ("3", Picture2.ToString(), "image/jpeg", "6"),
+                ("5", Picture3.ToString(), "image/png", "4"));
+        rows.Where(r => r["record_type"] == "session").Select(r => (r["created_at"], r["expires_at"], r["last_seen_at"], r["platform"],
+                r["app_version"], r["widget_key_set"]))
+            .Should().Equal(("2025-06-01T08:00:00Z", "2025-06-15T08:00:00Z", "2025-06-02T09:00:00Z", "android", "1.4.0", "true"),
+                ("2025-06-04T08:00:00Z", "2025-06-18T08:00:00Z", "", "", "", "false"));
+        PictureBytes.Values.Should().OnlyContain(bytes => !csv.Contains(Convert.ToBase64String(bytes)));
+    }
 }

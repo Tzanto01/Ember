@@ -119,19 +119,25 @@ internal static class MeEndpoints
             return Results.NoContent();
         });
 
-        api.MapGet("/me/export", async (string? format, ClaimsPrincipal principal, AccountService accounts, TimeProvider time) =>
+        api.MapGet("/me/export", async (string? format, ClaimsPrincipal principal, AccountService accounts, TimeProvider time, CancellationToken cancellationToken) =>
         {
             if (format is not (null or "json" or "csv"))
                 return Problems.Validation("format", "Must be json or csv.");
 
-            var user = await accounts.GetUserForExportAsync(principal.UserId(), withHabitNotes: true);
+            var userId = principal.UserId();
+            var user = await accounts.GetUserForExportAsync(userId, withHabitNotes: true);
             if (user is null) return Problems.NotFound();
 
-            var (content, contentType, extension) = format == "csv"
-                ? (ExportBuilder.BuildCsv(user), "text/csv", "csv")
-                : (ExportBuilder.BuildJson(user), "application/json", "json");
-            return Results.File(Encoding.UTF8.GetBytes(content), contentType,
-                $"ember-export-{time.GetUtcNow():yyyy-MM-dd}.{extension}");
+            var feedbackAndSessions = await accounts.GetFeedbackAndSessionsForExportAsync(userId, cancellationToken);
+            var fileName = $"ember-export-{time.GetUtcNow():yyyy-MM-dd}";
+            if (format == "csv")
+                return Results.File(Encoding.UTF8.GetBytes(ExportBuilder.BuildCsv(user, feedbackAndSessions: feedbackAndSessions)), "text/csv",
+                    $"{fileName}.csv");
+
+            var document = ExportBuilder.BuildDocument(user, feedbackAndSessions: feedbackAndSessions);
+            return Results.Stream(stream => ExportBuilder.WriteJsonAsync(stream, document,
+                    (imageId, ct) => accounts.GetFeedbackImageDataForExportAsync(userId, imageId, ct), cancellationToken),
+                "application/json", $"{fileName}.json");
         });
 
         api.MapPost("/me/widget-key", async (HttpContext http, AuthSessions sessions) =>
