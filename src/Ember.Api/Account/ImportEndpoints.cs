@@ -87,9 +87,9 @@ internal static class ImportEndpoints
     {
         var local = new Dictionary<string, string[]>();
 
-        MeEndpoints.ValidateGraceAndTheme(doc.Settings?.GraceDaysPerWeek, doc.Settings?.Theme, local);
-        MeEndpoints.ValidateSecondReminder(doc.Settings?.SecondReminderMinutes, local);
-        MeEndpoints.ValidateLanguage(doc.Settings?.Language, local);
+        SettingsValidation.ValidateGraceAndTheme(doc.Settings?.GraceDaysPerWeek, doc.Settings?.Theme, local);
+        SettingsValidation.ValidateSecondReminder(doc.Settings?.SecondReminderMinutes, local);
+        SettingsValidation.ValidateLanguage(doc.Settings?.Language, local);
         Nest(errors, "settings", local);
 
         var routines = new List<Routine>();

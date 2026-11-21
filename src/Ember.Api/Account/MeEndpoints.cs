@@ -4,7 +4,6 @@ using System.Text.Json;
 using Ember.Api.Auth;
 using Ember.Api.Hosting;
 using Ember.Core.Data;
-using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
 using Ember.Core.Services;
@@ -62,9 +61,9 @@ internal static class MeEndpoints
             TimeZoneInfo? zone = null;
             if (patch.Timezone is not null && (!TimeZoneInfo.TryFindSystemTimeZoneById(patch.Timezone, out zone) || !zone.HasIanaId))
                 errors["timezone"] = ["Unknown IANA timezone."];
-            ValidateGraceAndTheme(patch.GraceDaysPerWeek, patch.Theme, errors);
-            ValidateSecondReminder(patch.SecondReminderMinutes, errors);
-            ValidateLanguage(patch.Language, errors);
+            SettingsValidation.ValidateGraceAndTheme(patch.GraceDaysPerWeek, patch.Theme, errors);
+            SettingsValidation.ValidateSecondReminder(patch.SecondReminderMinutes, errors);
+            SettingsValidation.ValidateLanguage(patch.Language, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var userId = principal.UserId();
@@ -176,26 +175,6 @@ internal static class MeEndpoints
         });
 
         return api;
-    }
-
-    internal static void ValidateGraceAndTheme(int? graceDaysPerWeek, string? theme, Dictionary<string, string[]> errors)
-    {
-        if (graceDaysPerWeek is < 0 or > 3)
-            errors["graceDaysPerWeek"] = ["Must be between 0 and 3."];
-        if (theme is not null && !User.Themes.Contains(theme))
-            errors["theme"] = ["Unknown theme."];
-    }
-
-    internal static void ValidateSecondReminder(int? minutes, Dictionary<string, string[]> errors)
-    {
-        if (minutes is { } m && !User.SecondReminderChoices.Contains(m))
-            errors["secondReminderMinutes"] = ["Must be 0, 15, 30, 60 or 120."];
-    }
-
-    internal static void ValidateLanguage(string? language, Dictionary<string, string[]> errors)
-    {
-        if (language is not null && !Languages.All.Contains(language))
-            errors["language"] = ["Must be en or de."];
     }
 
     private static async Task<MeDto?> LoadMe(ClaimsPrincipal principal, UserManager<User> users, UserSettingsService settings,
