@@ -13,6 +13,8 @@ export interface SettingsGroup {
   icon: LucideIcon;
   cards: string[];
   summaryKey?: SettingsKey;
+  /** Replaces `summaryKey` while the group shows this card. */
+  summaryWith?: { card: string; key: SettingsKey };
 }
 
 /**
@@ -60,10 +62,16 @@ export const settingsGroups: SettingsGroup[] = [
     icon: LifeBuoy,
     cards: ['help', 'diagnostics'],
     summaryKey: 'settings.group.helpSummary',
+    summaryWith: { card: 'diagnostics', key: 'settings.group.helpSummaryWithReport' },
   },
 ];
 
 /** The group holding the settings card with this id, if any. */
 export function settingsGroupOf(cardId: string): SettingsGroup | undefined {
   return settingsGroups.find((group) => group.cards.includes(cardId));
+}
+
+/** The summary key of a group showing the cards `shown` (ids), or undefined to name those cards instead. */
+export function summaryKeyOf(group: Pick<SettingsGroup, 'summaryKey' | 'summaryWith'>, shown: string[]): SettingsKey | undefined {
+  return group.summaryWith && shown.includes(group.summaryWith.card) ? group.summaryWith.key : group.summaryKey;
 }

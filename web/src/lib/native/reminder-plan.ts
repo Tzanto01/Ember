@@ -196,9 +196,10 @@ export function settled(
  * `habit.today`, later days when scheduled); its members' own reminders are skipped. Instants already past are
  * dropped. With `secondMinutes` above 0 each reminder gets a follow-up (`second`) that many minutes later (in the
  * account mode not for items with `serverReminders`), unless it falls on another local day or the habit's next
- * reminder time that day comes first. Nothing fires on a low day (from `habit.today`). A let-go habit gets one quiet
- * check-in (`letGo`) at its first reminder time on each day from its start while not paused, low days included, never
- * a second one. Sorted soonest first, capped at {@link planCap}, with ids from {@link reminderId} (a collision moves to the next free id).
+ * reminder time that day comes first, or (like the server's skip) a habit's first reminder already fired on a day
+ * `habit.today` shows as skipped (`completed` false). Nothing fires on a low day (from `habit.today`). A let-go habit gets one
+ * quiet check-in (`letGo`) at its first reminder time on each day from its start while not paused, low days included,
+ * never a second one. Sorted soonest first, capped at {@link planCap}, with ids from {@link reminderId} (a collision moves to the next free id).
  */
 export function planReminders(
   all: AnyHabit[],
@@ -216,8 +217,10 @@ export function planReminders(
     item: Remindable,
     reminder: Omit<PlannedReminder, 'id' | 'second'>,
     nextAt = Infinity,
+    skipped = false,
   ) => {
     if (reminder.at > now) planned.push(reminder);
+    else if (skipped) return;
     if (secondMinutes <= 0 || (target.mode === 'account' && item.serverReminders === true)) return;
     const at = reminder.at + secondMinutes * 60_000;
     if (at > now && at < nextAt && localDate(at, timeZone) === reminder.date)
@@ -232,8 +235,10 @@ export function planReminders(
       const date = addDays(today, offset);
       if (low.has(date) || !scheduledOn(habit, date) || doneToday(habit, date) || weekMet(habit, date)) continue;
       const instants = times.map((time) => zonedToUtc(date, time, timeZone));
+      const skipped = habit.today.date === date && habit.today.completed === false;
       times.forEach((time, i) => {
-        if (i === 0 || instants[i] !== instants[i - 1]) plan(habit, { habitId: habit.id, date, time, at: instants[i] }, instants[i + 1]);
+        if (i === 0 || instants[i] !== instants[i - 1])
+          plan(habit, { habitId: habit.id, date, time, at: instants[i] }, instants[i + 1], skipped);
       });
     }
   }

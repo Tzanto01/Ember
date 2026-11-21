@@ -220,11 +220,11 @@ function parse(text: string): ParsedBackup {
     const date = optionalDate(field(l, 'date')) ?? damaged();
     const completed = field(l, 'completed');
     if (typeof completed !== 'boolean') damaged();
-    const count = int(field(l, 'count') ?? (completed ? habit.timesPerDay : 0), 0, limits.timesPerDay);
+    const count = int(field(l, 'count') ?? (completed ? habit.timesPerDay : 0), 0, habit.timesPerDay);
     const key = `${habit.id}|${date}`;
     if (seenDays.has(key)) damaged();
     seenDays.add(key);
-    return { habitId: habit.id, date, completed, count };
+    return { habitId: habit.id, date, completed: completed || count >= habit.timesPerDay, count };
   });
 
   const today = localToday(timezone);

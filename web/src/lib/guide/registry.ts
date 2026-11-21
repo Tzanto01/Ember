@@ -2,6 +2,7 @@ import { matchPath } from 'react-router';
 import type { en } from '../i18n';
 import { firesideLimits } from '../fireside-limits';
 import { limits } from '../local/limits';
+import { diagnosticsKeepDays, diagnosticsWindowDays } from '../native/diagnostics';
 import { graceOptions } from '../models';
 
 type Key = keyof typeof en;
@@ -255,6 +256,13 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.settings.down.q',
         answerKey: 'guide.settings.down.a',
         covers: ['web/src/lib/notices.ts', 'web/src/lib/problem.ts', 'web/src/lib/offline-queue.ts'],
+      },
+      {
+        id: 'settings-tech-report',
+        questionKey: 'guide.settings.techReport.q',
+        answerKey: 'guide.settings.techReport.a',
+        values: { window: diagnosticsWindowDays, keep: diagnosticsKeepDays },
+        covers: ['web/src/components/settings/diagnostics-sheet.tsx', 'web/src/lib/native/diagnostics.ts', groups],
       },
     ],
   },
