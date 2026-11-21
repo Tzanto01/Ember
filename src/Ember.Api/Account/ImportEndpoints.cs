@@ -96,7 +96,7 @@ internal static class ImportEndpoints
         var routineById = new Dictionary<int, Routine>();
         foreach (var (r, path) in Items(doc.Routines, "routines", errors))
         {
-            var name = HabitEndpoints.ValidName(r.Name, local, Limits.RoutineNameLength);
+            var name = HabitValidation.ValidName(r.Name, local, Limits.RoutineNameLength);
             var routine = new Routine
             {
                 Name = name ?? "",
@@ -113,12 +113,12 @@ internal static class ImportEndpoints
         var habitById = new Dictionary<int, Habit>();
         foreach (var (h, path) in Items(doc.Habits, "habits", errors))
         {
-            var name = HabitEndpoints.ValidName(h.Name, local);
-            var frequency = HabitEndpoints.ParseFrequency(h.Frequency);
-            if (frequency is null) local["frequency"] = [HabitEndpoints.FrequencyMessage];
-            HabitEndpoints.ValidateWeeklyTarget(h.WeeklyTarget, frequency, local);
-            var days = HabitEndpoints.ValidateDays(h.Days, frequency, null, local);
-            var timesPerDay = HabitEndpoints.ValidateTimesPerDay(h.TimesPerDay ?? 1, frequency, local);
+            var name = HabitValidation.ValidName(h.Name, local);
+            var frequency = HabitValidation.ParseFrequency(h.Frequency);
+            if (frequency is null) local["frequency"] = [HabitValidation.FrequencyMessage];
+            HabitValidation.ValidateWeeklyTarget(h.WeeklyTarget, frequency, local);
+            var days = HabitValidation.ValidateDays(h.Days, frequency, null, local);
+            var timesPerDay = HabitValidation.ValidateTimesPerDay(h.TimesPerDay ?? 1, frequency, local);
             if (h.PausedFrom is not null && h.PausedUntil is null) local["paused_from"] = ["Needs paused_until."];
             else if (h.PausedFrom > h.PausedUntil) local["paused_from"] = ["Can't be after paused_until."];
             var createdAt = h.CreatedAt?.UtcDateTime ?? now;
@@ -134,7 +134,7 @@ internal static class ImportEndpoints
             if (kind is null) local["kind"] = ["Must be build or let_go."];
             else if (kind == HabitKind.LetGo)
             {
-                HabitEndpoints.ValidateLetGo(frequency, h.TimesPerDay, h.WeeklyTarget, h.Days, reminderTimes.Distinct().Count(), local);
+                HabitValidation.ValidateLetGo(frequency, h.TimesPerDay, h.WeeklyTarget, h.Days, reminderTimes.Distinct().Count(), local);
                 if (h.RoutineId is not null) local["routine_id"] = ["Let-go habits can't be in a routine."];
             }
 

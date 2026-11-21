@@ -29,10 +29,10 @@ internal static class RoutineEndpoints
         api.MapPost("/routines", async (CreateRoutineRequest request, ClaimsPrincipal principal, HabitService habits, ReminderService reminders) =>
         {
             var errors = new Dictionary<string, string[]>();
-            var name = HabitEndpoints.ValidName(request.Name, errors, Limits.RoutineNameLength);
-            var reminder = HabitEndpoints.ParseReminder(request.ReminderTime, errors);
+            var name = HabitValidation.ValidName(request.Name, errors, Limits.RoutineNameLength);
+            var reminder = HabitValidation.ParseReminder(request.ReminderTime, errors);
             var userId = principal.UserId();
-            var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, reminders, userId, errors);
+            var exclusions = await HabitValidation.ParseReminderExclusionsAsync(request.ReminderExclusions, reminders, userId, errors);
             await ValidateHabitIdsAsync(request.HabitIds, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
@@ -50,12 +50,12 @@ internal static class RoutineEndpoints
             ReminderService reminders) =>
         {
             var errors = new Dictionary<string, string[]>();
-            var name = request.Name is null ? null : HabitEndpoints.ValidName(request.Name, errors, Limits.RoutineNameLength);
-            var reminder = HabitEndpoints.ParseReminder(request.ReminderTime, errors);
+            var name = request.Name is null ? null : HabitValidation.ValidName(request.Name, errors, Limits.RoutineNameLength);
+            var reminder = HabitValidation.ParseReminder(request.ReminderTime, errors);
             if (request.ReminderTime is not null && request.ClearReminder == true)
                 errors["reminderTime"] = ["Can't be combined with clearReminder."];
             var userId = principal.UserId();
-            var exclusions = await HabitEndpoints.ParseReminderExclusionsAsync(request.ReminderExclusions, reminders, userId, errors);
+            var exclusions = await HabitValidation.ParseReminderExclusionsAsync(request.ReminderExclusions, reminders, userId, errors);
             await ValidateHabitIdsAsync(request.HabitIds, habits, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
