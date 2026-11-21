@@ -183,7 +183,7 @@ describe('BackupService', () => {
     expect(result.data.logs[1]).toEqual({ habitId: 2, date: '2026-10-02', completed: true, count: 3 });
   });
 
-    it('reads reminder times sorted from reminder_times, and a file without them as its one reminder_time', () => {
+  it('reads reminder times sorted from reminder_times, and a file without them as its one reminder_time', () => {
     const doc = exportDocument(sample());
     const habits = doc['habits'] as Record<string, unknown>[];
     habits[1]['reminder_times'] = ['20:00:00', '08:00:00', '13:00:00'];
