@@ -61,7 +61,7 @@ public class LongHistoryApiTests(PostgresFixture postgres) : ApiTestBase(postgre
         await Host.Db(async db =>
         {
             foreach (var ago in new[] { 880, 400 })
-                db.HabitSlips.Add(new HabitSlip { HabitId = id, Date = Host.Today.AddDays(-ago), Count = 1, UpdatedAt = DateTime.UtcNow });
+                db.HabitSlips.Add(new HabitSlip { HabitId = id, Date = Host.Today.AddDays(-ago), Count = 1, UpdatedAt = Host.Time.GetUtcNow().UtcDateTime });
             return await db.SaveChangesAsync();
         });
 
