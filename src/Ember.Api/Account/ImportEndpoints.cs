@@ -237,12 +237,12 @@ internal static class ImportEndpoints
         var moodById = new Dictionary<int, Mood>();
         foreach (var (m, path) in Items(doc.Moods, "moods", errors))
         {
-            var cipher = JournalEndpoints.WriteForm(m.Encrypted, m.Label is not null || m.Emoji is not null, true, key, local);
+            var cipher = JournalValidation.WriteForm(m.Encrypted, m.Label is not null || m.Emoji is not null, true, key, local);
             string? label = null, emoji = null;
             if (m.Encrypted is null)
             {
-                label = JournalEndpoints.ValidLabel(m.Label, local);
-                emoji = JournalEndpoints.ValidEmoji(m.Emoji, local);
+                label = JournalValidation.ValidLabel(m.Label, local);
+                emoji = JournalValidation.ValidEmoji(m.Emoji, local);
             }
             var mood = new Mood
             {
@@ -264,18 +264,18 @@ internal static class ImportEndpoints
         foreach (var (n, path) in Items(doc.DayNotes, "day_notes", errors))
         {
             var date = ValidDay(n.Date, today, earliestStart, noted, local);
-            var cipher = JournalEndpoints.WriteForm(n.Encrypted, n.Text is not null || n.Mood is not null, true, key, local);
+            var cipher = JournalValidation.WriteForm(n.Encrypted, n.Text is not null || n.Mood is not null, true, key, local);
             string? text = null, builtIn = null;
             Mood? custom = null;
             if (n.Encrypted is null)
             {
-                text = JournalEndpoints.ValidText(n.Text, local);
+                text = JournalValidation.ValidText(n.Text, local);
                 if (n.Mood is null)
                 {
                     if (text is null) local["text"] = ["Set text, mood or encrypted."];
                 }
-                else if (JournalEndpoints.BuiltInMoods.Contains(n.Mood)) builtIn = n.Mood;
-                else if (!JournalEndpoints.TryParseCustomMood(n.Mood, out var moodId) || !moodById.TryGetValue(moodId, out custom))
+                else if (JournalValidation.BuiltInMoods.Contains(n.Mood)) builtIn = n.Mood;
+                else if (!JournalValidation.TryParseCustomMood(n.Mood, out var moodId) || !moodById.TryGetValue(moodId, out custom))
                     local["mood"] = ["Must be low, meh, okay, good, great or custom:<id> of a mood in this file."];
             }
             notes.Add((new DayNote
@@ -300,12 +300,12 @@ internal static class ImportEndpoints
             else if (date > today) local["date"] = ["Can't be after today."];
             else if (habit is not null && date < HabitRules.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
             else if (habit is not null && !habitNoted.Add((habit, date))) local["date"] = ["Only one note per habit and day."];
-            var cipher = JournalEndpoints.WriteForm(n.Encrypted, n.Text is not null, true, key, local,
-                JournalEndpoints.MaxHabitNoteCipherTextLength);
+            var cipher = JournalValidation.WriteForm(n.Encrypted, n.Text is not null, true, key, local,
+                JournalValidation.MaxHabitNoteCipherTextLength);
             string? text = null;
             if (n.Encrypted is null)
             {
-                text = JournalEndpoints.ValidText(n.Text, local, JournalEndpoints.MaxHabitNoteLength);
+                text = JournalValidation.ValidText(n.Text, local, JournalValidation.MaxHabitNoteLength);
                 if (text is null && !local.ContainsKey("text")) local["text"] = ["Set text or encrypted."];
             }
             habit?.Notes.Add(new HabitNote
@@ -322,7 +322,7 @@ internal static class ImportEndpoints
         JournalKey? material = null;
         if (doc.JournalKey is { } journalKey)
         {
-            material = JournalEndpoints.ValidKey(journalKey, local);
+            material = JournalValidation.ValidKey(journalKey, local);
             Nest(errors, "journal_key", local);
         }
 
