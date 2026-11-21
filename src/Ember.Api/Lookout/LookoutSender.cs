@@ -1,4 +1,3 @@
-using Ember.Api.Diagnostics;
 using Ember.Api.Lookout;
 using Ember.Core;
 using Ember.Core.Data;
@@ -14,7 +13,7 @@ namespace Ember.Api;
 /// ticket stuck on a quota can't hold up an erasure. Sends nothing unless <see cref="LookoutIngest.TryGetEndpoint"/> accepts the
 /// configuration. A transient failure keeps an outbox row at the head and waits <see cref="LookoutIngest.Backoff"/>; a permanent
 /// refusal parks a ticket and moves on, while a deletion is never parked, only retried. A diagnostics upload never holds up the
-/// outbox: each step first drops uploads unsent for <see cref="DiagnosticsEndpoints.MaxUnsentAge"/>; an upload Lookout accepted or
+/// outbox: each step first drops uploads unsent for <see cref="LookoutDiagnostic.MaxUnsentAge"/>; an upload Lookout accepted or
 /// refused for good is deleted, and any other answer defers only that upload by its own backoff (<see cref="LookoutDiagnostic.NextAttemptAt"/>).
 /// Logs row id, kind and status or exception type only.
 /// </summary>
@@ -64,7 +63,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<EmberDbContext>();
         var now = time.GetUtcNow().UtcDateTime;
-        if (await DiagnosticsEndpoints.DeleteExpiredAsync(db, now, cancellationToken) is > 0 and var expired)
+        if (await LookoutDiagnostic.DeleteExpiredAsync(db.LookoutDiagnostics, now, cancellationToken) is > 0 and var expired)
             logger.LogInformation("Dropped {Count} diagnostics uploads unsent for 30 days.", expired);
         var row = await db.LookoutOutbox.AsNoTracking().Where(o => o.SentAt == null && o.ParkedAt == null)
             .OrderBy(o => o.Kind == LookoutOutbox.UserDelete ? 0 : 1).ThenBy(o => o.Id).FirstOrDefaultAsync(cancellationToken);

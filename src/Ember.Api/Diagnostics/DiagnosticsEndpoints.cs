@@ -15,9 +15,6 @@ internal static class DiagnosticsEndpoints
     /// <summary>Most uploads waiting for the Lookout sender; at this many, new ones get 503 <c>busy</c>.</summary>
     public const int MaxQueued = 200;
 
-    /// <summary>How long an unsent upload is kept (Lookout's <c>diagnosticsDays</c> for Ember).</summary>
-    public static readonly TimeSpan MaxUnsentAge = TimeSpan.FromDays(30);
-
     private const int RefAttempts = 3;
 
     public sealed record DiagnosticsCreated(string Ref);
@@ -25,7 +22,7 @@ internal static class DiagnosticsEndpoints
     /// <summary>
     /// <c>POST /api/diagnostics</c>: anonymous for everyone, signed in or not; never reads the user, a cookie or the Authorization
     /// header, so no upload is ever tied to an account. Validates against the server's now (<see cref="DiagnosticsValidation.Errors"/>;
-    /// an <c>at</c> outside the window is 400 <c>clock</c>, never dropped), drops unsent uploads older than <see cref="MaxUnsentAge"/>,
+    /// an <c>at</c> outside the window is 400 <c>clock</c>, never dropped), drops unsent uploads older than <see cref="LookoutDiagnostic.MaxUnsentAge"/>,
     /// answers 503 <c>busy</c> at <see cref="MaxQueued"/> queued, then rate-limits
     /// (<see cref="RateLimits.DiagnosticsKeys"/>), stores the <see cref="DiagnosticsBody"/> under a fresh ref and key (413
     /// <c>too_large</c> over <see cref="DiagnosticsBody.MaxBytes"/>) and answers 201 <c>{ ref }</c>. Logs nothing of the upload.
@@ -38,7 +35,7 @@ internal static class DiagnosticsEndpoints
             var now = time.GetUtcNow().UtcDateTime;
             if (DiagnosticsValidation.Errors(request, now) is { Count: > 0 } errors) return Problems.Validation(errors);
 
-            await DeleteExpiredAsync(db, now, http.RequestAborted);
+            await LookoutDiagnostic.DeleteExpiredAsync(db.LookoutDiagnostics, now, http.RequestAborted);
             if (await db.LookoutDiagnostics.CountAsync(http.RequestAborted) >= MaxQueued) return Problems.Busy();
 
             foreach (var key in RateLimits.DiagnosticsKeys(request.Installation!, http.Connection.RemoteIpAddress))
@@ -73,12 +70,5 @@ internal static class DiagnosticsEndpoints
         });
 
         return api;
-    }
-
-    /// <summary>Deletes the uploads queued longer than <see cref="MaxUnsentAge"/> before <paramref name="now"/> and returns how many.</summary>
-    public static Task<int> DeleteExpiredAsync(EmberDbContext db, DateTime now, CancellationToken cancellationToken)
-    {
-        var cutoff = now - MaxUnsentAge;
-        return db.LookoutDiagnostics.Where(d => d.CreatedAt < cutoff).ExecuteDeleteAsync(cancellationToken);
     }
 }
