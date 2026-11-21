@@ -7,7 +7,7 @@ namespace Ember.Tests;
 public class ShareCardTests
 {
     [Fact]
-    public void ShareCard_ShowsGapsAndLowDaysTheSameNeutralWay_SoLowDaysStayPrivate()
+    public void ShareCard_ShowsLowDaysExactlyLikeKeptDays_SoLowDaysStayPrivate()
     {
         var habit = HabitFactory.Make((2, true), (4, false));
         var lowDays = new HashSet<DateOnly> { HabitFactory.Today.AddDays(-3), HabitFactory.Today };
@@ -16,7 +16,9 @@ public class ShareCardTests
         var grid = description.Split("\n\n")[1];
 
         grid.Should().NotContain("🟥").And.NotContain("🌙");
-        grid.Replace("\n", "").Should().EndWith("⬛⬛🟩⬜⬜");
+        grid.Replace("\n", "").Should().EndWith("⬛🟩🟩⬜🟩");
+        grid.Split("🟩").Length.Should().Be(4);
+        description.Should().Contain("Last 30 days: **3/30**");
     }
 
     [Theory]
