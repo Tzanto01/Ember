@@ -156,6 +156,8 @@ public static class AppHost
 
     private sealed class NullDiscordDmSender : IDiscordDmSender
     {
+        public bool IsLoggedIn => true;
+
         public Task<DeliveryOutcome> SendMessageAsync(
             ulong userId,
             string? text = null,

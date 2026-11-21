@@ -35,6 +35,15 @@ internal static class HabitText
         };
     }
 
+    /// <summary>
+    /// " · paused until {day}" for a habit paused on the user's local <paramref name="today"/> (<see cref="HabitRules.IsPausedOn"/>), so a pause
+    /// that starts later shows nothing yet; "" otherwise.
+    /// </summary>
+    internal static string PausedSuffix(Texts t, Habit h, DateOnly today)
+        => HabitRules.IsPausedOn(h, today)
+            ? " · " + t.Format("habit.list.paused", h.PausedUntil!.Value.ToString(t.Get("date.month-day"), t.Culture))
+            : "";
+
     /// <summary>The short name of a <see cref="ScheduleDayNames"/> day (<c>mon</c> → "Mon" / "Mo").</summary>
     internal static string DayName(Texts t, string name) => t.Get("weekday." + name);
 

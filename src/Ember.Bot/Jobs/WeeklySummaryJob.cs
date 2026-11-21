@@ -24,7 +24,7 @@ namespace Ember.Bot.Jobs;
 /// silence: Ember's philosophy is soft re-engagement, and going quiet at exactly the
 /// moment someone disengages is the failure mode to avoid. Users with nothing to
 /// summarise (no habits, or every habit created today / paused all week) are skipped —
-/// a 0/0 recap is noise, and paused users asked for quiet.
+/// a 0/0 recap is noise, and paused users asked for quiet. Nothing is sent while the Discord client isn't logged in.
 /// </summary>
 [DisallowConcurrentExecution]
 public class WeeklySummaryJob : IJob
@@ -52,6 +52,7 @@ public class WeeklySummaryJob : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
+        if (!_discord.IsLoggedIn) return;
         using var scope = _services.CreateScope();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
         var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();

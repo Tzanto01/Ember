@@ -152,7 +152,7 @@ public class ReflectDismissModule : InteractionModuleBase<SocketInteractionConte
     internal static async Task<List<Habit>> OpenHabitsAsync(HabitService habits, UserSettingsService settings, Guid userId, DateOnly date)
     {
         var tz = await settings.GetTimeZoneAsync(userId);
-        return (await habits.GetHabitsAsync(userId)).Where(h => HabitRules.IsOpenDaily(h, date, tz)).ToList();
+        return (await habits.GetHabitsWithLogsOnAsync(userId, date)).Where(h => HabitRules.IsOpenDaily(h, date, tz)).ToList();
     }
 
     private async Task CloseAsync(string text) =>

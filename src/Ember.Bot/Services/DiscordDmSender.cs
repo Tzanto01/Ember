@@ -14,6 +14,8 @@ public class DiscordDmSender : IDiscordDmSender
         _client = client;
     }
 
+    public bool IsLoggedIn => _client.LoginState == LoginState.LoggedIn;
+
     public async Task<DeliveryOutcome> SendMessageAsync(
         ulong userId,
         string? text = null,

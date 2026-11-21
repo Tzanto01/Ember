@@ -160,8 +160,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
             {
                 var todayMark = h.Kind == HabitKind.LetGo ? HabitText.LetGoMark(LetGoRules.DayOn(h, today, tz).State) : HabitText.DayMark(h, today);
                 var reminderStr = HabitText.FormatReminder(t, h.ReminderTimes);
-                var pauseStr = h.PausedUntil.HasValue && h.PausedUntil >= today
-                    ? " · " + t.Format("habit.list.paused", h.PausedUntil.Value.ToString(t.Get("date.month-day"), t.Culture)) : "";
+                var pauseStr = HabitText.PausedSuffix(t, h, today);
 
                 var progressStr = HabitText.ListProgress(t, h, today, grace, lowDays, tz, showStreaks);
 
@@ -202,7 +201,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task CheckInAsync()
     {
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
-        var habits = await _habits.GetHabitsAsync(userId);
+        var habits = await _habits.GetHabitsWithSlipsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -223,7 +222,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task HistoryAsync()
     {
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
-        var habits = await _habits.GetHabitsAsync(userId);
+        var habits = await _habits.GetHabitsWithSlipsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -338,7 +337,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task ShareAsync()
     {
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
-        var habits = await _habits.GetHabitsAsync(userId);
+        var habits = await _habits.GetHabitsWithSlipsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -359,7 +358,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task DeleteAsync()
     {
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
-        var habits = await _habits.GetHabitsAsync(userId);
+        var habits = await _habits.GetHabitsWithSlipsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -380,7 +379,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task EditAsync()
     {
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
-        var habits = await _habits.GetHabitsAsync(userId);
+        var habits = await _habits.GetHabitsWithSlipsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -401,7 +400,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task FrequencyAsync()
     {
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
-        var habits = await _habits.GetHabitsAsync(userId);
+        var habits = await _habits.GetHabitsWithSlipsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 
@@ -422,7 +421,7 @@ public class HabitModule : InteractionModuleBase<SocketInteractionContext>
     public async Task PauseAsync()
     {
         var userId = await _habits.FindDiscordUserAsync(Context.User.Id);
-        var habits = await _habits.GetHabitsAsync(userId);
+        var habits = await _habits.GetHabitsWithSlipsAsync(userId);
 
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
 

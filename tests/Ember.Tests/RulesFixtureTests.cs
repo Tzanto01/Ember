@@ -46,7 +46,7 @@ public partial class RulesFixtureTests
     private sealed record WeeklyOut(int TotalDone, int TotalPossible, string Headline, string Footer, List<WeeklyHabitOut> Habits);
 
     private sealed record ExpectedOut(Dictionary<string, List<DayOut>> Days, Dictionary<string, StatsOut> Stats, List<DayStatsOut> DayStats,
-        Dictionary<string, List<int>> RoutinePending, WeeklyOut Weekly);
+        Dictionary<string, List<int>> RoutinePending, Dictionary<string, bool> RoutineDone, WeeklyOut Weekly);
 
     private sealed record PauseOut(DateOnly? PausedFrom, DateOnly? PausedUntil);
 
@@ -250,6 +250,8 @@ public partial class RulesFixtureTests
                 .Select(s => new DayStatsOut(s.Date, s.Scheduled, s.Done, s.Partial, s.ShowedUp)).ToList(),
             input.Routines.ToDictionary(r => Key(r.Id), r => HabitRules.PendingRoutineHabits(
                 habits.Where(h => h.RoutineId == r.Id), input.Today, tz, lowDays).Select(h => h.Id).ToList()),
+            input.Routines.ToDictionary(r => Key(r.Id), r => HabitRules.IsRoutineDone(
+                habits.Where(h => h.RoutineId == r.Id), input.Today, input.Today, tz, lowDays)),
             Weekly(input, habits));
     }
 

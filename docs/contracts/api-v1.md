@@ -378,10 +378,10 @@ v1.8 (2026-11-10, Nico): old reminder buttons disappear once they can no longer 
 
 - A Discord reminder (habit or routine) keeps its buttons from the moment it is sent until the first of:
   1. 10:00 local time on the day after the reminder's local day (`ReminderExpiry.ExpiresLocal`, when the "Log yesterday" check-in takes over) *(default)*;
-  2. every habit on it being done for that day, logged anywhere (bot, web, app, widget);
+  2. every habit on it being done for that day, logged anywhere (bot, web, app, widget); for a routine, every member due that day being done (none pending, partial or not done: a member on a rest day, paused or on a low day isn't due);
   3. a second reminder for the same habit or routine and day being sent (see below);
   4. the user tapping a button on it (as today).
-- Closing removes every button and keeps the text, adding one subtext line: `-# ✅ Logged.` when its habits are done for that day, `-# This reminder has closed.` otherwise. A message superseded by a second reminder is deleted instead (closed as above if deleting fails).
+- Closing removes every button and keeps the text, adding one subtext line: `-# ✅ Logged.` when its habits are done for that day (rule 2), `-# This reminder has closed.` otherwise. A message superseded by a second reminder is deleted instead (closed as above if deleting fails).
 - The bot remembers each reminder message it sent (Discord channel and message id, user, habit or routine, local day) only until that message is closed; the record is then removed. It is deleted with the user, habit or routine and is not part of the export.
 - Done and Skip on a reminder no longer work forever: tapping them after rule 1 answers ephemerally `This reminder has closed. You can still fill in that day with /habit history or on the web. 💙` and closes the message. This also covers messages sent before v1.8 (no record exists for them). Snooze keeps its own window.
 - Closing is best effort: a message Discord can't edit (deleted by the user, DMs closed) just drops its record.
@@ -526,7 +526,7 @@ Exactly like push subscriptions (v1.10): ending a session deletes the phones it 
 
 - Reminder notifications gain `notification.tag`: `habit-<id>` or `routine-<id>` (no name, lock-screen safe). The service worker passes it to `showNotification` with `renotify: true` whenever a tag is present, so the second reminder replaces the first and still alerts.
 - Clear payload: `{ "clear": { "tag": "habit-<id>" }, "notification": { "title": "Ember", "body": "Logged. Nice work. ✅", "data": { "onActionClick": { "default": { "operation": "navigateLastFocusedOrOpen", "url": "/today" } } } } }`. A v1.14 service worker shows `Ember` with that tag, body and `silent: true`, then closes every notification with the tag, so nothing remains. A service worker before v1.14 ignores `clear` and shows the "Logged" notification.
-- When a habit or routine reminder delivered by web push becomes done for its day (logged anywhere), the bot's minute job sends the clear payload once to the account's push subscriptions that are enabled and not excluded for the item, then forgets the delivery. Deliveries that expire (10:00 local the next day) are forgotten without a push. Known risk: Chrome may show its generic "site updated in the background" notification if its silent-push budget runs out; at most one clear per delivered reminder.
+- When a habit or routine reminder delivered by web push becomes done for its day (logged anywhere; a routine as in rule 2 of "Reminder buttons close"), the bot's minute job sends the clear payload once to the account's push subscriptions that are enabled and not excluded for the item, then forgets the delivery. Deliveries that expire (10:00 local the next day) are forgotten without a push. Known risk: Chrome may show its generic "site updated in the background" notification if its silent-push budget runs out; at most one clear per delivered reminder.
 
 ### Account merge
 

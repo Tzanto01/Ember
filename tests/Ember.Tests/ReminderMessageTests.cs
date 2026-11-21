@@ -234,6 +234,29 @@ public class ReminderMessageTests
     }
 
     [Fact]
+    public async Task A_skip_for_today_from_any_channel_drops_the_pending_second_reminder_and_a_skip_for_yesterday_does_not()
+    {
+        var time = new FakeTimeProvider(Now);
+        await using var host = await CreateHostAsync(time, 15, DueHabit(1), DueHabit(2), DueHabit(3));
+        await RunJobAsync(host);
+        host.Discord.Messages.Should().HaveCount(3);
+
+        await host.WithScopeAsync(async sp =>
+        {
+            var habits = sp.GetRequiredService<HabitService>();
+            await habits.CheckInAsync(TestUsers.Id(DiscordUser), 1, Today, completed: false);
+            await habits.CheckInAsync(TestUsers.Id(DiscordUser), 2, Today.AddDays(-1), completed: false);
+        });
+        time.Advance(TimeSpan.FromMinutes(15));
+        await RunJobAsync(host);
+
+        (await SecondReminderAsync(host, 1)).Should().BeNull();
+        host.Discord.Messages.Skip(3).Select(m => m.Text).Should().BeEquivalentTo(
+            "🔔 One more nudge for **Habit 2**, in case the first one got buried. Did you get to it today?",
+            "🔔 One more nudge for **Habit 3**, in case the first one got buried. Did you get to it today?");
+    }
+
+    [Fact]
     public async Task No_second_reminder_once_a_weekly_habits_target_is_met_meanwhile()
     {
         var weekly = DueHabit(1);
@@ -360,7 +383,47 @@ public class ReminderMessageTests
     }
 
     [Fact]
-    public async Task A_routine_reminder_whose_open_habit_is_paused_is_not_closed_as_logged_and_closes_at_10_the_next_morning()
+    public async Task A_routine_reminder_with_a_rest_day_member_closes_as_logged_once_the_members_due_today_are_done_on_the_web()
+    {
+        var time = new FakeTimeProvider(Now);
+        var daily = new Habit
+        {
+            Id = 1, UserId = TestUsers.Id(DiscordUser), Name = "Habit 1", RoutinePosition = 0, CreatedAt = Now.UtcDateTime.AddDays(-30),
+        };
+        var mondays = new Habit
+        {
+            Id = 2, UserId = TestUsers.Id(DiscordUser), Name = "Habit 2", RoutinePosition = 1, CreatedAt = Now.UtcDateTime.AddDays(-30),
+            FrequencyType = FrequencyType.Weekdays, Days = ScheduleDays.Mon,
+        };
+        await using var host = await CreateHostAsync(time, 0, daily, mondays);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            db.Routines.Add(new Routine
+            {
+                Id = 1,
+                UserId = TestUsers.Id(DiscordUser),
+                Name = "Morning",
+                ReminderTime = new TimeOnly(9, 0),
+                NextReminderUtc = Now.UtcDateTime,
+            });
+            await db.SaveChangesAsync();
+            await db.Habits.ExecuteUpdateAsync(s => s.SetProperty(h => h.RoutineId, 1));
+        });
+        await RunJobAsync(host);
+        var first = host.Discord.Messages.Should().ContainSingle().Subject;
+        first.Text.Should().Contain("Habit 1").And.NotContain("Habit 2");
+
+        await CheckInAsync(host, 1);
+        time.Advance(TimeSpan.FromMinutes(1));
+        await RunJobAsync(host);
+
+        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.LoggedLine(Ember.Bot.BotTexts.English)));
+        (await OpenMessagesAsync(host)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_routine_reminder_whose_open_habit_is_paused_meanwhile_has_nothing_left_due_and_closes_as_logged()
     {
         var time = new FakeTimeProvider(Now);
         Habit Member(int id, int position) => new()
@@ -394,11 +457,8 @@ public class ReminderMessageTests
         await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().PauseHabitAsync(TestUsers.Id(DiscordUser), 1, Today));
         time.Advance(TimeSpan.FromMinutes(1));
         await RunJobAsync(host);
-        host.Discord.Changes.Should().BeEmpty();
 
-        time.SetUtcNow(new DateTimeOffset(2027, 1, 16, 9, 0, 0, TimeSpan.Zero));
-        await RunJobAsync(host);
-
-        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.ClosedLine(Ember.Bot.BotTexts.English)));
+        host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.LoggedLine(Ember.Bot.BotTexts.English)));
+        (await OpenMessagesAsync(host)).Should().BeEmpty();
     }
 }

@@ -539,10 +539,24 @@ public class FiresideService
         await _db.FiresideCodes.Where(c => c.ExpiresAtUtc <= now).ExecuteDeleteAsync(cancellationToken);
     }
 
-    /// <summary>Bot only: up to <paramref name="max"/> ids of warmth and of links whose notification is pending.</summary>
-    public async Task<(List<int> WarmthIds, List<int> LinkIds)> GetPendingNoticesAsync(int max, CancellationToken cancellationToken = default)
-        => (await _db.Warmth.Where(w => w.NotifyPending).OrderBy(w => w.Id).Select(w => w.Id).Take(max).ToListAsync(cancellationToken),
-            await _db.FiresideLinks.Where(l => l.JoinNotifyPending).OrderBy(l => l.Id).Select(l => l.Id).Take(max).ToListAsync(cancellationToken));
+    /// <summary>
+    /// Bot only: up to <paramref name="max"/> ids of warmth and of links whose notification is pending. With
+    /// <paramref name="withoutDiscordReceivers"/>, only those whose receiver has no Discord login, so the others wait untouched.
+    /// </summary>
+    public async Task<(List<int> WarmthIds, List<int> LinkIds)> GetPendingNoticesAsync(int max, bool withoutDiscordReceivers = false,
+        CancellationToken cancellationToken = default)
+    {
+        var noDiscord = _db.Users.Where(u => !u.Logins.Any(l => l.LoginProvider == DiscordLogin.Provider)).Select(u => u.Id);
+        var warmth = _db.Warmth.Where(w => w.NotifyPending);
+        var links = _db.FiresideLinks.Where(l => l.JoinNotifyPending);
+        if (withoutDiscordReceivers)
+        {
+            warmth = warmth.Where(w => noDiscord.Contains(w.ToUserId));
+            links = links.Where(l => noDiscord.Contains(l.OwnerId));
+        }
+        return (await warmth.OrderBy(w => w.Id).Select(w => w.Id).Take(max).ToListAsync(cancellationToken),
+            await links.OrderBy(l => l.Id).Select(l => l.Id).Take(max).ToListAsync(cancellationToken));
+    }
 
     /// <summary>
     /// Bot only: claims the pending notification of warmth <paramref name="warmthId"/> (at most once) and returns it while it is still

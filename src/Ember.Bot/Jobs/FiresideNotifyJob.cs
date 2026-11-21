@@ -16,7 +16,8 @@ namespace Ember.Bot.Jobs;
 /// sending (<see cref="FiresideService.ClaimWarmthNoticeAsync"/>, <see cref="FiresideService.ClaimJoinNoticeAsync"/>), so nothing is
 /// sent twice and a failed send is not retried; one no longer visible is dropped silently. Delivery goes to the receiver's reminder
 /// destinations (<see cref="ReminderDestinations.Resolve"/>): a Discord DM with <see cref="FiresideDm.NoticeButtons"/>, and web push
-/// tagged <see cref="PushTag"/> that names the sender only on subscriptions that show names.
+/// tagged <see cref="PushTag"/> that names the sender only on subscriptions that show names. While the Discord client isn't logged in
+/// (<see cref="IDiscordDmSender.IsLoggedIn"/>), notifications for receivers with a Discord login are left pending, unclaimed, for a later run.
 /// </summary>
 [DisallowConcurrentExecution]
 public class FiresideNotifyJob : IJob
@@ -51,7 +52,8 @@ public class FiresideNotifyJob : IJob
         var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
 
         await fireside.DeleteExpiredAsync(cancellationToken);
-        var (warmthIds, linkIds) = await fireside.GetPendingNoticesAsync(MaxPerRun, cancellationToken);
+        var (warmthIds, linkIds) = await fireside.GetPendingNoticesAsync(MaxPerRun, withoutDiscordReceivers: !_discord.IsLoggedIn,
+            cancellationToken);
         foreach (var id in warmthIds)
         {
             if (cancellationToken.IsCancellationRequested) return;

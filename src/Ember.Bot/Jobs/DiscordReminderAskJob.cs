@@ -12,7 +12,8 @@ namespace Ember.Bot.Jobs;
 /// Runs every minute and asks, once per account, up to <see cref="ReminderService.MaxDiscordAsksPerRun"/> Discord-linked users who never
 /// answered whether their reminders may come by Discord DM and have a reminder time set (<see cref="ReminderService.GetDiscordAskUserIdsAsync"/>).
 /// The ask is recorded before the DM is sent, so it is never repeated, also when the DM can't be delivered; only a transient send
-/// failure (<see cref="ReminderRetries.IsTransient"/>) clears it so the next run asks again.
+/// failure (<see cref="ReminderRetries.IsTransient"/>) clears it so the next run asks again. Nobody is asked while the Discord client
+/// isn't logged in (<see cref="IDiscordDmSender.IsLoggedIn"/>).
 /// </summary>
 [DisallowConcurrentExecution]
 public class DiscordReminderAskJob : IJob
@@ -34,6 +35,7 @@ public class DiscordReminderAskJob : IJob
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
+        if (!_discord.IsLoggedIn) return;
         using var scope = _services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<UserSettingsService>();
         var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
