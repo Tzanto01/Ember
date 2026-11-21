@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -12,7 +13,7 @@ using Ember.Core.Services;
 namespace Ember.Bot.Modules;
 
 /// <summary>
-/// Handles the schedule components from <see cref="HabitSelectModule.FrequencyComponents"/>:
+/// Handles the schedule components from <see cref="FrequencyMenu.Buttons"/>:
 ///   freq:menu:{habitId}          (button: shows the schedule buttons)
 ///   freq:weekly:{habitId}:{target}
 ///   freq:weekdays:{habitId}      (button: shows the freq:days select)
@@ -67,7 +68,7 @@ public class FrequencyButtonModule : InteractionModuleBase<SocketInteractionCont
         if (habit.Kind == HabitKind.LetGo) { await RespondAsync(HabitText.LetGoWebOnlyText(t), ephemeral: true); return; }
 
         await RespondAsync(t.Format("habit.frequency.question", habit.Name),
-            components: HabitSelectModule.FrequencyComponents(t, habitId), ephemeral: true);
+            components: FrequencyMenu.Buttons(t, habitId), ephemeral: true);
     }
 
     [ComponentInteraction(FrequencyIds.WeekdaysPattern)]

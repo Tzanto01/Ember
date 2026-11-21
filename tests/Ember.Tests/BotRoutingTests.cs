@@ -107,7 +107,7 @@ public class BotRoutingTests
         var habit = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitAsync(await TestUsers.UserIdAsync(sp, Owner), letGoId));
         var statics = new[]
         {
-            ConsentPrompt.PromptButtons(t, Owner), HabitSelectModule.FrequencyComponents(t, buildId), DmRetryNotice.RetryButton(t, Owner),
+            ConsentPrompt.PromptButtons(t, Owner), FrequencyMenu.Buttons(t, buildId), DmRetryNotice.RetryButton(t, Owner),
             FiresideDm.NoticeButtons(t, 4, null), FiresideDm.NoticeButtons(t, 4, 9),
             DiscordRemindersAsk.AskButtons(t, Owner), DiscordRemindersAsk.TurnOnButton(t, Owner),
             HistoryModule.BuildGrid(t, Owner, buildId, days, new HashSet<DateOnly> { Today }),

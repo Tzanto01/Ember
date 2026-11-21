@@ -212,7 +212,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
         if (habit is null) { await NotFoundAsync(t); return; }
         if (habit.Kind == HabitKind.LetGo) { await LetGoWebOnlyAsync(t); return; }
 
-        var components = FrequencyComponents(t, habitId);
+        var components = FrequencyMenu.Buttons(t, habitId);
 
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>
@@ -221,20 +221,6 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
                 m.Components = components;
             });
     }
-
-    /// <summary>The schedule buttons: daily, 1–6× per week, specific weekdays and times per day.</summary>
-    internal static MessageComponent FrequencyComponents(Texts t, int habitId) =>
-        new ComponentBuilder()
-            .WithButton(t.Get("freq.button.daily"), HabitActionIds.Daily(habitId), ButtonStyle.Primary, row: 0)
-            .WithButton(t.Format("freq.button.weekly", 1), FrequencyIds.Weekly(habitId, 1), ButtonStyle.Secondary, row: 0)
-            .WithButton(t.Format("freq.button.weekly", 2), FrequencyIds.Weekly(habitId, 2), ButtonStyle.Secondary, row: 0)
-            .WithButton(t.Format("freq.button.weekly", 3), FrequencyIds.Weekly(habitId, 3), ButtonStyle.Secondary, row: 0)
-            .WithButton(t.Format("freq.button.weekly", 4), FrequencyIds.Weekly(habitId, 4), ButtonStyle.Secondary, row: 0)
-            .WithButton(t.Format("freq.button.weekly", 5), FrequencyIds.Weekly(habitId, 5), ButtonStyle.Secondary, row: 1)
-            .WithButton(t.Format("freq.button.weekly", 6), FrequencyIds.Weekly(habitId, 6), ButtonStyle.Secondary, row: 1)
-            .WithButton(t.Get("freq.button.weekdays"), FrequencyIds.Weekdays(habitId), ButtonStyle.Secondary, new Emoji("📅"), row: 2)
-            .WithButton(t.Get("freq.button.times"), FrequencyIds.Times(habitId), ButtonStyle.Secondary, new Emoji("🔁"), row: 2)
-            .Build();
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
