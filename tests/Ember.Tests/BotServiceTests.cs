@@ -58,6 +58,41 @@ public class BotServiceTests
     }
 
     [Fact]
+    public async Task ConnectWithRetry_BacksOffFromTheFirstDelayDoublingUpToTheCap_AndStopsRetryingOnceConnected()
+    {
+        var attempts = 0;
+        var delays = new List<TimeSpan>();
+
+        await BotService.RunClientWithRetryAsync(
+            () => ++attempts < 10 ? throw new HttpRequestException("login failed") : Task.CompletedTask,
+            (delay, _) => { delays.Add(delay); return Task.CompletedTask; },
+            NullLogger.Instance,
+            CancellationToken.None);
+
+        attempts.Should().Be(10);
+        delays.Select(d => d.TotalSeconds).Should().Equal(5, 10, 20, 40, 80, 160, 300, 300, 300);
+    }
+
+    [Fact]
+    public async Task ConnectWithRetry_StopsWithoutThrowingWhenCancelledDuringTheBackoff()
+    {
+        var attempts = 0;
+        using var stopping = new CancellationTokenSource();
+        var waiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var run = BotService.RunClientWithRetryAsync(
+            () => { attempts++; throw new HttpRequestException("login failed"); },
+            (delay, ct) => { waiting.TrySetResult(); return Task.Delay(Timeout.InfiniteTimeSpan, ct); },
+            NullLogger.Instance,
+            stopping.Token);
+        await waiting.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await stopping.CancelAsync();
+
+        await run.Invoking(r => r.WaitAsync(TimeSpan.FromSeconds(30))).Should().NotThrowAsync();
+        attempts.Should().Be(1);
+    }
+
+    [Fact]
     public async Task CommandRegistration_RunsOnceAcrossRepeatedReady()
     {
         var registrations = 0;

@@ -13,9 +13,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Ember.Bot;
 
-[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The SemaphoreSlim is only awaited, so it never allocates a wait handle and holds nothing to release.")]
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The SemaphoreSlim is only awaited, so it never allocates a wait handle, and the CancellationTokenSource has no timer or linked token; neither holds anything to release.")]
 public class BotService : IHostedService
 {
+    /// <summary>The wait after the first failed Discord connection attempt; each further failure doubles it.</summary>
+    internal static readonly TimeSpan FirstRetryDelay = TimeSpan.FromSeconds(5);
+
+    /// <summary>The longest wait between two Discord connection attempts.</summary>
+    internal static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(5);
+
     private readonly DiscordSocketClient _client;
     private readonly InteractionService _interactions;
     private readonly IServiceProvider _services;
@@ -26,6 +32,9 @@ public class BotService : IHostedService
     private Timer? _statusTimer;
     private readonly SemaphoreSlim _statusLock = new(1, 1);
     private string? _lastActivity;
+    private readonly CancellationTokenSource _stopping = new();
+    private Task _connecting = Task.CompletedTask;
+    private readonly Func<string, Task>? _connectAsync;
 
     public BotService(
         DiscordSocketClient client,
@@ -42,6 +51,20 @@ public class BotService : IHostedService
         _logger = logger;
         _notices = notices;
         _commandRegistration = new OncePerProcess(RegisterCommandsAsync);
+    }
+
+    /// <summary>A bot whose Discord connection attempt is <paramref name="connectAsync"/>, called with the bot token, instead of <see cref="StartClientAsync"/>.</summary>
+    internal BotService(
+        DiscordSocketClient client,
+        InteractionService interactions,
+        IServiceProvider services,
+        IConfiguration config,
+        ILogger<BotService> logger,
+        NoticePoller notices,
+        Func<string, Task> connectAsync)
+        : this(client, interactions, services, config, logger, notices)
+    {
+        _connectAsync = connectAsync;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -63,10 +86,54 @@ public class BotService : IHostedService
         var token = _config["BotToken"]
             ?? throw new InvalidOperationException("BotToken is not configured.");
 
-        await StartClientAsync(
-            _client.SetStatusAsync,
-            () => _client.LoginAsync(TokenType.Bot, token),
-            _client.StartAsync);
+        _connecting = Task.Run(() => RunClientWithRetryAsync(
+            _connectAsync is { } connectAsync
+                ? () => connectAsync(token)
+                : () => StartClientAsync(
+                    _client.SetStatusAsync,
+                    () => _client.LoginAsync(TokenType.Bot, token),
+                    _client.StartAsync),
+            Task.Delay,
+            _logger,
+            _stopping.Token), CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="connectAsync"/> until it succeeds, waiting <see cref="FirstRetryDelay"/> after the first failure and
+    /// twice as long after each further one, up to <see cref="MaxRetryDelay"/>. Every failure is logged. Returns without
+    /// throwing once it succeeded or <paramref name="cancellationToken"/> is cancelled.
+    /// </summary>
+    internal static async Task RunClientWithRetryAsync(
+        Func<Task> connectAsync,
+        Func<TimeSpan, CancellationToken, Task> delayAsync,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var delay = FirstRetryDelay;
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await connectAsync();
+                return;
+            }
+            catch (Exception ex)
+            {
+                if (cancellationToken.IsCancellationRequested) return;
+                logger.LogError(ex, "Could not connect to Discord; retrying in {Delay}.", delay);
+            }
+
+            try
+            {
+                await delayAsync(delay, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            delay = delay * 2 < MaxRetryDelay ? delay * 2 : MaxRetryDelay;
+        }
     }
 
     internal static async Task StartClientAsync(
@@ -81,6 +148,15 @@ public class BotService : IHostedService
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+        await _stopping.CancelAsync();
+        try
+        {
+            await _connecting.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+
         _statusTimer?.Dispose();
         await _client.StopAsync();
     }

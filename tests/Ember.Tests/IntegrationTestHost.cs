@@ -37,7 +37,8 @@ public sealed class IntegrationTestHost : IAsyncDisposable
         Action<DbContextOptionsBuilder>? configureDb = null,
         string[]? args = null,
         Action<IServiceCollection>? configureServices = null,
-        string? postgresConnectionString = null)
+        string? postgresConnectionString = null,
+        bool includeDiscordGateway = false)
     {
         SqliteConnection? connection = null;
         if (postgresConnectionString is null)
@@ -49,7 +50,7 @@ public sealed class IntegrationTestHost : IAsyncDisposable
         var discord = new TestDiscordDmSender();
         var host = AppHost.CreateHostBuilder(args ?? [], new EmberHostOptions
         {
-            IncludeDiscordGateway = false,
+            IncludeDiscordGateway = includeDiscordGateway,
             ConfigureDbContext = (options, _) =>
             {
                 if (postgresConnectionString is null) options.UseSqlite(connection!);

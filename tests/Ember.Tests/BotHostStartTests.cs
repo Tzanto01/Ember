@@ -1,8 +1,15 @@
+using Discord.Interactions;
+using Discord.WebSocket;
+using Ember.Bot;
+using Ember.Bot.Jobs;
+using Ember.Bot.Services;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Quartz;
 using Quartz.Impl.Matchers;
 
@@ -29,6 +36,39 @@ public class BotHostStartTests
                 ActivatorUtilities.CreateInstance(sp, type).Should().BeAssignableTo<IJob>(type.Name);
             return Task.CompletedTask;
         });
+    }
+
+    [Fact]
+    public async Task With_a_failing_Discord_login_the_host_still_starts_and_the_reminder_dispatch_still_runs()
+    {
+        var loginFailed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var host = await IntegrationTestHost.CreateAsync(args: ["--BotToken=test-token"], includeDiscordGateway: true,
+            configureServices: services =>
+            {
+                services.Remove(services.Single(d => d.ImplementationType == typeof(BotService)));
+                services.AddHostedService(sp => new BotService(
+                    sp.GetRequiredService<DiscordSocketClient>(), sp.GetRequiredService<InteractionService>(), sp,
+                    sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<ILogger<BotService>>(),
+                    sp.GetRequiredService<NoticePoller>(),
+                    _ => { loginFailed.TrySetResult(); throw new HttpRequestException("Discord is unreachable"); }));
+            });
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var user = new User { Id = TestUsers.Id(920), Timezone = "UTC", Logins = TestUsers.Discord(920), DiscordReminders = true };
+            db.Users.Add(user);
+            db.Habits.Add(new Habit
+            {
+                UserId = user.Id, Name = "Stretch", ReminderTime = new TimeOnly(9, 0),
+                NextReminderUtc = DateTime.UtcNow.AddMinutes(-1), CreatedAt = DateTime.UtcNow.AddDays(-1),
+            });
+            await db.SaveChangesAsync();
+        });
+
+        await loginFailed.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await host.RunJobAsync(ReminderDispatchJob.Key);
+
+        host.Discord.Messages.Should().ContainSingle().Which.UserId.Should().Be(920UL);
     }
 
     [Fact]
