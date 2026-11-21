@@ -121,6 +121,9 @@ class TodayWidget : AppWidgetProvider() {
         private const val ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT"
         private const val BUDGET_MS = 8000L
 
+        /** The actions of the intents a widget tap sends to [MainActivity]. */
+        internal val TAP_ACTIONS = setOf(ACTION_CHECK_IN, ACTION_OPEN_TODAY, ACTION_OPEN_HABIT)
+
         /**
          * The JS payload for a widget intent, or null to ignore it. "Open Today" yields an empty object. A check-in
          * or an open-habit tap needs our component and a row [listed] in the current snapshot, so a stale row or an

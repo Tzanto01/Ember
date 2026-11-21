@@ -269,6 +269,7 @@ class MainActivityTest {
             Intent("forged\nrenderer gone").setComponent(ComponentName(context, MainActivity::class.java))
                 .addCategory("cat\rgory").putExtra("key\nname", 1),
         )
+        app.newIntent(tap("0".repeat(32)))
 
         val lines = ShadowLog.getLogsForTag(MainActivity.LOG_TAG).map { it.msg }
         val launch = lines.singleOrNull { it.startsWith("launch ") }
@@ -276,10 +277,11 @@ class MainActivityTest {
         assertTrue(launch, launch!!.contains("component=app.ember.habits.MainActivity"))
         assertTrue(launch, launch.contains("extras=[date, habitId, token, userId]"))
         assertTrue(launch, launch.contains("saved=false history=false"))
-        assertEquals(3, lines.count { it.startsWith("newIntent ") })
+        assertEquals(4, lines.count { it.startsWith("newIntent ") })
         assertTrue(lines.toString(), lines.none { '\n' in it || '\r' in it })
         assertTrue(lines.toString(), "route ignored reason=from history" in lines)
-        assertTrue(lines.toString(), "route ignored reason=no moment or valid widget tap" in lines)
+        assertTrue(lines.toString(), "route ignored reason=invalid widget tap" in lines)
+        assertEquals(lines.toString(), 2, lines.count { it.startsWith("route ignored ") })
         for (value in listOf(token, "user-1", date)) {
             assertTrue("$value leaked into $lines", lines.none { value in it })
         }
@@ -313,6 +315,21 @@ class MainActivityTest {
     }
 
     @Test
+    fun aLauncherTapIsNoRouteAndLogsNothingAboutRouting() {
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            .setComponent(ComponentName(context, MainActivity::class.java))
+        ShadowLog.clear()
+
+        val app = start(home)
+        app.newIntent(home)
+        start(home, Bundle())
+
+        assertTrue(events().toString(), events().none { it.startsWith("route_ignored") })
+        val lines = ShadowLog.getLogsForTag(MainActivity.LOG_TAG).map { it.msg }
+        assertTrue(lines.toString(), lines.none { it.startsWith("route ignored") })
+    }
+
+    @Test
     fun rejectedAndReplayedLaunchesAndDestroyAreRecorded() {
         today()
         val app = start(launcher())
@@ -322,7 +339,7 @@ class MainActivityTest {
         app.pause().stop().destroy()
 
         val events = events()
-        assertEquals(3, events.count { it == "route_ignored reason=rejected" })
+        assertEquals(2, events.count { it == "route_ignored reason=rejected" })
         assertTrue(events.toString(), "route_ignored reason=from_history" in events)
         assertEquals("destroy finishing=false config_change=false", events.last())
     }

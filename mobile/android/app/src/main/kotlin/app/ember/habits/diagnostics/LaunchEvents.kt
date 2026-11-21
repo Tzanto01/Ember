@@ -14,16 +14,10 @@ internal enum class LaunchSource {
     val code get() = name.lowercase()
 
     companion object {
-        private val WIDGET_ACTIONS = setOf(
-            TodayWidget.ACTION_CHECK_IN,
-            TodayWidget.ACTION_OPEN_TODAY,
-            TodayWidget.ACTION_OPEN_HABIT,
-        )
-
         /** A launcher intent or a widget tap is [USER], a moment door [NOTIFICATION], anything else [SYSTEM]. */
         fun of(intent: Intent): LaunchSource = when {
             intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER) -> USER
-            intent.action in WIDGET_ACTIONS -> USER
+            intent.action in TodayWidget.TAP_ACTIONS -> USER
             intent.action == MainActivity.ACTION_OPEN_MOMENT -> NOTIFICATION
             else -> SYSTEM
         }
@@ -42,7 +36,7 @@ internal enum class IgnoredRoute(val log: String, val code: String) {
     MOMENT_WITHOUT_COMPONENT("moment without component", "rejected"),
     MOMENT_OTHER_PACKAGE("moment for another package", "rejected"),
     MOMENT_OTHER_ACTIVITY("moment for another activity", "rejected"),
-    NO_VALID_TAP("no moment or valid widget tap", "rejected"),
+    NO_VALID_TAP("invalid widget tap", "rejected"),
 }
 
 /** What [MainActivity] does after its WebView renderer died. */

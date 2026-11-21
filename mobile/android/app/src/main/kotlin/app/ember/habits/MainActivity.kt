@@ -185,10 +185,12 @@ class MainActivity : BridgeActivity() {
     /**
      * Hands a moment door or a validated widget tap to the EmberWidget plugin. Capacitor also routes the launch intent
      * here during `super.onCreate`; there a moment becomes the pending launch action, later an `openMoment` event.
-     * Intents replayed from recents or a restored activity, moments not aimed at this activity, and anything
-     * [TodayWidget.validTap] rejects, are ignored.
+     * An intent that is neither, such as a launcher tap, is no route and passes silently. Intents replayed from recents
+     * or a restored activity, moments not aimed at this activity, and widget taps [TodayWidget.validTap] rejects, are
+     * ignored.
      */
     private fun route(intent: Intent, cold: Boolean) {
+        if (intent.action != ACTION_OPEN_MOMENT && intent.action !in TodayWidget.TAP_ACTIONS) return
         val bridge = bridge
         if (restoring) return ignored(IgnoredRoute.RESTORING)
         if (bridge == null) return ignored(IgnoredRoute.NO_BRIDGE)
