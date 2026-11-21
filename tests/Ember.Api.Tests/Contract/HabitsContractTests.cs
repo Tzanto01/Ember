@@ -2,7 +2,7 @@ using System.Net;
 
 namespace Ember.Api.Tests.Contract;
 
-/// <summary>Habits of both kinds, their days and slips, and the habit templates.</summary>
+/// <summary>Habits of both kinds, their days, slips and made-it marks, and the habit templates.</summary>
 [ContractArea("habits")]
 public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
@@ -12,6 +12,8 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
     private const string Day = "/api/habits/{id:int}/days/{date}";
     private const string Slips = "/api/habits/{id:int}/slips";
     private const string Slip = "/api/habits/{id:int}/slips/{date}";
+    private const string MadeItDays = "/api/habits/{id:int}/made-it";
+    private const string MadeIt = "/api/habits/{id:int}/made-it/{date}";
 
     private static async Task<int> IdOf(HttpResponseMessage response)
         => (await response.ExpectJson(HttpStatusCode.Created)).GetProperty("id").GetInt32();
@@ -19,6 +21,8 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
     private string DayUrl(int id, int daysAgo) => $"/api/habits/{id}/days/{Host.Today.AddDays(-daysAgo).Iso()}";
 
     private string SlipUrl(int id, int daysAgo) => $"/api/habits/{id}/slips/{Host.Today.AddDays(-daysAgo).Iso()}";
+
+    private string MadeItUrl(int id, int daysAgo) => $"/api/habits/{id}/made-it/{Host.Today.AddDays(-daysAgo).Iso()}";
 
     [DockerFact]
     public async Task Habit_exchanges_match_the_golden()
@@ -34,6 +38,7 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
         await Updating(user, ids);
         await CheckIns(user, ids);
         await SlipsOfLetGo(user, ids);
+        await MadeItOfLetGo(user, ids);
         await Pausing(user, ids);
         await Consent();
         await Limit();
@@ -170,11 +175,39 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
         await Rec("slip.delete.not-found", Slip, user.Delete(SlipUrl(9999, 1)));
     }
 
+    private async Task MadeItOfLetGo(ApiClient user, Created ids)
+    {
+        await Rec("made-it.get.empty", MadeItDays, user.Get($"{Habits}/{ids.LetGo}/made-it"));
+        await Rec("made-it.put.ok", MadeIt, user.Put(MadeItUrl(ids.LetGo, 2)));
+        await Rec("made-it.put.again", MadeIt, user.Put(MadeItUrl(ids.LetGo, 2)));
+        await Rec("made-it.get.ok", MadeItDays, user.Get($"{Habits}/{ids.LetGo}/made-it"));
+        await Rec("made-it.get.range", MadeItDays, user.Get($"{Habits}/{ids.LetGo}/made-it?from={Host.Today.AddDays(-1).Iso()}"));
+        await Rec("made-it.get.bad-date", MadeItDays, user.Get($"{Habits}/{ids.LetGo}/made-it?to=soon"));
+        await Rec("made-it.get.build-habit", MadeItDays, user.Get($"{Habits}/{ids.Daily}/made-it"));
+        await Rec("made-it.get.not-found", MadeItDays, user.Get($"{Habits}/9999/made-it"));
+        await Rec("made-it.put.slipped", MadeIt, user.Put(MadeItUrl(ids.LetGo, 0)));
+        await Rec("made-it.put.bad-date", MadeIt, user.Put($"{Habits}/{ids.LetGo}/made-it/today"));
+        await Rec("made-it.put.in-future", MadeIt, user.Put(MadeItUrl(ids.LetGo, -1)));
+        await Rec("made-it.put.before-start", MadeIt, user.Put(MadeItUrl(ids.LetGo, 30)));
+        await Rec("made-it.put.build-habit", MadeIt, user.Put(MadeItUrl(ids.Daily, 1)));
+        await Rec("made-it.put.not-found", MadeIt, user.Put(MadeItUrl(9999, 1)));
+        await user.Put(MadeItUrl(ids.LetGo, 3));
+        await Rec("made-it.cleared-by-slip", Slips, user.Post($"{Habits}/{ids.LetGo}/slips", new { date = Host.Today.AddDays(-3).Iso() }));
+        await Rec("made-it.get.after-slip", MadeItDays, user.Get($"{Habits}/{ids.LetGo}/made-it"));
+        await user.Delete(SlipUrl(ids.LetGo, 3));
+        await Rec("made-it.delete.ok", MadeIt, user.Delete(MadeItUrl(ids.LetGo, 2)));
+        await Rec("made-it.delete.nothing-there", MadeIt, user.Delete(MadeItUrl(ids.LetGo, 2)));
+        await Rec("made-it.delete.bad-date", MadeIt, user.Delete($"{Habits}/{ids.LetGo}/made-it/never"));
+        await Rec("made-it.delete.build-habit", MadeIt, user.Delete(MadeItUrl(ids.Daily, 1)));
+        await Rec("made-it.delete.not-found", MadeIt, user.Delete(MadeItUrl(9999, 1)));
+    }
+
     private async Task Pausing(ApiClient user, Created ids)
     {
         await Rec("pause.until", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Daily}/pause", new { until = Host.Today.AddDays(3).Iso() }));
         await Rec("pause.indefinite", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Weekly}/pause", new { }));
         await Rec("pause.let-go", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.LetGo}/pause", new { until = Host.Today.AddDays(1).Iso() }));
+        await Rec("made-it.put.paused", MadeIt, user.Put(MadeItUrl(ids.LetGo, 0)));
         await Rec("pause.no-body", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Daily}/pause"));
         await Rec("pause.bad-date", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Daily}/pause", new { until = "later" }));
         await Rec("pause.in-the-past", "/api/habits/{id:int}/pause", user.Post($"{Habits}/{ids.Daily}/pause", new { until = Host.Today.AddDays(-1).Iso() }));
@@ -198,6 +231,8 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
         await Rec("patch.consent-required", One, withdrawn.Patch($"{Habits}/{id}", new { name = "Drink water" }));
         await Rec("day.put.consent-required", Day, withdrawn.Put(DayUrl(id, 0), new { completed = true }));
         await Rec("slip.post.consent-required", Slips, withdrawn.Post($"{Habits}/{letGo}/slips", new { date = Host.Today.Iso() }));
+        await Rec("made-it.put.consent-required", MadeIt, withdrawn.Put(MadeItUrl(letGo, 0)));
+        await Rec("made-it.delete.without-consent", MadeIt, withdrawn.Delete(MadeItUrl(letGo, 0)));
     }
 
     private async Task Limit()

@@ -14,9 +14,10 @@ internal static class HabitEndpoints
     public sealed record DayDto(DateOnly Date, string State, bool? Completed, int Count);
     public sealed record WeekDto(int Done, int Target);
     public sealed record StatsDto(int? Streak, int? GraceUsed, int? BestStreak, int Last7, WeekDto? Week);
-    public sealed record LetGoDayDto(DateOnly Date, string State, int Slips);
+    public sealed record LetGoDayDto(DateOnly Date, string State, int Slips, bool MadeIt);
     public sealed record LetGoStatsDto(int DaysFree, int LongestStretch, int FreeDaysThisMonth, int SlipDaysLast30);
     public sealed record SlipDto(DateOnly Date, int Count, List<string> Reasons);
+    public sealed record MadeItDto(DateOnly Date);
 
     /// <summary>A habit. <c>Today</c> is a <see cref="DayDto"/> and <c>Stats</c> a <see cref="StatsDto"/> for a build habit, a <see cref="LetGoDayDto"/> and a <see cref="LetGoStatsDto"/> for a let-go habit.</summary>
     public sealed record HabitDto(
@@ -216,6 +217,35 @@ internal static class HabitEndpoints
             return SlipProblem(await habits.RemoveSlipsAsync(userId, id, day)) ?? await HabitResult(habits, settings, reminders, userId, id);
         });
 
+        api.MapGet("/habits/{id:int}/made-it", async (int id, string? from, string? to, ClaimsPrincipal principal, HabitService habits,
+            UserSettingsService settings) =>
+        {
+            var userId = principal.UserId();
+            var (start, end, errors) = DayRange(from, to, await settings.GetLocalTodayAsync(userId));
+            if (errors.Count > 0) return Problems.Validation(errors);
+
+            var days = await habits.GetMadeItDaysAsync(userId, id, start, end);
+            return days is null ? Problems.NotFound() : Results.Ok(days.Select(m => new MadeItDto(m.Date)).ToList());
+        });
+
+        api.MapPut("/habits/{id:int}/made-it/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits,
+            UserSettingsService settings, ReminderService reminders) =>
+        {
+            if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
+
+            var userId = principal.UserId();
+            return MadeItProblem(await habits.MarkMadeItAsync(userId, id, day)) ?? await HabitResult(habits, settings, reminders, userId, id);
+        });
+
+        api.MapDelete("/habits/{id:int}/made-it/{date}", async (int id, string date, ClaimsPrincipal principal, HabitService habits,
+            UserSettingsService settings, ReminderService reminders) =>
+        {
+            if (!Formats.TryParseDate(date, out var day)) return Problems.Validation("date", Formats.DateMessage);
+
+            var userId = principal.UserId();
+            return MadeItProblem(await habits.RemoveMadeItAsync(userId, id, day)) ?? await HabitResult(habits, settings, reminders, userId, id);
+        });
+
         return api;
     }
 
@@ -259,6 +289,19 @@ internal static class HabitEndpoints
         _ => throw new ArgumentOutOfRangeException(nameof(result), result, null),
     };
 
+    private static IResult? MadeItProblem(MadeItResult result) => result switch
+    {
+        MadeItResult.Saved => null,
+        MadeItResult.HabitNotFound => Problems.NotFound(),
+        MadeItResult.NotLetGo => Problems.Validation("kind", "Only for let-go habits."),
+        MadeItResult.InFuture => Problems.Validation("date", "Can't be after today."),
+        MadeItResult.BeforeHabitStart => Problems.Validation("date", "Can't be before the habit's start."),
+        MadeItResult.Paused => Problems.Validation("date", "Can't be on a paused day."),
+        MadeItResult.Slipped => Problems.Validation("date", "That day has a slip noted."),
+        MadeItResult.ConsentRequired => Problems.ConsentRequired(),
+        _ => throw new ArgumentOutOfRangeException(nameof(result), result, null),
+    };
+
     private static async Task<IResult> HabitResult(HabitService habits, UserSettingsService settings, ReminderService reminders, Guid userId, int id)
         => await habits.GetHabitAsync(userId, id) is { } habit
             ? Results.Ok(ToDto(habit, await LoadUserDays(habits, settings, reminders, userId)))
@@ -278,7 +321,7 @@ internal static class HabitEndpoints
         {
             var day = LetGoRules.DayOn(habit, user.Today, user.Tz);
             var l = LetGoRules.StatsOn(habit, user.Today, user.Tz);
-            today = new LetGoDayDto(day.Date, Lower(day.State), day.Slips);
+            today = new LetGoDayDto(day.Date, Lower(day.State), day.Slips, day.MadeIt);
             stats = new LetGoStatsDto(l.DaysFree, l.LongestStretch, l.FreeDaysThisMonth, l.SlipDaysLast30);
         }
         else

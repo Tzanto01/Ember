@@ -38,6 +38,7 @@ function toLocalData(c: FixtureCase): LocalData {
     ],
     logs: [],
     slips: c.habit.slips.map((s) => ({ habitId: 1, date: s.date, count: s.count, reasons: s.reasons as SlipReason[] })),
+    madeIt: c.habit.madeIt.map((date) => ({ habitId: 1, date })),
     lowDays: [],
     routines: [],
     moods: [],
@@ -46,8 +47,8 @@ function toLocalData(c: FixtureCase): LocalData {
 }
 
 describe('client let-go rules match the shared let-go fixture', () => {
-  it('has all 7 cases', () => {
-    expect(fixture.cases).toHaveLength(7);
+  it('has all 9 cases', () => {
+    expect(fixture.cases).toHaveLength(9);
   });
 
   it.each(fixture.cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {

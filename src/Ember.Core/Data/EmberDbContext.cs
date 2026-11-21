@@ -16,6 +16,7 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
     public DbSet<Habit> Habits => Set<Habit>();
     public DbSet<HabitLog> HabitLogs => Set<HabitLog>();
     public DbSet<HabitSlip> HabitSlips => Set<HabitSlip>();
+    public DbSet<MadeItDay> MadeItDays => Set<MadeItDay>();
     public DbSet<HabitNote> HabitNotes => Set<HabitNote>();
     public DbSet<DayMark> DayMarks => Set<DayMark>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
@@ -174,6 +175,16 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
             entity.HasOne(s => s.Habit)
                   .WithMany(h => h.Slips)
                   .HasForeignKey(s => s.HabitId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MadeItDay>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+            entity.HasIndex(m => new { m.HabitId, m.Date }).IsUnique();
+            entity.HasOne(m => m.Habit)
+                  .WithMany(h => h.MadeItDays)
+                  .HasForeignKey(m => m.HabitId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

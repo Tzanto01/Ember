@@ -500,6 +500,88 @@ describe('LocalBackend through ApiClient', () => {
       expect((await store.load())?.slips ?? []).toEqual([]);
     });
 
+    it('marks and unmarks a free day "made it" without changing any stat', async () => {
+      await store.replace(seed([letGo(1)]));
+      const before = await api.getHabit(1);
+
+      await api.markMadeIt(1, '2026-10-28');
+      const marked = await api.markMadeIt(1, today);
+      expect(marked.today).toEqual({ date: today, state: 'free', slips: 0, madeIt: true });
+      expect(marked.stats).toEqual(before.stats);
+      expect((await api.markMadeIt(1, today)).today.madeIt).toBe(true);
+      expect(await api.getMadeIt(1, '2026-10-20', today)).toEqual([{ date: '2026-10-28' }, { date: today }]);
+      expect(await api.getMadeIt(1, '2026-10-29', today)).toEqual([{ date: today }]);
+
+      const cleared = await api.clearMadeIt(1, today);
+      expect(cleared.today.madeIt).toBe(false);
+      expect((await api.clearMadeIt(1, today)).today.madeIt).toBe(false);
+      expect(await api.getMadeIt(1, '2026-10-20', today)).toEqual([{ date: '2026-10-28' }]);
+    });
+
+    it('refuses a "made it" mark in the contract order, naming the field and saving nothing', async () => {
+      const paused = localHabit(3, { kind: 'letGo', pausedFrom: '2026-10-28', pausedUntil: '2026-10-30' });
+      const data = seed([letGo(1), localHabit(2), paused]);
+      data.slips = [{ habitId: 1, date: '2026-10-25', count: 1, reasons: [] }];
+      await store.replace(data);
+      const errors = async (habitId: number, date: string) =>
+        (await rejection(api.markMadeIt(habitId, date))).problem?.errors;
+
+      expect(await errors(99, '2026-13-01')).toEqual({ date: [expect.any(String)] });
+      expect((await rejection(api.markMadeIt(99, today))).type).toBe('not_found');
+      expect(await errors(2, '2026-11-02')).toEqual({ kind: ['Only for let-go habits.'] });
+      expect(await errors(1, '2026-11-02')).toEqual({ date: ["Can't be after today."] });
+      expect(await errors(1, '2026-10-19')).toEqual({ date: ["Can't be before the habit's start."] });
+      expect(await errors(3, '2026-10-29')).toEqual({ date: ["Can't be on a paused day."] });
+      expect(await errors(1, '2026-10-25')).toEqual({ date: ['That day has a slip noted.'] });
+      expect((await rejection(api.clearMadeIt(2, today))).problem?.errors?.['kind']).toBeTruthy();
+      expect(await api.getMadeIt(2, '2026-10-20', today)).toEqual([]);
+      expect((await store.load())?.madeIt ?? []).toEqual([]);
+    });
+
+    it('clears the mark when a slip is noted that day, and removing the slip does not bring it back', async () => {
+      await store.replace(seed([letGo(1)]));
+      await api.markMadeIt(1, today);
+      await api.markMadeIt(1, '2026-10-30');
+
+      const slipped = await api.addSlip(1, today);
+      expect(slipped.today).toMatchObject({ state: 'slipped', madeIt: false });
+      const undone = await api.clearSlips(1, today);
+      expect(undone.today).toMatchObject({ state: 'free', madeIt: false });
+      expect(await api.getMadeIt(1, '2026-10-20', today)).toEqual([{ date: '2026-10-30' }]);
+    });
+
+    it('clearing slips also clears a mark left on that day', async () => {
+      const data = seed([letGo(1)]);
+      data.slips = [{ habitId: 1, date: '2026-10-30', count: 1, reasons: [] }];
+      data.madeIt = [
+        { habitId: 1, date: '2026-10-30' },
+        { habitId: 1, date: '2026-10-29' },
+      ];
+      await store.replace(data);
+
+      await api.clearSlips(1, '2026-10-30');
+
+      expect((await store.load())?.madeIt).toEqual([{ habitId: 1, date: '2026-10-29' }]);
+    });
+
+    it('exports the marks and drops them with the habit', async () => {
+      const data = seed([letGo(1), letGo(2)]);
+      data.madeIt = [
+        { habitId: 2, date: '2026-10-26' },
+        { habitId: 1, date: '2026-10-27' },
+      ];
+      await store.replace(data);
+      const exported = async () => JSON.parse(await (await api.exportData('json')).blob.text()).made_it_days;
+
+      expect(await exported()).toEqual([
+        { habit_id: 1, date: '2026-10-27' },
+        { habit_id: 2, date: '2026-10-26' },
+      ]);
+      await api.deleteHabit(1);
+      expect(await exported()).toEqual([{ habit_id: 2, date: '2026-10-26' }]);
+      expect((await store.load())?.madeIt).toEqual([{ habitId: 2, date: '2026-10-26' }]);
+    });
+
     it('refuses check-ins on a let-go habit with a problem on kind', async () => {
       await store.replace(seed([letGo()]));
 

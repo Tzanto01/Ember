@@ -1,4 +1,6 @@
-# Ember API contract v1.23
+# Ember API contract v1.24
+
+v1.24 (2026-11-20, Nico on a tester's wish for "a passed tick, for the good feeling"): a let-go habit can be marked "made it today", a warm acknowledgement only, with no streak, no effect on days without or any number, and no nudge when it is skipped. See "Made it today v1.24".
 
 v1.23 (2026-11-19, Nico on the Fireside storyboard, boards 10 to 15: "Looks good."): Today shows only what is for today, in an order the account can set (`todayOrder`, `PUT /api/me/today-order`), and each habit can carry a short note per day (`/api/habit-notes`, `/api/habits/{id}/notes/{date}`), offered after a check-in only when `offerHabitNote` is on. See "Today order and habit notes v1.23".
 
@@ -800,3 +802,34 @@ Free-text messages, friend search, group firesides, any public profile, Android 
 - Crypto: AES-GCM with AAD `ember-habit-note:v1:<date>`, payload `{ "text": "…" }`. Accepted risk: the AAD binds the kind and the date, not the habit, because habit ids change on import. A server could swap two same-day notes between habits without the client noticing.
 - Export (full only, never the bot's `/export`): `habit_notes: [{ habit_id, date, text, encrypted }]` (`encrypted` null for plaintext, `text` null when encrypted) and CSV `habit_note` rows (`habit_id`, `date`, `text`, cipher columns). Import remaps `habit_id` to the new habit and checks each note: date not after today and not before that habit's start, one per habit and day, `text` up to 280 chars or a valid `encrypted` (which needs a journal key in the file or the account).
 - Never shown by the bot, in any notification, or in the weekly summary.
+
+## Made it today v1.24
+
+### Product (Nico's decision)
+
+- An optional "made it today" tick on let-go habits: a warm acknowledgement only. No streak of its own and no change to days without, the longest stretch or any other number. No nudge, reminder or guilt when it is skipped.
+
+### Data
+
+- New table `MadeItDays`: `Id`, `HabitId` (FK, cascade), `Date` (user-local `DateOnly`, one row per habit and date, unique index), `CreatedAt` (UTC). Health data like slips: the write needs the health-data consent, a withdrawal deletes it with the habit, both exports carry it, a merge moves it with its habit.
+- A slip and a mark exclude each other on a day: noting a slip removes that day's mark, and removing slips removes it too, so it never comes back.
+- `LetGoDay.MadeIt` is true only on a `free` day that has a mark. A mark on a day that later became paused (or one that arrived with a slip) is kept but reads false. Marks change no stat (`docs/contracts/fixtures/letgo-v1.json` proves it in Core and the client).
+
+### API
+
+- A let-go habit's `today` gains `madeIt: boolean`: `{ date, state, slips, madeIt }`.
+- `GET /api/habits/{id}/made-it?from&to` → `[{ date }]`, oldest first, same range rules as `/slips` (`[]` for a build habit).
+- `PUT /api/habits/{id}/made-it/{date}` → 200 `Habit`. Marks the day; marking a marked day again is fine. Checks in this order: date format (400 `validation` on `date`), the habit is the caller's (404), a build habit (400 on `kind`), after the user's local today, before the habit's start, a paused day, a day with a slip (each 400 on `date`), then consent (403 `consent_required`).
+- `DELETE /api/habits/{id}/made-it/{date}` → 200 `Habit`. Removes the mark (undo); fine when there is none. Not consent-gated.
+- Export (format version stays 2): JSON `made_it_days: [{ habit_id, date }]` in the web and the Discord export; CSV rows `made_it` with `habit_id` and `date`. Import takes optional `made_it_days`: each must name a let-go habit of the file, a date from that habit's start to today, and at most one per habit and day (400 `validation` on the item otherwise). A mark on a day the file has a slip for is skipped, so an account's own export always imports.
+- No-account mode (`web/src/lib/local/backend.ts`) supports the same routes, its backup carries the marks, and moving device data into an account sends them along.
+
+### Clients
+
+- Today, let-go row: on a free day, "Made it today" next to "I slipped". Tapping it marks the day and shows a short warm line once (no motion in calm mode or with reduced motion), then a quiet done state for the rest of the day that undoes on tap. A slipped, paused or not-yet-started day offers no tick. No counters, no badges.
+- History, let-go habit: marked days look distinct but soft; the day panel of a free day (today or past) can mark or unmark it; the legend names it.
+- Guide: the let-go answers mention the tick.
+
+### Out of scope
+
+The Discord bot (it shows no tick; its slips still clear the mark through Core) and the Android widget.

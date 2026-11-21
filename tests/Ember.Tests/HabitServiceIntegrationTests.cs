@@ -138,4 +138,37 @@ public class HabitServiceIntegrationTests
             db.Habits.Count(h => h.UserId == userId).Should().Be(Limits.HabitsPerUser);
         });
     }
+
+    [Fact]
+    public async Task RemoveSlipsAsync_AlsoRemovesAMarkLeftBesideTheSlip_SoTheDayReadsFreeWithoutIt()
+    {
+        var now = new DateTimeOffset(2027, 1, 15, 9, 0, 0, TimeSpan.Zero);
+        var day = new DateOnly(2027, 1, 14);
+        var userId = TestUsers.Id(321);
+        await using var host = await IntegrationTestHost.CreateAsync(start: false, time: new FakeTimeProvider(now));
+
+        var habitId = await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var habit = new Habit { Name = "Smoking", Kind = HabitKind.LetGo, CreatedAt = now.UtcDateTime.AddDays(-30) };
+            habit.Slips.Add(new HabitSlip { Date = day, Count = 1, UpdatedAt = now.UtcDateTime });
+            habit.MadeItDays.Add(new MadeItDay { Date = day, CreatedAt = now.UtcDateTime });
+            var user = new User { Id = userId, Logins = TestUsers.Discord(321), Timezone = "UTC" };
+            user.Habits.Add(habit);
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+            return habit.Id;
+        });
+
+        var result = await host.WithScopeAsync(sp => sp.GetRequiredService<HabitService>().RemoveSlipsAsync(userId, habitId, day));
+
+        result.Should().Be(SlipResult.Saved);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var habit = await db.Habits.Include(h => h.Slips).Include(h => h.MadeItDays).SingleAsync(h => h.Id == habitId);
+            LetGoRules.DayOn(habit, day, TimeZoneInfo.Utc).Should().Be(new LetGoDay(day, LetGoDayState.Free, 0, false));
+            habit.MadeItDays.Should().BeEmpty();
+        });
+    }
 }

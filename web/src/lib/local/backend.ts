@@ -29,6 +29,7 @@ import {
   habitStartDate,
   habitView,
   isLocalLetGo,
+  isPausedOn,
   localToday,
   pause,
   retarget,
@@ -37,7 +38,7 @@ import {
 } from './rules';
 import type { LocalStore } from './store';
 import { habitTemplates } from './templates';
-import type { LocalData, LocalHabit, LocalRoutine } from './types';
+import type { LocalData, LocalHabit, LocalMadeItDay, LocalRoutine } from './types';
 import { limits } from './limits';
 
 export { limits };
@@ -152,6 +153,10 @@ export function exportDocument(data: LocalData, journal = true): Record<string, 
       .filter((slip) => order.has(slip.habitId))
       .sort((a, b) => order.get(a.habitId)! - order.get(b.habitId)! || a.date.localeCompare(b.date))
       .map((slip) => ({ habit_id: slip.habitId, date: slip.date, count: slip.count, reasons: slip.reasons })),
+    made_it_days: (data.madeIt ?? [])
+      .filter((mark) => order.has(mark.habitId))
+      .sort((a, b) => order.get(a.habitId)! - order.get(b.habitId)! || a.date.localeCompare(b.date))
+      .map((mark) => ({ habit_id: mark.habitId, date: mark.date })),
     day_marks: [...data.lowDays].sort().map((date) => ({ date, kind: 'low_day' })),
     routines: data.routines.map((r) => ({
       id: r.id,
@@ -175,6 +180,10 @@ export function exportDocument(data: LocalData, journal = true): Record<string, 
       : [],
     journal_key: null,
   };
+}
+
+function withoutMark(data: LocalData, habitId: number, date: string): LocalMadeItDay[] {
+  return (data.madeIt ?? []).filter((mark) => mark.habitId !== habitId || mark.date !== date);
 }
 
 function json(status: number, value: unknown): Response {
@@ -427,6 +436,9 @@ export class LocalBackend {
       ['GET', /^\/api\/habits\/(\d+)\/slips$/, (m, q) => this.listSlips(id(m), q)],
       ['POST', /^\/api\/habits\/(\d+)\/slips$/, (m, _q, b) => this.addSlip(id(m), bodyOf(b))],
       ['DELETE', /^\/api\/habits\/(\d+)\/slips\/([^/]+)$/, (m) => this.clearSlips(id(m), date(m, 2))],
+      ['GET', /^\/api\/habits\/(\d+)\/made-it$/, (m, q) => this.listMadeIt(id(m), q)],
+      ['PUT', /^\/api\/habits\/(\d+)\/made-it\/([^/]+)$/, (m) => this.markMadeIt(id(m), date(m, 2))],
+      ['DELETE', /^\/api\/habits\/(\d+)\/made-it\/([^/]+)$/, (m) => this.clearMadeIt(id(m), date(m, 2))],
       ['PUT', /^\/api\/habits\/(\d+)\/days\/([^/]+)$/, (m, _q, b) => this.writeDay(id(m), date(m, 2), bodyOf(b))],
       ['DELETE', /^\/api\/habits\/(\d+)\/days\/([^/]+)$/, (m) => this.writeDay(id(m), date(m, 2), null)],
       ['GET', /^\/api\/routines$/, async () => this.listRoutines()],
@@ -718,6 +730,7 @@ export class LocalBackend {
       d.habits = d.habits.filter((h) => h.id !== id);
       d.logs = d.logs.filter((log) => log.habitId !== id);
       d.slips = (d.slips ?? []).filter((slip) => slip.habitId !== id);
+      d.madeIt = (d.madeIt ?? []).filter((mark) => mark.habitId !== id);
       d.habitNotes = (d.habitNotes ?? []).filter((note) => note.habitId !== id);
       return d;
     });
@@ -789,6 +802,7 @@ export class LocalBackend {
         slip.count++;
         slip.reasons = [...new Set([...slip.reasons, ...reasons])];
       }
+      d.madeIt = withoutMark(d, id, date as string);
       return d;
     });
     return this.habitResult(data, id);
@@ -798,6 +812,45 @@ export class LocalBackend {
     const data = await this.update((d) => {
       this.slipHabit(d, id, date, false);
       d.slips = (d.slips ?? []).filter((slip) => slip.habitId !== id || slip.date !== date);
+      d.madeIt = withoutMark(d, id, date);
+      return d;
+    });
+    return this.habitResult(data, id);
+  }
+
+  private async listMadeIt(id: number, query: URLSearchParams): Promise<Response> {
+    const data = await this.data();
+    const { from, to } = rangeOf(query, this.today(data), 13, { notAfterToday: true });
+    const habit = data.habits.find((h) => h.id === id);
+    if (!habit) throw notFound();
+    if (!isLocalLetGo(habit)) return json(200, []);
+    return json(
+      200,
+      (data.madeIt ?? [])
+        .filter((mark) => mark.habitId === id && mark.date >= from && mark.date <= to)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((mark) => ({ date: mark.date })),
+    );
+  }
+
+  private async markMadeIt(id: number, date: string): Promise<Response> {
+    if (!isDate(date)) throw invalidField('date', dateMessage);
+    const data = await this.update((d) => {
+      const habit = this.slipHabit(d, id, date);
+      if (isPausedOn(habit, date)) throw invalidField('date', "Can't be on a paused day.");
+      if ((d.slips ?? []).some((slip) => slip.habitId === id && slip.date === date))
+        throw invalidField('date', 'That day has a slip noted.');
+      d.madeIt = [...withoutMark(d, id, date), { habitId: id, date }];
+      return d;
+    });
+    return this.habitResult(data, id);
+  }
+
+  private async clearMadeIt(id: number, date: string): Promise<Response> {
+    if (!isDate(date)) throw invalidField('date', dateMessage);
+    const data = await this.update((d) => {
+      this.slipHabit(d, id, date, false);
+      d.madeIt = withoutMark(d, id, date);
       return d;
     });
     return this.habitResult(data, id);
@@ -1177,6 +1230,7 @@ export function newLocalData(profile: Pick<LocalData['profile'], 'timezone' | 't
     habits: [],
     logs: [],
     slips: [],
+    madeIt: [],
     lowDays: [],
     routines: [],
     moods: [],

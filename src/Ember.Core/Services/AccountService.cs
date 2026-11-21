@@ -138,6 +138,7 @@ public partial class AccountService
             .Include(u => u.Logins)
             .Include(u => u.Habits).ThenInclude(h => h.Logs)
             .Include(u => u.Habits).ThenInclude(h => h.Slips)
+            .Include(u => u.Habits).ThenInclude(h => h.MadeItDays)
             .Include(u => u.DayMarks)
             .Include(u => u.PushSubscriptions)
             .Include(u => u.ReminderPhones)

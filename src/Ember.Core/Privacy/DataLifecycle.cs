@@ -92,6 +92,8 @@ public static class DataLifecycle
             "", MergeRule.MovesWithParent, "With its habit."),
         new(typeof(HabitSlip), "Habit.UserId", WithdrawalRule.Deleted, false, ExportRule.WebAndDiscord,
             "", MergeRule.MovesWithParent, "With its habit."),
+        new(typeof(MadeItDay), "Habit.UserId", WithdrawalRule.Deleted, false, ExportRule.WebAndDiscord,
+            "", MergeRule.MovesWithParent, "With its habit."),
         new(typeof(HabitNote), "Habit.UserId", WithdrawalRule.Deleted, false, ExportRule.WebOnly,
             "", MergeRule.MovesWithParent, "With its habit."),
         new(typeof(DayMark), "UserId", WithdrawalRule.Deleted, true, ExportRule.WebAndDiscord,

@@ -50,7 +50,7 @@ public class ImportEmptinessPerTableTests(PostgresFixture postgres)
     /// <summary>Entities not seedable alone: children of another row, rows that need a habit, or rows not keyed to a user.</summary>
     private static readonly Type[] NotSeedableAlone =
     [
-        typeof(HabitLog), typeof(HabitSlip), typeof(HabitNote), typeof(FeedbackImage), typeof(ReminderActionToken), typeof(LookoutOutbox),
+        typeof(HabitLog), typeof(HabitSlip), typeof(MadeItDay), typeof(HabitNote), typeof(FeedbackImage), typeof(ReminderActionToken), typeof(LookoutOutbox),
     ];
 
     [Fact]

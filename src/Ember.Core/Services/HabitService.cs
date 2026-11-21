@@ -68,6 +68,7 @@ public partial class HabitService
         return await _db.Habits
             .Include(h => h.Logs)
             .Include(h => h.Slips)
+            .Include(h => h.MadeItDays)
             .AsSplitQuery()
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
     }
@@ -78,6 +79,7 @@ public partial class HabitService
             .Where(h => h.UserId == userId)
             .Include(h => h.Logs)
             .Include(h => h.Slips)
+            .Include(h => h.MadeItDays)
             .AsSplitQuery()
             .OrderBy(h => h.CreatedAt)
             .ToListAsync();

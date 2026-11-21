@@ -28,6 +28,8 @@ public class ConsentGateMatrixTests
         ["SetCount"] = (s, b, _) => Outcome(() => s.SetCountAsync(UserId, b, Today, 1)),
         ["SetLowDay"] = (s, _, _) => Outcome(() => s.SetLowDayAsync(UserId, Today)),
         ["AddSlip"] = (s, _, l) => Outcome(() => s.AddSlipAsync(UserId, l, Today)),
+        ["MarkMadeIt"] = (s, _, l) => Outcome(() => s.MarkMadeItAsync(UserId, l, Today)),
+        ["RemoveMadeIt"] = (s, _, l) => Outcome(() => s.RemoveMadeItAsync(UserId, l, Today)),
         ["ClearDay"] = (s, b, _) => Outcome(() => s.ClearDayAsync(UserId, b, Today)),
         ["ClearLowDay"] = (s, _, _) => Outcome(async () => { await s.ClearLowDayAsync(UserId, Today); return "done"; }),
         ["RemoveSlips"] = (s, _, l) => Outcome(() => s.RemoveSlipsAsync(UserId, l, Today)),
@@ -89,6 +91,8 @@ public class ConsentGateMatrixTests
     [InlineData("SetCount", "ConsentRequired")]
     [InlineData("SetLowDay", "ConsentRequired")]
     [InlineData("AddSlip", "ConsentRequired")]
+    [InlineData("MarkMadeIt", "ConsentRequired")]
+    [InlineData("RemoveMadeIt", "Saved")]
     [InlineData("UseReminderActionToken", "ConsentRequired")]
     [InlineData("EditHabitReminder", "07:00")]
     [InlineData("ClearDay", "Saved")]

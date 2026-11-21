@@ -183,6 +183,23 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Merging_moves_a_bot_users_let_go_habit_with_its_made_it_mark()
+    {
+        var user = await Host.SignedInAsync();
+        var bot = await BotOnlyAsync([]);
+        var habit = (await Host.Service(s => s.AddHabitAsync(bot.UserId, "Coffee", null, kind: HabitKind.LetGo))).Habit!;
+        await Host.Run(s => s.MarkMadeItAsync(bot.UserId, habit.Id, Host.Today));
+        await StartMergeAsync(user, bot.DiscordId);
+
+        await (await user.Post(MergeUrl)).Expect(HttpStatusCode.NoContent);
+
+        var moved = (await (await user.Get("/api/habits")).ExpectJson()).EnumerateArray().Single();
+        moved.GetProperty("today").GetProperty("madeIt").GetBoolean().Should().BeTrue();
+        var days = await (await user.Get($"/api/habits/{habit.Id}/made-it")).ExpectJson();
+        days.EnumerateArray().Select(d => d.GetProperty("date").GetString()).Should().Equal(Host.Today.Iso());
+    }
+
+    [DockerFact]
     public async Task Merging_reschedules_moved_reminders_in_the_signed_in_accounts_timezone()
     {
         var user = await Host.SignedInAsync();

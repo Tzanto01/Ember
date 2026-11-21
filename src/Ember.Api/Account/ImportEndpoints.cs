@@ -18,7 +18,8 @@ internal static class ImportEndpoints
 
     public sealed record ImportDocument(int? FormatVersion, ImportSettings? Settings, List<ImportHabit?>? Habits, List<ImportLog?>? Logs,
         List<ImportDayMark?>? DayMarks, List<ImportRoutine?>? Routines, List<ImportMood?>? Moods, List<ImportDayNote?>? DayNotes,
-        JournalEndpoints.JournalKeyRequest? JournalKey, List<ImportSlip?>? Slips, List<ImportHabitNote?>? HabitNotes);
+        JournalEndpoints.JournalKeyRequest? JournalKey, List<ImportSlip?>? Slips, List<ImportHabitNote?>? HabitNotes,
+        List<ImportMadeItDay?>? MadeItDays);
     public sealed record ImportSettings(int? GraceDaysPerWeek, string? Theme, int? SecondReminderMinutes, bool? ShowStreaks,
         string? Language, bool? CalmMode, List<string?>? TipsSeen, bool? OfferHabitNote);
     public sealed record ImportHabit(int? Id, string? Name, string? Frequency, int? WeeklyTarget, TimeOnly? ReminderTime,
@@ -26,6 +27,7 @@ internal static class ImportEndpoints
         int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind);
     public sealed record ImportLog(int? HabitId, DateOnly? Date, bool? Completed, int? Count);
     public sealed record ImportSlip(int? HabitId, DateOnly? Date, int? Count, List<string?>? Reasons);
+    public sealed record ImportMadeItDay(int? HabitId, DateOnly? Date);
     public sealed record ImportDayMark(DateOnly? Date, string? Kind);
     public sealed record ImportRoutine(int? Id, string? Name, TimeOnly? ReminderTime);
     public sealed record ImportMood(int? Id, string? Label, string? Emoji, bool? Archived, JournalEndpoints.EncryptedDto? Encrypted);
@@ -200,6 +202,23 @@ internal static class ImportEndpoints
                 Reasons = sl.Reasons?.OfType<string>().Distinct().ToList() ?? [],
                 UpdatedAt = now,
             });
+            Nest(errors, path, local);
+        }
+
+        var madeIt = new HashSet<(Habit, DateOnly)>();
+        foreach (var (m, path) in Items(doc.MadeItDays, "made_it_days", errors))
+        {
+            Habit? habit = null;
+            if (m.HabitId is not { } habitId || !habitById.TryGetValue(habitId, out habit))
+                local["habit_id"] = ["Must be the id of a habit in this file."];
+            else if (habit.Kind != HabitKind.LetGo)
+                local["habit_id"] = ["Only let-go habits have made-it days."];
+            if (m.Date is not { } date) local["date"] = [Formats.DateMessage];
+            else if (date > today) local["date"] = ["Can't be after today."];
+            else if (habit is not null && date < HabitRules.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
+            else if (habit is not null && !madeIt.Add((habit, date))) local["date"] = ["Only one made-it entry per habit and day."];
+            if (habit is not null && !slipped.Contains((habit, m.Date ?? default)))
+                habit.MadeItDays.Add(new MadeItDay { Date = m.Date ?? default, CreatedAt = now });
             Nest(errors, path, local);
         }
 

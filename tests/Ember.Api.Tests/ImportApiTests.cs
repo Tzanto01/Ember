@@ -180,6 +180,69 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
             .Should().Equal((today.AddDays(-3).Iso(), 2, "tired,bored"), (today.Iso(), 1, ""));
     }
 
+    private static JsonElement WithMadeItDays(object doc, params object[] days)
+    {
+        var node = JsonSerializer.SerializeToNode(doc)!;
+        node["made_it_days"] = JsonSerializer.SerializeToNode(days);
+        return JsonSerializer.SerializeToElement(node);
+    }
+
+    [DockerFact]
+    public async Task Made_it_marks_survive_an_export_and_import_and_the_slip_day_stays_unmarked()
+    {
+        var source = await Host.SignedInAsync();
+        var id = (await (await source.Post("/api/habits", new { name = "Coffee", kind = "letGo", frequency = "daily" })).ExpectJson(HttpStatusCode.Created))
+            .GetProperty("id").GetInt32();
+        await Host.Db(db => db.Habits.ExecuteUpdateAsync(s => s.SetProperty(h => h.CreatedAt, h => h.CreatedAt.AddDays(-10))));
+        var today = Host.Today;
+        await (await source.Post($"/api/habits/{id}/slips", new { date = today.AddDays(-3).Iso() })).ExpectJson();
+        await (await source.Put($"/api/habits/{id}/made-it/{today.AddDays(-2).Iso()}")).Expect(HttpStatusCode.OK);
+        await (await source.Put($"/api/habits/{id}/made-it/{today.Iso()}")).Expect(HttpStatusCode.OK);
+        var exported = await (await source.Get("/api/me/export?format=json")).ExpectJson();
+
+        var target = await Host.SignedInAsync();
+        await (await Import(target, exported)).Expect(HttpStatusCode.NoContent);
+
+        var habit = (await (await target.Get("/api/habits")).ExpectJson()).EnumerateArray().Single();
+        habit.GetProperty("today").GetProperty("madeIt").GetBoolean().Should().BeTrue();
+        var days = await (await target.Get($"/api/habits/{habit.GetProperty("id").GetInt32()}/made-it?from={today.AddDays(-5).Iso()}")).ExpectJson();
+        days.EnumerateArray().Select(d => d.GetProperty("date").GetString()).Should().Equal(today.AddDays(-2).Iso(), today.Iso());
+    }
+
+    [DockerFact]
+    public async Task Import_refuses_made_it_days_that_are_not_on_a_free_day_of_a_let_go_habit_and_writes_nothing()
+    {
+        var user = await Host.SignedInAsync();
+
+        var onBuild = await ErrorsAsync(await Import(user, WithMadeItDays(Doc(habits: [HabitItem(1)]), new { habit_id = 1, date = "2026-10-25" })));
+        var bad = await ErrorsAsync(await Import(user, WithMadeItDays(Doc(habits: [LetGoItem(1)]),
+            new { habit_id = 1, date = "2026-10-25" },
+            new { habit_id = 1, date = "2026-10-25" },
+            new { habit_id = 1, date = "2026-10-19" },
+            new { habit_id = 1, date = "2026-12-25" },
+            new { habit_id = 9, date = "2026-10-27" })));
+
+        onBuild.Has("made_it_days[0].habit_id").Should().BeTrue();
+        bad.EnumerateObject().Select(e => e.Name).Should().BeEquivalentTo(
+            "made_it_days[1].date", "made_it_days[2].date", "made_it_days[3].date", "made_it_days[4].habit_id");
+        (await HabitCountAsync(await user.IdAsync())).Should().Be(0);
+        (await Host.Db(db => db.MadeItDays.CountAsync())).Should().Be(0);
+    }
+
+    [DockerFact]
+    public async Task A_made_it_day_on_a_day_the_file_has_a_slip_for_is_skipped_and_the_rest_imports()
+    {
+        var user = await Host.SignedInAsync();
+        var doc = WithMadeItDays(WithSlips(Doc(habits: [LetGoItem(1)]), new { habit_id = 1, date = "2026-10-26", count = 1, reasons = Array.Empty<string>() }),
+            new { habit_id = 1, date = "2026-10-26" },
+            new { habit_id = 1, date = "2026-10-25" });
+
+        await (await Import(user, doc)).Expect(HttpStatusCode.NoContent);
+
+        (await Host.Db(db => db.HabitSlips.Select(s => s.Date).ToListAsync())).Should().Equal(new DateOnly(2026, 10, 26));
+        (await Host.Db(db => db.MadeItDays.Select(m => m.Date).ToListAsync())).Should().Equal(new DateOnly(2026, 10, 25));
+    }
+
     [DockerFact]
     public async Task Habit_notes_follow_their_habits_new_ids_and_the_offer_setting_imports_but_the_today_order_doesnt()
     {

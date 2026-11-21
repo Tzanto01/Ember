@@ -20,6 +20,7 @@ import {
   type JournalKeyPut,
   type LetGoHabit,
   type LocalDateString,
+  type MadeItDay,
   type Me,
   type MePatch,
   type MergePreview,
@@ -320,6 +321,21 @@ export class ApiClient {
   /** `DELETE /api/habits/{id}/slips/{date}` (v1.21): removes every slip that day; fine when there are none. */
   clearSlips(id: number, date: LocalDateString): Promise<LetGoHabit> {
     return this.http.request('DELETE', `/api/habits/${id}/slips/${seg(date)}`);
+  }
+
+  /** `GET /api/habits/{id}/made-it` (v1.24), oldest first, marked days only; same range rules as `getSlips`. */
+  getMadeIt(id: number, from?: LocalDateString, to?: LocalDateString): Promise<MadeItDay[]> {
+    return this.http.request('GET', `/api/habits/${id}/made-it`, { params: range(from, to) });
+  }
+
+  /** `PUT /api/habits/{id}/made-it/{date}` (v1.24): marks a free day (start day to today) "made it"; marking again is fine. */
+  markMadeIt(id: number, date: LocalDateString): Promise<LetGoHabit> {
+    return this.http.request('PUT', `/api/habits/${id}/made-it/${seg(date)}`);
+  }
+
+  /** `DELETE /api/habits/{id}/made-it/{date}` (v1.24): removes that day's mark; fine when there is none. */
+  clearMadeIt(id: number, date: LocalDateString): Promise<LetGoHabit> {
+    return this.http.request('DELETE', `/api/habits/${id}/made-it/${seg(date)}`);
   }
 
   /**
