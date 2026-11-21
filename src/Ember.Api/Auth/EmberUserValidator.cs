@@ -15,10 +15,9 @@ internal sealed class EmberUserValidator(IdentityErrorDescriber errors, IHttpCon
 {
     public override async Task<IdentityResult> ValidateAsync(UserManager<User> manager, User user)
     {
-        if (http.HttpContext?.Request is { } request && HttpMethods.IsPost(request.Method)
-            && request.Path.Value?.TrimEnd('/').EndsWith("/register", StringComparison.OrdinalIgnoreCase) == true)
+        if (http.HttpContext is { } context && context.Items.ContainsKey(AuthEndpoints.SigningUpKey))
         {
-            user.Language = http.HttpContext.Items[AuthEndpoints.SignUpLanguageKey] as string ?? Languages.FromAcceptLanguage(request.Headers.AcceptLanguage);
+            user.Language = context.Items[AuthEndpoints.SignUpLanguageKey] as string ?? Languages.FromAcceptLanguage(context.Request.Headers.AcceptLanguage);
             user.CreatedUtc ??= time.GetUtcNow().UtcDateTime;
         }
 
