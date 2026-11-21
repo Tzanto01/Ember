@@ -11,26 +11,58 @@ import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.VisibleForTesting
 import androidx.core.app.ActivityCompat
+import androidx.webkit.WebViewCompat
+import app.ember.habits.diagnostics.CrashRecorder
+import app.ember.habits.diagnostics.IgnoredRoute
+import app.ember.habits.diagnostics.LaunchEvents
+import app.ember.habits.diagnostics.LaunchSource
+import app.ember.habits.diagnostics.RecordFile
+import app.ember.habits.diagnostics.RendererThen
 import app.ember.habits.plugin.BackupFilePlugin
+import app.ember.habits.plugin.EmberDiagnosticsPlugin
 import app.ember.habits.plugin.EmberWidgetPlugin
 import app.ember.habits.plugin.FlavorPlugins
 import com.getcapacitor.BridgeActivity
 import com.getcapacitor.WebViewListener
+import org.json.JSONObject
+import java.io.IOException
 
 /** The Capacitor activity hosting the web app, with Ember's plugins and the moment and widget launches routed to it. */
 class MainActivity : BridgeActivity() {
 
     private var restoring = false
     private var starting = false
+    private var createdAt = 0L
+    private var pageLoaded = false
+    private val launches by lazy { RecordFile.launches(applicationContext) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.i(LOG_TAG, describe("launch", intent, cold = !processStarted, saved = savedInstanceState != null))
+        CrashRecorder.install(this)
+        createdAt = SystemClock.elapsedRealtime()
+        val cold = !processStarted
+        Log.i(LOG_TAG, describe("launch", intent, cold = cold, saved = savedInstanceState != null))
+        record(
+            LaunchEvents.launch(
+                cold = cold,
+                saved = savedInstanceState != null,
+                source = LaunchSource.of(intent),
+                history = fromHistory(intent),
+                webview = webViewVersion(),
+            ),
+        )
         processStarted = true
         registerPlugin(EmberWidgetPlugin::class.java)
         registerPlugin(BackupFilePlugin::class.java)
+        registerPlugin(EmberDiagnosticsPlugin::class.java)
         registerPlugins(FlavorPlugins.all())
         bridgeBuilder.addWebViewListener(
             object : WebViewListener() {
+                override fun onPageLoaded(webView: WebView) {
+                    if (pageLoaded) return
+                    pageLoaded = true
+                    record(LaunchEvents.pageLoaded(SystemClock.elapsedRealtime() - createdAt))
+                }
+
                 override fun onRenderProcessGone(webView: WebView, detail: RenderProcessGoneDetail?) =
                     recover(webView, detail)
             },
@@ -63,15 +95,13 @@ class MainActivity : BridgeActivity() {
         rendererGoneAt = now
         val crashed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) detail?.didCrash() else null
         val priority = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) detail?.rendererPriorityAtExit() else null
-        Log.i(
-            LOG_TAG,
-            "renderer gone crashed=$crashed priorityAtExit=$priority then=" +
-                when {
-                    isFinishing -> "none"
-                    again -> "finish"
-                    else -> "recreate"
-                },
-        )
+        val then = when {
+            isFinishing -> RendererThen.NONE
+            again -> RendererThen.FINISH
+            else -> RendererThen.RECREATE
+        }
+        Log.i(LOG_TAG, "renderer gone crashed=$crashed priorityAtExit=$priority then=${then.code}")
+        record(LaunchEvents.rendererGone(crashed, priority, then))
         (webView.parent as? ViewGroup)?.removeView(webView)
         if (isFinishing) return true
         if (again) finish() else ActivityCompat.recreate(this)
@@ -79,13 +109,17 @@ class MainActivity : BridgeActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
-        if (!starting) Log.i(LOG_TAG, describe("newIntent", intent, cold = false, saved = false))
+        if (!starting) {
+            Log.i(LOG_TAG, describe("newIntent", intent, cold = false, saved = false))
+            record(LaunchEvents.newIntent(LaunchSource.of(intent)))
+        }
         super.onNewIntent(intent)
         route(intent, starting)
     }
 
     override fun onDestroy() {
         Log.i(LOG_TAG, "destroy finishing=$isFinishing changingConfigurations=$isChangingConfigurations")
+        record(LaunchEvents.destroy(finishing = isFinishing, configChange = isChangingConfigurations))
         super.onDestroy()
     }
 
@@ -97,24 +131,44 @@ class MainActivity : BridgeActivity() {
      */
     private fun route(intent: Intent, cold: Boolean) {
         val bridge = bridge
-        if (restoring) return ignored("restoring")
-        if (bridge == null) return ignored("no bridge")
-        if (fromHistory(intent)) return ignored("from history")
-        val plugin = bridge.getPlugin("EmberWidget")?.instance as? EmberWidgetPlugin ?: return ignored("no widget plugin")
+        if (restoring) return ignored(IgnoredRoute.RESTORING)
+        if (bridge == null) return ignored(IgnoredRoute.NO_BRIDGE)
+        if (fromHistory(intent)) return ignored(IgnoredRoute.FROM_HISTORY)
+        val plugin = bridge.getPlugin("EmberWidget")?.instance as? EmberWidgetPlugin
+            ?: return ignored(IgnoredRoute.NO_WIDGET_PLUGIN)
         if (intent.action == ACTION_OPEN_MOMENT) {
-            val component = intent.component ?: return ignored("moment without component")
-            if (component.packageName != packageName) return ignored("moment for another package")
-            if (MainActivity::class.java.name != component.className) return ignored("moment for another activity")
+            val component = intent.component ?: return ignored(IgnoredRoute.MOMENT_WITHOUT_COMPONENT)
+            if (component.packageName != packageName) return ignored(IgnoredRoute.MOMENT_OTHER_PACKAGE)
+            if (MainActivity::class.java.name != component.className) return ignored(IgnoredRoute.MOMENT_OTHER_ACTIVITY)
             if (cold) plugin.pendMoment() else plugin.openMoment()
             return
         }
-        val tap = TodayWidget.validTap(this, intent) ?: return ignored("no moment or valid widget tap")
+        val tap = TodayWidget.validTap(this, intent) ?: return ignored(IgnoredRoute.NO_VALID_TAP)
         plugin.tap(tap)
     }
 
-    private fun ignored(reason: String) {
-        Log.i(LOG_TAG, "route ignored reason=$reason")
+    private fun ignored(reason: IgnoredRoute) {
+        Log.i(LOG_TAG, "route ignored reason=${reason.log}")
+        record(LaunchEvents.routeIgnored(reason))
     }
+
+    /** Adds [event] to the on-device launch log for "Send diagnostics"; a failed write never disturbs the launch. */
+    private fun record(event: String) {
+        val now = System.currentTimeMillis()
+        try {
+            launches.append(JSONObject().put(RecordFile.AT, now).put(RecordFile.EVENT, event), now)
+        } catch (e: IOException) {
+        } catch (e: RuntimeException) {
+        }
+    }
+
+    /** The WebView provider's version name, or null when it is unknown or unreadable. */
+    private fun webViewVersion(): String? =
+        try {
+            WebViewCompat.getCurrentWebViewPackage(this)?.versionName
+        } catch (e: RuntimeException) {
+            null
+        }
 
     companion object {
         internal const val ACTION_OPEN_MOMENT = "app.ember.habits.OPEN_MOMENT"

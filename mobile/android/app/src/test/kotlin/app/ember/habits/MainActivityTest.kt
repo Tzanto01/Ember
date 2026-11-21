@@ -9,6 +9,9 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
 import android.webkit.ServiceWorkerWebSettings
+import android.webkit.WebView
+import app.ember.habits.diagnostics.LaunchEventsTest
+import app.ember.habits.diagnostics.RecordFile
 import app.ember.habits.plugin.EmberWidgetPlugin
 import app.ember.habits.widget.WidgetStore
 import com.getcapacitor.JSObject
@@ -35,13 +38,14 @@ import org.robolectric.annotation.Implements
 import org.robolectric.shadows.ShadowLog
 import org.robolectric.shadows.ShadowSystemClock
 import org.robolectric.shadows.ShadowWebView
+import java.io.File
 import java.time.Duration
 
 /**
  * How launches reach the web app: a moment door on a cold start is the pending launch action, on a warm one an
  * `openMoment` event; a validated widget tap is a `widgetTap` event; replayed, restored and foreign launches do
  * nothing; a dead WebView renderer recreates the activity once and then gives up; the launch log names extras but
- * never their values. Runs the real Capacitor bridge, so the web app's side is a listener on the EmberWidget plugin.
+ * never their values; the on-device launch log records the diagnostics vocabulary. Runs the real Capacitor bridge, so the web app's side is a listener on the EmberWidget plugin.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], shadows = [NoServiceWorkers::class])
@@ -64,6 +68,7 @@ class MainActivityTest {
     fun setUp() {
         shadowOf(context).declareActionUnbindable("android.support.customtabs.action.CustomTabsService")
         MainActivity.rendererGoneAt = null
+        File(context.noBackupFilesDir, "diagnostics-launches.json").delete()
         ShadowWebView.setCurrentWebViewPackage(
             PackageInfo().apply {
                 packageName = "com.google.android.webview"
@@ -107,6 +112,11 @@ class MainActivityTest {
         shadowOf(Looper.getMainLooper()).idle()
         return handled
     }
+
+    /** The launch events recorded for diagnostics, oldest first, each checked against the vocabulary. */
+    private fun events(): List<String> =
+        RecordFile.launches(context).read(System.currentTimeMillis()).map { it.getString(RecordFile.EVENT) }
+            .onEach(LaunchEventsTest::assertInVocabulary)
 
     private fun launcher() = Intent(Intent.ACTION_MAIN).setComponent(ComponentName(context, MainActivity::class.java))
 
@@ -270,7 +280,75 @@ class MainActivityTest {
             assertTrue("$value leaked into $lines", lines.none { value in it })
         }
     }
+
+    @Test
+    fun theLaunchLogNamesTheSourceButNothingTheIntentCarries() {
+        val token = today()
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            .setComponent(ComponentName(context, MainActivity::class.java))
+
+        start(home)
+        start(moment(), Bundle())
+        val app = start(tap(token))
+        app.newIntent(Intent(Intent.ACTION_VIEW).setComponent(ComponentName(context, MainActivity::class.java)))
+        app.newIntent(moment())
+        app.newIntent(launcher())
+
+        val events = events()
+        val launches = events.filter { it.startsWith("launch ") }
+        assertEquals(3, launches.size)
+        assertTrue(launches[0], launches[0].matches(Regex("launch cold=(true|false) saved=false source=user history=false webview=140.0.0.0")))
+        assertTrue(launches[1], launches[1].startsWith("launch cold=false saved=true source=notification history=false"))
+        assertTrue(launches[2], launches[2].startsWith("launch cold=false saved=false source=user history=false"))
+        assertEquals(
+            listOf("new_intent source=system", "new_intent source=notification", "new_intent source=system"),
+            events.filter { it.startsWith("new_intent ") },
+        )
+        assertTrue(events.toString(), "route_ignored reason=restoring" in events)
+        assertTrue(events.toString(), events.none { token in it || "user-1" in it })
+    }
+
+    @Test
+    fun rejectedAndReplayedLaunchesAndDestroyAreRecorded() {
+        today()
+        val app = start(launcher())
+        app.newIntent(moment(ComponentName("com.example.other", MainActivity::class.java.name)))
+        app.newIntent(tap("0".repeat(32)))
+        app.newIntent(moment().addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY))
+        app.pause().stop().destroy()
+
+        val events = events()
+        assertEquals(3, events.count { it == "route_ignored reason=rejected" })
+        assertTrue(events.toString(), "route_ignored reason=from_history" in events)
+        assertEquals("destroy finishing=false config_change=false", events.last())
+    }
+
+    @Test
+    @Config(shadows = [NoServiceWorkers::class, FullyLoadedWebView::class])
+    fun theFirstPageLoadAfterCreateIsRecordedOnce() {
+        val app = start(launcher())
+        val bridge = app.get().bridge
+
+        repeat(2) { bridge.webViewClient.onPageFinished(bridge.webView, "https://localhost/") }
+
+        val loads = events().filter { it.startsWith("page_loaded") }
+        assertEquals(1, loads.size)
+        assertTrue(loads[0], loads[0].matches(Regex("page_loaded ms=[0-9]{1,9}")))
+    }
+
+    @Test
+    fun rendererDeathsRecordRecreateAndThenFinish() {
+        val app = start(launcher())
+        app.rendererGone()
+        app.rendererGone()
+
+        assertEquals(
+            listOf("renderer_gone crashed=true priority=0 then=recreate", "renderer_gone crashed=true priority=0 then=finish"),
+            events().filter { it.startsWith("renderer_gone") },
+        )
+    }
 }
+
 
 /** Robolectric has no service worker controller; Capacitor only registers a client with it. */
 @Implements(ServiceWorkerController::class)
@@ -284,4 +362,11 @@ class NoServiceWorkers {
             override fun setServiceWorkerClient(client: ServiceWorkerClient?) = Unit
         }
     }
+}
+
+/** A WebView whose page always reports fully loaded, as Capacitor checks before it tells listeners a page loaded. */
+@Implements(WebView::class)
+class FullyLoadedWebView : ShadowWebView() {
+    @Implementation
+    protected fun getProgress() = 100
 }
