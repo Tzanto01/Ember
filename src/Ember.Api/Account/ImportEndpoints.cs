@@ -345,8 +345,8 @@ internal static class ImportEndpoints
             return null;
         return key[0] switch
         {
-            'h' when habitById.TryGetValue(id, out var habit) => new ImportTodayOrderEntry(habit, null),
-            'r' when routineById.TryGetValue(id, out var routine) => new ImportTodayOrderEntry(null, routine),
+            'h' when habitById.TryGetValue(id, out var habit) => ImportTodayOrderEntry.Of(habit),
+            'r' when routineById.TryGetValue(id, out var routine) => ImportTodayOrderEntry.Of(routine),
             _ => null,
         };
     }

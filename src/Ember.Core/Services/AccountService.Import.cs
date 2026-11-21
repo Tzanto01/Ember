@@ -18,10 +18,21 @@ public sealed record ImportData(
     IReadOnlyList<string>? TipsSeen = null, bool? OfferHabitNote = null, IReadOnlyList<ImportTodayOrderEntry>? TodayOrder = null);
 
 /// <summary>One entry of <see cref="ImportData.TodayOrder"/>: exactly one of a habit or a routine of the same <see cref="ImportData"/>.</summary>
-public sealed record ImportTodayOrderEntry(Habit? Habit, Routine? Routine)
+public sealed class ImportTodayOrderEntry
 {
+    private readonly Habit? _habit;
+    private readonly Routine? _routine;
+
+    private ImportTodayOrderEntry(Habit? habit, Routine? routine) => (_habit, _routine) = (habit, routine);
+
+    /// <summary>The entry of <paramref name="habit"/>.</summary>
+    public static ImportTodayOrderEntry Of(Habit habit) => new(habit, null);
+
+    /// <summary>The entry of <paramref name="routine"/>.</summary>
+    public static ImportTodayOrderEntry Of(Routine routine) => new(null, routine);
+
     /// <summary>The <see cref="User.TodayOrder"/> key once the entity is saved: <c>h:&lt;id&gt;</c> or <c>r:&lt;id&gt;</c>.</summary>
-    public string Key => Habit is not null ? $"h:{Habit.Id}" : $"r:{Routine?.Id}";
+    public string Key => _habit is not null ? $"h:{_habit.Id}" : $"r:{_routine!.Id}";
 }
 
 /// <summary>Outcome of <see cref="AccountService.ImportAsync"/>.</summary>
