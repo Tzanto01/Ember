@@ -153,14 +153,14 @@ export const guides: Record<GuideScreen, Guide> = {
         covers: [
           'web/src/components/habits/habit-fields.tsx',
           'web/src/components/today/check-button.tsx',
-          'web/src/lib/local/limits.ts',
+          'src/Ember.Core/Services/HabitService.cs',
         ],
       },
       {
         id: 'habit-limits',
         questionKey: 'guide.habit.limits.q',
         answerKey: 'guide.habit.limits.a',
-        values: { habits: limits.habits, name: limits.habitName },
+        values: { habits: limits.habits, name: limits.habitName, weekly: limits.weeklyTarget },
         covers: ['web/src/lib/local/limits.ts', 'web/src/components/habits/habit-fields.tsx', 'src/Ember.Core/Rules/Limits.cs'],
       },
       {
@@ -274,7 +274,7 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'reminders-when',
         questionKey: 'guide.reminders.when.q',
         answerKey: 'guide.reminders.when.a',
-        covers: [policy, plan],
+        covers: [policy, plan, dispatch],
       },
       {
         id: 'reminders-where',
