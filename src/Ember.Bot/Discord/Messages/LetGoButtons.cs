@@ -13,6 +13,9 @@ namespace Ember.Bot.Discord.Messages;
 /// </summary>
 internal static class LetGoButtons
 {
+    /// <summary>The most let-go habits <see cref="List"/> gives buttons: two rows of slips and two of made-it, inside Discord's five rows.</summary>
+    private const int MaxListed = 10;
+
     /// <summary>
     /// The buttons under a let-go habit picked in <c>/habit checkin</c>: "I slipped", and on a free <paramref name="today"/> "Made it
     /// today", or once today is marked, the same label in green with a check that takes the mark back.
@@ -34,7 +37,7 @@ internal static class LetGoButtons
     /// </summary>
     internal static MessageComponent? List(Texts t, IReadOnlyList<Habit> habits, DateOnly today, TimeZoneInfo tz)
     {
-        var letGo = habits.Where(h => h.Kind == HabitKind.LetGo).ToList();
+        var letGo = habits.Where(h => h.Kind == HabitKind.LetGo).Take(MaxListed).ToList();
         if (letGo.Count == 0) return null;
         var builder = new ComponentBuilder();
         for (var i = 0; i < letGo.Count; i++)
