@@ -52,7 +52,7 @@ public sealed partial class GrantScriptColumnsTests(EmptyDatabaseFixture fixture
         return tables;
     }
 
-    [GeneratedRegex("""(?:GRANT|REVOKE ALL)\s+(?:\w+\s+)?\((?<columns>"[^)]*)\)\s+ON\s+"(?<table>\w+)"\s""")]
+    [GeneratedRegex("""(?:GRANT|REVOKE ALL)\s+(?:\w+\s+)?\((?<columns>"[^)]*)\)\s+ON\s+(?:TABLE\s+)?(?:public\.)?"(?<table>\w+)"\s""")]
     private static partial Regex GrantOrRevokeColumns();
 
     [GeneratedRegex("""table_name = '(?<table>\w+)' AND column_name = '(?<column>\w+)'""")]
