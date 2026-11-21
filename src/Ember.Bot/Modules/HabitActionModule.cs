@@ -418,7 +418,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
         var userId = await _habits.ResolveOrCreateDiscordUserAsync(Context.User.Id, Languages.FromLocale(Context.Interaction.UserLocale));
         await _settings.SetShowStreaksAsync(userId, state == "on");
         var t = await BotTexts.ForAsync(_habits, Context.Interaction);
-        var (pages, toggle) = await HabitModule.RenderStatsAsync(t, _habits, _settings, userId);
+        var (pages, toggle) = await StatsReply.RenderAsync(t, _habits, _settings, userId);
 
         await ((SocketMessageComponent)Context.Interaction)
             .UpdateAsync(m =>

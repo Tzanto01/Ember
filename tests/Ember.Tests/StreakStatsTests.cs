@@ -1,4 +1,5 @@
 using Discord;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Modules;
 using Ember.Core.Services;
 using FluentAssertions;
@@ -32,7 +33,7 @@ public class StreakStatsTests
         {
             var service = sp.GetRequiredService<HabitService>();
             if (customId is not null) await sp.GetRequiredService<UserSettingsService>().SetShowStreaksAsync(await TestUsers.ResolveOrCreateAsync(sp, UserId), customId == "habit:streaks:on");
-            var (pages, toggle) = await HabitModule.RenderStatsAsync(Ember.Bot.BotTexts.English, service, sp.GetRequiredService<UserSettingsService>(),
+            var (pages, toggle) = await StatsReply.RenderAsync(Ember.Bot.BotTexts.English, service, sp.GetRequiredService<UserSettingsService>(),
                 await TestUsers.UserIdAsync(sp, UserId));
             return (pages.Single(), Button(toggle), await sp.GetRequiredService<UserSettingsService>().GetShowStreaksAsync(await TestUsers.UserIdAsync(sp, UserId)));
         });
