@@ -393,6 +393,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -453,6 +454,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "integer"

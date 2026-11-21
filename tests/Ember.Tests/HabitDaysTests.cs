@@ -42,13 +42,13 @@ public class HabitDaysTests
         days.Should().Equal(
             new HabitDay(new DateOnly(2027, 1, 9), DayState.BeforeStart, null, 0),
             new HabitDay(new DateOnly(2027, 1, 10), DayState.Done, true, 1),
-            new HabitDay(new DateOnly(2027, 1, 11), DayState.NotDone, false, 0),
+            new HabitDay(new DateOnly(2027, 1, 11), DayState.NotDone, false, 0, Skipped: true),
             new HabitDay(new DateOnly(2027, 1, 12), DayState.NotDone, null, 0),
             new HabitDay(new DateOnly(2027, 1, 13), DayState.LowDay, null, 0),
             new HabitDay(new DateOnly(2027, 1, 14), DayState.Paused, null, 0),
             new HabitDay(new DateOnly(2027, 1, 15), DayState.Paused, null, 0),
             new HabitDay(new DateOnly(2027, 1, 16), DayState.NotDone, null, 0),
-            new HabitDay(new DateOnly(2027, 1, 17), DayState.Pending, false, 0),
+            new HabitDay(new DateOnly(2027, 1, 17), DayState.Pending, false, 0, Skipped: true),
             new HabitDay(new DateOnly(2027, 1, 18), DayState.Pending, null, 0));
     }
 

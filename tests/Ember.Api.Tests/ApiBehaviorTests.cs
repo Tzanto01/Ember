@@ -149,6 +149,29 @@ public class ApiBehaviorTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Not_done_on_a_partly_done_day_is_a_skip_with_count_zero_and_a_count_of_zero_is_not()
+    {
+        var user = await Host.SignedInAsync();
+        var id = (await (await user.Post("/api/habits", new { name = "Water", frequency = "daily", timesPerDay = 2 })).ExpectJson(HttpStatusCode.Created))
+            .GetProperty("id").GetInt32();
+        Host.Time.Advance(TimeSpan.FromDays(2));
+        var today = Host.Today.Iso();
+        var yesterday = Host.Today.AddDays(-1).Iso();
+        await (await user.Put($"/api/habits/{id}/days/{today}", new { count = 1 })).ExpectJson();
+        await (await user.Put($"/api/habits/{id}/days/{yesterday}", new { count = 1 })).ExpectJson();
+
+        var skipped = (await (await user.Put($"/api/habits/{id}/days/{today}", new { completed = false })).ExpectJson()).GetProperty("today");
+        await (await user.Put($"/api/habits/{id}/days/{yesterday}", new { completed = false })).ExpectJson();
+        var days = await (await user.Get($"/api/habits/{id}/days?from={yesterday}&to={yesterday}")).ExpectJson();
+        var counted = (await (await user.Put($"/api/habits/{id}/days/{today}", new { count = 0 })).ExpectJson()).GetProperty("today");
+
+        (skipped.GetProperty("count").GetInt32(), skipped.GetProperty("completed").GetBoolean(), skipped.GetProperty("skipped").GetBoolean())
+            .Should().Be((0, false, true));
+        days[0].GetProperty("skipped").GetBoolean().Should().BeTrue();
+        (counted.GetProperty("count").GetInt32(), counted.GetProperty("skipped").GetBoolean()).Should().Be((0, false));
+    }
+
+    [DockerFact]
     public async Task Weekly_stats_report_both_habit_kinds_with_a_plain_text_headline()
     {
         var user = await Host.SignedInAsync();

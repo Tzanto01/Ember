@@ -9,7 +9,7 @@ namespace Ember.Api.Habits;
 /// <summary>Habits, their days and the habit templates.</summary>
 internal static class HabitEndpoints
 {
-    public sealed record DayDto(DateOnly Date, string State, bool? Completed, int Count);
+    public sealed record DayDto(DateOnly Date, string State, bool? Completed, int Count, bool Skipped);
     public sealed record WeekDto(int Done, int Target);
     public sealed record StatsDto(int? Streak, int? GraceUsed, int? BestStreak, int Last7, WeekDto? Week);
     public sealed record LetGoDayDto(DateOnly Date, string State, int Slips, bool MadeIt);
@@ -324,7 +324,7 @@ internal static class HabitEndpoints
             habit.Kind == HabitKind.LetGo ? "letGo" : "build");
     }
 
-    private static DayDto ToDayDto(HabitDay day) => new(day.Date, Lower(day.State), day.Completed, day.Count);
+    private static DayDto ToDayDto(HabitDay day) => new(day.Date, Lower(day.State), day.Completed, day.Count, day.Skipped);
 
     private static string Lower<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 }

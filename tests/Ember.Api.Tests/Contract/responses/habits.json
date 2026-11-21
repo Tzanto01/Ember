@@ -40,6 +40,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -88,6 +89,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -143,6 +145,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -196,6 +199,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(offday)"
       },
       "weeklyTarget": "null"
@@ -251,6 +255,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "integer"
@@ -582,6 +587,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -683,6 +689,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -745,6 +752,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -792,6 +800,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -925,6 +934,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -990,6 +1000,7 @@
         "completed": "boolean",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(done)"
       },
       "weeklyTarget": "integer"
@@ -1006,6 +1017,7 @@
         "completed": "boolean|null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(beforestart,done,notdone,partial,pending)"
       }
     ]
@@ -1101,6 +1113,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(beforestart,lowday,notdone,offday)"
       }
     ]
@@ -1116,6 +1129,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(beforestart,notdone,pending)"
       }
     ]
@@ -1131,6 +1145,7 @@
         "completed": "boolean|null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(done,paused)"
       }
     ]
@@ -1146,6 +1161,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(notdone,pending)"
       }
     ]
@@ -1239,6 +1255,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -1281,6 +1298,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -1328,6 +1346,7 @@
         "completed": "boolean",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(lowday)"
       },
       "weeklyTarget": "integer"
@@ -1375,6 +1394,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "integer"
@@ -1544,6 +1564,7 @@
           "count?": "integer",
           "date": "date",
           "madeIt?": "boolean",
+          "skipped?": "boolean",
           "slips?": "integer",
           "state": "enum(offday,paused,pending)"
         },
@@ -1617,6 +1638,7 @@
           "count?": "integer",
           "date": "date",
           "madeIt?": "boolean",
+          "skipped?": "boolean",
           "slips?": "integer",
           "state": "enum(free,offday,pending)"
         },
@@ -2212,6 +2234,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -2423,6 +2446,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -2472,6 +2496,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(offday)"
       },
       "weeklyTarget": "null"
@@ -2522,6 +2547,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(pending)"
       },
       "weeklyTarget": "null"
@@ -2610,6 +2636,7 @@
         "completed": "boolean",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(lowday)"
       },
       "weeklyTarget": "integer"
@@ -2731,6 +2758,7 @@
         "completed": "boolean",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(paused)"
       },
       "weeklyTarget": "integer"
@@ -2776,6 +2804,7 @@
         "completed": "null",
         "count": "integer",
         "date": "date",
+        "skipped": "boolean",
         "state": "enum(paused)"
       },
       "weeklyTarget": "null"
