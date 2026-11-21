@@ -46,6 +46,30 @@ jobs:
       - name: Test
         run: dotnet test --no-build -c Release --verbosity normal
 
+  migration-order:
+    # EF Core skips a migration whose id sorts before one already applied, so new ids must sort after every id on main.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: New migrations sort after main's
+        run: |
+          dir=src/Ember.Core/Data/Migrations
+          ids() { sed -n 's|.*/\([0-9]\{14\}\)_[^/]*\.cs$|\1|p' | sort -u; }
+          last=$(git ls-tree --name-only origin/main "$dir/" | ids | tail -1)
+          fail=0
+          for id in $(git diff --name-only --diff-filter=A origin/main...HEAD -- "$dir" | ids); do
+            if [[ ! "$id" > "$last" ]]; then
+              echo "::error::Migration $id sorts before $last on main; create it with dotnet ef migrations add"
+              fail=1
+            fi
+          done
+          exit $fail
+
   web:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
