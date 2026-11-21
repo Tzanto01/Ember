@@ -72,11 +72,11 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
     /// <summary>
     /// Logs the habit for the user's local day at <paramref name="timestampStr"/> (the reminder's send time, unix seconds),
     /// or for local today when the timestamp is malformed. Done adds one check-in (capped at the habit's times per day).
-    /// A "not done" never overwrites a day already logged as done or partly done (<c>KeptDone</c>), and on local today drops the habit's
-    /// pending second reminder (<see cref="HabitService.CheckInAsync"/> does when it logs the skip). Returns the edit result and the day it applied to.
+    /// A "not done" never overwrites a day already logged as done or partly done (<c>KeptDone</c>), and on local today ends that day's
+    /// reminders (<see cref="HabitService.SkipTodayRemindersAsync"/>; <see cref="HabitService.CheckInAsync"/> does when it logs the skip). Returns the edit result and the day it applied to.
     /// </summary>
     internal static async Task<(DayEditResult Result, DateOnly Day, bool KeptDone)> LogReminderDayAsync(
-        HabitService habits, UserSettingsService settings, ReminderService reminders, Guid userId, int habitId, string timestampStr, bool completed,
+        HabitService habits, UserSettingsService settings, Guid userId, int habitId, string timestampStr, bool completed,
         ulong? guildId)
     {
         var day = await SentDayAsync(settings, userId, timestampStr) ?? await settings.GetLocalTodayAsync(userId);
@@ -85,7 +85,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
 
         var keptDone = (await habits.GetHabitAsync(userId, habitId))?.Logs.Any(l => l.Date == day && (l.Completed || l.Count > 0)) == true;
         if (!keptDone) return (await habits.CheckInAsync(userId, habitId, day, completed: false, guildId), day, false);
-        if (day == await settings.GetLocalTodayAsync(userId)) await reminders.ClearSecondReminderAsync(habitId);
+        if (day == await settings.GetLocalTodayAsync(userId)) await habits.SkipTodayRemindersAsync(userId, habitId);
         return (DayEditResult.Saved, day, true);
     }
 
@@ -112,7 +112,7 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
             return;
         }
 
-        var (result, day, keptDone) = await LogReminderDayAsync(_habits, _settings, _reminders, userId, habitId, timestampStr, completed, Context.Guild?.Id);
+        var (result, day, keptDone) = await LogReminderDayAsync(_habits, _settings, userId, habitId, timestampStr, completed, Context.Guild?.Id);
         switch (result)
         {
             case DayEditResult.Saved:

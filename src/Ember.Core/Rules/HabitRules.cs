@@ -222,6 +222,17 @@ public static class HabitRules
     public static DateTime? NextReminderUtc(Habit habit, TimeZoneInfo tz, DateTime nowUtc)
         => TimeZones.NextOccurrenceUtc(habit.ReminderTimes, tz, nowUtc);
 
+    /// <summary>
+    /// The habit's first reminder after <paramref name="nowUtc"/> that falls on a local day after <paramref name="day"/>, or null without
+    /// any reminder time: once the user skipped <paramref name="day"/>, nothing left of it is reminded of.
+    /// </summary>
+    public static DateTime? NextReminderAfterDayUtc(Habit habit, TimeZoneInfo tz, DateOnly day, DateTime nowUtc)
+    {
+        var next = NextReminderUtc(habit, tz, nowUtc);
+        while (next is { } at && TimeZones.LocalDay(at, tz) <= day) next = NextReminderUtc(habit, tz, at);
+        return next;
+    }
+
     /// <summary>The routine's next reminder after <paramref name="nowUtc"/> at its <see cref="Routine.ReminderTime"/> in <paramref name="tz"/>, or null without one.</summary>
     public static DateTime? NextReminderUtc(Routine routine, TimeZoneInfo tz, DateTime nowUtc)
         => routine.ReminderTime is { } time

@@ -25,7 +25,7 @@ public class ReminderButtonDayTests
 
         var (result, day, _) = await host.WithScopeAsync(async sp =>
             await CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<UserSettingsService>(),
-                sp.GetRequiredService<ReminderService>(), await TestUsers.UserIdAsync(sp, UserId), habitId, sentUnix, completed: true, null));
+                await TestUsers.UserIdAsync(sp, UserId), habitId, sentUnix, completed: true, null));
         var days = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitDaysAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, 2));
 
         result.Should().Be(DayEditResult.Saved);
@@ -43,7 +43,7 @@ public class ReminderButtonDayTests
 
         var (result, _, _) = await host.WithScopeAsync(async sp =>
             await CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<UserSettingsService>(),
-                sp.GetRequiredService<ReminderService>(), await TestUsers.UserIdAsync(sp, UserId), habitId, sentUnix, completed: true, null));
+                await TestUsers.UserIdAsync(sp, UserId), habitId, sentUnix, completed: true, null));
 
         result.Should().Be(DayEditResult.BeforeHabitStart);
     }
@@ -60,7 +60,7 @@ public class ReminderButtonDayTests
 
         var (result, _, keptDone) = await host.WithScopeAsync(async sp =>
             await CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<UserSettingsService>(),
-                sp.GetRequiredService<ReminderService>(), await TestUsers.UserIdAsync(sp, UserId), habitId, sentUnix, completed: false, null));
+                await TestUsers.UserIdAsync(sp, UserId), habitId, sentUnix, completed: false, null));
         var days = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitDaysAsync(await TestUsers.UserIdAsync(sp, UserId), habitId, 2));
 
         result.Should().Be(DayEditResult.Saved);
@@ -125,7 +125,7 @@ public class ReminderButtonDayTests
             .ExecuteUpdateAsync(s => s.SetProperty(h => h.SecondReminderUtc, time.GetUtcNow().UtcDateTime.AddMinutes(30))));
 
         var (result, _, _) = await host.WithScopeAsync(async sp => await CheckInButtonModule.LogReminderDayAsync(sp.GetRequiredService<HabitService>(), sp.GetRequiredService<UserSettingsService>(),
-            sp.GetRequiredService<ReminderService>(), await TestUsers.UserIdAsync(sp, UserId), habitId, time.GetUtcNow().ToUnixTimeSeconds().ToString(), completed: false, null));
+            await TestUsers.UserIdAsync(sp, UserId), habitId, time.GetUtcNow().ToUnixTimeSeconds().ToString(), completed: false, null));
         var second = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().Habits.Where(h => h.Id == habitId)
             .Select(h => h.SecondReminderUtc).SingleAsync());
 

@@ -112,8 +112,8 @@ public partial class HabitService
     /// on the user's local <paramref name="date"/>, replacing any earlier log of that day.
     /// Any day from the habit's local start day (<see cref="HabitRules.StartDate"/>) to the user's local today can be logged,
     /// so past days can be backfilled or corrected; future days are refused. Needs the health-data consent, like every check-in write
-    /// (<see cref="DayEditResult.ConsentRequired"/>); <see cref="ClearDayAsync"/> doesn't. A skip (not done) on the local today also drops
-    /// the habit's pending second reminder, whichever channel it came from.
+    /// (<see cref="DayEditResult.ConsentRequired"/>); <see cref="ClearDayAsync"/> doesn't. A skip (not done) on the local today ends that
+    /// day's reminders whichever channel it came from (<see cref="SkipTodayRemindersAsync"/>); any other write of today takes such a skip back.
     /// </summary>
     public Task<DayEditResult> CheckInAsync(Guid userId, int habitId, DateOnly date, bool completed, ulong? guildId = null)
         => WriteCountAsync(userId, habitId, date, guildId, (habit, _) => completed ? habit.TimesPerDay : 0, skip: !completed);
@@ -138,7 +138,8 @@ public partial class HabitService
         var (habit, result) = await FindEditableHabitAsync(userId, habitId, date);
         if (habit is null) return result;
         if (!await _consent.HasHealthDataConsentAsync(userId)) return DayEditResult.ConsentRequired;
-        if (skip && date == TimeZones.LocalToday(habit.User.Timezone, _time.GetUtcNow())) habit.SecondReminderUtc = null;
+        if (skip) SkipToday(habit, date);
+        else UnskipToday(habit, date);
 
         var existing = await _db.HabitLogs
             .FirstOrDefaultAsync(l => l.HabitId == habitId && l.Date == date);
@@ -189,7 +190,41 @@ public partial class HabitService
         if (habit is null) return result;
 
         await _db.HabitLogs.Where(l => l.HabitId == habitId && l.Date == date).ExecuteDeleteAsync();
+        UnskipToday(habit, date);
+        await _db.SaveChangesAsync();
         return DayEditResult.Saved;
+    }
+
+    /// <summary>
+    /// Ends the habit's reminders for the user's local today, as a skip does: drops its pending second reminder and moves its next
+    /// reminder to the first one after today (<see cref="HabitRules.NextReminderAfterDayUtc"/>). For a skip that keeps a day's check-ins.
+    /// </summary>
+    public async Task SkipTodayRemindersAsync(Guid userId, int habitId)
+    {
+        var habit = await _db.Habits
+            .Include(h => h.User)
+            .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
+        if (habit is null) return;
+
+        SkipToday(habit, TimeZones.LocalToday(habit.User.Timezone, _time.GetUtcNow()));
+        await _db.SaveChangesAsync();
+    }
+
+    private void SkipToday(Habit habit, DateOnly date)
+    {
+        if (date != TimeZones.LocalToday(habit.User.Timezone, _time.GetUtcNow())) return;
+        habit.SecondReminderUtc = null;
+        habit.NextReminderUtc = HabitRules.NextReminderAfterDayUtc(habit, TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc, date,
+            _time.GetUtcNow().UtcDateTime);
+    }
+
+    /// <summary>Brings back the rest of today's reminders that a skip of the local today moved past it.</summary>
+    private void UnskipToday(Habit habit, DateOnly date)
+    {
+        if (date != TimeZones.LocalToday(habit.User.Timezone, _time.GetUtcNow())) return;
+        var tz = TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
+        if (habit.NextReminderUtc is { } next && TimeZones.LocalDay(next, tz) > date)
+            habit.NextReminderUtc = HabitRules.NextReminderUtc(habit, tz, _time.GetUtcNow().UtcDateTime);
     }
 
     /// <summary>
