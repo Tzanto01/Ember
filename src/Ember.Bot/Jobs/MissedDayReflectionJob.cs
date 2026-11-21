@@ -19,7 +19,7 @@ namespace Ember.Bot.Jobs;
 ///
 /// Scheduling: a sweep every 15 minutes picks the users whose local time is in the first
 /// quarter hour of <see cref="LocalSendHour"/>, so half- and quarter-hour timezones get it at :00 too;
-/// yesterday and the week start are computed in each user's own timezone.
+/// yesterday and the week start are computed in each user's own timezone. Nothing is sent while the Discord client isn't logged in.
 /// </summary>
 [DisallowConcurrentExecution]
 public class MissedDayReflectionJob : IJob
@@ -50,6 +50,7 @@ public class MissedDayReflectionJob : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
+        if (!_discord.IsLoggedIn) return;
         using var scope = _services.CreateScope();
         var habits = scope.ServiceProvider.GetRequiredService<HabitService>();
         var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();

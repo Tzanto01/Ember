@@ -539,10 +539,24 @@ public class FiresideService
         await _db.FiresideCodes.Where(c => c.ExpiresAtUtc <= now).ExecuteDeleteAsync(cancellationToken);
     }
 
-    /// <summary>Bot only: up to <paramref name="max"/> ids of warmth and of links whose notification is pending.</summary>
-    public async Task<(List<int> WarmthIds, List<int> LinkIds)> GetPendingNoticesAsync(int max, CancellationToken cancellationToken = default)
-        => (await _db.Warmth.Where(w => w.NotifyPending).OrderBy(w => w.Id).Select(w => w.Id).Take(max).ToListAsync(cancellationToken),
-            await _db.FiresideLinks.Where(l => l.JoinNotifyPending).OrderBy(l => l.Id).Select(l => l.Id).Take(max).ToListAsync(cancellationToken));
+    /// <summary>
+    /// Bot only: up to <paramref name="max"/> ids of warmth and of links whose notification is pending. With
+    /// <paramref name="withoutDiscordReceivers"/>, only those whose receiver has no Discord login, so the others wait untouched.
+    /// </summary>
+    public async Task<(List<int> WarmthIds, List<int> LinkIds)> GetPendingNoticesAsync(int max, bool withoutDiscordReceivers = false,
+        CancellationToken cancellationToken = default)
+    {
+        var noDiscord = _db.Users.Where(u => !u.Logins.Any(l => l.LoginProvider == DiscordLogin.Provider)).Select(u => u.Id);
+        var warmth = _db.Warmth.Where(w => w.NotifyPending);
+        var links = _db.FiresideLinks.Where(l => l.JoinNotifyPending);
+        if (withoutDiscordReceivers)
+        {
+            warmth = warmth.Where(w => noDiscord.Contains(w.ToUserId));
+            links = links.Where(l => noDiscord.Contains(l.OwnerId));
+        }
+        return (await warmth.OrderBy(w => w.Id).Select(w => w.Id).Take(max).ToListAsync(cancellationToken),
+            await links.OrderBy(l => l.Id).Select(l => l.Id).Take(max).ToListAsync(cancellationToken));
+    }
 
     /// <summary>
     /// Bot only: claims the pending notification of warmth <paramref name="warmthId"/> (at most once) and returns it while it is still
@@ -576,14 +590,6 @@ public class FiresideService
             .Select(l => new FiresideNotice(l.OwnerId, l.Id, l.Friend.FiresideName ?? "", null))
             .FirstOrDefaultAsync(cancellationToken);
     }
-
-    /// <summary>Bot only: gives back the claim on warmth <paramref name="warmthId"/>'s notification, so a later run delivers it.</summary>
-    public Task ReleaseWarmthNoticeAsync(int warmthId, CancellationToken cancellationToken = default)
-        => _db.Warmth.Where(w => w.Id == warmthId).ExecuteUpdateAsync(s => s.SetProperty(w => w.NotifyPending, true), cancellationToken);
-
-    /// <summary>Bot only: gives back the claim on link <paramref name="linkId"/>'s "joined your fireside" notification, so a later run delivers it.</summary>
-    public Task ReleaseJoinNoticeAsync(int linkId, CancellationToken cancellationToken = default)
-        => _db.FiresideLinks.Where(l => l.Id == linkId).ExecuteUpdateAsync(s => s.SetProperty(l => l.JoinNotifyPending, true), cancellationToken);
 
     /// <summary>
     /// The friends of the source that come along in a merge (ids, the source's oldest links first, at most the target's free places up

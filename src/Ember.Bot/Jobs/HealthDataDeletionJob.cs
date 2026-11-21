@@ -108,8 +108,9 @@ public class HealthDataDeletionJob : IJob
     }
 
     /// <summary>
-    /// Sends the notice; false when the user has a target but nothing reached them (true when there is no target at all), and without sending
-    /// anything while the user has a Discord account and the Discord client isn't logged in, so the next run sends it everywhere.
+    /// Sends the notice; false when the user has a target but nothing reached them (true when there is no target at all). While the Discord
+    /// client isn't logged in it goes by web push only, and a user with Discord as their only target gets nothing yet (false), so the next run
+    /// tries again.
     /// </summary>
     private async Task<bool> RemindAsync(ReminderService reminders, Guid userId, DateTime deletesAtUtc, CancellationToken cancellationToken)
     {
@@ -117,7 +118,8 @@ public class HealthDataDeletionJob : IJob
         var pushIds = _push is null ? [] : user.PushSubscriptions.Where(s => s.Enabled).Select(s => s.Id).ToList();
         var discordId = user.DiscordId();
         if (discordId is null && pushIds.Count == 0) return true;
-        if (discordId is not null && !_discord.IsLoggedIn) return false;
+        if (!_discord.IsLoggedIn) discordId = null;
+        if (discordId is null && pushIds.Count == 0) return false;
 
         var t = BotTexts.For(user.Language);
         var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
