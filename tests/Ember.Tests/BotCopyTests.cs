@@ -1,5 +1,7 @@
+using Ember.Bot;
 using Ember.Bot.Discord.Formatting;
 using Ember.Bot.Modules;
+using Ember.Core.Localization;
 using Ember.Core.Models;
 using FluentAssertions;
 
@@ -27,21 +29,63 @@ public class BotCopyTests
     public void ReminderTime_RefusesWhatIsNoClockTime(string input)
         => ReminderSetupModule.TryParseTime(input, out _).Should().BeFalse();
 
-    [Fact]
-    public void ReminderConfirmation_NamesTheWeekdaysOfAWeekdaysHabit()
+    public static TheoryData<string> BothLanguages => [Languages.English, Languages.German];
+
+    [Theory]
+    [MemberData(nameof(BothLanguages))]
+    public void ReminderConfirmation_NamesTheWeekdaysOfAWeekdaysHabit(string language)
     {
+        var t = BotTexts.For(language);
         var weekdays = new Habit { FrequencyType = FrequencyType.Weekdays, Days = ScheduleDays.Mon | ScheduleDays.Wed };
 
-        ReminderSetupModule.ScheduleText(Ember.Bot.BotTexts.English, weekdays).Should().Be("on Mon, Wed");
-        ReminderSetupModule.ScheduleText(Ember.Bot.BotTexts.English, new Habit()).Should().Be("every day");
-        ReminderSetupModule.ScheduleText(Ember.Bot.BotTexts.English, new Habit { FrequencyType = FrequencyType.Weekly, WeeklyTarget = 3 })
-            .Should().Be("on days you haven't checked in yet, until you've done it 3 times this week,");
+        ReminderSetupModule.ScheduleText(t, weekdays)
+            .Should().Be(Filled(t, "reminder.schedule.weekdays", $"{Text(t, "weekday.mon")}, {Text(t, "weekday.wed")}"));
     }
 
-    [Fact]
-    public void Streak_OfOneDay_IsSingular()
+    [Theory]
+    [MemberData(nameof(BothLanguages))]
+    public void ReminderConfirmation_SaysEveryDayForADailyHabit(string language)
     {
-        HabitText.StreakText(Ember.Bot.BotTexts.English, 1).Should().Be("Streak: **1** day");
-        HabitText.StreakText(Ember.Bot.BotTexts.English, 2).Should().Be("Streak: **2** days");
+        var t = BotTexts.For(language);
+
+        ReminderSetupModule.ScheduleText(t, new Habit()).Should().Be(Text(t, "reminder.schedule.daily"));
+    }
+
+    [Theory]
+    [MemberData(nameof(BothLanguages))]
+    public void ReminderConfirmation_CountsTheWeeklyTargetInItsPluralForm(string language)
+    {
+        var t = BotTexts.For(language);
+
+        ReminderSetupModule.ScheduleText(t, new Habit { FrequencyType = FrequencyType.Weekly, WeeklyTarget = 3 })
+            .Should().Be(Filled(t, "reminder.schedule.weekly.other", 3));
+        ReminderSetupModule.ScheduleText(t, new Habit { FrequencyType = FrequencyType.Weekly, WeeklyTarget = 1 })
+            .Should().Be(Filled(t, "reminder.schedule.weekly.one", 1));
+    }
+
+    [Theory]
+    [MemberData(nameof(BothLanguages))]
+    public void Streak_OfOneDay_IsSingular(string language)
+    {
+        var t = BotTexts.For(language);
+
+        HabitText.StreakText(t, 1).Should().Be(Filled(t, "habit.streak.one", 1));
+        HabitText.StreakText(t, 2).Should().Be(Filled(t, "habit.streak.other", 2));
+    }
+
+    /// <summary>The bot's own text for <paramref name="key"/>; a key missing from the resources or an empty text fails here.</summary>
+    private static string Text(Texts t, string key)
+    {
+        var text = t.Get(key);
+        text.Should().NotBeNullOrWhiteSpace($"'{key}' is shown to {t.Language} users");
+        return text;
+    }
+
+    /// <summary><see cref="Text"/> with <paramref name="arg"/> as its <c>{0}</c>, which the text must keep.</summary>
+    private static string Filled(Texts t, string key, object arg)
+    {
+        var text = Text(t, key);
+        text.Should().Contain("{0}", $"'{key}' shows {arg}");
+        return string.Format(t.Culture, text, arg);
     }
 }
