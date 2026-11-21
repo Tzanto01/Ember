@@ -197,7 +197,7 @@ export function settled(
  * dropped. With `secondMinutes` above 0 each reminder gets a follow-up (`second`) that many minutes later (in the
  * account mode not for items with `serverReminders`), unless it falls on another local day or the habit's next
  * reminder time that day comes first, or (like the server's skip) a habit's first reminder already fired on a day
- * `habit.today` shows as skipped (`notdone`). Nothing fires on a low day (from `habit.today`). A let-go habit gets one
+ * `habit.today` shows as skipped (`completed` false). Nothing fires on a low day (from `habit.today`). A let-go habit gets one
  * quiet check-in (`letGo`) at its first reminder time on each day from its start while not paused, low days included,
  * never a second one. Sorted soonest first, capped at {@link planCap}, with ids from {@link reminderId} (a collision moves to the next free id).
  */
@@ -235,7 +235,7 @@ export function planReminders(
       const date = addDays(today, offset);
       if (low.has(date) || !scheduledOn(habit, date) || doneToday(habit, date) || weekMet(habit, date)) continue;
       const instants = times.map((time) => zonedToUtc(date, time, timeZone));
-      const skipped = habit.today.date === date && habit.today.state === 'notdone';
+      const skipped = habit.today.date === date && habit.today.completed === false;
       times.forEach((time, i) => {
         if (i === 0 || instants[i] !== instants[i - 1])
           plan(habit, { habitId: habit.id, date, time, at: instants[i] }, instants[i + 1], skipped);

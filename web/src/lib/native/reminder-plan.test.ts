@@ -335,7 +335,7 @@ describe('planReminders', () => {
     const skipped = habit({
       reminderTime: null,
       reminderTimes: ['13:00', '20:00'],
-      today: { date: '2026-11-02', state: 'notdone', completed: false, count: 0 },
+      today: { date: '2026-11-02', state: 'pending', completed: false, count: 0 },
     });
     const plan = planReminders([skipped], 'Europe/Berlin', Date.parse('2026-11-02T12:10:00Z'), [], 30);
 
