@@ -122,7 +122,7 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
             }
         }
 
-        await AskStreaksOnceAsync(Context.Interaction, _settings, userId, t);
+        await StreaksQuestion.AskOnceAsync(Context.Interaction, _settings, userId, t);
     }
 
     // ── habitaction:checkin:done:{habitId} ────────────────────────────────────
@@ -446,21 +446,6 @@ public class HabitActionModule : InteractionModuleBase<SocketInteractionContext>
                 m.Content = t.Get(state == "on" ? "habit.streaks-tip.on" : "habit.streaks-tip.off");
                 m.Components = new ComponentBuilder().Build();
             });
-    }
-
-    /// <summary>
-    /// Asks the one-time streaks question as an ephemeral follow-up when <see cref="UserSettingsService.NeedsStreaksQuestionAsync"/>
-    /// says the account needs it; the answer comes back as <c>tip:streaks:{on|off}</c>.
-    /// </summary>
-    internal static async Task AskStreaksOnceAsync(IDiscordInteraction interaction, UserSettingsService settings, Guid userId, Texts t)
-    {
-        if (!await settings.NeedsStreaksQuestionAsync(userId)) return;
-
-        var buttons = new ComponentBuilder()
-            .WithButton(t.Get("habit.streaks-tip.show"), TipIds.Streaks(show: true), ButtonStyle.Primary)
-            .WithButton(t.Get("habit.streaks-tip.not-for-me"), TipIds.Streaks(show: false), ButtonStyle.Secondary)
-            .Build();
-        await interaction.FollowupAsync(t.Get("habit.streaks-tip.question"), components: buttons, ephemeral: true);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

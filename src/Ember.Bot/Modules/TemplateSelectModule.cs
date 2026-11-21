@@ -109,6 +109,6 @@ public class TemplateSelectModule : InteractionModuleBase<SocketInteractionConte
 
         components.WithButton(t.Get("common.days-and-times"), FrequencyIds.Menu(habit.Id), ButtonStyle.Secondary, new Emoji("📅"), row: 1);
         await RespondAsync(embed: embed, components: components.Build(), ephemeral: true);
-        await HabitActionModule.AskStreaksOnceAsync(Context.Interaction, _settings, userId, t);
+        await StreaksQuestion.AskOnceAsync(Context.Interaction, _settings, userId, t);
     }
 }
