@@ -224,7 +224,7 @@ function parse(text: string): ParsedBackup {
     const key = `${habit.id}|${date}`;
     if (seenDays.has(key)) damaged();
     seenDays.add(key);
-    return { habitId: habit.id, date, completed, count };
+    return { habitId: habit.id, date, completed: completed || count >= habit.timesPerDay, count };
   });
 
   const today = localToday(timezone);
