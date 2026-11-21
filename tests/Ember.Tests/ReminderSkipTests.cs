@@ -3,6 +3,7 @@ using Ember.Core.Data;
 using Ember.Core.Models;
 using Ember.Core.Services;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
@@ -55,7 +56,7 @@ public class ReminderSkipTests
     }
 
     [Fact]
-    public async Task Skipping_from_the_reminder_dm_after_a_partial_check_in_silences_the_later_reminder_times()
+    public async Task Skipping_from_the_reminder_dm_after_a_partial_check_in_skips_the_day_and_silences_the_later_reminder_times()
     {
         var time = new FakeTimeProvider(NineBerlin.AddMinutes(-30));
         var (host, habitId) = await SeedAsync(time, 2, new TimeOnly(8, 0), new TimeOnly(20, 0));
@@ -69,6 +70,8 @@ public class ReminderSkipTests
         await ReminderDispatchTests.RunJobAsync(host);
 
         host.Discord.Messages.Should().BeEmpty();
+        var log = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.AsNoTracking().SingleAsync(l => l.HabitId == habitId));
+        (log.Count, log.Completed, log.Skipped).Should().Be((0, false, true));
     }
 
     [Fact]
@@ -140,5 +143,28 @@ public class ReminderSkipTests
         await ReminderDispatchTests.RunJobAsync(host);
 
         host.Discord.Messages.Should().ContainSingle().Which.Text.Should().Contain("Stretch");
+    }
+
+    [Theory]
+    [InlineData(true, 0)]
+    [InlineData(false, 1)]
+    public async Task Changing_the_reminder_times_after_a_skip_today_still_sends_nothing_that_day_but_a_count_of_zero_is_reminded(bool skip, int expected)
+    {
+        var time = new FakeTimeProvider(NineBerlin);
+        var (host, habitId) = await SeedAsync(time, reminderTimes: new TimeOnly(20, 0));
+        await using var _ = host;
+
+        await WithHabitsAsync(host, (habits, userId) => skip
+            ? habits.CheckInAsync(userId, habitId, Today, completed: false)
+            : habits.SetCountAsync(userId, habitId, Today, 0));
+        time.SetUtcNow(NineBerlin.AddHours(1));
+        await WithHabitsAsync(host, (habits, userId) => habits.EditHabitAsync(userId, habitId, null, null, clearReminder: false,
+            newReminderTimes: [new TimeOnly(19, 0)]));
+        time.SetUtcNow(EveningBerlin.AddHours(-1));
+        await ReminderDispatchTests.RunJobAsync(host);
+        time.SetUtcNow(EveningBerlin);
+        await ReminderDispatchTests.RunJobAsync(host);
+
+        host.Discord.Messages.Should().HaveCount(expected);
     }
 }

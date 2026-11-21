@@ -373,12 +373,13 @@ public class ReminderDispatchJob : IJob
         if (delivery != Delivery.Retry) _retries.Forget(SecondRoutineKind, routineId, dueAt);
     }
 
-    /// <summary>The habit's completion, week count and low day on the user's local <paramref name="today"/>, for <see cref="ReminderPolicy"/>.</summary>
+    /// <summary>The habit's completion, week count, low day and skip on the user's local <paramref name="today"/>, for <see cref="ReminderPolicy"/>.</summary>
     private static async Task<ReminderDayFacts> DayFactsAsync(ReminderService reminders, HabitService habits, Habit habit, DateOnly today,
         CancellationToken cancellationToken)
         => new(await reminders.IsCompletedOnAsync(habit.Id, today, cancellationToken),
             await reminders.CountCompletedInWeekAsync(habit.Id, today, cancellationToken),
-            await habits.IsLowDayStoredAsync(habit.User.Id, today));
+            await habits.IsLowDayStoredAsync(habit.User.Id, today),
+            await reminders.IsSkippedOnAsync(habit.Id, today, cancellationToken));
 
     private async Task ClearSecondAsync(Func<ReminderService, Task> clear)
     {

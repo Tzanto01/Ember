@@ -58,11 +58,12 @@ public static class ReminderPolicy
             : null;
 
     /// <summary>
-    /// Whether the habit still wants a reminder today: not completed, not a weekly habit whose week is done
+    /// Whether the habit still wants a reminder today: not completed, not skipped, not a weekly habit whose week is done
     /// (<see cref="HabitRules.IsWeekDone"/>) and today is no low day.
     /// </summary>
     public static bool IsStillOpen(Habit habit, ReminderDayFacts facts)
         => !facts.CompletedToday
+            && !facts.SkippedToday
             && !HabitRules.IsWeekDone(habit, facts.CompletedInWeek)
             && !facts.LowDay;
 }

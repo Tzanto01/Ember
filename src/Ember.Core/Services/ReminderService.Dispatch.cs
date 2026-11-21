@@ -30,6 +30,10 @@ public partial class ReminderService
     public Task<bool> IsCompletedOnAsync(int habitId, DateOnly date, CancellationToken cancellationToken = default)
         => _db.HabitLogs.AnyAsync(l => l.HabitId == habitId && l.Date == date && l.Completed, cancellationToken);
 
+    /// <summary>Whether the habit's log of <paramref name="date"/> was written by a skip (<see cref="HabitLog.Skipped"/>).</summary>
+    public Task<bool> IsSkippedOnAsync(int habitId, DateOnly date, CancellationToken cancellationToken = default)
+        => _db.HabitLogs.AnyAsync(l => l.HabitId == habitId && l.Date == date && l.Skipped, cancellationToken);
+
     /// <summary>Completed logs of the habit dated strictly between <paramref name="after"/> and <paramref name="before"/>.</summary>
     public Task<int> CountCompletedBetweenAsync(int habitId, DateOnly after, DateOnly before, CancellationToken cancellationToken = default)
         => _db.HabitLogs.CountAsync(l => l.HabitId == habitId && l.Date > after && l.Date < before && l.Completed, cancellationToken);
