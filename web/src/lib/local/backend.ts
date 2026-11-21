@@ -377,25 +377,23 @@ function journalDayCheck(data: LocalData, date: string, today: string, todayWith
   if (start === null || date < start) throw new Problem(422, 'before_habit_start');
 }
 
-/** When 0.10.0-beta.4 (the saved Today order) went live; devices with a habit made before it get their old order back. */
+/** When the saved Today order went live; devices with a habit made before it get their earlier order once. */
 export const beta4LiveAt = '2026-11-20T02:24:00Z';
 
 /**
- * The one-time Today order backfill, like the server migration: before 0.10.0-beta.4 Today showed routines with members
- * in routine order, then every habit outside a routine in habit order. Data saved before beta.4 with a habit created
- * before `cutoff` and no own order gets that order saved (`r:<id>` for each routine with members, then `h:<id>`); either
- * way the profile is marked so it never runs again. An existing order is kept; data already marked comes back unchanged.
+ * The one-time Today order backfill, matching the server migration: data without its own order and with a habit made
+ * before {@link beta4LiveAt} gets `r:<id>` for each routine with members in routine order, then `h:<id>` for each habit
+ * outside a routine in habit order. Either way the profile is marked, and marked data comes back unchanged.
  */
-export function restoreTodayOrder(data: LocalData, cutoff: string = beta4LiveAt): LocalData {
+export function restoreTodayOrder(data: LocalData): LocalData {
   if (data.profile.todayOrderRestored) return data;
   const profile = { ...data.profile, todayOrderRestored: true };
-  const before = Date.parse(cutoff);
+  const before = Date.parse(beta4LiveAt);
   if (!profile.todayOrder && data.habits.some((h) => Date.parse(h.createdAt) < before)) {
-    const order = [
+    profile.todayOrder = [
       ...data.routines.filter((r) => data.habits.some((h) => h.routineId === r.id)).map((r) => `r:${r.id}`),
       ...data.habits.filter((h) => h.routineId === null).map((h) => `h:${h.id}`),
-    ].slice(0, limits.todayOrder);
-    profile.todayOrder = order.length > 0 ? order : null;
+    ];
   }
   return { ...data, profile };
 }
@@ -504,7 +502,8 @@ export class LocalBackend {
   private async data(): Promise<LocalData> {
     const data = await this.store.load();
     if (!data) throw new Problem(401, 'unauthenticated');
-    return data.profile.todayOrderRestored ? data : this.store.update((d) => restoreTodayOrder(d));
+    if (data.profile.todayOrderRestored) return data;
+    return this.store.update(restoreTodayOrder).catch(() => restoreTodayOrder(data));
   }
 
   private update(fn: (data: LocalData) => LocalData): Promise<LocalData> {
