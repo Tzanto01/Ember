@@ -22,6 +22,7 @@ public class DayRangeValidationApiTests(PostgresFixture postgres) : ApiTestBase(
             new("day notes", "/api/day-notes", "At most 366 days.", true),
             new("habit notes", "/api/habit-notes", "At most 366 days.", true),
             new("low days", "/api/low-days", null, true),
+            new("slips", $"/api/habits/{LetGoId}/slips", "At most 366 days per request.", false),
         ];
     }
 
