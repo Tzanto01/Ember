@@ -349,6 +349,23 @@ describe('planReminders', () => {
     ]);
   });
 
+  it('plans nothing more today for a partly done day that was skipped, nor its routine, and keeps tomorrow', () => {
+    const routine: Routine = { id: 7, name: 'Evening', reminderTime: '18:00', reminderChannels: ['mobile'], habitIds: [1, 2] };
+    const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 1, skipped: false };
+    const partSkipped = { date: '2026-11-02', state: 'partial' as const, completed: false, count: 1, skipped: true };
+    const water = habit({ id: 3, timesPerDay: 3, reminderTime: null, reminderTimes: ['13:00', '20:00'], today: partSkipped });
+
+    const plan = planReminders(
+      [habit({ id: 1, today: done }), habit({ id: 2, timesPerDay: 3, today: partSkipped }), water],
+      'Europe/Berlin',
+      berlinMorning,
+      [routine],
+    );
+
+    expect(plan.filter((r) => r.date === '2026-11-02')).toEqual([]);
+    expect(plan.filter((r) => r.date === '2026-11-03').map((r) => r.routineId ?? r.habitId)).toEqual([3, 7, 3]);
+  });
+
   it('keeps the reminders of a day whose count went back to 0, which is not a skip', () => {
     const cleared = habit({
       reminderTime: null,
@@ -566,14 +583,26 @@ describe('zonedToUtc', () => {
 });
 
 describe('settled', () => {
-  it('keeps a routine with a member skipped today open, as the server does', () => {
+  it('settles a routine whose other members are done once the open one is skipped today, as the server does', () => {
     const routine: Routine = { id: 7, name: 'Evening', reminderTime: '18:00', reminderChannels: ['mobile'], habitIds: [1, 2] };
     const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 1, skipped: false };
     const skipped = { date: '2026-11-02', state: 'pending' as const, completed: false, count: 0, skipped: true };
     const habits = [habit({ id: 1, today: done }), habit({ id: 2, today: skipped })];
 
-    expect(settled(habits, [routine], { routineId: 7, date: '2026-11-02' })).toBe(false);
+    expect(settled(habits, [routine], { routineId: 7, date: '2026-11-02' })).toBe(true);
     expect(settled(habits, [routine], { habitId: 2, date: '2026-11-02' })).toBe(false);
-    expect(settled([habit({ id: 1, today: done }), habit({ id: 2, today: done })], [routine], { routineId: 7, date: '2026-11-02' })).toBe(true);
+  });
+
+  it('keeps a routine open while a member that is not skipped is still open', () => {
+    const routine: Routine = { id: 7, name: 'Evening', reminderTime: '18:00', reminderChannels: ['mobile'], habitIds: [1, 2] };
+    const open = { date: '2026-11-02', state: 'pending' as const, completed: null, count: 0, skipped: false };
+    const skipped = { date: '2026-11-02', state: 'pending' as const, completed: false, count: 0, skipped: true };
+
+    expect(
+      settled([habit({ id: 1, today: open }), habit({ id: 2, today: skipped })], [routine], {
+        routineId: 7,
+        date: '2026-11-02',
+      }),
+    ).toBe(false);
   });
 });
