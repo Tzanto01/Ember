@@ -216,7 +216,7 @@ internal static class MeEndpoints
         return new MeDto(
             user.Id, user.Email, user.EmailConfirmed, await users.HasPasswordAsync(user),
             new DiscordDto(discordId is not null, discordId),
-            user.Timezone, await settings.HasTimezoneSetAsync(user.Id), TimeZones.LocalToday(user.Timezone, time),
+            user.Timezone, await settings.HasTimezoneSetAsync(user.Id), TimeZones.LocalToday(user.Timezone, time.GetUtcNow()),
             user.GraceDaysPerWeek, user.Theme, user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode,
             new ConsentDto(await consent.HasHealthDataConsentAsync(user.Id), user.ConsentPolicyVersion, ConsentService.CurrentConsentPolicyVersion,
                 user.ConsentWithdrawnAt,

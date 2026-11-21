@@ -161,7 +161,7 @@ public class FiresideService
     private static (DateTime Start, DateTime End) LocalDayUtc(string? timezone, TimeProvider time)
     {
         var tz = TimeZones.Find(timezone ?? "UTC") ?? TimeZoneInfo.Utc;
-        var today = TimeZones.LocalToday(timezone, time);
+        var today = TimeZones.LocalToday(timezone, time.GetUtcNow());
         return (TimeZones.LocalToUtc(today.ToDateTime(TimeOnly.MinValue), tz),
             TimeZones.LocalToUtc(today.AddDays(1).ToDateTime(TimeOnly.MinValue), tz));
     }
@@ -226,7 +226,7 @@ public class FiresideService
             })
             .ToListAsync(cancellationToken);
 
-        var todays = rows.Where(r => r.FlameShared).ToDictionary(r => r.FriendId, r => TimeZones.LocalToday(r.Timezone, _time));
+        var todays = rows.Where(r => r.FlameShared).ToDictionary(r => r.FriendId, r => TimeZones.LocalToday(r.Timezone, _time.GetUtcNow()));
         var ids = todays.Keys.ToList();
         var dates = todays.Values.Distinct().ToList();
         HashSet<Guid> done = ids.Count == 0 ? [] : (await _db.HabitLogs.AsNoTracking()

@@ -21,25 +21,11 @@ public static class TimeZones
     public static readonly DateOnly SwitchoverDate = new(2026, 10, 11);
 
     /// <summary>
-    /// The current time in the user's timezone (IANA or Windows id).
-    /// Unknown or missing ids fall back to UTC.
-    /// </summary>
-    public static DateTimeOffset LocalNow(string? timezoneId, TimeProvider time)
-        => LocalNow(timezoneId, time.GetUtcNow());
-
-    /// <summary>
     /// <paramref name="utcNow"/> in the user's timezone (IANA or Windows id).
     /// Unknown or missing ids fall back to UTC.
     /// </summary>
     public static DateTimeOffset LocalNow(string? timezoneId, DateTimeOffset utcNow)
         => TimeZoneInfo.ConvertTime(utcNow, Find(timezoneId ?? "UTC") ?? TimeZoneInfo.Utc);
-
-    /// <summary>
-    /// The user's current local calendar day. Every "today", streak and weekly
-    /// calculation for a user is based on this, never on the UTC date.
-    /// </summary>
-    public static DateOnly LocalToday(string? timezoneId, TimeProvider time)
-        => LocalToday(timezoneId, time.GetUtcNow());
 
     /// <summary>
     /// The user's local calendar day at <paramref name="utcNow"/>. Every "today", streak and weekly

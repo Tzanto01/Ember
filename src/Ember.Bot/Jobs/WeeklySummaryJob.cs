@@ -58,7 +58,7 @@ public class WeeklySummaryJob : IJob
         var candidates = await habits.GetUserTimezonesWithHabitsAsync(context.CancellationToken);
 
         var dueIds = candidates
-            .Where(u => TimeZones.LocalNow(u.Timezone, _time) is { DayOfWeek: DayOfWeek.Sunday, Hour: LocalSendHour, Minute: < 15 })
+            .Where(u => TimeZones.LocalNow(u.Timezone, _time.GetUtcNow()) is { DayOfWeek: DayOfWeek.Sunday, Hour: LocalSendHour, Minute: < 15 })
             .Select(u => u.UserId)
             .ToList();
 
@@ -78,7 +78,7 @@ public class WeeklySummaryJob : IJob
                     || !await accounts.UserExistsAsync(user.Id, context.CancellationToken))
                     continue;
 
-                var weekEnd = TimeZones.LocalToday(user.Timezone, _time).AddDays(-1);
+                var weekEnd = TimeZones.LocalToday(user.Timezone, _time.GetUtcNow()).AddDays(-1);
                 await SendSummaryAsync(user, discordId, weekEnd);
             }
             catch (Exception ex)

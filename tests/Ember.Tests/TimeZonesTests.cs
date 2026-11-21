@@ -1,6 +1,5 @@
 using Ember.Core.Rules;
 using FluentAssertions;
-using Microsoft.Extensions.Time.Testing;
 
 namespace Ember.Tests;
 
@@ -101,8 +100,8 @@ public class TimeZonesTests
     public void LocalToday_FollowsHalfHourOffsetsAndDaylightSavingEdges(
         string zone, int year, int month, int day, int hour, int minute, int second, int expectedMonth, int expectedDay)
     {
-        var time = new FakeTimeProvider(new DateTimeOffset(year, month, day, hour, minute, second, TimeSpan.Zero));
+        var utcNow = new DateTimeOffset(year, month, day, hour, minute, second, TimeSpan.Zero);
 
-        TimeZones.LocalToday(zone, time).Should().Be(new DateOnly(year, expectedMonth, expectedDay));
+        TimeZones.LocalToday(zone, utcNow).Should().Be(new DateOnly(year, expectedMonth, expectedDay));
     }
 }

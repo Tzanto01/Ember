@@ -242,7 +242,7 @@ public partial class HabitService
         if (habit is null) return null;
 
         var tz = TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc;
-        var today = TimeZones.LocalToday(habit.User.Timezone, _time);
+        var today = TimeZones.LocalToday(habit.User.Timezone, _time.GetUtcNow());
         var lowDays = await GetLowDaysAsync(userId);
 
         var result = new List<HabitDay>();
@@ -282,7 +282,7 @@ public partial class HabitService
 
         if (habit is null) return (null, DayEditResult.HabitNotFound);
         if (habit.Kind == HabitKind.LetGo) return (null, DayEditResult.LetGoHabit);
-        if (date > TimeZones.LocalToday(habit.User.Timezone, _time)) return (null, DayEditResult.InFuture);
+        if (date > TimeZones.LocalToday(habit.User.Timezone, _time.GetUtcNow())) return (null, DayEditResult.InFuture);
         if (date < HabitRules.StartDate(habit, TimeZones.Find(habit.User.Timezone) ?? TimeZoneInfo.Utc)) return (null, DayEditResult.BeforeHabitStart);
         return (habit, DayEditResult.Saved);
     }

@@ -103,7 +103,7 @@ public class UserSettingsService
     public async Task<DateOnly> GetLocalTodayAsync(Guid userId)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        return TimeZones.LocalToday(user?.Timezone, _time);
+        return TimeZones.LocalToday(user?.Timezone, _time.GetUtcNow());
     }
 
     public async Task<bool> HasTimezoneSetAsync(Guid userId)
