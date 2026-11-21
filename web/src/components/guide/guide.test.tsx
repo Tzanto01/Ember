@@ -83,6 +83,7 @@ describe('Guide', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     media.changed.clear();
     applyCalm(false);
     localStorage.clear();
@@ -212,28 +213,30 @@ describe('Guide', () => {
     expect(feedback).toHaveFocus();
   });
 
-  it('stays open but turns into the sheet and gives the page its width back when the screen narrows', async () => {
+  it('turns into the sheet when the screen narrows, keeping the open answer and focus, and gives the page its width back', async () => {
     env.native = true;
     back.handler = null;
     stubWide(true);
     renderAt('/today');
     const main = document.getElementById('main')!;
-    const panelWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(384);
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(384);
     main.getBoundingClientRect = () => ({ right: window.innerWidth - 100 }) as DOMRect;
-    await userEvent.click(guideButton());
+    await openQuestion('What is a low day?');
     expect(main.style.paddingRight).not.toBe('');
     expect(back.handler).toBeNull();
 
     resize(false);
 
-    expect(screen.getByRole('dialog', { name: 'Today, explained' })).toBeInTheDocument();
+    const question = within(screen.getByRole('dialog', { name: 'Today, explained' })).getByRole('button', {
+      name: 'What is a low day?',
+    });
+    expect(question).toHaveAttribute('aria-expanded', 'true');
+    await waitFor(() => expect(question).toHaveFocus());
     expect(main.style.paddingRight).toBe('');
     await waitFor(() => expect(back.handler).not.toBeNull());
-    panelWidth.mockRestore();
   });
 
-  it('keeps the side panel while the screen stays wide', async () => {
-    stubWide(true);
+  it('turns back into the side panel beside the page when the screen widens again', async () => {
     renderAt('/today');
     await userEvent.click(guideButton());
 

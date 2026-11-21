@@ -14,6 +14,10 @@ import { cn } from '@/lib/utils';
 const sideQuery = '(min-width: 64rem)';
 const focusable = 'a[href], button, input, select, textarea, [tabindex]';
 
+function besideHeader(trigger: HTMLElement | null) {
+  return { top: trigger?.closest('header')?.getBoundingClientRect().bottom ?? 0 };
+}
+
 function Answer({ entry, onShow }: { entry: GuideEntry; onShow: (target: string) => void }) {
   const { t } = useTranslation();
   const target = entry.target && findGuideTarget(entry.target) ? entry.target : null;
@@ -32,8 +36,8 @@ function Answer({ entry, onShow }: { entry: GuideEntry; onShow: (target: string)
 /**
  * The header's "How this works" button and the guide it opens for the current screen. Opened below `lg` it is a modal
  * bottom sheet (Android Back closes it); opened from `lg` it is a side panel under the header that leaves the page
- * usable and in the tab order, makes room for itself beside `#main` and follows the user between screens. The mode
- * is set when it opens; a side panel turns into the sheet once the window narrows below `lg`. Renders nothing on a screen without a guide. "Show me" closes the guide, scrolls its target
+ * usable and in the tab order, makes room for itself beside `#main` and follows the user between screens. It switches
+ * mode when the window crosses `lg` while open, keeping the open answer and the focused question. Renders nothing on a screen without a guide. "Show me" closes the guide, scrolls its target
  * to the middle, rings it briefly and focuses it when it can take focus.
  */
 export function Guide() {
@@ -43,9 +47,11 @@ export function Guide() {
   const instant = useReduceMotion();
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<{ top: number } | null>(null);
+  const [answer, setAnswer] = useState({ pathname, id: '' });
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const pending = useRef<string | null>(null);
+  const refocus = useRef<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- closes the panel when the guide goes away
@@ -70,13 +76,18 @@ export function Guide() {
 
   useEffect(() => {
     const query = window.matchMedia?.(sideQuery);
-    if (!open || !side || !query) return;
-    const narrowed = () => {
-      if (!query.matches) setSide(null);
+    if (!open || !query) return;
+    const crossed = () => {
+      const active = document.activeElement;
+      refocus.current =
+        active instanceof HTMLElement && panel.current?.contains(active)
+          ? (active.closest<HTMLElement>('[data-entry]')?.dataset['entry'] ?? null)
+          : null;
+      setSide(query.matches ? besideHeader(trigger.current) : null);
     };
-    query.addEventListener('change', narrowed);
-    return () => query.removeEventListener('change', narrowed);
-  }, [open, side]);
+    query.addEventListener('change', crossed);
+    return () => query.removeEventListener('change', crossed);
+  }, [open]);
 
   useEffect(() => {
     const main = document.getElementById('main');
@@ -101,11 +112,7 @@ export function Guide() {
   function change(next: boolean): void {
     if (next) {
       const wide = window.matchMedia?.(sideQuery).matches ?? false;
-      setSide(
-        wide
-          ? { top: trigger.current?.closest('header')?.getBoundingClientRect().bottom ?? 0 }
-          : null,
-      );
+      setSide(wide ? besideHeader(trigger.current) : null);
     }
     setOpen(next);
   }
@@ -115,8 +122,10 @@ export function Guide() {
     setOpen(false);
   }
 
+  /** Moves focus once the guide closes; after a mode switch the guide is still open and keeps its focus. */
   function closed(event: Event): void {
     event.preventDefault();
+    if (panel.current) return;
     const target = pending.current ? findGuideTarget(pending.current) : null;
     pending.current = null;
     if (target?.matches(focusable)) target.focus({ preventScroll: true });
@@ -132,6 +141,14 @@ export function Guide() {
   const content = (
     <Dialog.Content
       ref={panel}
+      onOpenAutoFocus={(event) => {
+        const entry = refocus.current;
+        refocus.current = null;
+        const question = entry ? panel.current?.querySelector<HTMLElement>(`[data-entry="${entry}"]`) : null;
+        if (!question) return;
+        event.preventDefault();
+        question.focus();
+      }}
       onCloseAutoFocus={closed}
       onInteractOutside={side ? (event) => event.preventDefault() : undefined}
       onEscapeKeyDown={(event) => {
@@ -162,15 +179,16 @@ export function Guide() {
       </div>
       <Dialog.Description className="text-muted-foreground">{t(guide.ledeKey)}</Dialog.Description>
       <Accordion.Root
-        key={pathname}
         type="single"
         collapsible
+        value={answer.pathname === pathname ? answer.id : ''}
+        onValueChange={(id) => setAnswer({ pathname, id })}
         className="flex flex-col divide-y divide-border border-y border-border"
       >
         {guide.entries.map((entry) => (
           <Accordion.Item key={entry.id} value={entry.id}>
             <Accordion.Header>
-              <Accordion.Trigger className="group flex min-h-[48px] w-full cursor-pointer items-center justify-between gap-3 py-3 text-left font-semibold">
+              <Accordion.Trigger data-entry={entry.id} className="group flex min-h-[48px] w-full cursor-pointer items-center justify-between gap-3 py-3 text-left font-semibold">
                 {t(entry.questionKey)}
                 <ChevronDown
                   aria-hidden
