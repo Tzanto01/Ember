@@ -657,6 +657,47 @@ public class WebPushReminderTests
     }
 
     [Fact]
+    public async Task A_routine_reminder_whose_members_are_all_skipped_is_cleared_with_nothing_left_instead_of_logged()
+    {
+        var (host, push, _) = await CreateAsync(new Seed(20, [Endpoint("a")], Discord: false));
+        await using var hostScope = host;
+        var routineId = await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var routine = new Routine
+            {
+                UserId = TestUsers.Id(20), Name = "Morning", ReminderTime = new TimeOnly(9, 0), NextReminderUtc = Now.UtcDateTime,
+                ReminderExclusions = [ReminderDestinations.Discord],
+            };
+            db.Routines.Add(routine);
+            await db.SaveChangesAsync();
+            var member = await db.Habits.SingleAsync(h => h.Id == 20);
+            (member.RoutineId, member.ReminderTime, member.NextReminderUtc) = (routine.Id, null, null);
+            await db.SaveChangesAsync();
+            return routine.Id;
+        });
+        await RunJobAsync(host);
+        push.Requests.Should().ContainSingle();
+
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            db.HabitLogs.Add(new HabitLog { HabitId = 20, Date = Today, Count = 0, Completed = false, Skipped = true });
+            await db.SaveChangesAsync();
+        });
+        await RunJobAsync(host);
+
+        var requests = push.Requests.Should().HaveCount(2).And.Subject.ToList();
+        var tag = WebPushSender.RoutineTag(routineId);
+        WebPushSender.ClearPayload(tag, logged: false).Length.Should().NotBe(WebPushSender.ClearPayload(tag).Length);
+        (requests[1].BodyLength - requests[0].BodyLength).Should()
+            .Be(WebPushSender.ClearPayload(tag, logged: false).Length - WebPushSender.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
+        JsonNode.Parse(WebPushSender.ClearPayload(tag, logged: false))!["notification"]!["body"]!.GetValue<string>()
+            .Should().Be("Nothing left for today.");
+        (await PushRemindersAsync(host)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task A_routine_reminder_delivered_by_web_push_is_cleared_once_when_every_member_is_logged()
     {
         var (host, push, _) = await CreateAsync(new Seed(20, [Endpoint("a")], Discord: false));

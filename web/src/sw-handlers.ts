@@ -41,8 +41,8 @@ interface PushPayload {
  * `{"notification":{"title","body","actions"?,"tag"?,"data":{"onActionClick":{"default":{"operation","url"}},"doneToken"?}}}`,
  * passes `data` through for the click, shows the well-formed `actions` and, with a `tag`, replaces the notification
  * under that tag and alerts again (`renotify`). Always shows one, with the title "Ember" when the payload is missing or
- * malformed. A v1.14 clear payload `{"clear":{"tag"}}` shows a silent "Logged" notification under that tag, then
- * closes every notification with it, so the reminder goes away and nothing stays.
+ * malformed. A v1.14 clear payload `{"clear":{"tag"}}` shows a silent notification under that tag (the payload's body,
+ * "Logged" when it has none), then closes every notification with it, so the reminder goes away and nothing stays.
  */
 export async function handlePush(
   data: { json(): unknown } | null,
@@ -57,7 +57,9 @@ export async function handlePush(
   }
   const clearTag = typeof payload?.clear === 'object' ? payload.clear?.tag : undefined;
   if (typeof clearTag === 'string' && clearTag) {
-    await registration.showNotification(fallbackTitle, { tag: clearTag, body: (await workerTexts()).logged, silent: true });
+    const clearBody = typeof payload?.notification === 'object' ? payload.notification?.body : undefined;
+    const body = typeof clearBody === 'string' && clearBody ? clearBody : (await workerTexts()).logged;
+    await registration.showNotification(fallbackTitle, { tag: clearTag, body, silent: true });
     for (const shown of await registration.getNotifications({ tag: clearTag })) shown.close();
     return;
   }

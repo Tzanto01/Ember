@@ -180,12 +180,12 @@ The inline `[PRÜFEN]` markers are gone. Each open point is a question below. Fi
 35. **Supervisory authority (privacy section 9).** Check the address and the website of the Landesbeauftragte für Datenschutz und Informationsfreiheit Nordrhein-Westfalen (www.ldi.nrw.de) before publishing.
 36. **Consumer dispute resolution (Impressum).** The Impressum says the operator is not willing or obliged to take part in a consumer arbitration procedure. Confirm that sentence, or delete it.
 37. **Operator status.** Resolved (Nico, 2026-11-13): the Impressum keeps the Kleinunternehmer line (§ 19 UStG), and "privat und nicht kommerziell" is gone from Terms section 1 and privacy section 1 (and "privately" from the privacy summary).
-38. **Stand date on publish.** The Stand dates in the privacy policy and the Terms are 14 November 2026. Set both to the real publish date when the moments and streaks changes go live.
+38. **Stand date on publish.** The privacy policy's Stand date is now 21 November 2026 and the Terms' is 20 November 2026. Set both to the real publish date when the moments and streaks changes go live.
 39. **Tech reports (diagnostics, API v1.26).** The Android app's "Send a tech report" sends launch events, exit reasons and code locations, but never the account, content or exception messages. The user sees a preview first and sends it by tapping Send (Art. 6(1)(a)). It is always unlinked to the account. Reports wait in `LookoutDiagnostics` for at most 30 days, and Lookout deletes them 30 days after receipt. An install number and the IP address are used only in memory, as rate-limit keys, for one day. Before release:
-    - (a) Nico approves the new privacy section 3.14 and the rows in sections 2, 5, 6.6, 7, 3.9 and 9, plus the summary.
+    - (a) Resolved: Nico approved the text of the new privacy section 3.14 and the rows in sections 2, 5, 6.6, 7, 3.9 and 9, plus the summary, on 2026-11-21, and it is applied.
     - (b) Resolved (Hosting, 2026-11-21): both emberdb dump paths, the nightly backup and the pre-deploy dump, leave out the rows of `LookoutDiagnostics` and keep its schema. No other backup path exists: no WAL archive, no replicas, no volume snapshots.
     - (c) Our side logs no client IPs for `POST /api/diagnostics`: the Worker has no logs or Logpush, cloudflared logs only errors with Cloudflare's edge IP, and the API logs no request lines and never logs the body. Still to check: how long Cloudflare itself keeps client IPs as the CDN (questions 6 and 8).
-    - (d) Early deletion works only by sending the report's code in Discord. Decide whether that is enough.
+    - (d) Decided 2026-11-21: the policy offers contact@nicowoellnitz.de next to Discord for early deletion, and the app text stays Discord only.
 
 ## What changed on 2026-11-13
 

@@ -251,11 +251,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
         }
 
         var from = today.AddDays(-29);
-
-        var completed = habit.Logs
-            .Where(l => l.Completed && l.Date >= from)
-            .Select(l => l.Date)
-            .ToHashSet();
+        var kept = HabitRules.KeptDays(habit, today, 30, habit.FrequencyType == FrequencyType.Weekly ? null : lowDays, tz);
 
         var rows = new List<string>();
         for (int row = 0; row < 3; row++)
@@ -264,7 +260,7 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
             for (int col = 0; col < 10; col++)
             {
                 var d = from.AddDays(row * 10 + col);
-                dots.Append(completed.Contains(d) ? "🟩"
+                dots.Append(kept.Contains(d) ? "🟩"
                     : !HabitRules.IsScheduledOn(habit, d) ? "▫️"
                     : HabitRules.IsOpen(d, today) ? "⬜"
                     : "⬛");
@@ -309,8 +305,8 @@ public class HabitSelectModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     /// <summary>
-    /// The public share card. Its "last 30 days" counts the user's <paramref name="lowDays"/> as kept, like <c>/habit streak</c>, while its
-    /// grid shows them like any gap. A let-go habit's card shows days free, longest stretch and free days this month in <paramref name="tz"/>,
+    /// The public share card. Its "last 30 days" counts the user's <paramref name="lowDays"/> as kept, like <c>/habit streak</c>, and its
+    /// grid shows them exactly like a kept day, so no viewer can tell them apart. A let-go habit's card shows days free, longest stretch and free days this month in <paramref name="tz"/>,
     /// never a streak.
     /// </summary>
     internal static Embed BuildShareEmbed(Texts t, Habit habit, int grace, string username, DateOnly today, IReadOnlySet<DateOnly> lowDays,

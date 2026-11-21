@@ -204,6 +204,7 @@ public class ReminderDispatchJob : IJob
                     User? user = null;
                     List<string> exclusions = [];
                     var tag = "";
+                    var logged = true;
                     if (reminder.HabitId is { } habitId)
                     {
                         if (await reminders.GetHabitWithUserAsync(habitId, cancellationToken) is { } habit)
@@ -213,10 +214,11 @@ public class ReminderDispatchJob : IJob
                     {
                         if (!await IsRoutineDoneAsync(scope.ServiceProvider, routine, reminder.Date)) continue;
                         (user, exclusions, tag) = (routine.User, routine.ReminderExclusions, WebPushSender.RoutineTag(routine.Id));
+                        logged = AnyMemberDone(routine, reminder.Date);
                     }
                     if (user is not null && _push is not null
                         && ReminderDestinations.Resolve(user, exclusions).PushSubscriptionIds is { Count: > 0 } ids)
-                        await _push.SendClearAsync(user.Id, ids, tag, user.Language, cancellationToken);
+                        await _push.SendClearAsync(user.Id, ids, tag, logged, user.Language, cancellationToken);
                 }
                 await reminders.DeletePushReminderAsync(reminder.Id, CancellationToken.None);
             }
@@ -232,8 +234,8 @@ public class ReminderDispatchJob : IJob
     }
 
     /// <summary>
-    /// Closes each open Discord reminder message whose habits are done for its day (<see cref="ReminderDm.LoggedLine"/>)
-    /// or whose buttons expired (<see cref="ReminderDm.ClosedLine"/>), and forgets it, also when Discord can't edit it. Nothing while the
+    /// Closes each open Discord reminder message whose habits are done for its day (<see cref="ReminderDm.LoggedLine"/>, or
+    /// <see cref="ReminderDm.NothingLeftLine"/> for a routine with nothing left though no member is done) or whose buttons expired (<see cref="ReminderDm.ClosedLine"/>), and forgets it, also when Discord can't edit it. Nothing while the
     /// Discord client isn't logged in.
     /// </summary>
     private async Task CloseReminderMessagesAsync(CancellationToken cancellationToken)
@@ -252,14 +254,18 @@ public class ReminderDispatchJob : IJob
             {
                 using var scope = _services.CreateScope();
                 var reminders = scope.ServiceProvider.GetRequiredService<ReminderService>();
+                var routine = message.HabitId is null && message.RoutineId is { } routineId
+                    ? await reminders.GetRoutineWithUserAsync(routineId, cancellationToken)
+                    : null;
                 var done = message.HabitId is not null ? habitDone
-                    : message.RoutineId is { } routineId && await reminders.GetRoutineWithUserAsync(routineId, cancellationToken) is { } routine
-                    && await IsRoutineDoneAsync(scope.ServiceProvider, routine, message.Date);
+                    : routine is not null && await IsRoutineDoneAsync(scope.ServiceProvider, routine, message.Date);
                 if (!done && !expired) continue;
 
-                await _discord.CloseMessageAsync(message.ChannelId, message.MessageId,
-                    done ? ReminderDm.LoggedLine(BotTexts.For(language)) : ReminderDm.ClosedLine(BotTexts.For(language)),
-                    cancellationToken);
+                var t = BotTexts.For(language);
+                var line = !done ? ReminderDm.ClosedLine(t)
+                    : routine is null || AnyMemberDone(routine, message.Date) ? ReminderDm.LoggedLine(t)
+                    : ReminderDm.NothingLeftLine(t);
+                await _discord.CloseMessageAsync(message.ChannelId, message.MessageId, line, cancellationToken);
                 await reminders.DeleteReminderMessageAsync(message.Id, CancellationToken.None);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -284,6 +290,10 @@ public class ReminderDispatchJob : IJob
         return HabitRules.IsRoutineDone(routine.Habits, date, TimeZones.LocalToday(user.Timezone, _time.GetUtcNow()),
             TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc, lowDays);
     }
+
+    /// <summary>Whether a build member of the routine (loaded with its recent logs) is done on <paramref name="date"/>.</summary>
+    private static bool AnyMemberDone(Routine routine, DateOnly date)
+        => routine.Habits.Any(h => h.Kind == Core.Models.HabitKind.Build && h.Logs.Any(l => l.Date == date && l.Completed));
 
     /// <summary>
     /// Sends the habit's due second reminder when <see cref="ReminderPolicy.ShouldSendSecondReminder"/> says so; then drops it either way.

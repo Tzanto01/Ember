@@ -58,12 +58,19 @@ public static class HabitRules
     }
 
     /// <summary>
-    /// Returns how many of the last <paramref name="days"/> days were kept, using a rolling window ending on the
-    /// user's local <paramref name="today"/>. A day is kept when it was completed (offdays included) or is one of the user's
-    /// <paramref name="lowDays"/> (null counts completed days only); low days only count from the habit's local start day
-    /// (<see cref="StartDate"/> in <paramref name="tz"/>), outside its paused range and on scheduled days (<see cref="IsScheduledOn"/>).
+    /// Returns how many of the last <paramref name="days"/> days were kept (<see cref="KeptDays"/>), using a rolling window ending on the
+    /// user's local <paramref name="today"/>.
     /// </summary>
     public static int FlexibleStreak(Habit habit, DateOnly today, int days, IReadOnlySet<DateOnly>? lowDays, TimeZoneInfo tz)
+        => KeptDays(habit, today, days, lowDays, tz).Count;
+
+    /// <summary>
+    /// The kept days among the last <paramref name="days"/> days, a rolling window ending on the user's local <paramref name="today"/>.
+    /// A day is kept when it was completed (offdays included) or is one of the user's <paramref name="lowDays"/> (null keeps completed
+    /// days only); low days only count from the habit's local start day (<see cref="StartDate"/> in <paramref name="tz"/>), outside its
+    /// paused range and on scheduled days (<see cref="IsScheduledOn"/>).
+    /// </summary>
+    public static HashSet<DateOnly> KeptDays(Habit habit, DateOnly today, int days, IReadOnlySet<DateOnly>? lowDays, TimeZoneInfo tz)
     {
         var cutoff = today.AddDays(-(days - 1));
         var kept = habit.Logs.Where(l => l.Completed && l.Date >= cutoff).Select(l => l.Date).ToHashSet();
@@ -73,7 +80,7 @@ public static class HabitRules
             var from = start > cutoff ? start : cutoff;
             kept.UnionWith(lowDays.Where(d => d >= from && d <= today && !IsPausedOn(habit, d) && IsScheduledOn(habit, d)));
         }
-        return kept.Count;
+        return kept;
     }
 
     /// <summary>

@@ -18,6 +18,9 @@
   <data name="reminder.logged-line" xml:space="preserve">
     <value>-# ✅ Eingetragen.</value>
   </data>
+  <data name="reminder.nothing-left-line" xml:space="preserve">
+    <value>-# Für heute ist nichts mehr offen.</value>
+  </data>
   <data name="reminder.closed-line" xml:space="preserve">
     <value>-# Diese Erinnerung ist abgelaufen.</value>
   </data>
@@ -83,6 +86,9 @@ Tipp bei allem, was du geschafft hast, auf Erledigt. Kein Druck 💙</value>
   </data>
   <data name="push.logged" xml:space="preserve">
     <value>Eingetragen. Gut gemacht. ✅</value>
+  </data>
+  <data name="push.nothing-left" xml:space="preserve">
+    <value>Für heute ist nichts mehr offen.</value>
   </data>
   <data name="weekly.title" xml:space="preserve">
     <value>🗓️ Deine Woche mit deinen Habits</value>

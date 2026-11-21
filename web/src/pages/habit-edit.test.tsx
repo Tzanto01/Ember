@@ -260,6 +260,6 @@ describe('HabitEditPage', () => {
     expect(screen.getByLabelText('Times a day')).toHaveValue('2');
 
     await userEvent.selectOptions(screen.getByLabelText('Times a day'), '1');
-    expect(screen.getByText('Past days stay as they are.')).toBeInTheDocument();
+    expect(screen.getByText('Past days with more check-ins are trimmed to the new number.')).toBeInTheDocument();
   });
 });

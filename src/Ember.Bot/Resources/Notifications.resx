@@ -18,6 +18,9 @@
   <data name="reminder.logged-line" xml:space="preserve">
     <value>-# ✅ Logged.</value>
   </data>
+  <data name="reminder.nothing-left-line" xml:space="preserve">
+    <value>-# Nothing left for today.</value>
+  </data>
   <data name="reminder.closed-line" xml:space="preserve">
     <value>-# This reminder has closed.</value>
   </data>
@@ -83,6 +86,9 @@ Tap Done for each one you've done. No pressure 💙</value>
   </data>
   <data name="push.logged" xml:space="preserve">
     <value>Logged. Nice work. ✅</value>
+  </data>
+  <data name="push.nothing-left" xml:space="preserve">
+    <value>Nothing left for today.</value>
   </data>
   <data name="weekly.title" xml:space="preserve">
     <value>🗓️ Your weekly habit summary</value>
