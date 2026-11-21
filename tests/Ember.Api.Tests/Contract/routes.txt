@@ -27,6 +27,7 @@ POST /api/auth/resetPassword | anonymous | auth | route[] query[] | body[{email:
 GET /api/day-notes | signed-in | - | route[] query[from?:string, to?:string] | body[-]
 DELETE /api/day-notes/{p1} | signed-in | - | route[p1:string] query[] | body[-]
 PUT /api/day-notes/{p1} | signed-in | - | route[p1:string] query[] | body[{encrypted?: {ct?: string, iv?: string, v?: integer}, mood?: string, text?: string}]
+POST /api/diagnostics | anonymous | - | route[] query[] | body[{device?: string, exits?: [{at?: string, exception?: [string], frames?: [string], reason?: string, signal?: string}], installation?: string, launches?: [{at?: string, event?: string}], os?: string, platform?: string, version?: string}]
 POST /api/feedback | anonymous | - | route[] query[] | body[{anonymous?: boolean, images?: [string], platform?: string, text?: string, title?: string, version?: string}]
 GET /api/fireside/ | signed-in | - | route[] query[] | body[-]
 PUT /api/fireside/ | signed-in | - | route[] query[] | body[{consentVersion?: string, enabled?: boolean, name?: string, notify?: boolean}]

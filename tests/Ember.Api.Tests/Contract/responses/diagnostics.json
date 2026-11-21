@@ -1,0 +1,212 @@
+{
+  "post.clock": {
+    "method": "POST",
+    "route": "/api/diagnostics",
+    "request": {
+      "device": "string",
+      "exits": [
+        {
+          "at": "datetime",
+          "exception": [
+            "string"
+          ],
+          "frames": [
+            "string"
+          ],
+          "reason": "enum(ANR,CRASH,CRASH_NATIVE)",
+          "signal": "enum(SIGSEGV)|null"
+        }
+      ],
+      "installation": "string",
+      "launches": [
+        {
+          "at": "datetime",
+          "event": "string"
+        }
+      ],
+      "os": "string",
+      "platform": "enum(android)",
+      "version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "clock": [
+          "Every at within 7 days before and 1 hour after the server's time."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.cookie-without-token": {
+    "method": "POST",
+    "route": "/api/diagnostics",
+    "request": {
+      "device": "string",
+      "exits": [
+        {
+          "at": "datetime",
+          "exception": [
+            "string"
+          ],
+          "frames": [
+            "string"
+          ],
+          "reason": "enum(ANR,CRASH,CRASH_NATIVE)",
+          "signal": "enum(SIGSEGV)|null"
+        }
+      ],
+      "installation": "string",
+      "launches": [
+        {
+          "at": "datetime",
+          "event": "string"
+        }
+      ],
+      "os": "string",
+      "platform": "enum(android)",
+      "version": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "ref": "string"
+    }
+  },
+  "post.invalid": {
+    "method": "POST",
+    "route": "/api/diagnostics",
+    "request": {
+      "device": "string",
+      "exits": [
+        {
+          "at": "datetime",
+          "exception": [
+            "string"
+          ],
+          "frames": [
+            "string"
+          ],
+          "reason": "enum(ANR,BROKEN,CRASH_NATIVE)",
+          "signal": "enum(SIGSEGV)|null"
+        }
+      ],
+      "installation": "string",
+      "launches": [
+        {
+          "at": "datetime",
+          "event": "string"
+        }
+      ],
+      "os": "string",
+      "platform": "enum(android)",
+      "version": "string"
+    },
+    "status": 400,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "errors": {
+        "exits[0].reason": [
+          "Not a known exit reason."
+        ],
+        "installation": [
+          "16 to 64 letters, digits, _ or -."
+        ]
+      },
+      "status": 400,
+      "title": "One or more validation errors occurred.",
+      "type": "validation"
+    }
+  },
+  "post.not-json": {
+    "method": "POST",
+    "route": "/api/diagnostics",
+    "request": "application/x-www-form-urlencoded",
+    "status": 404,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 404,
+      "title": "Not Found",
+      "type": "not_found"
+    }
+  },
+  "post.ok": {
+    "method": "POST",
+    "route": "/api/diagnostics",
+    "request": {
+      "device": "string",
+      "exits": [
+        {
+          "at": "datetime",
+          "exception": [
+            "string"
+          ],
+          "frames": [
+            "string"
+          ],
+          "reason": "enum(ANR,CRASH,CRASH_NATIVE)",
+          "signal": "enum(SIGSEGV)|null"
+        }
+      ],
+      "installation": "string",
+      "launches": [
+        {
+          "at": "datetime",
+          "event": "string"
+        }
+      ],
+      "os": "string",
+      "platform": "enum(android)",
+      "version": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "ref": "string"
+    }
+  },
+  "post.signed-in.ok": {
+    "method": "POST",
+    "route": "/api/diagnostics",
+    "request": {
+      "device": "string",
+      "exits": [
+        {
+          "at": "datetime",
+          "exception": [
+            "string"
+          ],
+          "frames": [
+            "string"
+          ],
+          "reason": "enum(ANR,CRASH,CRASH_NATIVE)",
+          "signal": "enum(SIGSEGV)|null"
+        }
+      ],
+      "installation": "string",
+      "launches": [
+        {
+          "at": "datetime",
+          "event": "string"
+        }
+      ],
+      "os": "string",
+      "platform": "enum(android)",
+      "version": "string"
+    },
+    "status": 201,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "ref": "string"
+    }
+  }
+}

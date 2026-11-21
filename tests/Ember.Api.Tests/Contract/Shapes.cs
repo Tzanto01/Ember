@@ -19,7 +19,8 @@ internal static partial class Shapes
         "key", "code", "sharedKey", "authenticatorUri", "accessToken", "refreshToken", "recoveryCodes", "recoveryCode",
         "twoFactorCode", "twoFactorRecoveryCode", "token", "verifier", "challenge", "signupKey", "userId", "installId", "endpoint",
         "iv", "ct", "salt", "wrapped", "encrypted", "emoji", "policyVersion", "currentPolicyVersion", "consentVersion",
-        "timezone", "version", "confirm", "newPassword", "oldPassword", "resetCode", "p256dh", "auth", "refresh", "id",
+        "timezone", "version", "confirm", "newPassword", "oldPassword", "resetCode", "p256dh", "auth", "refresh", "id", "ref",
+        "installation",
     ];
 
     [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9_.:-]{0,23}$")]
