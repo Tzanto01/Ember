@@ -766,7 +766,7 @@
   "routine.habits.addButton": "Add",
   "routine.habits.empty": "Once you have habits, you can group them here.",
   "today.checkIn": "Check in {{name}} for today",
-  "today.checkInCount": "Check in {{name}} for today, {{n}} of {{target}}",
+  "today.checkInCount": "Check in {{name}} for today, {{n}}/{{target}} done",
   "today.weekDone": "<num>{{done}}</num> of {{target}} this week",
   "today.streak_one": "<num>{{count}}</num>-day streak",
   "today.streak_other": "<num>{{count}}</num>-day streak",

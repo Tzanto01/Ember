@@ -26,7 +26,7 @@ export interface CheckButtonProps {
 /**
  * Today's 56 px check-in toggle (`aria-pressed`, "Check in {habit} for today"). Unpressed: open `--pending` edge,
  * no tick. Pressed: `--done` fill with a check. Busy: `aria-disabled`, and a spinner once no reward is playing.
- * Multi-count: the name adds "(2/3)", the face shows "2/3" with a `--done` edge once started.
+ * Multi-count: the face shows "2/3", with a `--done` edge once started, and the name ends in the same "2/3 done".
  */
 export function CheckButton({
   id,
@@ -44,6 +44,7 @@ export function CheckButton({
     if (event.target === event.currentTarget) onRewardEnd();
   };
   const multi = target > 1;
+  const shown = Math.min(count, target);
   const started = multi && !pressed && count > 0;
   return (
     <button
@@ -53,7 +54,7 @@ export function CheckButton({
       aria-pressed={pressed}
       aria-label={
         multi
-          ? t('today.checkInCount', { name: habitName, n: Math.min(count, target), target })
+          ? t('today.checkInCount', { name: habitName, n: shown, target })
           : t('today.checkIn', { name: habitName })
       }
       aria-disabled={busy || undefined}
@@ -76,7 +77,7 @@ export function CheckButton({
           {pressed && <Check aria-hidden className="size-[26px]" strokeWidth={2.5} />}
           {multi && !pressed && (
             <span aria-hidden="true" className={cn('text-[16px] font-semibold tabular-nums', !started && 'text-muted-foreground')}>
-              {count}/{target}
+              {shown}/{target}
             </span>
           )}
         </>

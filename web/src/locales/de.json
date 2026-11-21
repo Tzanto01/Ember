@@ -766,7 +766,7 @@
   "routine.habits.addButton": "Hinzufügen",
   "routine.habits.empty": "Sobald du Habits hast, kannst du sie hier gruppieren.",
   "today.checkIn": "{{name}} für heute abhaken",
-  "today.checkInCount": "{{name}} für heute abhaken, {{n}} von {{target}}",
+  "today.checkInCount": "{{name}} für heute abhaken, {{n}}/{{target}} erledigt",
   "today.weekDone": "<num>{{done}}</num> von {{target}} diese Woche",
   "today.streak_one": "<num>{{count}}</num>-Tag-Streak",
   "today.streak_other": "<num>{{count}}</num>-Tage-Streak",
