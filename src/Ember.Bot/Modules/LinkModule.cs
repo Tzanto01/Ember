@@ -1,4 +1,5 @@
 using Discord.Interactions;
+using Ember.Bot.Discord.Formatting;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -11,8 +12,6 @@ namespace Ember.Bot.Modules;
 /// </summary>
 public class LinkModule : InteractionModuleBase<SocketInteractionContext>
 {
-    internal const string WebOriginKey = "Ember:WebOrigin";
-
     private readonly HabitService _habits;
     private readonly IConfiguration _config;
 
@@ -23,8 +22,8 @@ public class LinkModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     internal static string ReplyText(Texts t, IConfiguration config)
-        => config[WebOriginKey] is { Length: > 0 } origin
-            ? t.Format("link.reply", origin.TrimEnd('/'))
+        => WebLinks.Origin(config) is { } origin
+            ? t.Format("link.reply", origin)
             : t.Get("link.not-available");
 
     [SlashCommand("link", "Use Ember in your browser, or link Discord to an email account")]

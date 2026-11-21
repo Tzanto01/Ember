@@ -1,6 +1,5 @@
 using Discord;
 using Ember.Bot.Discord.Formatting;
-using Ember.Bot.Modules;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -102,8 +101,8 @@ public class WeeklySummaryJob : IJob
         var t = BotTexts.For(user.Language);
         var (headline, footer) = WeeklySummary.ToneLines(summary.TotalDone, summary.TotalPossible, t);
 
-        if (_config[LinkModule.WebOriginKey] is { Length: > 0 } origin)
-            headline += "\n\n" + t.Format("weekly.link", $"{origin.TrimEnd('/')}/today");
+        if (WebLinks.Origin(_config) is { } origin)
+            headline += "\n\n" + t.Format("weekly.link", $"{origin}/today");
 
         if (summary.LetGo.Count > 0)
             headline += "\n\n" + string.Join("\n", summary.LetGo.Select(l => "🌿 " + WeeklySummary.LetGoLine(l.Habit.Name, l.DaysFree, t)));

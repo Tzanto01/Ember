@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.Json;
-using Ember.Bot.Modules;
+using Ember.Bot.Discord.Formatting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -46,7 +46,7 @@ public sealed class NoticePoller : BackgroundService
     /// <summary>The URL to poll, or <c>null</c> when neither key is configured.</summary>
     internal static string? NoticesUrl(IConfiguration config)
         => config[NoticesUrlKey] is { Length: > 0 } url ? url
-            : config[LinkModule.WebOriginKey] is { Length: > 0 } origin ? origin.TrimEnd('/') + "/notices.json"
+            : WebLinks.Origin(config) is { } origin ? origin + "/notices.json"
             : null;
 
     /// <summary>The first notice whose optional window contains <paramref name="now"/> (from inclusive, until exclusive).</summary>

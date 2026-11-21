@@ -1,6 +1,7 @@
 using System.Text;
 using Discord;
 using Discord.Interactions;
+using Ember.Bot.Discord.Formatting;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -87,7 +88,7 @@ public class ExportModule : InteractionModuleBase<SocketInteractionContext>
 
     /// <summary>Where the full export (with day notes, moods and account details) lives: the web app's settings.</summary>
     internal static string FullExportLine(Texts t, IConfiguration config)
-        => config[LinkModule.WebOriginKey] is { Length: > 0 } origin
-            ? t.Format("export.full.link", origin.TrimEnd('/'))
+        => WebLinks.Origin(config) is { } origin
+            ? t.Format("export.full.link", origin)
             : t.Get("export.full.app");
 }

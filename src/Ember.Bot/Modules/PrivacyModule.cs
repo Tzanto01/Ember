@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Formatting;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -185,8 +186,8 @@ public class PrivacyModule : InteractionModuleBase<SocketInteractionContext>
 
     /// <summary>Where a protected account is deleted: the web app's settings, linked when the web origin is configured.</summary>
     internal static string WebAppDeleteText(Texts t, IConfiguration config)
-        => config[LinkModule.WebOriginKey] is { Length: > 0 } origin
-            ? t.Format("privacy.delete.web.link", origin.TrimEnd('/'))
+        => WebLinks.Origin(config) is { } origin
+            ? t.Format("privacy.delete.web.link", origin)
             : t.Get("privacy.delete.web.app");
 
     private static bool IsOwner(string ownerIdStr, ulong clickerId)
