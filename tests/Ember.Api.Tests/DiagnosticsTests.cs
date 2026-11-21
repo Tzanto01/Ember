@@ -59,7 +59,7 @@ public class DiagnosticsBodyTests
 
         var body = DiagnosticsBody.Serialize(DiagnosticsFixtures.GoldenRef, DiagnosticsFixtures.GoldenCreatedAt.UtcDateTime, request);
 
-        DiagnosticsValidation.Errors(request).Should().BeEmpty();
+        DiagnosticsValidation.Errors(request, DiagnosticsFixtures.GoldenCreatedAt.UtcDateTime).Should().BeEmpty();
         Encoding.UTF8.GetString(body).Should().Be(DiagnosticsFixtures.Read(bodyFile));
     }
 
@@ -202,23 +202,24 @@ public class DiagnosticsApiTests(PostgresFixture postgres) : ApiTestBase(postgre
     }
 
     [DockerFact]
-    public async Task Entries_older_than_seven_days_or_more_than_an_hour_ahead_are_dropped_and_the_edges_kept()
+    public async Task Entries_older_than_seven_days_or_more_than_an_hour_ahead_are_refused_as_clock_and_the_edges_stored_as_sent()
     {
         AtGoldenTime();
+        await ExpectRefused(r => r["launches"]![0]!["at"] = "2026-11-20T19:46:00Z", "clock", "19:46");
+        await ExpectRefused(r => r["exits"]![2]!["at"] = "2026-11-13T18:46:00Z", "clock", "11-13");
+
         var request = DiagnosticsFixtures.Request();
         request["launches"] = new JsonArray(
-            new JsonObject { ["at"] = "2026-11-20T19:46:00Z", ["event"] = "page_loaded ms=1" },
-            new JsonObject { ["at"] = "2026-11-20T19:45:00Z", ["event"] = "page_loaded ms=2" },
-            new JsonObject { ["at"] = "2026-11-13T18:47:00Z", ["event"] = "page_loaded ms=3" },
-            new JsonObject { ["at"] = "2026-11-13T18:46:00Z", ["event"] = "page_loaded ms=4" });
-        request["exits"]![2]!["at"] = "2026-11-13T18:46:00Z";
+            new JsonObject { ["at"] = "2026-11-20T19:45:00Z", ["event"] = "page_loaded ms=1" },
+            new JsonObject { ["at"] = "2026-11-13T18:47:00Z", ["event"] = "page_loaded ms=2" });
+        request["exits"]![2]!["at"] = "2026-11-13T18:47:00Z";
 
         await (await DiagnosticsFixtures.Upload(Anonymous(), request)).Expect(HttpStatusCode.Created);
 
         var body = JsonElement.Parse((await Rows()).Single().Body);
-        body.GetProperty("launches").EnumerateArray().Select(l => l.GetProperty("event").GetString())
-            .Should().Equal("page_loaded ms=2", "page_loaded ms=3");
-        body.GetProperty("exits").EnumerateArray().Select(e => e.GetProperty("reason").GetString()).Should().Equal("CRASH", "ANR");
+        body.GetProperty("launches").EnumerateArray().Select(l => l.GetProperty("at").GetString())
+            .Should().Equal("2026-11-20T19:45:00Z", "2026-11-13T18:47:00Z");
+        body.GetProperty("exits").EnumerateArray().Select(e => e.GetProperty("at").GetString()).Last().Should().Be("2026-11-13T18:47:00Z");
     }
 
     [DockerFact]

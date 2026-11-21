@@ -113,6 +113,21 @@ describe('DiagnosticsSheet', () => {
     expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
   });
 
+  it('asks to set the clock to automatic when Ember cannot place the times', async () => {
+    const user = userEvent.setup();
+    const fetch = open();
+
+    await user.click(await screen.findByRole('button', { name: 'Send' }));
+    (await fetch.next('POST', '/api/diagnostics')).respond(400, {
+      type: 'validation',
+      errors: { clock: ['Every at within 7 days before and 1 hour after the server\'s time.'] },
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Your phone's clock looks off, so Ember can't place these times. Set the date and time to automatic, then open the report again.",
+    );
+  });
+
   it('still offers to send a report with no app starts and no exits', async () => {
     collect.mockResolvedValue({ ...device, launches: [], exits: [] });
     open();

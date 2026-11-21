@@ -91,6 +91,18 @@ describe('sendDiagnostics', () => {
     await expect(sent).rejects.toEqual(new DiagnosticsError(kind as DiagnosticsError['kind']));
   });
 
+  it.each([
+    [{ clock: ['Every at within 7 days before and 1 hour after the server\'s time.'] }, 'clock'],
+    [{ 'exits[0].frames': ['At most 40 Java or native stack frames.'] }, 'refused'],
+  ])('turns a 400 with errors %j into a %s failure', async (errors, kind) => {
+    const fetch = mockFetch();
+
+    const sent = sendDiagnostics(device);
+    (await fetch.next('POST', '/api/diagnostics')).respond(400, { type: 'validation', errors });
+
+    await expect(sent).rejects.toEqual(new DiagnosticsError(kind as DiagnosticsError['kind']));
+  });
+
   it('turns a network failure into an unreachable failure', async () => {
     const fetch = mockFetch();
 

@@ -24,8 +24,9 @@ internal static class DiagnosticsEndpoints
 
     /// <summary>
     /// <c>POST /api/diagnostics</c>: anonymous for everyone, signed in or not; never reads the user, a cookie or the Authorization
-    /// header, so no upload is ever tied to an account. Validates (<see cref="DiagnosticsValidation.Errors"/>), drops unsent uploads
-    /// older than <see cref="MaxUnsentAge"/>, answers 503 <c>busy</c> at <see cref="MaxQueued"/> queued, then rate-limits
+    /// header, so no upload is ever tied to an account. Validates against the server's now (<see cref="DiagnosticsValidation.Errors"/>;
+    /// an <c>at</c> outside the window is 400 <c>clock</c>, never dropped), drops unsent uploads older than <see cref="MaxUnsentAge"/>,
+    /// answers 503 <c>busy</c> at <see cref="MaxQueued"/> queued, then rate-limits
     /// (<see cref="RateLimits.DiagnosticsKeys"/>), stores the <see cref="DiagnosticsBody"/> under a fresh ref and key (413
     /// <c>too_large</c> over <see cref="DiagnosticsBody.MaxBytes"/>) and answers 201 <c>{ ref }</c>. Logs nothing of the upload.
     /// </summary>
@@ -34,9 +35,9 @@ internal static class DiagnosticsEndpoints
         api.MapPost("/diagnostics", async (DiagnosticsRequest request, HttpContext http, PartitionedRateLimiter<string> limiter,
             EmberDbContext db, TimeProvider time) =>
         {
-            if (DiagnosticsValidation.Errors(request) is { Count: > 0 } errors) return Problems.Validation(errors);
-
             var now = time.GetUtcNow().UtcDateTime;
+            if (DiagnosticsValidation.Errors(request, now) is { Count: > 0 } errors) return Problems.Validation(errors);
+
             await DeleteExpiredAsync(db, now, http.RequestAborted);
             if (await db.LookoutDiagnostics.CountAsync(http.RequestAborted) >= MaxQueued) return Problems.Busy();
 

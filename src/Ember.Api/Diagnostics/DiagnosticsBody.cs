@@ -15,12 +15,6 @@ internal static class DiagnosticsBody
     /// <summary>Largest body Ember stores, under Lookout's 64 KB limit for this route.</summary>
     public const int MaxBytes = 64_000;
 
-    /// <summary>The oldest entry kept: newer than <c>createdAt</c> minus this, plus one minute.</summary>
-    public static readonly TimeSpan MaxAge = TimeSpan.FromDays(7);
-
-    /// <summary>The newest entry kept: at most this after <c>createdAt</c> (device clock skew).</summary>
-    public static readonly TimeSpan MaxAhead = TimeSpan.FromHours(1);
-
     private const string RefPrefix = "EMB-";
     private const string Crockford = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
@@ -39,21 +33,14 @@ internal static class DiagnosticsBody
     }
 
     /// <summary>
-    /// The body of a valid <paramref name="request"/> (see <see cref="DiagnosticsValidation.Errors"/>) received at
-    /// <paramref name="createdAt"/>, keeping only the launches and exits from <c>createdAt - 7 days + 1 minute</c> to
-    /// <c>createdAt + 1 hour</c>.
+    /// The body of a <paramref name="request"/> found valid at <paramref name="createdAt"/> (see
+    /// <see cref="DiagnosticsValidation.Errors"/>), with every launch and exit as sent, so it is exactly the preview the user saw.
     /// </summary>
     public static byte[] Serialize(string reference, DateTime createdAt, DiagnosticsRequest request)
-    {
-        var oldest = createdAt - MaxAge + TimeSpan.FromMinutes(1);
-        var newest = createdAt + MaxAhead;
-        bool Kept(string? at) => DiagnosticsValidation.TryParseAt(at, out var time) && time >= oldest && time <= newest;
-
-        return JsonSerializer.SerializeToUtf8Bytes(new DiagnosticsInput(reference, request.Platform!, request.Version, request.Os,
+        => JsonSerializer.SerializeToUtf8Bytes(new DiagnosticsInput(reference, request.Platform!, request.Version, request.Os,
             request.Device, LookoutIngest.Utc(createdAt), null,
-            [.. request.Launches!.Where(l => Kept(l!.At)).Select(l => new Launch(l!.At!, l.Event!))],
-            [.. request.Exits!.Where(e => Kept(e!.At)).Select(e => new Exit(e!.At!, e.Reason!, e.Signal, e.Exception!, e.Frames!))]), Json);
-    }
+            [.. request.Launches!.Select(l => new Launch(l!.At!, l.Event!))],
+            [.. request.Exits!.Select(e => new Exit(e!.At!, e.Reason!, e.Signal, e.Exception!, e.Frames!))]), Json);
 
     private sealed record DiagnosticsInput(string Ref, string Platform, string? Version, string? Os, string? Device, string CreatedAt,
         string? UserRef, IReadOnlyList<Launch> Launches, IReadOnlyList<Exit> Exits);

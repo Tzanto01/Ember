@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { env } from '../env';
 import { requestTimeoutMs } from '../http';
+import { toApiError } from '../problem';
 
 /** One app start or lifecycle event, newest first; `event` uses Ember's fixed launch vocabulary. */
 export interface DiagnosticsLaunch {
@@ -40,8 +41,11 @@ export interface DiagnosticsBody {
   exits: DiagnosticsExit[];
 }
 
-/** Why sending a report failed: 429, 400 or 413, 503, no connection, anything else. */
-export type DiagnosticsFailure = 'rateLimited' | 'refused' | 'busy' | 'unreachable' | 'failed';
+/**
+ * Why sending a report failed: 429, a 400 `clock` (a time outside the server's window, so the phone's clock is off),
+ * any other 400 or 413, 503, no connection, anything else.
+ */
+export type DiagnosticsFailure = 'rateLimited' | 'clock' | 'refused' | 'busy' | 'unreachable' | 'failed';
 
 /** A failed {@link sendDiagnostics}, with its {@link DiagnosticsFailure} kind. */
 export class DiagnosticsError extends Error {
@@ -102,8 +106,9 @@ export function diagnosticsBody(
   };
 }
 
-function failureOf(status: number): DiagnosticsFailure {
+function failureOf(status: number, body: unknown): DiagnosticsFailure {
   if (status === 429) return 'rateLimited';
+  if (status === 400 && toApiError(status, body).problem?.errors?.['clock']) return 'clock';
   if (status === 400 || status === 413) return 'refused';
   if (status === 503) return 'busy';
   return 'failed';
@@ -135,9 +140,9 @@ export async function sendDiagnostics(device: DeviceDiagnostics): Promise<string
   } catch {
     throw new DiagnosticsError('unreachable');
   }
-  if (response.status !== 201) throw new DiagnosticsError(failureOf(response.status));
-  const answer = (await response.json().catch(() => null)) as { ref?: unknown } | null;
-  if (typeof answer?.ref !== 'string' || !refPattern.test(answer.ref))
-    throw new DiagnosticsError('failed');
-  return answer.ref;
+  const answer: unknown = await response.json().catch(() => null);
+  if (response.status !== 201) throw new DiagnosticsError(failureOf(response.status, answer));
+  const { ref } = (answer ?? {}) as { ref?: unknown };
+  if (typeof ref !== 'string' || !refPattern.test(ref)) throw new DiagnosticsError('failed');
+  return ref;
 }

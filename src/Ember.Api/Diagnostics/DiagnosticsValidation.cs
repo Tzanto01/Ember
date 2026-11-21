@@ -25,6 +25,12 @@ internal static partial class DiagnosticsValidation
     public const int MaxExceptions = 10;
     public const int MaxFrames = 40;
 
+    /// <summary>The oldest <c>at</c> accepted: no older than the server's now minus this, plus one minute.</summary>
+    public static readonly TimeSpan MaxAge = TimeSpan.FromDays(7);
+
+    /// <summary>The newest <c>at</c> accepted: at most this after the server's now (device clock skew).</summary>
+    public static readonly TimeSpan MaxAhead = TimeSpan.FromHours(1);
+
     private const string AtFormat = "yyyy-MM-dd'T'HH:mm':00Z'";
 
     private static readonly HashSet<string> Reasons =
@@ -76,8 +82,12 @@ internal static partial class DiagnosticsValidation
     [GeneratedRegex(@"\A#[0-9]+ pc [0-9a-f]+ [A-Za-z0-9_./-]+( \([A-Za-z0-9_:~<>,. -]+\))?\z")]
     private static partial Regex NativeFramePattern();
 
-    /// <summary>The field-named errors of <paramref name="request"/>, empty when it is valid.</summary>
-    public static Dictionary<string, string[]> Errors(DiagnosticsRequest request)
+    /// <summary>
+    /// The field-named errors of <paramref name="request"/> received at <paramref name="now"/>, empty when it is valid. A launch or
+    /// exit whose <c>at</c> is before <c>now - 7 days + 1 minute</c> or after <c>now + 1 hour</c> is a <c>clock</c> error: the
+    /// device clock is off, and dropping the entry would store something other than the preview the user saw.
+    /// </summary>
+    public static Dictionary<string, string[]> Errors(DiagnosticsRequest request, DateTime now)
     {
         var errors = new Dictionary<string, string[]>();
         if (request.Installation is not { } installation || !InstallationPattern().IsMatch(installation))
@@ -130,6 +140,8 @@ internal static partial class DiagnosticsValidation
             if (!NewestFirst(exits.Select(e => e?.At))) errors["exits"] = ["Newest first."];
         }
 
+        var times = (request.Launches ?? []).Select(l => l?.At).Concat((request.Exits ?? []).Select(e => e?.At));
+        if (!WithinWindow(times, now)) errors["clock"] = ["Every at within 7 days before and 1 hour after the server's time."];
         return errors;
     }
 
@@ -139,6 +151,13 @@ internal static partial class DiagnosticsValidation
         time = default;
         return at is { Length: 20 }
             && DateTime.TryParseExact(at, AtFormat, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out time);
+    }
+
+    private static bool WithinWindow(IEnumerable<string?> times, DateTime now)
+    {
+        var oldest = now - MaxAge + TimeSpan.FromMinutes(1);
+        var newest = now + MaxAhead;
+        return times.All(at => !TryParseAt(at, out var time) || (time >= oldest && time <= newest));
     }
 
     private static bool NewestFirst(IEnumerable<string?> times)
