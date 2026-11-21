@@ -72,8 +72,8 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
     /// <summary>
     /// Logs the habit for the user's local day at <paramref name="timestampStr"/> (the reminder's send time, unix seconds),
     /// or for local today when the timestamp is malformed. Done adds one check-in (capped at the habit's times per day).
-    /// A "not done" never overwrites a day already logged as done (<c>KeptDone</c>), and on local today drops the habit's pending
-    /// second reminder. Returns the edit result and the day it applied to.
+    /// A "not done" never overwrites a day already logged as done or partly done (<c>KeptDone</c>), and on local today drops the habit's
+    /// pending second reminder (<see cref="HabitService.CheckInAsync"/> does when it logs the skip). Returns the edit result and the day it applied to.
     /// </summary>
     internal static async Task<(DayEditResult Result, DateOnly Day, bool KeptDone)> LogReminderDayAsync(
         HabitService habits, UserSettingsService settings, ReminderService reminders, Guid userId, int habitId, string timestampStr, bool completed,
@@ -84,10 +84,9 @@ public class CheckInButtonModule : InteractionModuleBase<SocketInteractionContex
         if (completed) return (await habits.AddCheckInAsync(userId, habitId, day, guildId), day, false);
 
         var keptDone = (await habits.GetHabitAsync(userId, habitId))?.Logs.Any(l => l.Date == day && (l.Completed || l.Count > 0)) == true;
-        var result = keptDone ? DayEditResult.Saved : await habits.CheckInAsync(userId, habitId, day, completed: false, guildId);
-        if (result == DayEditResult.Saved && day == await settings.GetLocalTodayAsync(userId))
-            await reminders.ClearSecondReminderAsync(habitId);
-        return (result, day, keptDone);
+        if (!keptDone) return (await habits.CheckInAsync(userId, habitId, day, completed: false, guildId), day, false);
+        if (day == await settings.GetLocalTodayAsync(userId)) await reminders.ClearSecondReminderAsync(habitId);
+        return (DayEditResult.Saved, day, true);
     }
 
     private async Task LogAsync(string habitIdStr, string timestampStr, bool completed, string todayKey, string earlierKey)

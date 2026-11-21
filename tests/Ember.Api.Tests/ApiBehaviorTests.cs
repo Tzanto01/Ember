@@ -136,6 +136,19 @@ public class ApiBehaviorTests(PostgresFixture postgres) : ApiTestBase(postgres)
     }
 
     [DockerFact]
+    public async Task Skipping_today_on_the_web_drops_the_habits_pending_second_reminder()
+    {
+        var user = await Host.SignedInAsync();
+        var id = (await user.CreateHabitAsync()).GetProperty("id").GetInt32();
+        var second = Host.Time.GetUtcNow().UtcDateTime.AddMinutes(15);
+        await Host.Db(db => db.Habits.Where(h => h.Id == id).ExecuteUpdateAsync(s => s.SetProperty(h => h.SecondReminderUtc, second)));
+
+        await (await user.Put($"/api/habits/{id}/days/{Host.Today.Iso()}", new { completed = false })).ExpectJson();
+
+        (await Host.Db(db => db.Habits.Where(h => h.Id == id).Select(h => h.SecondReminderUtc).SingleAsync())).Should().BeNull();
+    }
+
+    [DockerFact]
     public async Task Weekly_stats_report_both_habit_kinds_with_a_plain_text_headline()
     {
         var user = await Host.SignedInAsync();

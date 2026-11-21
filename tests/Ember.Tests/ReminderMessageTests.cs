@@ -234,6 +234,29 @@ public class ReminderMessageTests
     }
 
     [Fact]
+    public async Task A_skip_for_today_from_any_channel_drops_the_pending_second_reminder_and_a_skip_for_yesterday_does_not()
+    {
+        var time = new FakeTimeProvider(Now);
+        await using var host = await CreateHostAsync(time, 15, DueHabit(1), DueHabit(2), DueHabit(3));
+        await RunJobAsync(host);
+        host.Discord.Messages.Should().HaveCount(3);
+
+        await host.WithScopeAsync(async sp =>
+        {
+            var habits = sp.GetRequiredService<HabitService>();
+            await habits.CheckInAsync(TestUsers.Id(DiscordUser), 1, Today, completed: false);
+            await habits.CheckInAsync(TestUsers.Id(DiscordUser), 2, Today.AddDays(-1), completed: false);
+        });
+        time.Advance(TimeSpan.FromMinutes(15));
+        await RunJobAsync(host);
+
+        (await SecondReminderAsync(host, 1)).Should().BeNull();
+        host.Discord.Messages.Skip(3).Select(m => m.Text).Should().BeEquivalentTo(
+            "🔔 One more nudge for **Habit 2**, in case the first one got buried. Did you get to it today?",
+            "🔔 One more nudge for **Habit 3**, in case the first one got buried. Did you get to it today?");
+    }
+
+    [Fact]
     public async Task No_second_reminder_once_a_weekly_habits_target_is_met_meanwhile()
     {
         var weekly = DueHabit(1);

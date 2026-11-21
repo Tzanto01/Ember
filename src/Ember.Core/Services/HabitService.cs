@@ -90,10 +90,11 @@ public partial class HabitService
     /// on the user's local <paramref name="date"/>, replacing any earlier log of that day.
     /// Any day from the habit's local start day (<see cref="HabitRules.StartDate"/>) to the user's local today can be logged,
     /// so past days can be backfilled or corrected; future days are refused. Needs the health-data consent, like every check-in write
-    /// (<see cref="DayEditResult.ConsentRequired"/>); <see cref="ClearDayAsync"/> doesn't.
+    /// (<see cref="DayEditResult.ConsentRequired"/>); <see cref="ClearDayAsync"/> doesn't. A skip (not done) on the local today also drops
+    /// the habit's pending second reminder, whichever channel it came from.
     /// </summary>
     public Task<DayEditResult> CheckInAsync(Guid userId, int habitId, DateOnly date, bool completed, ulong? guildId = null)
-        => WriteCountAsync(userId, habitId, date, guildId, (habit, _) => completed ? habit.TimesPerDay : 0);
+        => WriteCountAsync(userId, habitId, date, guildId, (habit, _) => completed ? habit.TimesPerDay : 0, skip: !completed);
 
     /// <summary>
     /// Sets the day's check-in count to the absolute <paramref name="count"/> (0 to <see cref="Habit.TimesPerDay"/>),
@@ -109,11 +110,13 @@ public partial class HabitService
     public Task<DayEditResult> AddCheckInAsync(Guid userId, int habitId, DateOnly date, ulong? guildId = null)
         => WriteCountAsync(userId, habitId, date, guildId, (habit, current) => Math.Min(current + 1, habit.TimesPerDay));
 
-    private async Task<DayEditResult> WriteCountAsync(Guid userId, int habitId, DateOnly date, ulong? guildId, Func<Habit, int, int> nextCount)
+    private async Task<DayEditResult> WriteCountAsync(Guid userId, int habitId, DateOnly date, ulong? guildId, Func<Habit, int, int> nextCount,
+        bool skip = false)
     {
         var (habit, result) = await FindEditableHabitAsync(userId, habitId, date);
         if (habit is null) return result;
         if (!await _consent.HasHealthDataConsentAsync(userId)) return DayEditResult.ConsentRequired;
+        if (skip && date == TimeZones.LocalToday(habit.User.Timezone, _time.GetUtcNow())) habit.SecondReminderUtc = null;
 
         var existing = await _db.HabitLogs
             .FirstOrDefaultAsync(l => l.HabitId == habitId && l.Date == date);
