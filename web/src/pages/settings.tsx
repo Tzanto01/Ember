@@ -34,7 +34,7 @@ import {
   SettingsStatusProvider,
   useSettingsStatusState,
 } from '@/components/settings/settings-status';
-import { settingsGroupOf, settingsGroups } from '@/components/settings/settings-groups';
+import { settingsGroupOf, settingsGroups, summaryKeyOf } from '@/components/settings/settings-groups';
 import { StreaksCard } from '@/components/settings/streaks-card';
 import { TimezoneCard } from '@/components/settings/timezone-card';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
@@ -187,6 +187,10 @@ export default function SettingsPage() {
   const groups = settingsGroups
     .map((group) => ({ ...group, cards: sections.filter((section) => group.cards.includes(section.id)) }))
     .filter((group) => group.cards.length > 0);
+  const summaryOf = (group: (typeof groups)[number]) => {
+    const key = summaryKeyOf(group, group.cards.map((card) => card.id));
+    return key ? t(key) : group.cards.map((card) => card.title).join(' · ');
+  };
   const visibleGroup = (slug?: string) => groups.find((group) => group.slug === slug);
   const query = new URLSearchParams(location.search);
   const discordPending = !!discordNotice && query.has('discord');
@@ -255,7 +259,7 @@ export default function SettingsPage() {
                       {t(group.nameKey)}
                     </span>
                     <span id={`group-${group.slug}-summary`} className="text-[0.875rem] text-muted-foreground">
-                      {group.summaryKey ? t(group.summaryKey) : group.cards.map((card) => card.title).join(' · ')}
+                      {summaryOf(group)}
                     </span>
                   </span>
                   <ChevronRight aria-hidden className="size-[18px] shrink-0 text-muted-foreground" />

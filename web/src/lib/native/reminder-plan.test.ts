@@ -331,6 +331,22 @@ describe('planReminders', () => {
     expect(plan[1]).toMatchObject({ date: '2026-11-03' });
   });
 
+  it('drops the second reminder of a first one that already fired once today is skipped, and keeps later ones', () => {
+    const skipped = habit({
+      reminderTime: null,
+      reminderTimes: ['13:00', '20:00'],
+      today: { date: '2026-11-02', state: 'pending', completed: false, count: 0 },
+    });
+    const plan = planReminders([skipped], 'Europe/Berlin', Date.parse('2026-11-02T12:10:00Z'), [], 30);
+
+    expect(
+      plan.filter((r) => r.date === '2026-11-02').map((r) => [new Date(r.at).toISOString(), r.second ?? false]),
+    ).toEqual([
+      ['2026-11-02T19:00:00.000Z', false],
+      ['2026-11-02T19:30:00.000Z', true],
+    ]);
+  });
+
   it('keeps ids unique and the soonest 400 with second reminders on', () => {
     const habits = Array.from({ length: 20 }, (_, i) =>
       habit({ id: i + 1, reminderTime: `${12 + Math.floor(i / 2)}:${i % 2 ? '30' : '00'}` }),

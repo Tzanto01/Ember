@@ -245,6 +245,22 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(card.getByRole('button', { name: 'Look at the report' })).toBeInTheDocument();
   });
 
+  it('names the tech report after the crisis lines in the Help right now summary in the Android app', async () => {
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android');
+    env.native = true;
+    await openSettings('/settings');
+
+    expect(screen.getByRole('link', { name: 'Help right now' })).toHaveAccessibleDescription(
+      'Crisis lines, any time of day · Tech report',
+    );
+  });
+
+  it('keeps the Help right now summary to the crisis lines on the web', async () => {
+    await openSettings('/settings');
+
+    expect(screen.getByRole('link', { name: 'Help right now' })).toHaveAccessibleDescription('Crisis lines, any time of day');
+  });
+
   it('leaves Send a tech report out on the web', async () => {
     vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android');
     await openSettings('/settings/help');

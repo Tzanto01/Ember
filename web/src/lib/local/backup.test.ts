@@ -156,6 +156,7 @@ describe('BackupService', () => {
     ['an unknown routine', (doc) => ((doc['habits'] as Record<string, unknown>[])[0]['routine_id'] = 5), "can't be read"],
     ['an unknown own mood', (doc) => ((doc['day_notes'] as Record<string, unknown>[])[0]['mood'] = 'custom:42'), "can't be read"],
     ['a count above 10', (doc) => ((doc['logs'] as Record<string, unknown>[])[0]['count'] = 11), "can't be read"],
+    ['a count above the habit’s times a day', (doc) => ((doc['logs'] as Record<string, unknown>[])[1]['count'] = 4), "can't be read"],
     ['a bad date', (doc) => ((doc['logs'] as Record<string, unknown>[])[0]['date'] = '2026-02-30'), "can't be read"],
     ['a bad time', (doc) => ((doc['habits'] as Record<string, unknown>[])[0]['reminder_time'] = '25:00'), "can't be read"],
     ['a bad time in a list', (doc) => ((doc['habits'] as Record<string, unknown>[])[1]['reminder_times'] = ['08:00', '25:00']), "can't be read"],
@@ -171,6 +172,15 @@ describe('BackupService', () => {
     const result = backup.parseBackup(fileText(doc));
 
     expect('error' in result && result.error).toContain(message);
+  });
+
+  it('reads a log whose count reaches its habit’s times a day as done, like the account import', () => {
+    const doc = exportDocument(sample());
+    (doc['logs'] as Record<string, unknown>[])[1]['count'] = 3;
+
+    const result = parsed(backup.parseBackup(fileText(doc)));
+
+    expect(result.data.logs[1]).toEqual({ habitId: 2, date: '2026-10-02', completed: true, count: 3 });
   });
 
   it('reads reminder times sorted from reminder_times, and a file without them as its one reminder_time', () => {
