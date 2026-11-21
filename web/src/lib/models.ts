@@ -120,6 +120,11 @@ export interface DayEntry {
   completed: boolean | null;
   /** Check-ins that day, 0 to `timesPerDay`. */
   count: number;
+  /**
+   * v1.27: the day was written by a skip (`{completed:false}`); any check-in, count or clear resets it. Missing from
+   * older servers and caches, where it means not skipped.
+   */
+  skipped: boolean;
 }
 
 export interface HabitStats {

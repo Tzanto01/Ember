@@ -126,8 +126,15 @@ describe('habitDays day states', () => {
   ];
 
   it.each(cases)('%s', (_name, over, logs, lowDays, agoN, state, completed, count) => {
-    expect(dayOf(habit(over), logs, ago(agoN), { lowDays })).toEqual({ date: ago(agoN), state, completed, count });
+    expect(dayOf(habit(over), logs, ago(agoN), { lowDays })).toEqual({ date: ago(agoN), state, completed, count, skipped: false });
   });
+
+  it('marks a skipped day as skipped and still open today, unlike a day counted back to 0', () => {
+    const skip: LocalLog[] = [{ habitId: 1, date: TODAY, completed: false, count: 0, skipped: true }];
+    expect(dayOf(habit(), skip, TODAY)).toEqual({ date: TODAY, state: 'pending', completed: false, count: 0, skipped: true });
+    expect(dayOf(habit(), missed(0), TODAY).skipped).toBe(false);
+  });
+
 
   it('lists the range oldest first and inclusive', () => {
     const days = habitDays(data([habit()], done(2)), 1, ago(3), ago(1), TODAY);

@@ -27,6 +27,7 @@ const entry = (date: string, state: DayEntry['state']): DayEntry => ({
   state,
   completed: state === 'done' ? true : null,
   count: state === 'done' ? 1 : 0,
+  skipped: false,
 });
 
 const noMoods: OwnMood[] = [];

@@ -97,7 +97,7 @@ describe('LocalBackend through ApiClient', () => {
     await api.setDay(1, '2026-10-31', true);
     const habit = await api.setDay(1, today, true);
 
-    expect(habit.today).toEqual({ date: today, state: 'done', completed: true, count: 1 });
+    expect(habit.today).toEqual({ date: today, state: 'done', completed: true, count: 1, skipped: false });
     expect(habit.stats.streak).toBe(2);
     expect((await api.getHabit(1)).today.state).toBe('done');
     expect((await api.getDays(1, '2026-10-31', today)).map((d) => d.state)).toEqual([

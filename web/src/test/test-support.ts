@@ -137,7 +137,7 @@ export const habit: Habit = {
   pausedToday: false,
   createdAt: '2026-01-01T00:00:00Z',
   startDate: '2026-01-01',
-  today: { date: '2026-11-01', state: 'pending', completed: null, count: 0 },
+  today: { date: '2026-11-01', state: 'pending', completed: null, count: 0, skipped: false },
   stats: { streak: 0, graceUsed: 0, bestStreak: 0, last7: 0, week: null },
 };
 

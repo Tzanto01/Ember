@@ -95,7 +95,13 @@ function dayOn(
     : !isScheduledOn(habit, date) ? 'offday'
     : isOpen(date, today) ? 'pending'
     : 'notdone';
-  return { date, state, completed: partial ? null : (log?.completed ?? null), count: log?.count ?? 0 };
+  return {
+    date,
+    state,
+    completed: partial ? null : (log?.completed ?? null),
+    count: log?.count ?? 0,
+    skipped: log?.skipped === true,
+  };
 }
 
 /** Oldest first, inclusive. Days before start are `beforestart`. */

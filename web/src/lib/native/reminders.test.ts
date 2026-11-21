@@ -287,7 +287,7 @@ describe('Reminders', () => {
     };
     const removed = () =>
       removeDelivered.mock.calls.flatMap(([{ notifications }]) => notifications.map(({ id }) => id));
-    const doneToday = { date: '2026-11-01', state: 'done', completed: true, count: 1 } as const;
+    const doneToday = { date: '2026-11-01', state: 'done', completed: true, count: 1, skipped: false } as const;
 
     it("removes a done habit's and a finished routine's reminder for that day, even when the plan is unchanged", async () => {
       const morning: Habit = { ...reminded, reminderTime: '08:30' };
@@ -296,7 +296,7 @@ describe('Reminders', () => {
         id: 2,
         name: 'Read',
         timesPerDay: 3,
-        today: { date: '2026-11-01', state: 'partial', completed: null, count: 1 },
+        today: { date: '2026-11-01', state: 'partial', completed: null, count: 1, skipped: false },
       };
       const stretch: Habit = { ...reminded, id: 3, name: 'Stretch', today: doneToday };
       const routine: Routine = { id: 4, name: 'Start', reminderTime: '08:00', reminderChannels: ['mobile'], habitIds: [3] };

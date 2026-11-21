@@ -4,7 +4,7 @@ import { habit } from '@/test/test-support';
 import { keptDays } from './kept-days';
 
 const today = '2026-11-04';
-const done = (date: string): DayEntry => ({ date, state: 'done', completed: true, count: 1 });
+const done = (date: string): DayEntry => ({ date, state: 'done', completed: true, count: 1, skipped: false });
 
 describe('keptDays', () => {
   it('counts a low day as kept', () => {
@@ -31,8 +31,8 @@ describe('keptDays', () => {
 
   it('keeps only fully done days of a several-times-a-day habit', () => {
     const days: DayEntry[] = [
-      { date: '2026-11-02', state: 'partial', completed: null, count: 2 },
-      { date: '2026-11-03', state: 'done', completed: true, count: 3 },
+      { date: '2026-11-02', state: 'partial', completed: null, count: 2, skipped: false },
+      { date: '2026-11-03', state: 'done', completed: true, count: 3, skipped: false },
     ];
 
     expect(keptDays({ ...habit }, days, [], today, 7).kept).toBe(1);

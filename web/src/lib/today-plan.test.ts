@@ -18,6 +18,7 @@ const weekly = (id: number, done: number, target: number, count: number) =>
       state: count > 0 ? 'done' : 'pending',
       completed: count > 0 ? true : null,
       count,
+      skipped: false,
     },
     stats: { ...habit.stats, week: { done, target } },
   });
@@ -39,7 +40,7 @@ describe('planToday sections', () => {
   it('keeps a daily habit for today whether it is open, done or on a low day', () => {
     const states = (['pending', 'done', 'lowday', 'partial'] as const).map((state, i) =>
       make(i + 1, `H${i}`, {
-        today: { date, state, completed: null, count: state === 'pending' ? 0 : 1 },
+        today: { date, state, completed: null, count: state === 'pending' ? 0 : 1, skipped: false },
       }),
     );
     expect(topKeys(states)).toEqual(['h:1', 'h:2', 'h:3', 'h:4']);
@@ -70,7 +71,7 @@ describe('planToday sections', () => {
     const lowDayCheckedIn = make(1, 'Swim', {
       frequency: 'weekly',
       weeklyTarget: 2,
-      today: { date, state: 'lowday', completed: null, count: 1 },
+      today: { date, state: 'lowday', completed: null, count: 1, skipped: false },
       stats: { ...habit.stats, week: { done: 2, target: 2 } },
     });
     expect(topKeys([lowDayCheckedIn])).toEqual(['h:1']);
@@ -82,15 +83,15 @@ describe('planToday sections', () => {
     const rest = make(2, 'Gym', restDays);
     const restCheckedIn = make(3, 'Run', {
       ...restDays,
-      today: { date, state: 'done', completed: true, count: 1 },
+      today: { date, state: 'done', completed: true, count: 1, skipped: false },
     });
     const restLowDay = make(4, 'Yoga', {
       ...restDays,
-      today: { date, state: 'lowday', completed: null, count: 0 },
+      today: { date, state: 'lowday', completed: null, count: 0, skipped: false },
     });
     const notStarted = make(5, 'Walk', {
       startDate: '2026-11-05',
-      today: { date: '2026-10-31', state: 'beforestart', completed: null, count: 0 },
+      today: { date: '2026-10-31', state: 'beforestart', completed: null, count: 0, skipped: false },
     });
     const planned = make(6, 'Stretch', { frequency: 'weekdays', days: ['sun'] });
 
@@ -109,7 +110,7 @@ describe('planToday sections', () => {
   it("keeps a habit that starts later with today's habits, as before", () => {
     const later = make(1, 'Walk', {
       startDate: '2026-11-05',
-      today: { date, state: 'beforestart', completed: null, count: 0 },
+      today: { date, state: 'beforestart', completed: null, count: 0, skipped: false },
     });
     expect(topKeys([later])).toEqual(['h:1']);
   });
@@ -196,7 +197,7 @@ describe('Today order', () => {
     const habits = [at(1, 'Meds', '08:00'), at(2, 'Walk', '17:00')];
     const checkedIn = habits.map((h) =>
       h.id === 2
-        ? { ...h, today: { ...h.today, state: 'done' as const, completed: true, count: 1 } }
+        ? { ...h, today: { ...h.today, state: 'done' as const, completed: true, count: 1, skipped: false } }
         : h,
     );
     expect(topKeys(checkedIn, [], ['h:2', 'h:1'])).toEqual(topKeys(habits, [], ['h:2', 'h:1']));
@@ -206,7 +207,7 @@ describe('Today order', () => {
     const meds = at(1, 'Meds', '08:00');
     const walk = {
       ...at(2, 'Walk', '17:00'),
-      today: { date, state: 'done' as const, completed: true, count: 1 },
+      today: { date, state: 'done' as const, completed: true, count: 1, skipped: false },
     };
     const water = at(3, 'Water', null);
     const stretch = at(4, 'Stretch', null);
@@ -223,7 +224,7 @@ describe('Today order', () => {
   it('leaves a habit out of the widget before its start', () => {
     const later = make(1, 'Walk', {
       startDate: '2026-11-02',
-      today: { date, state: 'beforestart', completed: null, count: 0 },
+      today: { date, state: 'beforestart', completed: null, count: 0, skipped: false },
     });
     expect(widgetDay([later], [], null, date)).toEqual([]);
   });

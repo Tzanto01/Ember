@@ -24,7 +24,7 @@ function habit(overrides: Partial<Habit> = {}): Habit {
     pausedToday: false,
     createdAt: '2026-01-01T00:00:00Z',
     startDate: '2026-01-01',
-    today: { date: '2026-11-02', state: 'pending', completed: null, count: 0 },
+    today: { date: '2026-11-02', state: 'pending', completed: null, count: 0, skipped: false },
     stats: { streak: 0, graceUsed: 0, bestStreak: 0, last7: 0, week: null },
     reminderChannels: ['mobile'],
     ...overrides,
@@ -117,13 +117,13 @@ describe('planReminders', () => {
   });
 
   it('skips today when it is already done but keeps tomorrow', () => {
-    const done = habit({ today: { date: '2026-11-02', state: 'done', completed: true, count: 1 } });
+    const done = habit({ today: { date: '2026-11-02', state: 'done', completed: true, count: 1, skipped: false } });
 
     expect(dates([done]).slice(0, 2)).toEqual(['2026-11-03', '2026-11-04']);
   });
 
   it('plans nothing on a low day, for any habit or routine, but keeps the next day', () => {
-    const low = { date: '2026-11-02', state: 'lowday' as const, completed: null, count: 0 };
+    const low = { date: '2026-11-02', state: 'lowday' as const, completed: null, count: 0, skipped: false };
     const routine: Routine = { id: 7, name: 'Evening', reminderTime: '18:00', reminderChannels: ['mobile'], habitIds: [3] };
 
     const plan = planReminders(
@@ -143,7 +143,7 @@ describe('planReminders', () => {
       habit({
         frequency: 'weekly',
         weeklyTarget: 3,
-        today: { date: '2026-11-04', state: 'pending', completed: null, count: 0 },
+        today: { date: '2026-11-04', state: 'pending', completed: null, count: 0, skipped: false },
         stats: { streak: null, graceUsed: null, bestStreak: null, last7: done, week: { done, target: 3 } },
       });
     const planned = (done: number) =>
@@ -165,11 +165,11 @@ describe('planReminders', () => {
   it('skips today once a multi-count habit reaches its count, but keeps a partial day', () => {
     const done = habit({
       timesPerDay: 3,
-      today: { date: '2026-11-02', state: 'partial', completed: null, count: 3 },
+      today: { date: '2026-11-02', state: 'partial', completed: null, count: 3, skipped: false },
     });
     const partial = habit({
       timesPerDay: 3,
-      today: { date: '2026-11-02', state: 'partial', completed: null, count: 1 },
+      today: { date: '2026-11-02', state: 'partial', completed: null, count: 1, skipped: false },
     });
 
     expect(dates([done])[0]).toBe('2026-11-03');
@@ -205,8 +205,8 @@ describe('planReminders', () => {
       reminderChannels: ['mobile'],
       habitIds: [1, 2],
     };
-    const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 1 };
-    const rest = { date: '2026-11-02', state: 'offday' as const, completed: null, count: 0 };
+    const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 1, skipped: false };
+    const rest = { date: '2026-11-02', state: 'offday' as const, completed: null, count: 0, skipped: false };
 
     const plan = planReminders(
       [habit({ id: 1, today: done }), habit({ id: 2, today: rest })],
@@ -224,7 +224,7 @@ describe('planReminders', () => {
       [
         habit({
           reminderTime: '09:00',
-          today: { date: '2026-10-23', state: 'pending', completed: null, count: 0 },
+          today: { date: '2026-10-23', state: 'pending', completed: null, count: 0, skipped: false },
         }),
       ],
       'Europe/Berlin',
@@ -335,7 +335,7 @@ describe('planReminders', () => {
     const skipped = habit({
       reminderTime: null,
       reminderTimes: ['13:00', '20:00'],
-      today: { date: '2026-11-02', state: 'pending', completed: false, count: 0 },
+      today: { date: '2026-11-02', state: 'pending', completed: false, count: 0, skipped: false },
     });
     const plan = planReminders([skipped], 'Europe/Berlin', Date.parse('2026-11-02T12:10:00Z'), [], 30);
 
@@ -485,8 +485,8 @@ describe('zonedToUtc', () => {
       plan.filter((r) => r.date === '2026-11-02').map((r) => new Date(r.at).toISOString());
 
     it("plans every time still ahead while the day is open, and none of today's once it is done", () => {
-      const partial = { date: '2026-11-02', state: 'partial' as const, completed: null, count: 1 };
-      const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 3 };
+      const partial = { date: '2026-11-02', state: 'partial' as const, completed: null, count: 1, skipped: false };
+      const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 3, skipped: false };
 
       const plan = planReminders([water({ today: partial })], 'Europe/Berlin', berlinMorning);
 

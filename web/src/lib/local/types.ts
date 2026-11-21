@@ -46,6 +46,8 @@ export interface LocalLog {
   date: LocalDateString;
   completed: boolean;
   count: number;
+  /** v1.27; true when written by a skip (`{completed:false}`, then count 0 and not completed). Missing means false. */
+  skipped?: boolean;
 }
 
 /** The slips of a let-go habit on one day (one record per habit and date, `count` at least 1). */

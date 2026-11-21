@@ -98,7 +98,7 @@ describe('HistoryPage', () => {
     expect(put.body).toEqual({ completed: true });
     put.respond(200, habit);
     await answerMonth(f, 1, '2026-11-01', '2026-11-04', [
-      { date: '2026-11-03', state: 'done', completed: true, count: 1 },
+      { date: '2026-11-03', state: 'done', completed: true, count: 1, skipped: false },
     ]);
 
     await waitFor(() => expect(day).toHaveAttribute('data-state', 'done'));
@@ -171,7 +171,7 @@ describe('HistoryPage', () => {
     const container = renderHistory();
     await answerHabits(f, [{ ...habit, timesPerDay: 3 }]);
     await answerMonth(f, 1, '2026-11-01', '2026-11-04', [
-      { date: '2026-11-03', state: 'partial', completed: null, count: 2 },
+      { date: '2026-11-03', state: 'partial', completed: null, count: 2, skipped: false },
     ]);
 
     const day = await screen.findByRole('button', { name: /(3 November|November 3).*, 2 of 3 done$/ });
@@ -188,8 +188,8 @@ describe('HistoryPage', () => {
     await answerHabits(f, [habit]);
     await answerMonth(f, 1, '2026-11-01', '2026-11-04');
     (await f.next('GET', '/api/habits/1/days?from=2026-10-06&to=2026-11-04')).respond(200, [
-      { date: '2026-10-10', state: 'done', completed: true, count: 1 },
-      { date: '2026-11-03', state: 'done', completed: true, count: 1 },
+      { date: '2026-10-10', state: 'done', completed: true, count: 1, skipped: false },
+      { date: '2026-11-03', state: 'done', completed: true, count: 1, skipped: false },
     ]);
     (await f.next('GET', '/api/low-days?from=2026-10-06&to=2026-11-04')).respond(200, ['2026-11-02']);
 

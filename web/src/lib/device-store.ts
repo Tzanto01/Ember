@@ -79,11 +79,14 @@ function withTodayEdit(habit: Habit, edit: QueueEdit, lowDay: boolean): Habit {
   if (edit.count !== undefined) {
     const state = edit.count === 0 ? resting : stateForCount(edit.count, target);
     const completed = state === 'done' ? true : null;
-    return { ...habit, today: { date: edit.date, state, completed, count: edit.count } };
+    return { ...habit, today: { date: edit.date, state, completed, count: edit.count, skipped: false } };
   }
-  const state = edit.completed === true ? 'done' : edit.completed === false ? 'notdone' : resting;
+  const state = edit.completed === true ? 'done' : resting;
   const count = edit.completed === true ? target : 0;
-  return { ...habit, today: { date: edit.date, state, completed: edit.completed, count } };
+  return {
+    ...habit,
+    today: { date: edit.date, state, completed: edit.completed, count, skipped: edit.completed === false },
+  };
 }
 
 const dbName = 'ember-device';
