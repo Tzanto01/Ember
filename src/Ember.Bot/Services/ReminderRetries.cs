@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Discord.Net;
 
 namespace Ember.Bot.Services;
 
@@ -11,6 +12,14 @@ public sealed class ReminderRetries
     public const int MaxAttempts = 3;
 
     public static readonly TimeSpan Spacing = TimeSpan.FromMinutes(5);
+
+    /// <summary>A failure worth retrying soon: a timeout, a network error, or Discord answering 5xx or 429.</summary>
+    internal static bool IsTransient(Exception ex) => ex switch
+    {
+        TimeoutException or TaskCanceledException or HttpRequestException or IOException or System.Net.Sockets.SocketException => true,
+        HttpException http => (int)http.HttpCode >= 500 || (int)http.HttpCode == 429,
+        _ => false,
+    };
 
     private readonly ConcurrentDictionary<(string Kind, int Id, DateTime DueAt), (int Failures, DateTime LastAt, bool Delivered)> _attempts = new();
 

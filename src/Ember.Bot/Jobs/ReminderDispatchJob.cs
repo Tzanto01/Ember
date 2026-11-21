@@ -1,4 +1,3 @@
-using Discord.Net;
 using Ember.Bot.Services;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -513,14 +512,6 @@ public class ReminderDispatchJob : IJob
         return delivered ? Delivery.Delivered : Delivery.NotDelivered;
     }
 
-    /// <summary>A failure worth retrying soon: a timeout, a network error, or Discord answering 5xx or 429.</summary>
-    internal static bool IsTransient(Exception ex) => ex switch
-    {
-        TimeoutException or TaskCanceledException or HttpRequestException or IOException or System.Net.Sockets.SocketException => true,
-        HttpException http => (int)http.HttpCode >= 500 || (int)http.HttpCode == 429,
-        _ => false,
-    };
-
     private async Task DeferAsync(int habitId, DateTime now, CancellationToken cancellationToken)
     {
         try
@@ -549,7 +540,7 @@ public class ReminderDispatchJob : IJob
         }
     }
 
-    /// <summary>The channel's outcome, or null and whether the failure <see cref="IsTransient"/> when the send threw.</summary>
+    /// <summary>The channel's outcome, or null and whether the failure <see cref="ReminderRetries.IsTransient"/> when the send threw.</summary>
     private async Task<(DeliveryOutcome? Outcome, bool Transient)> SendAsync(IReminderChannel channel, Reminder reminder,
         CancellationToken cancellationToken)
     {
@@ -565,7 +556,7 @@ public class ReminderDispatchJob : IJob
         {
             _logger.LogError(ex, "Failed to send {Channel} reminder for habit {HabitId} to user {UserId}.",
                 channel.Channel, reminder.HabitId, reminder.UserId);
-            return (null, IsTransient(ex));
+            return (null, ReminderRetries.IsTransient(ex));
         }
     }
 }
