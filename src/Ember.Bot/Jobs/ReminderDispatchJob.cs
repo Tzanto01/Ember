@@ -18,10 +18,10 @@ namespace Ember.Bot.Jobs;
 /// its day is still open. Only the Discord outcome counts towards the DM pause. The advance applies only while the reminder is still
 /// the one that was due, so an edit or snooze saved while it was being sent (for example by the API) is kept.
 /// Phones are never sent to from here: the native app schedules their reminders as local notifications on the device.
-/// Reminders overdue by more than <see cref="StaleAfter"/> (e.g. after downtime) are advanced
+/// Reminders overdue by more than <see cref="ReminderPolicy.StaleAfter"/> (e.g. after downtime) are advanced
 /// without sending, as are habits paused or already completed on the user's local day, weekly habits whose target is already
 /// reached in the user's local Monday–Sunday week, and habits in a routine that has a
-/// reminder (the routine's reminder replaces theirs). A due <see cref="Routine"/> reminder is sent the same way, once, listing
+/// reminder (the routine's reminder replaces theirs); <see cref="ReminderPolicy"/> decides. A due <see cref="Routine"/> reminder is sent the same way, once, listing
 /// the member habits still pending or partial on the user's local day, and advanced without sending when there are none.
 /// After <see cref="MaxConsecutiveDmFailures"/> undeliverable reminders in a row the user's
 /// reminders pause (still advanced, not sent) until they confirm Ember can reach them again.
@@ -42,8 +42,6 @@ namespace Ember.Bot.Jobs;
 public class ReminderDispatchJob : IJob
 {
     public static readonly JobKey Key = new("reminder-dispatch", "reminders");
-
-    public static readonly TimeSpan StaleAfter = TimeSpan.FromHours(2);
 
     /// <summary>Undeliverable reminders in a row after which a user's DM reminders pause.</summary>
     public const int MaxConsecutiveDmFailures = 3;
@@ -207,7 +205,7 @@ public class ReminderDispatchJob : IJob
                     }
                     else if (await reminders.GetRoutineWithUserAsync(reminder.RoutineId!.Value, cancellationToken) is { } routine)
                     {
-                        if (!IsRoutineDone(routine, reminder.Date)) continue;
+                        if (!HabitRules.IsRoutineDone(routine, reminder.Date)) continue;
                         (user, exclusions, tag) = (routine.User, routine.ReminderExclusions, WebPushReminderChannel.RoutineTag(routine.Id));
                     }
                     if (user is not null && push is not null
@@ -269,16 +267,10 @@ public class ReminderDispatchJob : IJob
     private static async Task<bool> IsRoutineDoneAsync(ReminderService reminders, ReminderMessage message, CancellationToken cancellationToken)
         => message.RoutineId is { } routineId
             && await reminders.GetRoutineWithUserAsync(routineId, cancellationToken) is { } routine
-            && IsRoutineDone(routine, message.Date);
-
-    /// <summary>True when the routine has build members and every one of them is done on <paramref name="date"/>. Needs that day's logs loaded.</summary>
-    private static bool IsRoutineDone(Routine routine, DateOnly date)
-        => routine.Habits.Where(h => h.Kind != Core.Models.HabitKind.LetGo).ToList() is { Count: > 0 } members
-            && members.All(h => h.Logs.Any(l => l.Date == date && l.Completed));
+            && HabitRules.IsRoutineDone(routine, message.Date);
 
     /// <summary>
-    /// Sends the habit's due second reminder when the setting is on, the reminder isn't stale, the local day is the first reminder's,
-    /// and the habit is still not done, not paused, scheduled today and today is no low day; then drops it either way.
+    /// Sends the habit's due second reminder when <see cref="ReminderPolicy.ShouldSendSecondReminder"/> says so; then drops it either way.
     /// </summary>
     private async Task ProcessSecondAsync(int habitId, DateTime now, CancellationToken cancellationToken)
     {
@@ -294,17 +286,8 @@ public class ReminderDispatchJob : IJob
         var discordId = user.DiscordId();
         var (targets, pushIds) = Targets(user, habit.ReminderExclusions);
         var send = targets.Count > 0
-            && habit.Kind != Core.Models.HabitKind.LetGo
-            && user.SecondReminderMinutes > 0
-            && habit.ReminderTime is not null
-            && habit.Routine?.ReminderTime is null
-            && now - dueAt <= StaleAfter
-            && LocalDay(dueAt, tz) == today
-            && !HabitRules.IsPausedOn(habit, today)
-            && HabitRules.IsScheduledOn(habit, today)
-            && !await reminders.IsCompletedOnAsync(habit.Id, today, cancellationToken)
-            && !await IsWeekDoneAsync(reminders, habit, today, cancellationToken)
-            && !await habits.IsLowDayStoredAsync(user.Id, today);
+            && ReminderPolicy.ShouldSendSecondReminder(habit, user.SecondReminderMinutes, dueAt, now, today, tz,
+                await DayFactsAsync(reminders, habits, habit, today, cancellationToken));
 
         var delivery = Delivery.NotDelivered;
         if (send)
@@ -321,8 +304,8 @@ public class ReminderDispatchJob : IJob
     }
 
     /// <summary>
-    /// Sends the routine's due second reminder, listing the members still pending or partial, under the same conditions as
-    /// <see cref="ProcessSecondAsync"/>; then drops it either way.
+    /// Sends the routine's due second reminder, listing the members still pending or partial, while it
+    /// <see cref="ReminderPolicy.IsSecondStillDue"/>; then drops it either way.
     /// </summary>
     private async Task ProcessRoutineSecondAsync(int routineId, DateTime now, CancellationToken cancellationToken)
     {
@@ -339,8 +322,8 @@ public class ReminderDispatchJob : IJob
         var (targets, pushIds) = Targets(user, routine.ReminderExclusions);
 
         List<RoutineHabit> pending = [];
-        if (targets.Count > 0 && user.SecondReminderMinutes > 0 && routine.ReminderTime is not null
-            && now - dueAt <= StaleAfter && LocalDay(dueAt, tz) == today)
+        if (targets.Count > 0 && routine.ReminderTime is not null
+            && ReminderPolicy.IsSecondStillDue(user.SecondReminderMinutes, dueAt, now, today, tz))
         {
             var lowDays = await habits.GetLowDaysAsync(user.Id);
             pending = HabitRules.PendingRoutineHabits(routine.Habits, today, tz, lowDays)
@@ -360,25 +343,12 @@ public class ReminderDispatchJob : IJob
         if (delivery != Delivery.Retry) _retries.Forget(SecondRoutineKind, routineId, dueAt);
     }
 
-    /// <summary>
-    /// When the user's second reminder is on: <see cref="User.SecondReminderMinutes"/> after <paramref name="sentAt"/>, or null when
-    /// that falls on another local day than <paramref name="today"/>.
-    /// </summary>
-    private static DateTime? SecondReminderAt(User user, TimeZoneInfo tz, DateOnly today, DateTime sentAt)
-        => user.SecondReminderMinutes > 0 && sentAt.AddMinutes(user.SecondReminderMinutes) is var at && LocalDay(at, tz) == today
-            ? at
-            : null;
-
-    /// <summary>True for a weekly habit whose <see cref="Habit.WeeklyTarget"/> is already reached in the Monday–Sunday week of <paramref name="today"/>.</summary>
-    private static async Task<bool> IsWeekDoneAsync(ReminderService reminders, Habit habit, DateOnly today, CancellationToken cancellationToken)
-    {
-        if (habit.FrequencyType != FrequencyType.Weekly) return false;
-        var monday = HabitRules.WeekStart(today);
-        return await reminders.CountCompletedBetweenAsync(habit.Id, monday.AddDays(-1), monday.AddDays(7), cancellationToken) >= (habit.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget);
-    }
-
-    private static DateOnly LocalDay(DateTime utc, TimeZoneInfo tz)
-        => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), tz));
+    /// <summary>The habit's completion, week count and low day on the user's local <paramref name="today"/>, for <see cref="ReminderPolicy"/>.</summary>
+    private static async Task<ReminderDayFacts> DayFactsAsync(ReminderService reminders, HabitService habits, Habit habit, DateOnly today,
+        CancellationToken cancellationToken)
+        => new(await reminders.IsCompletedOnAsync(habit.Id, today, cancellationToken),
+            await reminders.CountCompletedInWeekAsync(habit.Id, today, cancellationToken),
+            await habits.IsLowDayStoredAsync(habit.User.Id, today));
 
     private async Task ClearSecondAsync(Func<ReminderService, Task> clear)
     {
@@ -409,14 +379,7 @@ public class ReminderDispatchJob : IJob
         var (targets, pushIds) = Targets(user, habit.ReminderExclusions);
         var letGo = habit.Kind == Core.Models.HabitKind.LetGo;
         var send = targets.Count > 0
-            && habit.Routine?.ReminderTime is null
-            && now - dueAt <= StaleAfter
-            && !HabitRules.IsPausedOn(habit, today)
-            && HabitRules.IsScheduledOn(habit, today)
-            && (letGo
-                || (!await reminders.IsCompletedOnAsync(habit.Id, today, cancellationToken)
-                    && !await IsWeekDoneAsync(reminders, habit, today, cancellationToken)
-                    && !await habits.IsLowDayStoredAsync(user.Id, today)));
+            && ReminderPolicy.ShouldSendReminder(habit, dueAt, now, today, await DayFactsAsync(reminders, habits, habit, today, cancellationToken));
 
         DateTime? secondUtc = null;
         var delivery = Delivery.NotDelivered;
@@ -433,7 +396,7 @@ public class ReminderDispatchJob : IJob
             var reminder = new Reminder(user.Id, discordId, habit.Id, habit.Name, recent, snoozed, today, PushSubscriptionIds: pushIds,
                 Language: user.Language);
             delivery = await DeliverAsync(targets, reminder, user, now, (HabitKind, habit.Id, dueAt), cancellationToken);
-            if (delivery == Delivery.Delivered && !snoozed && SecondReminderAt(user, tz, today, now) is { } second
+            if (delivery == Delivery.Delivered && !snoozed && ReminderPolicy.SecondReminderAt(user.SecondReminderMinutes, tz, today, now) is { } second
                 && (TimeZones.NextOccurrenceUtc(habit.ReminderTimes, tz, now) is not { } next || next > second))
                 secondUtc = second;
         }
@@ -467,7 +430,7 @@ public class ReminderDispatchJob : IJob
         var (targets, pushIds) = Targets(user, routine.ReminderExclusions);
 
         List<RoutineHabit> pending = [];
-        if (targets.Count > 0 && now - dueAt <= StaleAfter)
+        if (targets.Count > 0 && !ReminderPolicy.IsStale(dueAt, now))
         {
             var lowDays = await habits.GetLowDaysAsync(user.Id);
             pending = HabitRules.PendingRoutineHabits(routine.Habits, today, tz, lowDays)
@@ -490,7 +453,7 @@ public class ReminderDispatchJob : IJob
         }
 
         var next = routine.ReminderTime is { } reminderTime ? TimeZones.NextOccurrenceUtc(reminderTime, tz, now) : (DateTime?)null;
-        var secondUtc = delivery == Delivery.Delivered ? SecondReminderAt(user, tz, today, now) : null;
+        var secondUtc = delivery == Delivery.Delivered ? ReminderPolicy.SecondReminderAt(user.SecondReminderMinutes, tz, today, now) : null;
         if (!await reminders.SaveAndAdvanceRoutineReminderAsync(routine.Id, dueAt, next, secondUtc, saveToken))
             _logger.LogInformation("Reminder for routine {RoutineId} changed while it was sent; keeping the change.", routineId);
         _retries.Forget(RoutineKind, routineId, dueAt);

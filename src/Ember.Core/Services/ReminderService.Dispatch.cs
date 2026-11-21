@@ -34,6 +34,13 @@ public partial class ReminderService
     public Task<int> CountCompletedBetweenAsync(int habitId, DateOnly after, DateOnly before, CancellationToken cancellationToken = default)
         => _db.HabitLogs.CountAsync(l => l.HabitId == habitId && l.Date > after && l.Date < before && l.Completed, cancellationToken);
 
+    /// <summary>Completed logs of the habit in the Monday–Sunday week (<see cref="HabitRules.WeekStart"/>) of the user's local <paramref name="today"/>.</summary>
+    public Task<int> CountCompletedInWeekAsync(int habitId, DateOnly today, CancellationToken cancellationToken = default)
+    {
+        var monday = HabitRules.WeekStart(today);
+        return CountCompletedBetweenAsync(habitId, monday.AddDays(-1), monday.AddDays(7), cancellationToken);
+    }
+
     /// <summary>Saves pending changes to entities loaded through this service.</summary>
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => _db.SaveChangesAsync(cancellationToken);
 

@@ -175,6 +175,13 @@ public static class HabitRules
     }
 
     /// <summary>
+    /// True for a weekly habit whose <see cref="Habit.WeeklyTarget"/> (or <see cref="DefaultWeeklyTarget"/>) is reached by
+    /// <paramref name="completedInWeek"/>, the completed logs of its Monday–Sunday week.
+    /// </summary>
+    public static bool IsWeekDone(Habit habit, int completedInWeek)
+        => habit.FrequencyType == FrequencyType.Weekly && completedInWeek >= (habit.WeeklyTarget ?? DefaultWeeklyTarget);
+
+    /// <summary>
     /// The habit's stats on the user's local <paramref name="today"/>: <see cref="FlexibleStreak"/> over the last 7 days, plus
     /// <see cref="WeeklyProgress"/> for weekly habits, or <see cref="ConsecutiveStreak"/> and <see cref="BestStreak"/> for the others.
     /// </summary>
@@ -231,4 +238,9 @@ public static class HabitRules
             .OrderBy(h => h.RoutinePosition)
             .Where(h => h.Kind == HabitKind.Build && DayOn(h, today, today, tz, lowDays).State is DayState.Pending or DayState.Partial)
             .ToList();
+
+    /// <summary>True when the routine has build members and every one of them is done on <paramref name="date"/>. Needs that day's logs loaded.</summary>
+    public static bool IsRoutineDone(Routine routine, DateOnly date)
+        => routine.Habits.Where(h => h.Kind != HabitKind.LetGo).ToList() is { Count: > 0 } members
+            && members.All(h => h.Logs.Any(l => l.Date == date && l.Completed));
 }

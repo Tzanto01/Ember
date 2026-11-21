@@ -32,6 +32,7 @@ const core = 'src/Ember.Core/Services/HabitService.cs';
 const rules = 'src/Ember.Core/Rules/HabitRules.cs';
 const letGoRules = 'src/Ember.Core/Rules/LetGoRules.cs';
 const dispatch = 'src/Ember.Bot/Jobs/ReminderDispatchJob.cs';
+const policy = 'src/Ember.Core/Rules/ReminderPolicy.cs';
 const plan = 'web/src/lib/native/reminder-plan.ts';
 const settingsPage = 'web/src/pages/settings.tsx';
 const groups = 'web/src/components/settings/settings-groups.ts';
@@ -76,13 +77,13 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.today.lowDay.q',
         answerKey: 'guide.today.lowDay.a',
         target: 'mark-low-day',
-        covers: [rules, dispatch, plan],
+        covers: [rules, policy, plan],
       },
       {
         id: 'today-reminders',
         questionKey: 'guide.today.reminders.q',
         answerKey: 'guide.today.reminders.a',
-        covers: [dispatch, plan, rules],
+        covers: [policy, plan, rules],
       },
       {
         id: 'today-moment',
@@ -194,7 +195,7 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'routines-reminder',
         questionKey: 'guide.routines.reminder.q',
         answerKey: 'guide.routines.reminder.a',
-        covers: [dispatch, plan],
+        covers: [dispatch, policy, plan],
       },
       {
         id: 'routines-one',
@@ -265,7 +266,7 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'reminders-when',
         questionKey: 'guide.reminders.when.q',
         answerKey: 'guide.reminders.when.a',
-        covers: [dispatch, plan],
+        covers: [policy, plan],
       },
       {
         id: 'reminders-where',
@@ -289,7 +290,7 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.reminders.second.q',
         answerKey: 'guide.reminders.second.a',
         target: 'second-reminder',
-        covers: [dispatch, plan],
+        covers: [policy, dispatch, plan],
       },
     ],
   },

@@ -34,6 +34,10 @@ public static class TimeZones
     public static DateOnly LocalToday(string? timezoneId, DateTimeOffset utcNow)
         => DateOnly.FromDateTime(LocalNow(timezoneId, utcNow).DateTime);
 
+    /// <summary>The local calendar day in <paramref name="tz"/> at the UTC instant <paramref name="utc"/>.</summary>
+    public static DateOnly LocalDay(DateTime utc, TimeZoneInfo tz)
+        => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), tz));
+
     /// <summary>The earliest <see cref="NextOccurrenceUtc(TimeOnly, TimeZoneInfo, DateTime)"/> of any of <paramref name="localTimes"/>; null when there are none.</summary>
     public static DateTime? NextOccurrenceUtc(IEnumerable<TimeOnly> localTimes, TimeZoneInfo tz, DateTime afterUtc)
         => localTimes.Select(t => (DateTime?)NextOccurrenceUtc(t, tz, afterUtc)).Min();
