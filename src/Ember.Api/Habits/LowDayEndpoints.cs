@@ -13,7 +13,7 @@ internal static class LowDayEndpoints
         {
             var userId = principal.UserId();
             var today = await settings.GetLocalTodayAsync(userId);
-            var (start, end, errors) = Formats.DayRange(from, to, today, defaultDays: 365, allowFutureTo: true, noMaximum: true);
+            var (start, end, errors) = Formats.DayRange(from, to, today, defaultDays: Formats.MaxRangeDays - 1, allowFutureTo: true, noMaximum: true);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var lowDays = await habits.GetLowDaysAsync(userId);

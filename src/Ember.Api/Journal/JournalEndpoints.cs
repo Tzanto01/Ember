@@ -32,7 +32,7 @@ internal static class JournalEndpoints
             var userId = principal.UserId();
             var today = await settings.GetLocalTodayAsync(userId);
             var (start, end, errors) = Formats.DayRange(from, to, today, defaultDays: Formats.MaxRangeDays - 1, allowFutureTo: true,
-                limitMessage: Formats.ShortRangeLimitMessage);
+                limitMessage: Formats.JournalRangeLimitMessage);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             return Results.Ok((await journal.GetDayNotesAsync(userId, start, end)).Select(ToDto).ToList());
@@ -83,7 +83,7 @@ internal static class JournalEndpoints
             var userId = principal.UserId();
             var today = await settings.GetLocalTodayAsync(userId);
             var (start, end, errors) = Formats.DayRange(from, to, today, defaultDays: Formats.MaxRangeDays - 1, allowFutureTo: true,
-                limitMessage: Formats.ShortRangeLimitMessage);
+                limitMessage: Formats.JournalRangeLimitMessage);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             return Results.Ok((await journal.GetHabitNotesAsync(userId, start, end, habitId)).Select(ToDto).ToList());
