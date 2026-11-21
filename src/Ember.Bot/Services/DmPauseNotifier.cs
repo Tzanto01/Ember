@@ -1,6 +1,6 @@
 using Discord;
 using Discord.Interactions;
-using Ember.Bot.Modules;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -47,8 +47,8 @@ public class DmPauseNotifier
         {
             var t = await BotTexts.ForAsync(habits, context.Interaction);
             await context.Interaction.FollowupAsync(
-                DmRetryModule.NoticeText(t),
-                components: DmRetryModule.RetryButton(t, context.User.Id),
+                DmRetryNotice.NoticeText(t),
+                components: DmRetryNotice.RetryButton(t, context.User.Id),
                 ephemeral: true);
         }
         catch (Exception ex)

@@ -1,3 +1,4 @@
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Modules;
 using Ember.Core.Data;
 using Ember.Core.Models;
@@ -268,9 +269,9 @@ public class ConsentTests
 
         var after = await UserAsync(host, 1);
         (after.ConsentWithdrawnAt, after.ConsentPromptedOn).Should().Be((before.ConsentWithdrawnAt, before.ConsentPromptedOn));
-        ConsentModule.DeclinedText(Ember.Bot.BotTexts.English, withdrawal, TimeZoneInfo.FindSystemTimeZoneById("Pacific/Auckland"))
+        ConsentPrompt.DeclinedText(Ember.Bot.BotTexts.English, withdrawal, TimeZoneInfo.FindSystemTimeZoneById("Pacific/Auckland"))
             .Should().Contain("February 14, 2027", "30 days after the withdrawal at midnight UTC is the 14th in Auckland");
-        ConsentModule.DeclinedText(Ember.Bot.BotTexts.English, null, TimeZoneInfo.Utc).Should().Be(Ember.Bot.BotTexts.English.Get("consent.declined"));
+        ConsentPrompt.DeclinedText(Ember.Bot.BotTexts.English, null, TimeZoneInfo.Utc).Should().Be(Ember.Bot.BotTexts.English.Get("consent.declined"));
     }
 
     [Fact]
@@ -313,7 +314,7 @@ public class ConsentTests
     [Fact]
     public void Prompt_NamesEveryKindOfHealthDataEmberStores()
     {
-        var embed = ConsentModule.PromptEmbed(Ember.Bot.BotTexts.English, new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+        var embed = ConsentPrompt.PromptEmbed(Ember.Bot.BotTexts.English, new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
 
         embed.Description.Should().ContainEquivalentOf(
             "your habit names, check-ins, low days, day notes, habit notes, moods, slips with the reasons you give, and your \"What helps me\" list");

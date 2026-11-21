@@ -1,4 +1,4 @@
-using Ember.Bot.Modules;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Services;
 using Ember.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,8 +43,8 @@ public class DiscordReminderAskJob : IJob
             {
                 await reminders.MarkDiscordRemindersAskedAsync(userId, cancellationToken);
                 var t = BotTexts.For(await settings.GetLanguageAsync(userId));
-                var outcome = await _discord.SendMessageAsync(discordUserId, DiscordRemindersModule.AskText(t),
-                    components: DiscordRemindersModule.AskButtons(t, discordUserId), cancellationToken: cancellationToken);
+                var outcome = await _discord.SendMessageAsync(discordUserId, DiscordRemindersAsk.AskText(t),
+                    components: DiscordRemindersAsk.AskButtons(t, discordUserId), cancellationToken: cancellationToken);
                 if (outcome != DeliveryOutcome.Delivered)
                     _logger.LogInformation("Could not ask user {UserId} about Discord reminders: {Outcome}.", userId, outcome);
             }

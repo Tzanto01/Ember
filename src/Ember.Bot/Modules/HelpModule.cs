@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -39,7 +40,7 @@ public class HelpModule : InteractionModuleBase<SocketInteractionContext>
             embed.AddField(t.Get($"help.{section}.title"), t.Get($"help.{section}.body"), inline: false);
         embed.WithFooter(t.Get("help.footer"));
 
-        if (config[ConsentModule.PolicyUrlKey] is { Length: > 0 } url)
+        if (config[ConsentPrompt.PolicyUrlKey] is { Length: > 0 } url)
         {
             var links = t.Format("help.legal.privacy", url);
             if (url.TrimEnd('/').EndsWith(PrivacyPath, StringComparison.OrdinalIgnoreCase))

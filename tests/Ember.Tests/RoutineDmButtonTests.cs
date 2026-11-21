@@ -1,4 +1,5 @@
 using Discord;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Modules;
 using Ember.Bot.Services;
 using FluentAssertions;
@@ -100,10 +101,10 @@ public class RoutineDmButtonTests
             .WithButton("Done ✅", "checkin:done:1:100", ButtonStyle.Success)
             .WithButton("Skip", "checkin:skip:1:100", ButtonStyle.Secondary)
             .WithButton("Snooze", "checkin:snooze:1:100", ButtonStyle.Secondary)
-            .WithButton(DiscordRemindersModule.StopButton(t, 42), row: 1)
+            .WithButton(DiscordRemindersAsk.StopButton(t, 42), row: 1)
             .Build();
 
-        var after = DiscordRemindersModule.AfterStop(dm.Components, t, 42);
+        var after = DiscordRemindersAsk.AfterStop(dm.Components, t, 42);
 
         Rows(after).Select(r => string.Join(" ", r)).Should().Equal(
             "checkin:done:1:100 checkin:skip:1:100 checkin:snooze:1:100", "discordreminders:yes:42");
@@ -114,7 +115,7 @@ public class RoutineDmButtonTests
     {
         var dm = (await SendRoutineAsync(6)).Messages.Single().Components!;
 
-        var after = DiscordRemindersModule.AfterStop(dm.Components, Ember.Bot.BotTexts.English, 42);
+        var after = DiscordRemindersAsk.AfterStop(dm.Components, Ember.Bot.BotTexts.English, 42);
 
         Rows(after).Should().BeEquivalentTo(Rows(dm).Select(r => r.Select(id => id == "discordreminders:stop:42" ? "discordreminders:yes:42" : id).ToList()),
             o => o.WithStrictOrdering());
@@ -126,7 +127,7 @@ public class RoutineDmButtonTests
         var dm = new ComponentBuilder()
             .WithButton("Done: Water", "checkin:done:1:100", ButtonStyle.Success)
             .WithButton("Done: Read", "checkin:done:2:100", ButtonStyle.Success)
-            .WithButton(DiscordRemindersModule.StopButton(Ember.Bot.BotTexts.English, 42), row: 1)
+            .WithButton(DiscordRemindersAsk.StopButton(Ember.Bot.BotTexts.English, 42), row: 1)
             .Build();
 
         Ids(CheckInButtonModule.RoutineButtonsAfterDone(dm.Components, "checkin:done:1:100", done: true))

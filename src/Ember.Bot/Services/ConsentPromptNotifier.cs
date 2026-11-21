@@ -1,6 +1,6 @@
 using Discord;
 using Discord.Interactions;
-using Ember.Bot.Modules;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,8 +49,8 @@ public class ConsentPromptNotifier
         {
             var t = await BotTexts.ForAsync(habits, context.Interaction);
             await context.Interaction.FollowupAsync(
-                embed: ConsentModule.PromptEmbed(t, scope.ServiceProvider.GetRequiredService<IConfiguration>()),
-                components: ConsentModule.PromptButtons(t, context.User.Id),
+                embed: ConsentPrompt.PromptEmbed(t, scope.ServiceProvider.GetRequiredService<IConfiguration>()),
+                components: ConsentPrompt.PromptButtons(t, context.User.Id),
                 ephemeral: true);
         }
         catch (Exception ex)

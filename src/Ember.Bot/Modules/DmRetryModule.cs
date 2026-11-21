@@ -3,7 +3,6 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Services;
-using Ember.Core.Localization;
 using Ember.Core.Services;
 
 namespace Ember.Bot.Modules;
@@ -14,8 +13,6 @@ namespace Ember.Bot.Modules;
 /// </summary>
 public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
 {
-    internal static string NoticeText(Texts t) => t.Get("dmretry.notice");
-
     private readonly HabitService _habits;
     private readonly ReminderService _reminders;
     private readonly IDiscordDmSender _discord;
@@ -26,10 +23,6 @@ public class DmRetryModule : InteractionModuleBase<SocketInteractionContext>
         _reminders = reminders;
         _discord = discord;
     }
-
-    internal static MessageComponent RetryButton(Texts t, ulong userId) => new ComponentBuilder()
-        .WithButton(t.Get("dmretry.try-again"), DmRetryIds.Retry(userId), ButtonStyle.Primary)
-        .Build();
 
     [ComponentInteraction(DmRetryIds.RetryPattern)]
     public async Task OnRetryAsync(string userIdStr)

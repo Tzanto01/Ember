@@ -1,5 +1,5 @@
 using Discord;
-using Ember.Bot.Modules;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Services;
 using Ember.Core.Models;
 using Ember.Core.Services;
@@ -14,7 +14,7 @@ namespace Ember.Bot.Jobs;
 /// Fireside notifications (new warmth, "joined your fireside"), up to <see cref="MaxPerRun"/> of each. Each is claimed once before
 /// sending (<see cref="FiresideService.ClaimWarmthNoticeAsync"/>, <see cref="FiresideService.ClaimJoinNoticeAsync"/>), so nothing is
 /// sent twice and a failed send is not retried; one no longer visible is dropped silently. Delivery goes to the receiver's reminder
-/// destinations (<see cref="ReminderDestinations.Resolve"/>): a Discord DM with <see cref="FiresideModule.NoticeButtons"/>, and web push
+/// destinations (<see cref="ReminderDestinations.Resolve"/>): a Discord DM with <see cref="FiresideDm.NoticeButtons"/>, and web push
 /// tagged <see cref="PushTag"/> that names the sender only on subscriptions that show names.
 /// </summary>
 [DisallowConcurrentExecution]
@@ -77,7 +77,7 @@ public class FiresideNotifyJob : IJob
             if (targets.Discord && user.DiscordId() is { } discordId)
             {
                 var line = t.Format(kind, Format.Sanitize(notice.Name));
-                var buttons = FiresideModule.NoticeButtons(t, notice.LinkId, warmthId);
+                var buttons = FiresideDm.NoticeButtons(t, notice.LinkId, warmthId);
                 var outcome = warmth
                     ? await _discord.SendMessageAsync(discordId, embed: new EmbedBuilder()
                         .WithColor(0xE8873A)

@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Discord;
 using Discord.Interactions;
 using Ember.Bot;
-using Ember.Bot.Modules;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Data;
 using Ember.Core.Models;
 using FluentAssertions;
@@ -67,8 +67,8 @@ public class InteractionNoticeWiringTests
 
         var t = BotTexts.English;
         followups.Should().HaveCount(2);
-        followups.Should().ContainSingle(f => f.Text == DmRetryModule.NoticeText(t)).Which.Ephemeral.Should().BeTrue();
-        followups.Should().ContainSingle(f => f.Embed != null && f.Embed.Description == ConsentModule.PromptEmbed(t, host.Services.GetRequiredService<IConfiguration>()).Description)
+        followups.Should().ContainSingle(f => f.Text == DmRetryNotice.NoticeText(t)).Which.Ephemeral.Should().BeTrue();
+        followups.Should().ContainSingle(f => f.Embed != null && f.Embed.Description == ConsentPrompt.PromptEmbed(t, host.Services.GetRequiredService<IConfiguration>()).Description)
             .Which.Ephemeral.Should().BeTrue();
     }
 

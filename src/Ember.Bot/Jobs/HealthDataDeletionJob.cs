@@ -1,4 +1,4 @@
-using Ember.Bot.Modules;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Services;
 using Ember.Core.Models;
 using Ember.Core.Rules;
@@ -13,8 +13,8 @@ namespace Ember.Bot.Jobs;
 /// <summary>
 /// Runs daily and deletes the health data of users whose consent stayed withdrawn (<see cref="User.ConsentWithdrawnAt"/>) for
 /// <see cref="ConsentService.WithdrawnDataLifetime"/>. <see cref="ConsentService.DeletionReminderLead"/> before that, each such user gets one
-/// notice, whatever their reminder settings: a DM to a linked Discord account with the consent prompt (<see cref="ConsentModule.PromptEmbed"/>,
-/// <see cref="ConsentModule.PromptButtons"/>) and web push tagged <see cref="PushTag"/> to every enabled push subscription. It names the
+/// notice, whatever their reminder settings: a DM to a linked Discord account with the consent prompt (<see cref="ConsentPrompt.PromptEmbed"/>,
+/// <see cref="ConsentPrompt.PromptButtons"/>) and web push tagged <see cref="PushTag"/> to every enabled push subscription. It names the
 /// deletion day (<see cref="ConsentService.DeletionDueUtc"/>, the user's local date). The notice is claimed before sending; when the user has
 /// a target but no send succeeded, the claim is given back so the next run tries again; a user without any target keeps the claim. The
 /// deletion waits at least <see cref="ConsentService.DeletionReminderLead"/> after the claim. One user's failure doesn't stop the run.
@@ -125,7 +125,7 @@ public class HealthDataDeletionJob : IJob
             try
             {
                 var outcome = await _discord.SendMessageAsync(id, t.Format("consent.deletion-reminder", date),
-                    embed: ConsentModule.PromptEmbed(t, _config), components: ConsentModule.PromptButtons(t, id), cancellationToken: cancellationToken);
+                    embed: ConsentPrompt.PromptEmbed(t, _config), components: ConsentPrompt.PromptButtons(t, id), cancellationToken: cancellationToken);
                 delivered = outcome == DeliveryOutcome.Delivered;
                 if (!delivered) _logger.LogInformation("Could not send the deletion reminder DM to user {UserId}: {Outcome}.", user.Id, outcome);
             }

@@ -1,6 +1,6 @@
 using Discord;
 using Ember.Bot.Discord.CustomIds;
-using Ember.Bot.Modules;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Models;
 using Ember.Core.Services;
@@ -58,7 +58,7 @@ public class DiscordDmReminderChannel : IReminderChannel
     }
 
     private static (string, MessageComponent) LetGoMessage(Texts t, string name, ulong discordUserId)
-        => (t.Format("letgo.reminder", name), new ComponentBuilder().WithButton(DiscordRemindersModule.StopButton(t, discordUserId)).Build());
+        => (t.Format("letgo.reminder", name), new ComponentBuilder().WithButton(DiscordRemindersAsk.StopButton(t, discordUserId)).Build());
 
     private (string, MessageComponent) HabitMessage(Reminder reminder, ulong discordUserId)
     {
@@ -81,7 +81,7 @@ public class DiscordDmReminderChannel : IReminderChannel
             .WithButton(t.Get("reminder.done"), CheckInIds.Done(reminder.HabitId, now), ButtonStyle.Success)
             .WithButton(SkipLabel(t), CheckInIds.Skip(reminder.HabitId, now), ButtonStyle.Secondary)
             .WithButton(t.Get("reminder.snooze"), CheckInIds.Snooze(reminder.HabitId, now), ButtonStyle.Secondary)
-            .WithButton(DiscordRemindersModule.StopButton(t, discordUserId), row: 1)
+            .WithButton(DiscordRemindersAsk.StopButton(t, discordUserId), row: 1)
             .Build();
 
         return (message, components);
@@ -120,7 +120,7 @@ public class DiscordDmReminderChannel : IReminderChannel
             components.WithButton(label, CheckInIds.Done(habit.Id, now), ButtonStyle.Success, row: i / ButtonsPerRow);
             count++;
         }
-        components.WithButton(DiscordRemindersModule.StopButton(t, discordUserId),
+        components.WithButton(DiscordRemindersAsk.StopButton(t, discordUserId),
             Math.Min((count + ButtonsPerRow - 1) / ButtonsPerRow, MaxButtons / ButtonsPerRow - 1));
 
         return (message, components.Build());

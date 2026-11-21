@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Jobs;
 using Ember.Bot.Modules;
 using Ember.Bot.Services;
@@ -106,9 +107,9 @@ public class BotRoutingTests
         var habit = await host.WithScopeAsync(async sp => await sp.GetRequiredService<HabitService>().GetHabitAsync(await TestUsers.UserIdAsync(sp, Owner), letGoId));
         var statics = new[]
         {
-            ConsentModule.PromptButtons(t, Owner), HabitSelectModule.FrequencyComponents(t, buildId), DmRetryModule.RetryButton(t, Owner),
-            FiresideModule.NoticeButtons(t, 4, null), FiresideModule.NoticeButtons(t, 4, 9),
-            DiscordRemindersModule.AskButtons(t, Owner), DiscordRemindersModule.TurnOnButton(t, Owner),
+            ConsentPrompt.PromptButtons(t, Owner), HabitSelectModule.FrequencyComponents(t, buildId), DmRetryNotice.RetryButton(t, Owner),
+            FiresideDm.NoticeButtons(t, 4, null), FiresideDm.NoticeButtons(t, 4, 9),
+            DiscordRemindersAsk.AskButtons(t, Owner), DiscordRemindersAsk.TurnOnButton(t, Owner),
             HistoryModule.BuildGrid(t, Owner, buildId, days, new HashSet<DateOnly> { Today }),
             HistoryModule.BuildLetGoGrid(t, habit!, Today, TimeZoneInfo.Utc),
         };

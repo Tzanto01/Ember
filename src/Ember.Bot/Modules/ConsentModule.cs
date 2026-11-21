@@ -2,6 +2,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
+using Ember.Bot.Discord.Messages;
 using Ember.Core.Localization;
 using Ember.Core.Services;
 using Microsoft.Extensions.Configuration;
@@ -14,8 +15,6 @@ namespace Ember.Bot.Modules;
 /// </summary>
 public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
 {
-    internal const string PolicyUrlKey = "Ember:PrivacyPolicyUrl";
-
     private readonly HabitService _habits;
     private readonly ConsentService _consent;
     private readonly UserSettingsService _settings;
@@ -27,30 +26,11 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
         _settings = settings;
     }
 
-    internal static Embed PromptEmbed(Texts t, IConfiguration config)
-    {
-        var description = t.Get("consent.body");
-
-        if (config[PolicyUrlKey] is { Length: > 0 } url)
-            description += "\n\n" + t.Format("consent.policy-link", url);
-
-        return new EmbedBuilder()
-            .WithColor(0x5865F2)
-            .WithTitle(t.Get("consent.title"))
-            .WithDescription(description)
-            .Build();
-    }
-
-    internal static MessageComponent PromptButtons(Texts t, ulong userId) => new ComponentBuilder()
-        .WithButton(t.Get("consent.agree"), ConsentIds.Agree(userId), ButtonStyle.Success)
-        .WithButton(t.Get("consent.decline"), ConsentIds.Decline(userId), ButtonStyle.Secondary)
-        .Build();
-
     /// <summary>Answers the interaction with the consent prompt and notes that it was shown today.</summary>
     internal static async Task RespondWithPromptAsync(IInteractionContext context, IConfiguration config, HabitService habits, ConsentService consent)
     {
         var t = await BotTexts.ForAsync(habits, context.Interaction);
-        await context.Interaction.RespondAsync(embed: PromptEmbed(t, config), components: PromptButtons(t, context.User.Id), ephemeral: true);
+        await context.Interaction.RespondAsync(embed: ConsentPrompt.PromptEmbed(t, config), components: ConsentPrompt.PromptButtons(t, context.User.Id), ephemeral: true);
         await consent.MarkConsentPromptedAsync(await habits.FindDiscordUserAsync(context.User.Id));
     }
 
@@ -87,17 +67,6 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
         });
     }
 
-    /// <summary>
-    /// The answer to "No thanks": <c>consent.declined</c>, or for a user whose consent was already withdrawn (<paramref name="withdrawn"/>),
-    /// <c>privacy.withdraw.done</c> with the deletion day (<see cref="ConsentService.DeletionDueUtc"/>) in <paramref name="tz"/>.
-    /// </summary>
-    internal static string DeclinedText(Texts t, (DateTime WithdrawnAt, DateTime? ReminderSentAt)? withdrawn, TimeZoneInfo tz)
-        => withdrawn is { } w
-            ? t.Format("privacy.withdraw.done", DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
-                    DateTime.SpecifyKind(ConsentService.DeletionDueUtc(w.WithdrawnAt, w.ReminderSentAt), DateTimeKind.Utc), tz))
-                .ToString(t.Get("date.full"), t.Culture))
-            : t.Get("consent.declined");
-
     [ComponentInteraction(ConsentIds.DeclinePattern)]
     public async Task OnDeclineAsync(string ownerIdStr)
     {
@@ -110,7 +79,7 @@ public class ConsentModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        var content = DeclinedText(t, withdrawn, await _settings.GetTimeZoneAsync(userId));
+        var content = ConsentPrompt.DeclinedText(t, withdrawn, await _settings.GetTimeZoneAsync(userId));
         await ((SocketMessageComponent)Context.Interaction).UpdateAsync(m =>
         {
             m.Content = content;

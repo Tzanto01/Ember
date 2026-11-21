@@ -4,6 +4,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Ember.Bot.Discord.CustomIds;
 using Ember.Bot.Discord.Formatting;
+using Ember.Bot.Discord.Messages;
 using Ember.Bot.Services;
 using Ember.Core.Localization;
 using Ember.Core.Models;
@@ -125,7 +126,7 @@ public class ReminderSetupModule : InteractionModuleBase<SocketInteractionContex
     /// (<see cref="ReminderService.DefaultDiscordRemindersOnAsync"/>), and returns the note that they are off when the user said no.
     /// </summary>
     internal static async Task<string> DiscordRemindersNoteAsync(Texts t, ReminderService reminders, Guid userId)
-        => await reminders.DefaultDiscordRemindersOnAsync(userId) ? "" : DiscordRemindersModule.OffText(t);
+        => await reminders.DefaultDiscordRemindersOnAsync(userId) ? "" : DiscordRemindersAsk.OffText(t);
 
     /// <summary>
     /// "every day", "on Mon, Wed" for a habit on set weekdays, or for a weekly habit the days without a check-in until the
