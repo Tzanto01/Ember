@@ -222,7 +222,7 @@ function parse(text: string): ParsedBackup {
     if (typeof completed !== 'boolean') damaged();
     const count = int(field(l, 'count') ?? (completed ? habit.timesPerDay : 0), 0, habit.timesPerDay);
     const skipped = field(l, 'skipped') ?? false;
-    if (typeof skipped !== 'boolean' || (skipped && (completed || count > 0))) damaged();
+    if (typeof skipped !== 'boolean' || (skipped && (completed || count >= habit.timesPerDay))) damaged();
     const key = `${habit.id}|${date}`;
     if (seenDays.has(key)) damaged();
     seenDays.add(key);

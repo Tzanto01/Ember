@@ -46,7 +46,7 @@ export interface LocalLog {
   date: LocalDateString;
   completed: boolean;
   count: number;
-  /** v1.27; true when written by a skip (`{completed:false}`, then count 0 and not completed). Missing means false. */
+  /** v1.27; true when the day was skipped: never completed, with a count below `timesPerDay` (local Not done writes 0). Missing means false. */
   skipped?: boolean;
 }
 

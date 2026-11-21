@@ -158,7 +158,7 @@ describe('BackupService', () => {
     ['a count above 10', (doc) => ((doc['logs'] as Record<string, unknown>[])[0]['count'] = 11), "can't be read"],
     ['a count above the habit’s times a day', (doc) => ((doc['logs'] as Record<string, unknown>[])[1]['count'] = 4), "can't be read"],
     ['a skipped flag that isn’t true or false', (doc) => ((doc['logs'] as Record<string, unknown>[])[0]['skipped'] = 'yes'), "can't be read"],
-    ['a skipped day with a check-in', (doc) => ((doc['logs'] as Record<string, unknown>[])[1]['skipped'] = true), "can't be read"],
+    ['a skipped day with every check-in', (doc) => (doc['logs'] as unknown[]).push({ habit_id: 2, date: '2026-10-09', completed: false, count: 3, skipped: true }), "can't be read"],
     ['a skipped day that is done', (doc) => (doc['logs'] as unknown[]).push({ habit_id: 1, date: '2026-10-09', completed: true, count: 0, skipped: true }), "can't be read"],
     ['a bad date', (doc) => ((doc['logs'] as Record<string, unknown>[])[0]['date'] = '2026-02-30'), "can't be read"],
     ['a bad time', (doc) => ((doc['habits'] as Record<string, unknown>[])[0]['reminder_time'] = '25:00'), "can't be read"],
@@ -198,6 +198,15 @@ describe('BackupService', () => {
       date: '2026-10-04',
       completed: false,
       count: 0,
+      skipped: true,
+    });
+
+    logs[2]['skipped'] = true;
+    expect(parsed(backup.parseBackup(fileText(doc))).data.logs[2]).toEqual({
+      habitId: 2,
+      date: '2026-10-02',
+      completed: false,
+      count: 2,
       skipped: true,
     });
 

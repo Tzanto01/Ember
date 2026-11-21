@@ -121,8 +121,9 @@ export interface DayEntry {
   /** Check-ins that day, 0 to `timesPerDay`. */
   count: number;
   /**
-   * v1.27: the day was written by a skip (`{completed:false}`); any check-in, count or clear resets it. Missing from
-   * older servers and caches, where it means not skipped.
+   * v1.27: the day was skipped (web Not done `{completed:false}` at count 0, or a Discord skip keeping a partial
+   * count); never on a done day; any check-in, count or clear resets it. Missing from older servers and caches, where it
+   * means not skipped.
    */
   skipped: boolean;
 }
