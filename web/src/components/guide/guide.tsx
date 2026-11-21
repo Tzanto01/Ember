@@ -113,6 +113,7 @@ export function Guide() {
     if (next) {
       const wide = window.matchMedia?.(sideQuery).matches ?? false;
       setSide(wide ? besideHeader(trigger.current) : null);
+      setAnswer({ pathname, id: '' });
     }
     setOpen(next);
   }

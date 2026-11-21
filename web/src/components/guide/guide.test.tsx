@@ -238,12 +238,42 @@ describe('Guide', () => {
 
   it('turns back into the side panel beside the page when the screen widens again', async () => {
     renderAt('/today');
+    const main = document.getElementById('main')!;
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(384);
+    main.getBoundingClientRect = () => ({ right: window.innerWidth - 100 }) as DOMRect;
     await userEvent.click(guideButton());
 
     resize(true);
     await userEvent.click(screen.getByRole('button', { name: 'Check in Walk for today' }));
 
     expect(screen.getByRole('dialog', { name: 'Today, explained' })).toBeInTheDocument();
+    expect(main.style.paddingRight).toBe('calc(284px + 1.5rem)');
+  });
+
+  it('still gives focus back to the button when closed after switching mode', async () => {
+    stubWide(true);
+    renderAt('/today');
+    await userEvent.click(guideButton());
+    resize(false);
+    await waitFor(() => expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement));
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(guideButton()).toHaveFocus());
+  });
+
+  it('opens again with every answer closed', async () => {
+    renderAt('/today');
+    await openQuestion('What is a low day?');
+    await userEvent.keyboard('{Escape}');
+
+    await userEvent.click(guideButton());
+
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'What is a low day?' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
   });
 
   it('makes room beside the page for the wide panel while it is open', async () => {
