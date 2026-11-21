@@ -38,7 +38,7 @@ namespace Ember.Bot.Jobs;
 /// A <see cref="Core.Models.HabitKind.LetGo"/> habit's reminder is its quiet check-in (<see cref="Reminder.LetGo"/>): sent at its time
 /// unless stale or paused that day (no done, weekly or low-day checks), never snoozed and never followed by a second reminder.
 /// Each run then closes the open Discord reminder messages whose habits are done for their day (a routine's: every member due that
-/// day, <see cref="HabitRules.IsRoutineDone"/>), or whose buttons expired
+/// day done or skipped, <see cref="HabitRules.IsRoutineDone"/>), or whose buttons expired
 /// (<see cref="ReminderExpiry.IsExpired"/>), and for each web push reminder delivered for an item that is now done for its day sends the clear push
 /// (<see cref="WebPushSender.SendClearAsync"/>) to the user's push subscriptions that are targets of that item; then forgets
 /// it, as it forgets expired ones without a push.
@@ -275,7 +275,7 @@ public class ReminderDispatchJob : IJob
 
     /// <summary>
     /// Whether the routine (loaded with its user and recent logs) is done for its reminder on the user's local <paramref name="date"/>
-    /// (<see cref="HabitRules.IsRoutineDone"/>): every member due that day is done.
+    /// (<see cref="HabitRules.IsRoutineDone"/>): every member due that day is done or skipped.
     /// </summary>
     private async Task<bool> IsRoutineDoneAsync(IServiceProvider services, Routine routine, DateOnly date)
     {

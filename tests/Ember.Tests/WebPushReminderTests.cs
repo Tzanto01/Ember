@@ -617,6 +617,46 @@ public class WebPushReminderTests
     }
 
     [Fact]
+    public async Task A_routine_reminder_whose_other_member_is_skipped_today_is_cleared_once_the_listed_one_is_logged()
+    {
+        var (host, push, _) = await CreateAsync(new Seed(20, [Endpoint("a")], Discord: false));
+        await using var hostScope = host;
+        var routineId = await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            var routine = new Routine
+            {
+                UserId = TestUsers.Id(20), Name = "Morning", ReminderTime = new TimeOnly(9, 0), NextReminderUtc = Now.UtcDateTime,
+                ReminderExclusions = [ReminderDestinations.Discord],
+            };
+            db.Routines.Add(routine);
+            await db.SaveChangesAsync();
+            var skipped = new Habit
+            {
+                Id = 21, UserId = TestUsers.Id(20), Name = "Habit 21", RoutineId = routine.Id, RoutinePosition = 1,
+                CreatedAt = Now.UtcDateTime.AddDays(-30),
+            };
+            skipped.Logs.Add(new HabitLog { Date = Today, Count = 0, Completed = false, Skipped = true });
+            db.Habits.Add(skipped);
+            var member = await db.Habits.SingleAsync(h => h.Id == 20);
+            (member.RoutineId, member.ReminderTime, member.NextReminderUtc) = (routine.Id, null, null);
+            await db.SaveChangesAsync();
+            return routine.Id;
+        });
+        await RunJobAsync(host);
+        push.Requests.Should().ContainSingle();
+
+        await LogAsync(host, 20, Today);
+        await RunJobAsync(host);
+
+        var requests = push.Requests.Should().HaveCount(2).And.Subject.ToList();
+        var tag = WebPushSender.RoutineTag(routineId);
+        (requests[1].BodyLength - requests[0].BodyLength).Should()
+            .Be(WebPushSender.ClearPayload(tag).Length - WebPushSender.BuildPayload("A gentle nudge from Ember", tag: tag).Length);
+        (await PushRemindersAsync(host)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task A_routine_reminder_delivered_by_web_push_is_cleared_once_when_every_member_is_logged()
     {
         var (host, push, _) = await CreateAsync(new Seed(20, [Endpoint("a")], Discord: false));

@@ -461,4 +461,55 @@ public class ReminderMessageTests
         host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.LoggedLine(Ember.Bot.BotTexts.English)));
         (await OpenMessagesAsync(host)).Should().BeEmpty();
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_routine_reminder_whose_other_member_is_skipped_today_closes_as_logged_once_the_listed_one_is_done(bool doneListed)
+    {
+        var time = new FakeTimeProvider(Now);
+        var listed = new Habit
+        {
+            Id = 1, UserId = TestUsers.Id(DiscordUser), Name = "Habit 1", RoutinePosition = 0, CreatedAt = Now.UtcDateTime.AddDays(-30),
+        };
+        var skipped = new Habit
+        {
+            Id = 2, UserId = TestUsers.Id(DiscordUser), Name = "Habit 2", RoutinePosition = 1, CreatedAt = Now.UtcDateTime.AddDays(-30),
+            TimesPerDay = 2,
+        };
+        skipped.Logs.Add(new HabitLog { Date = Today, Count = 1, Completed = false, Skipped = true });
+        await using var host = await CreateHostAsync(time, 0, listed, skipped);
+        await host.WithScopeAsync(async sp =>
+        {
+            var db = sp.GetRequiredService<EmberDbContext>();
+            db.Routines.Add(new Routine
+            {
+                Id = 1,
+                UserId = TestUsers.Id(DiscordUser),
+                Name = "Morning",
+                ReminderTime = new TimeOnly(9, 0),
+                NextReminderUtc = Now.UtcDateTime,
+            });
+            await db.SaveChangesAsync();
+            await db.Habits.ExecuteUpdateAsync(s => s.SetProperty(h => h.RoutineId, 1));
+        });
+        await RunJobAsync(host);
+        var first = host.Discord.Messages.Should().ContainSingle().Subject;
+        first.Text.Should().Contain("Habit 1").And.NotContain("Habit 2");
+
+        if (doneListed) await CheckInAsync(host, 1);
+        time.Advance(TimeSpan.FromMinutes(1));
+        await RunJobAsync(host);
+
+        if (doneListed)
+        {
+            host.Discord.Changes.Should().Equal(new ChangedDiscordDm(Channel, first.MessageId, ReminderDm.LoggedLine(Ember.Bot.BotTexts.English)));
+            (await OpenMessagesAsync(host)).Should().BeEmpty();
+        }
+        else
+        {
+            host.Discord.Changes.Should().BeEmpty();
+            (await OpenMessagesAsync(host)).Should().ContainSingle();
+        }
+    }
 }
