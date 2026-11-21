@@ -183,8 +183,8 @@ The inline `[PRÜFEN]` markers are gone. Each open point is a question below. Fi
 38. **Stand date on publish.** The Stand dates in the privacy policy and the Terms are 14 November 2026. Set both to the real publish date when the moments and streaks changes go live.
 39. **Tech reports (diagnostics, API v1.26).** The Android app's "Send a tech report" sends launch events, exit reasons and code locations, but never the account, content or exception messages. The user sees a preview first and sends it by tapping Send (Art. 6(1)(a)). It is always unlinked to the account. Reports wait in `LookoutDiagnostics` for at most 30 days, and Lookout deletes them 30 days after receipt. An install number and the IP address are used only in memory, as rate-limit keys, for one day. Before release:
     - (a) Nico approves the new privacy section 3.14 and the rows in sections 2, 5, 6.6, 7, 3.9 and 9, plus the summary.
-    - (b) Hosting excludes the `LookoutDiagnostics` data from the emberdb backups. Without that, the 30-day promise breaks, because backups are kept about 6 weeks.
-    - (c) Check whether the reverse proxy logs IPs for `POST /api/diagnostics` (question 8).
+    - (b) Resolved (Hosting, 2026-11-21): both emberdb dump paths, the nightly backup and the pre-deploy dump, leave out the rows of `LookoutDiagnostics` and keep its schema. No other backup path exists: no WAL archive, no replicas, no volume snapshots.
+    - (c) Our side logs no client IPs for `POST /api/diagnostics`: the Worker has no logs or Logpush, cloudflared logs only errors with Cloudflare's edge IP, and the API logs no request lines and never logs the body. Still to check: how long Cloudflare itself keeps client IPs as the CDN (questions 6 and 8).
     - (d) Early deletion works only by sending the report's code in Discord. Decide whether that is enough.
 
 ## What changed on 2026-11-13
