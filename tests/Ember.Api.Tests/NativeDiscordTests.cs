@@ -115,8 +115,10 @@ public class NativeDiscordTests(PostgresFixture postgres) : ApiTestBase(postgres
         var (verifier, challenge) = Pkce();
         var code = await CodeAsync(discordId, challenge);
 
-        (await Detail(await ExchangeAsync(code, verifier))).Should().Be("RequiresTwoFactor");
-        (await Detail(await ExchangeAsync(code, verifier, Totp.Code(key, 10)))).Should().Be("Failed");
+        await (await ExchangeAsync(code, verifier)).ExpectExactProblem(HttpStatusCode.Unauthorized,
+            """{"type":"unauthenticated","title":"Unauthorized","status":401,"detail":"RequiresTwoFactor"}""");
+        await (await ExchangeAsync(code, verifier, Totp.Code(key, 10))).ExpectExactProblem(HttpStatusCode.Unauthorized,
+            """{"type":"unauthenticated","title":"Unauthorized","status":401,"detail":"Failed"}""");
         (await Detail(await ExchangeAsync(code, Pkce().Verifier, Totp.Code(key)))).Should().Be("Failed");
 
         var other = Pkce();

@@ -13,10 +13,7 @@ internal static class LowDayEndpoints
         {
             var userId = principal.UserId();
             var today = await settings.GetLocalTodayAsync(userId);
-            var errors = new Dictionary<string, string[]>();
-            var end = Formats.DateOr(to, today, "to", errors);
-            var start = Formats.DateOr(from, Formats.DaysBefore(end, 365), "from", errors);
-            if (errors.Count == 0 && start > end) errors["from"] = ["Can't be after to."];
+            var (start, end, errors) = Formats.DayRange(from, to, today, defaultDays: Formats.MaxRangeDays - 1, allowFutureTo: true, noMaximum: true);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var lowDays = await habits.GetLowDaysAsync(userId);

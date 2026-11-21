@@ -31,16 +31,7 @@ internal static partial class StatsEndpoints
         {
             var userId = principal.UserId();
             var today = await settings.GetLocalTodayAsync(userId);
-            var errors = new Dictionary<string, string[]>();
-            var end = Formats.DateOr(to, today, "to", errors);
-            var start = Formats.DateOr(from, Formats.DaysBefore(end, HabitEndpoints.MaxDaysPerRequest - 1), "from", errors);
-            if (errors.Count == 0)
-            {
-                if (end > today) errors["to"] = ["Can't be after today."];
-                else if (start > end) errors["from"] = ["Can't be after to."];
-                else if (end.DayNumber - start.DayNumber + 1 > HabitEndpoints.MaxDaysPerRequest)
-                    errors["from"] = [$"At most {HabitEndpoints.MaxDaysPerRequest} days per request."];
-            }
+            var (start, end, errors) = Formats.DayRange(from, to, today, defaultDays: Formats.MaxRangeDays - 1);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             return Results.Ok(await habits.GetDayStatsAsync(userId, start, end));

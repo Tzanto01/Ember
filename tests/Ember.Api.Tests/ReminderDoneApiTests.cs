@@ -75,7 +75,7 @@ public class ReminderDoneApiTests(PostgresFixture postgres) : ApiTestBase(postgr
         var token = await TokenAsync(userId, habitId);
         Host.Time.Advance(TimeSpan.FromHours(22));
 
-        await (await Host.NewClient().Post(Done, new { token })).ExpectProblem(HttpStatusCode.Gone, "expired");
+        await (await Host.NewClient().Post(Done, new { token })).ExpectExactProblem(HttpStatusCode.Gone, """{"type":"expired","title":"Gone","status":410}""");
 
         (await CountAsync(habitId, Host.Today.AddDays(-1))).Should().BeNull();
         (await Host.Service<ReminderService, int>(r => r.DeleteExpiredReminderActionTokensAsync())).Should().Be(1);

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Ember.Api.Auth;
 using Ember.Api.Habits;
 using Ember.Api.Hosting;
 using Ember.Api.Journal;
@@ -57,7 +58,7 @@ internal static class ImportEndpoints
                 return Problems.Validation("format_version", $"Must be {ExportBuilder.CurrentFormatVersion}.");
 
             if (doc.JournalKey is not null && await users.GetUserAsync(principal) is { } user
-                && await JournalEndpoints.PasswordProblem(user, doc.JournalKey.Password, users, signIn) is { } passwordProblem)
+                && await PasswordChecks.PasswordProblemAsync(user, doc.JournalKey.Password, users, signIn) is { } passwordProblem)
                 return passwordProblem;
 
             if (doc.Habits?.Count > Limits.HabitsPerUser) return Problems.HabitLimit();
@@ -87,16 +88,16 @@ internal static class ImportEndpoints
     {
         var local = new Dictionary<string, string[]>();
 
-        MeEndpoints.ValidateGraceAndTheme(doc.Settings?.GraceDaysPerWeek, doc.Settings?.Theme, local);
-        MeEndpoints.ValidateSecondReminder(doc.Settings?.SecondReminderMinutes, local);
-        MeEndpoints.ValidateLanguage(doc.Settings?.Language, local);
+        SettingsValidation.ValidateGraceAndTheme(doc.Settings?.GraceDaysPerWeek, doc.Settings?.Theme, local);
+        SettingsValidation.ValidateSecondReminder(doc.Settings?.SecondReminderMinutes, local);
+        SettingsValidation.ValidateLanguage(doc.Settings?.Language, local);
         Nest(errors, "settings", local);
 
         var routines = new List<Routine>();
         var routineById = new Dictionary<int, Routine>();
         foreach (var (r, path) in Items(doc.Routines, "routines", errors))
         {
-            var name = HabitEndpoints.ValidName(r.Name, local, Limits.RoutineNameLength);
+            var name = HabitValidation.ValidName(r.Name, local, Limits.RoutineNameLength);
             var routine = new Routine
             {
                 Name = name ?? "",
@@ -113,12 +114,12 @@ internal static class ImportEndpoints
         var habitById = new Dictionary<int, Habit>();
         foreach (var (h, path) in Items(doc.Habits, "habits", errors))
         {
-            var name = HabitEndpoints.ValidName(h.Name, local);
-            var frequency = HabitEndpoints.ParseFrequency(h.Frequency);
-            if (frequency is null) local["frequency"] = [HabitEndpoints.FrequencyMessage];
-            HabitEndpoints.ValidateWeeklyTarget(h.WeeklyTarget, frequency, local);
-            var days = HabitEndpoints.ValidateDays(h.Days, frequency, null, local);
-            var timesPerDay = HabitEndpoints.ValidateTimesPerDay(h.TimesPerDay ?? 1, frequency, local);
+            var name = HabitValidation.ValidName(h.Name, local);
+            var frequency = HabitValidation.ParseFrequency(h.Frequency);
+            if (frequency is null) local["frequency"] = [HabitValidation.FrequencyMessage];
+            HabitValidation.ValidateWeeklyTarget(h.WeeklyTarget, frequency, local);
+            var days = HabitValidation.ValidateDays(h.Days, frequency, null, local);
+            var timesPerDay = HabitValidation.ValidateTimesPerDay(h.TimesPerDay ?? 1, frequency, local);
             if (h.PausedFrom is not null && h.PausedUntil is null) local["paused_from"] = ["Needs paused_until."];
             else if (h.PausedFrom > h.PausedUntil) local["paused_from"] = ["Can't be after paused_until."];
             var createdAt = h.CreatedAt?.UtcDateTime ?? now;
@@ -134,7 +135,7 @@ internal static class ImportEndpoints
             if (kind is null) local["kind"] = ["Must be build or let_go."];
             else if (kind == HabitKind.LetGo)
             {
-                HabitEndpoints.ValidateLetGo(frequency, h.TimesPerDay, h.WeeklyTarget, h.Days, reminderTimes.Distinct().Count(), local);
+                HabitValidation.ValidateLetGo(frequency, h.TimesPerDay, h.WeeklyTarget, h.Days, reminderTimes.Distinct().Count(), local);
                 if (h.RoutineId is not null) local["routine_id"] = ["Let-go habits can't be in a routine."];
             }
 
@@ -237,12 +238,12 @@ internal static class ImportEndpoints
         var moodById = new Dictionary<int, Mood>();
         foreach (var (m, path) in Items(doc.Moods, "moods", errors))
         {
-            var cipher = JournalEndpoints.WriteForm(m.Encrypted, m.Label is not null || m.Emoji is not null, true, key, local);
+            var cipher = JournalValidation.WriteForm(m.Encrypted, m.Label is not null || m.Emoji is not null, true, key, local);
             string? label = null, emoji = null;
             if (m.Encrypted is null)
             {
-                label = JournalEndpoints.ValidLabel(m.Label, local);
-                emoji = JournalEndpoints.ValidEmoji(m.Emoji, local);
+                label = JournalValidation.ValidLabel(m.Label, local);
+                emoji = JournalValidation.ValidEmoji(m.Emoji, local);
             }
             var mood = new Mood
             {
@@ -264,18 +265,18 @@ internal static class ImportEndpoints
         foreach (var (n, path) in Items(doc.DayNotes, "day_notes", errors))
         {
             var date = ValidDay(n.Date, today, earliestStart, noted, local);
-            var cipher = JournalEndpoints.WriteForm(n.Encrypted, n.Text is not null || n.Mood is not null, true, key, local);
+            var cipher = JournalValidation.WriteForm(n.Encrypted, n.Text is not null || n.Mood is not null, true, key, local);
             string? text = null, builtIn = null;
             Mood? custom = null;
             if (n.Encrypted is null)
             {
-                text = JournalEndpoints.ValidText(n.Text, local);
+                text = JournalValidation.ValidText(n.Text, local);
                 if (n.Mood is null)
                 {
                     if (text is null) local["text"] = ["Set text, mood or encrypted."];
                 }
-                else if (JournalEndpoints.BuiltInMoods.Contains(n.Mood)) builtIn = n.Mood;
-                else if (!JournalEndpoints.TryParseCustomMood(n.Mood, out var moodId) || !moodById.TryGetValue(moodId, out custom))
+                else if (JournalValidation.BuiltInMoods.Contains(n.Mood)) builtIn = n.Mood;
+                else if (!JournalValidation.TryParseCustomMood(n.Mood, out var moodId) || !moodById.TryGetValue(moodId, out custom))
                     local["mood"] = ["Must be low, meh, okay, good, great or custom:<id> of a mood in this file."];
             }
             notes.Add((new DayNote
@@ -300,12 +301,12 @@ internal static class ImportEndpoints
             else if (date > today) local["date"] = ["Can't be after today."];
             else if (habit is not null && date < HabitRules.StartDate(habit, tz)) local["date"] = ["Can't be before the habit's start."];
             else if (habit is not null && !habitNoted.Add((habit, date))) local["date"] = ["Only one note per habit and day."];
-            var cipher = JournalEndpoints.WriteForm(n.Encrypted, n.Text is not null, true, key, local,
-                JournalEndpoints.MaxHabitNoteCipherTextLength);
+            var cipher = JournalValidation.WriteForm(n.Encrypted, n.Text is not null, true, key, local,
+                JournalValidation.MaxHabitNoteCipherTextLength);
             string? text = null;
             if (n.Encrypted is null)
             {
-                text = JournalEndpoints.ValidText(n.Text, local, JournalEndpoints.MaxHabitNoteLength);
+                text = JournalValidation.ValidText(n.Text, local, JournalValidation.MaxHabitNoteLength);
                 if (text is null && !local.ContainsKey("text")) local["text"] = ["Set text or encrypted."];
             }
             habit?.Notes.Add(new HabitNote
@@ -322,7 +323,7 @@ internal static class ImportEndpoints
         JournalKey? material = null;
         if (doc.JournalKey is { } journalKey)
         {
-            material = JournalEndpoints.ValidKey(journalKey, local);
+            material = JournalValidation.ValidKey(journalKey, local);
             Nest(errors, "journal_key", local);
         }
 

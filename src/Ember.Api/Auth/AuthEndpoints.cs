@@ -25,6 +25,9 @@ internal static class AuthEndpoints
     /// <summary>The <see cref="HttpContext.Items"/> key of a registration's valid body <c>language</c>, set by <see cref="CaptureSignUpLanguage"/>.</summary>
     public const string SignUpLanguageKey = "ember.signup-language";
 
+    /// <summary>The <see cref="HttpContext.Items"/> key present while Identity's register endpoint runs, set by <see cref="IdentityFilter"/>.</summary>
+    public const string SigningUpKey = "ember.signing-up";
+
     public const string XsrfCookieName = "XSRF-TOKEN";
 
     private static readonly PathString Register = "/api/auth/register";
@@ -234,6 +237,7 @@ internal static class AuthEndpoints
             }
         }
 
+        if (request is RegisterRequest) http.Items[SigningUpKey] = true;
         var result = await next(context);
 
         if (request is RegisterRequest

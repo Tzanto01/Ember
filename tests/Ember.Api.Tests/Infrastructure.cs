@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Ember.Api.Auth;
 using Ember.Api.Email;
@@ -401,6 +402,15 @@ internal static class HttpExtensions
         response.Headers.Location.Should().BeNull();
         if (type is not null) problem.GetProperty("type").GetString().Should().Be(type);
         return problem;
+    }
+
+    /// <summary>Asserts the exact problem body, property order included, apart from the per-request <c>traceId</c>.</summary>
+    public static async Task ExpectExactProblem(this HttpResponseMessage response, HttpStatusCode status, string expected)
+    {
+        await response.ExpectProblem(status);
+        var body = JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject();
+        body.Remove("traceId").Should().BeTrue();
+        body.ToJsonString().Should().Be(expected);
     }
 
     public static bool Has(this JsonElement element, string property) => element.TryGetProperty(property, out _);
