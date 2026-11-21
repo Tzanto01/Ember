@@ -202,7 +202,7 @@ public class BotHandlerFlowTests
     }
 
     [Fact]
-    public async Task Check_in_done_button_adds_a_check_in_for_today_and_skip_records_an_explicit_not_done()
+    public async Task Check_in_done_button_adds_a_check_in_for_today_and_skip_marks_the_day_skipped()
     {
         await using var host = await HostAsync();
         var doneId = await SeedHabitAsync(host);
@@ -216,7 +216,7 @@ public class BotHandlerFlowTests
         await HabitActionAsync(host, m => m.OnCheckinSkipAsync(skipId.ToString()));
 
         var logs = await host.WithScopeAsync(sp => sp.GetRequiredService<EmberDbContext>().HabitLogs.AsNoTracking().OrderBy(l => l.HabitId).ToListAsync());
-        logs.Select(l => (l.HabitId, l.Date, l.Completed, l.Count)).Should().Equal((doneId, Today, true, 1), (skipId, Today, false, 0));
+        logs.Select(l => (l.HabitId, l.Date, l.Completed, l.Count, l.Skipped)).Should().Equal((doneId, Today, true, 1, false), (skipId, Today, false, 0, true));
     }
 
     [Fact]

@@ -26,10 +26,13 @@ public class ReflectionInviteTests
             var user = new User { Id = TestUsers.Id((long)UserId), Logins = TestUsers.Discord((long)UserId), Timezone = "UTC" };
             var done = new Habit { Name = "Read", CreatedAt = created };
             done.Logs.Add(new HabitLog { Date = yesterday, Completed = true });
-            var skipped = new Habit { Name = "Walk", CreatedAt = created.AddMinutes(1) };
-            skipped.Logs.Add(new HabitLog { Date = yesterday, Completed = false });
+            var countedDown = new Habit { Name = "Walk", CreatedAt = created.AddMinutes(1) };
+            countedDown.Logs.Add(new HabitLog { Date = yesterday, Completed = false });
+            var skipped = new Habit { Name = "Floss", CreatedAt = created.AddMinutes(3) };
+            skipped.Logs.Add(new HabitLog { Date = yesterday, Completed = false, Skipped = true });
             user.Habits.Add(new Habit { Name = "Stretch", CreatedAt = created.AddMinutes(2) });
             user.Habits.Add(done);
+            user.Habits.Add(countedDown);
             user.Habits.Add(skipped);
             user.Habits.Add(new Habit { Name = "Nap", CreatedAt = created, PausedUntil = yesterday });
             user.Habits.Add(new Habit { Name = "Swim", CreatedAt = created, FrequencyType = FrequencyType.Weekly, WeeklyTarget = 2 });

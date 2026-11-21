@@ -352,7 +352,7 @@ describe('planReminders', () => {
   it('plans nothing more today for a partly done day that was skipped, nor its routine, and keeps tomorrow', () => {
     const routine: Routine = { id: 7, name: 'Evening', reminderTime: '18:00', reminderChannels: ['mobile'], habitIds: [1, 2] };
     const done = { date: '2026-11-02', state: 'done' as const, completed: true, count: 1, skipped: false };
-    const partSkipped = { date: '2026-11-02', state: 'partial' as const, completed: false, count: 1, skipped: true };
+    const partSkipped = { date: '2026-11-02', state: 'partial' as const, completed: null, count: 1, skipped: true };
     const water = habit({ id: 3, timesPerDay: 3, reminderTime: null, reminderTimes: ['13:00', '20:00'], today: partSkipped });
 
     const plan = planReminders(
