@@ -72,6 +72,8 @@ for (const { code, locale, strings } of languages) {
           await visitPage(page, '/legal/privacy', /./, found);
           await expect(page.locator('#main [lang="de"]').first()).toBeVisible();
           await visitPage(page, '/no-such-page', tr('notFound.title'), found);
+          await page.evaluate(() => localStorage.setItem('ember.theme', 'tidepool'));
+          await visitPage(page, '/legal/privacy', /./, found);
           expect(found).toEqual([]);
         });
 

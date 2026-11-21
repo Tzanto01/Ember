@@ -17,6 +17,9 @@ function safeHref(href: string): boolean {
 
 const englishSummary = /^\W*English summary\b/;
 
+/** A table token with the text of the heading it sits under, if any, which names its scroll box. */
+type LabelledTable = Tokens.Table & { label?: string };
+
 const legalMarked = new Marked({
   gfm: true,
   breaks: true,
@@ -34,7 +37,7 @@ const legalMarked = new Marked({
       const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
       return `<a href="${escapeHtml(href)}"${titleAttr}>${text}</a>`;
     },
-    table({ header, rows }) {
+    table({ header, rows, label }: LabelledTable) {
       const labels = header.map((cell) => escapeHtml(cell.text));
       const head = header.map((cell) => `<th>${this.parser.parseInline(cell.tokens)}</th>`).join('');
       const body = rows
@@ -43,7 +46,8 @@ const legalMarked = new Marked({
             `<tr>${row.map((cell, i) => `<td data-label="${labels[i] ?? ''}">${this.parser.parseInline(cell.tokens)}</td>`).join('')}</tr>`,
         )
         .join('');
-      return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>\n`;
+      const name = escapeHtml(label ?? header.map((cell) => cell.text).join(', '));
+      return `<div role="group" tabindex="0" aria-label="${name}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>\n`;
     },
   },
 });
@@ -58,7 +62,8 @@ export interface LegalDocument {
 /**
  * Renders a legal markdown text. Raw HTML in the source comes out as escaped text, and links other than relative,
  * `https:` and `mailto:` ones render as their plain text, so the output is safe to inject. A leading `#` heading is
- * taken out and returned as `heading`. With `hideEnglishSummary`, a leading "English summary" quote and the rule right
+ * taken out and returned as `heading`. Each table sits in a focusable box, named after the heading above it or else its
+ * column headings, so a table wider than the screen can be scrolled from the keyboard. With `hideEnglishSummary`, a leading "English summary" quote and the rule right
  * after it are left out.
  */
 export function renderLegal(markdown: string, hideEnglishSummary = false): LegalDocument {
@@ -75,6 +80,11 @@ export function renderLegal(markdown: string, hideEnglishSummary = false): Legal
       const rule = tokens.findIndex((token, i) => i > quote && token.type !== 'space');
       tokens.splice(quote, tokens[rule]?.type === 'hr' ? rule - quote + 1 : 1);
     }
+  }
+  let section: string | undefined;
+  for (const token of tokens) {
+    if (token.type === 'heading') section = (token as Tokens.Heading).text;
+    else if (token.type === 'table') (token as LabelledTable).label = section;
   }
   return { heading, html: legalMarked.parser(tokens) };
 }

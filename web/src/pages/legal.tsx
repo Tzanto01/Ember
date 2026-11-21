@@ -23,8 +23,8 @@ const prose = [
   '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4',
   '[&_blockquote]:rounded-sm [&_blockquote]:border-l-[3px] [&_blockquote]:border-border [&_blockquote]:bg-muted [&_blockquote]:px-4 [&_blockquote]:py-3',
   '[&_hr]:border-border',
-  '[&_table]:block [&_table]:overflow-x-auto [&_table]:text-[0.875rem] [&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:align-top [&_th]:border [&_th]:border-border [&_th]:p-2 [&_th]:text-left sm:[&_table]:[overflow-wrap:normal] sm:[&_table]:hyphens-manual',
-  'max-sm:[&_thead]:hidden max-sm:[&_tbody]:block max-sm:[&_tr]:mb-3 max-sm:[&_tr]:block max-sm:[&_tr]:border max-sm:[&_tr]:border-border max-sm:[&_tr]:rounded-sm max-sm:[&_td]:block max-sm:[&_td]:border-0 max-sm:[&_td]:hyphens-manual max-sm:[&_td]:before:block max-sm:[&_td]:before:font-semibold max-sm:[&_td]:before:content-[attr(data-label)]',
+  '[&_[role=group]]:overflow-x-auto [&_table]:text-[0.875rem] [&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:align-top [&_th]:border [&_th]:border-border [&_th]:p-2 [&_th]:text-left sm:[&_table]:[overflow-wrap:normal] sm:[&_table]:hyphens-manual',
+  'max-sm:[&_table]:block max-sm:[&_thead]:hidden max-sm:[&_tbody]:block max-sm:[&_tr]:mb-3 max-sm:[&_tr]:block max-sm:[&_tr]:border max-sm:[&_tr]:border-border max-sm:[&_tr]:rounded-sm max-sm:[&_td]:block max-sm:[&_td]:border-0 max-sm:[&_td]:hyphens-manual max-sm:[&_td]:before:block max-sm:[&_td]:before:font-semibold max-sm:[&_td]:before:content-[attr(data-label)]',
 ].join(' ');
 
 async function loadDocument(file: string, hideEnglishSummary: boolean) {

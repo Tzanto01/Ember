@@ -16,6 +16,18 @@ describe('renderLegal', () => {
     expect(table.querySelectorAll('thead th')).toHaveLength(2);
   });
 
+  it('puts each table in a keyboard-focusable box named after the heading above it', () => {
+    const source =
+      '| Ohne | Abschnitt |\n| --- | --- |\n| 1 | 2 |\n\n### 3.8 Speicher\n\nText\n\n| Wo | Name |\n| --- | --- |\n| a | b |\n\n| Was | Wann |\n| --- | --- |\n| c | d |\n';
+    const doc = new DOMParser().parseFromString(renderLegal(source).html, 'text/html');
+    const boxes = [...doc.querySelectorAll('div:has(> table)')];
+    expect(boxes.map((box) => [box.getAttribute('role'), box.getAttribute('tabindex'), box.getAttribute('aria-label')])).toEqual([
+      ['group', '0', 'Ohne, Abschnitt'],
+      ['group', '0', '3.8 Speicher'],
+      ['group', '0', '3.8 Speicher'],
+    ]);
+  });
+
   it('escapes a heading that carries markup into the label', () => {
     const { html } = renderLegal('| a"<b> | x |\n| --- | --- |\n| 1 | 2 |\n');
     expect(html).toContain('data-label="a&quot;&lt;b&gt;"');
