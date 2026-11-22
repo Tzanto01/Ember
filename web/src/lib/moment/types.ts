@@ -20,5 +20,12 @@ export interface Practice {
   basis: string;
 }
 
+/** One optional question of `content/reflect-questions.{en,de}.json`, shown on the reflect step and never stored. */
+export interface ReflectQuestion {
+  id: string;
+  version: number;
+  text: string;
+}
+
 /** The 1 to 5 worded intensity scale, "Mild" to "Very strong". */
 export type Intensity = 1 | 2 | 3 | 4 | 5;
