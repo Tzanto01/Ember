@@ -5,7 +5,7 @@
 
 ---
 
-**Stand:** 21. November 2026
+**Stand:** 23. November 2026
 
 Ember befindet sich in einer Beta-Phase. Funktionen können sich noch ändern. Diese Erklärung beschreibt den Stand vom oben genannten Datum.
 
