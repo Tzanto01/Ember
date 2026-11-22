@@ -5,15 +5,19 @@ export const highlightRing = 'ring-2 ring-primary ring-offset-2 ring-offset-back
 export const highlightMs = 1500;
 
 /**
- * The element a guide target names: the one with that id, else the first with that `data-guide` value that isn't
- * pressed (an open check-in before a done one), else the first with that value.
+ * The element a guide target names: the one with that id, else the first shown element with that `data-guide` value
+ * that isn't pressed (an open check-in before a done one), else the first shown one with that value; none inside a
+ * closed list (`[hidden]`).
  */
 export function findGuideTarget(target: string): HTMLElement | null {
-  const tagged = `[data-guide="${target}"]`;
+  const shown = [...document.querySelectorAll<HTMLElement>(`[data-guide="${target}"]`)].filter(
+    (element) => !element.closest('[hidden]'),
+  );
   return (
     document.getElementById(target) ??
-    document.querySelector<HTMLElement>(`${tagged}:not([aria-pressed="true"])`) ??
-    document.querySelector<HTMLElement>(tagged)
+    shown.find((element) => element.getAttribute('aria-pressed') !== 'true') ??
+    shown[0] ??
+    null
   );
 }
 

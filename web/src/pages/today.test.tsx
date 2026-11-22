@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnyHabit, Habit, Me, ReminderDestination, Routine, WeeklyStats } from '@/lib/models';
+import { findGuideTarget } from '@/lib/guide/highlight';
 import { auth, backup, deviceSync, localMode } from '@/lib/services';
 import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/test/test-support';
 import TodayPage from './today';
@@ -313,7 +314,7 @@ describe('TodayPage', () => {
     expect(await checkButton()).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('shows For today with each routine as a block of its habits in routine order, among the other habits', async () => {
+  it('shows each routine in For today as one closed row that opens to its habits in routine order', async () => {
     const water = { ...habit, id: 3, name: 'Water' };
     const read = { ...habit, id: 2, name: 'Read' };
     renderToday();
@@ -322,8 +323,10 @@ describe('TodayPage', () => {
     });
 
     await screen.findByRole('heading', { name: 'Morning' });
-    const headings = screen.getAllByRole('heading').map((h) => `${h.tagName} ${h.textContent}`);
-    expect(headings.slice(1)).toEqual(['H2 For today', 'H3 Morning', 'H4 Water', 'H4 Walk', 'H3 Read', 'H2 How was today?']);
+    const headings = () => screen.getAllByRole('heading').map((h) => `${h.tagName} ${h.textContent}`).slice(1);
+    expect(headings()).toEqual(['H2 For today', 'H3 Morning', 'H3 Read', 'H2 How was today?']);
+    await userEvent.click(screen.getByRole('button', { name: 'Morning' }));
+    expect(headings()).toEqual(['H2 For today', 'H3 Morning', 'H4 Water', 'H4 Walk', 'H3 Read', 'H2 How was today?']);
     expect(screen.getByRole('link', { name: 'Edit Morning routine' })).toHaveAttribute('href', '/routines/5/edit');
   });
 
@@ -880,7 +883,7 @@ describe('TodayPage sections and order', () => {
     const routine: Routine = { id: 5, name: 'Morning', reminderTime: null, reminderChannels: [], habitIds: [3, 1, 2] };
     renderToday();
     await answerLoad(f, [at(1, 'Walk', null), at(2, 'Water', null), restDay(3, 'Gym')], { routines: [routine] });
-    await screen.findByRole('heading', { name: 'Morning' });
+    await userEvent.click(await screen.findByRole('button', { name: 'Morning' }));
 
     await choose('Options for Water', 'Move up');
 
@@ -1152,7 +1155,7 @@ describe('TodayPage review fixes', () => {
     client.setQueryData(['routines'], [routine]);
     renderToday('/today', client);
     await answerLoad(f, [at(1, 'Walk', null), at(2, 'Water', null), at(3, 'Stretch', null)], { routines: [routine] });
-    await screen.findByRole('heading', { name: 'Morning' });
+    await userEvent.click(await screen.findByRole('button', { name: 'Morning' }));
 
     await choose('Options for Stretch', 'Move up');
     await choose('Options for Stretch', 'Move up');
@@ -1196,5 +1199,164 @@ describe('TodayPage review fixes', () => {
 
     await userEvent.type(within(dialog).getByRole('textbox'), ' Still.');
     expect(save).not.toHaveAttribute('aria-disabled');
+  });
+});
+
+describe('TodayPage routine row', () => {
+  let f: FetchMock;
+  const member = (id: number, name: string, change: Partial<Habit> = {}): Habit => ({ ...habit, id, name, ...change });
+  const day = (state: Habit['today']['state'], change: Partial<Habit['today']> = {}) => ({
+    today: { ...habit.today, state, ...change },
+  });
+  const morning = (habitIds: number[]): Routine => ({ id: 5, name: 'Morning', reminderTime: null, reminderChannels: [], habitIds });
+  const toggle = () => screen.findByRole('button', { name: 'Morning' });
+
+  beforeEach(() => {
+    f = mockFetch();
+    auth.setMe(me);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    auth.clearSession();
+  });
+
+  it('counts skipped members as settled, partial ones as open, and leaves paused ones out of the progress', async () => {
+    renderToday();
+    await answerLoad(
+      f,
+      [
+        member(1, 'Walk', day('done', { completed: true, count: 1 })),
+        member(2, 'Water', day('notdone', { completed: false, skipped: true })),
+        member(3, 'Read'),
+        member(4, 'Stretch', { timesPerDay: 2, ...day('partial', { count: 1 }) }),
+        member(6, 'Meds', { pausedToday: true, ...day('paused') }),
+      ],
+      { routines: [morning([1, 2, 3, 4, 6])] },
+    );
+
+    expect(await toggle()).toHaveAccessibleDescription('2 of 4 done');
+    expect(screen.getByText('2/4')).toBeInTheDocument();
+  });
+
+  it('says Done today once every member is done or skipped, and shows the low-day line on a low day', async () => {
+    renderToday();
+    await answerLoad(
+      f,
+      [member(1, 'Walk', day('done', { completed: true, count: 1 })), member(2, 'Water', day('notdone', { completed: false, skipped: true }))],
+      { routines: [morning([1, 2])] },
+    );
+    expect(await toggle()).toHaveAccessibleDescription('Done today');
+    cleanup();
+
+    renderToday();
+    (await f.next('GET', '/api/me')).respond(200, me);
+    (await f.next('GET', '/api/habits')).respond(200, [member(1, 'Walk', day('lowday')), member(2, 'Water', day('lowday'))]);
+    (await f.next('GET', '/api/low-days?from=2026-11-01&to=2026-11-01')).respond(200, ['2026-11-01']);
+    (await f.next('GET', '/api/stats/weekly')).respond(200, weekly);
+    (await f.next('GET', '/api/routines')).respond(200, [morning([1, 2])]);
+    expect(await toggle()).toHaveAccessibleDescription('Low day, resting. Checking in is still welcome.');
+  });
+
+  it('opens and closes with a tap or the keyboard, and the members it controls show only while open', async () => {
+    renderToday();
+    await answerLoad(f, [member(1, 'Walk'), member(2, 'Water')], { routines: [morning([1, 2])] });
+    const button = await toggle();
+    const members = document.getElementById(button.getAttribute('aria-controls')!)!;
+
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(members).not.toBeVisible();
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(within(members).getByRole('heading', { level: 4, name: 'Walk' })).toBeVisible();
+    button.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('heading', { level: 4 })).toBeNull();
+  });
+
+  it('remembers an open routine on this device after a reload', async () => {
+    renderToday();
+    await answerLoad(f, [member(1, 'Walk')], { routines: [morning([1])] });
+    await userEvent.click(await toggle());
+    cleanup();
+
+    renderToday();
+    await answerLoad(f, [member(1, 'Walk')], { routines: [morning([1])] });
+    expect(await toggle()).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('heading', { level: 4, name: 'Walk' })).toBeVisible();
+  });
+
+  it('starts closed and still opens when this device refuses storage', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError');
+    });
+    renderToday();
+    await answerLoad(f, [member(1, 'Walk')], { routines: [morning([1])] });
+
+    const button = await toggle();
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('heading', { level: 4, name: 'Walk' })).toBeVisible();
+  });
+
+  it('lifts the closed routine row with a long press and drops it as one block, without the ending tap opening it', async () => {
+    renderToday();
+    await answerLoad(f, [member(1, 'Walk'), member(2, 'Water'), member(3, 'Read', { reminderTime: '21:00', reminderTimes: ['21:00'] })], {
+      routines: [{ ...morning([1, 2]), reminderTime: '07:00' }],
+    });
+    const row = (await toggle()).closest('li')!;
+
+    fireEvent.pointerDown(row, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    await waitFor(() => expect(screen.getAllByText('Moving “Morning routine”. Let go to drop it here.').length).toBeGreaterThan(0), {
+      timeout: 1500,
+    });
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 10, clientY: 400 });
+    fireEvent.pointerUp(row, { pointerId: 1, clientX: 10, clientY: 400 });
+    fireEvent.click(await toggle());
+
+    expect((await f.next('PUT', '/api/me/today-order')).body).toEqual({ order: ['h:3', 'r:5'] });
+    expect(await toggle()).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('updates the progress when a member is checked in inside the open routine', async () => {
+    renderToday();
+    await answerLoad(f, [member(1, 'Walk'), member(2, 'Water')], { routines: [morning([1, 2])] });
+    const button = await toggle();
+    expect(button).toHaveAccessibleDescription('0 of 2 done');
+    await userEvent.click(button);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Check in Walk for today' }));
+    const put = await f.next('PUT', '/api/habits/1/days/2026-11-01');
+    expect(put.body).toEqual({ completed: true });
+    put.respond(200, { ...doneHabit, id: 1, name: 'Walk' });
+
+    await waitFor(() => expect(button).toHaveAccessibleDescription('1 of 2 done'));
+  });
+
+  it('opens the routine a reminder link points into, then scrolls to and rings the habit', async () => {
+    const scrolled = vi.fn<(this: Element, options?: ScrollIntoViewOptions) => void>(function (this: Element) {});
+    Element.prototype.scrollIntoView = scrolled;
+    renderToday('/today?habit=2');
+    await answerLoad(f, [member(1, 'Walk'), member(2, 'Water')], { routines: [morning([1, 2])] });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Morning' })).toHaveAttribute('aria-expanded', 'true'));
+    const row = screen.getByRole('heading', { level: 4, name: 'Water' }).closest('li')!;
+    expect(row).toBeVisible();
+    await waitFor(() => expect(scrolled.mock.contexts).toEqual([row]));
+    expect(row.firstElementChild!.className).toMatch(/ring-primary/);
+  });
+
+  it("points the guide's check-in at a shown check button, never one inside a closed routine", async () => {
+    renderToday();
+    await answerLoad(f, [member(1, 'Walk'), member(2, 'Read')], { routines: [morning([1])] });
+    await screen.findByRole('button', { name: 'Morning' });
+
+    expect(findGuideTarget('check-in')).toBe(screen.getByRole('button', { name: 'Check in Read for today' }));
   });
 });

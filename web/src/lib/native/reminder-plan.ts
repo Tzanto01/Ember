@@ -171,6 +171,14 @@ function pendingOn(habit: Habit, date: LocalDateString): boolean {
 }
 
 /**
+ * True when a routine member has nothing left to remind of on `date`, as `HabitRules.IsRoutineDone` reads a member:
+ * `habit.today` shows that day, and it is done, not due (a rest day, paused, a low day, before its start) or skipped.
+ */
+export function memberSettled(habit: Habit, date: LocalDateString): boolean {
+  return habit.today.date === date && (!pendingOn(habit, date) || skippedOn(habit, date));
+}
+
+/**
  * True when a reminder for `reminder`'s habit or routine on its `date` has nothing left to remind of, by the plan's
  * rules read from `habit.today` alone: the habit is done that day, or a weekly habit's target is met that week; every
  * member of the routine is known for that day and each is done, not due, or skipped that day (as on the server).
@@ -191,9 +199,7 @@ export function settled(
   const members = routine ? habits.filter((habit) => routine.habitIds.includes(habit.id)) : [];
   return (
     members.length > 0 &&
-    members.every(
-      (habit) => habit.today.date === date && (!pendingOn(habit, date) || skippedOn(habit, date)),
-    )
+    members.every((habit) => memberSettled(habit, date))
   );
 }
 

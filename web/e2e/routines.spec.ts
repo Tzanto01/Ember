@@ -25,7 +25,14 @@ test('a routine groups its habits on Today in order, overrides their reminder, a
 
   const group = page.getByRole('region', { name: 'Morning', exact: true });
   await page.goto('/today');
+  const toggle = group.getByRole('button', { name: 'Morning', exact: true });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toHaveAccessibleDescription('0 of 2 done');
+  await expect(group.getByRole('heading', { level: 4 })).toHaveCount(0);
+  await toggle.click();
   await expect(group.getByRole('heading', { level: 4 })).toHaveText(['Journal', 'Stretch']);
+  await group.getByRole('button', { name: 'Check in Journal for today' }).click();
+  await expect(toggle).toHaveAccessibleDescription('1 of 2 done');
 
   await page.getByRole('link', { name: 'Edit Morning routine' }).first().click();
   await page.getByRole('button', { name: 'Move Stretch up' }).click();
