@@ -90,7 +90,7 @@ dependencies {
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     testImplementation "org.json:json:20260814"
-    testImplementation "org.robolectric:robolectric:4.17"
+    testImplementation "org.robolectric:robolectric:4.18.1"
     testImplementation "com.squareup.okhttp3:mockwebserver:4.12.0"
     implementation project(':capacitor-cordova-android-plugins')
 }
