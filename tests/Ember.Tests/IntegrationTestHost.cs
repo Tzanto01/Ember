@@ -74,10 +74,24 @@ public sealed class IntegrationTestHost : IAsyncDisposable
         if (initialize)
             await AppHost.InitializeAsync(host);
 
+        if (time is not null)
+            await PauseScheduledTriggersAsync(host);
+
         if (start)
             await host.StartAsync();
 
         return harness;
+    }
+
+    /// <summary>
+    /// Quartz fires the app's cron triggers on the real clock, which a fake <see cref="TimeProvider"/> does not move, so a
+    /// scheduled run would land mid-test and see the fake time. A test with a fake clock runs its jobs itself instead.
+    /// </summary>
+    private static async Task PauseScheduledTriggersAsync(IHost host)
+    {
+        var scheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        foreach (var trigger in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup()))
+            await scheduler.PauseTrigger(trigger);
     }
 
     public async Task EnsureCreatedAsync()
