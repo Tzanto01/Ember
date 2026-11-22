@@ -5,9 +5,11 @@
     "notes": {
       "en": [
         "For habits you're letting go of, you can now mark a day without a slip as “Made it today”, on Today, in History or in Discord. It's just for you and changes no count.",
+        "Today shows each routine as one row with its progress. Tap it to see its habits. Your phone remembers which routines you keep open.",
         "If you had habits before the last update, Today shows them in your old order again.",
         "When you check in anywhere, Ember clears that reminder on your phone, in your browser and in Discord.",
         "Skip for today in Discord, or Not done in the app, quiets that habit's reminders for the rest of the day. A skip in Discord keeps the check-ins you already made.",
+        "At the end of “I need a moment”, a few optional questions give you something to think about. You can answer them if you like, and your answers stay with that moment under Your moments.",
         "In the Android app, you can send the Ember team a short tech report when something goes wrong: Settings, Help right now, “Send a tech report”. You see the whole report before it goes, and it's never linked to your account.",
         "Your data export now includes your feedback with its pictures, and a list of your sign-ins.",
         "Android: the app now starts in Ember's colors instead of grey, and reloads by itself if its screen crashes. On some phones the widget no longer asks you to open Ember after midnight.",
@@ -15,9 +17,11 @@
       ],
       "de": [
         "Bei Habits, die du loslassen möchtest, kannst du einen Tag ohne Ausrutscher jetzt als „Heute geschafft“ markieren: unter Heute, in der Historie oder in Discord. Das ist nur für dich und ändert keine Zahl.",
+        "Unter Heute ist jede Routine eine Zeile mit ihrem Fortschritt. Tipp darauf, um ihre Habits zu sehen. Dein Handy merkt sich, welche Routinen du offen lässt.",
         "Hattest du schon vor dem letzten Update Habits, zeigt Heute sie wieder in deiner alten Reihenfolge.",
         "Hakst du irgendwo ab, entfernt Ember die Erinnerung dazu auf dem Handy, im Browser und in Discord.",
         "„Heute auslassen“ in Discord oder „Nicht erledigt“ in der App stellt die Erinnerungen dieses Habits für den Rest des Tages still. Auslassen in Discord behält die Check-ins, die du schon gemacht hast.",
+        "Am Ende von „Ich brauche einen Moment“ gibt es ein paar freiwillige Fragen zum Nachdenken. Du kannst darauf antworten, wenn du magst, und deine Antworten bleiben bei diesem Moment unter „Deine Momente“.",
         "In der Android-App kannst du dem Ember-Team einen kurzen technischen Bericht schicken, wenn etwas schiefgeht: Einstellungen, „Hilfe jetzt“, „Technischen Bericht senden“. Du siehst vorher den ganzen Bericht, und er ist nie mit deinem Konto verknüpft.",
         "Dein Datenexport enthält jetzt auch dein Feedback mit den Bildern und eine Liste deiner Anmeldungen.",
         "Android: Die App startet jetzt in Embers Farben statt in Grau und lädt sich von selbst neu, wenn ihre Ansicht abstürzt. Auf manchen Handys bittet dich das Widget nach Mitternacht nicht mehr, Ember zu öffnen.",
