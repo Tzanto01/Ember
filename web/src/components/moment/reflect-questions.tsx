@@ -1,14 +1,16 @@
 import { useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { momentCopy } from '@/lib/moment/copy';
 import { reflectQuestions } from '@/lib/moment/questions';
 
 /**
  * The optional questions on the reflect step: one at a time, "Another question" cycles through them and "Skip the
- * questions" hides them and returns focus to the step heading. A question is only something to think about; nothing
- * about it is stored.
+ * questions" hides them and returns focus to the step heading without scrolling. A question is only something to
+ * think about; nothing about it is stored.
  */
 export function ReflectQuestions() {
+  useTranslation();
   const id = useId();
   const questions = reflectQuestions();
   const [index, setIndex] = useState<number | null>(0);
@@ -17,7 +19,9 @@ export function ReflectQuestions() {
   if (index === null) return null;
 
   function skip(): void {
-    sectionRef.current?.parentElement?.querySelector<HTMLElement>('h1')?.focus();
+    sectionRef.current?.parentElement
+      ?.querySelector<HTMLElement>('h1')
+      ?.focus({ preventScroll: true });
     setIndex(null);
   }
 

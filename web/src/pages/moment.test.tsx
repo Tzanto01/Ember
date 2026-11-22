@@ -478,7 +478,7 @@ describe('MomentPage', () => {
   describe('reflect questions', () => {
     const questions = [
       'What do you need right now?',
-      'What could you do for yourself now that would feel good?',
+      'What good thing could you do for yourself now?',
       'What feels even a little bit okay right now?',
       'What would you like to say to yourself right now?',
       'What would you like to take with you from this moment?',
