@@ -507,7 +507,7 @@ export default function TodayPage() {
             role="list"
             hidden={!open}
             data-routine-id={routine.id}
-            className={listClass}
+            className={cn(listClass, 'ms-2 border-s-2 border-border ps-3')}
             {...reorder.listProps(list, ids)}
           >
             {reorder.orderOf(list, ids).map((id) => {

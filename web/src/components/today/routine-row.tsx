@@ -88,7 +88,7 @@ export function RoutineRow({
     <Card
       className={cn(
         'relative isolate grid grid-cols-[minmax(0,1fr)_56px] items-center gap-x-3 gap-y-0 py-3 md:py-3',
-        'has-[[aria-expanded]:hover]:bg-[color-mix(in_oklch,var(--accent)_45%,var(--card))]',
+        '[@media(hover:hover)]:has-[[aria-controls]:hover]:bg-[color-mix(in_oklch,var(--accent)_45%,var(--card))]',
         done &&
           'bg-[color-mix(in_oklch,var(--done)_8%,var(--card))] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_3px_0_0_var(--done)]',
       )}
@@ -101,7 +101,7 @@ export function RoutineRow({
             aria-controls={controls}
             aria-describedby={progressId}
             onClick={onToggle}
-            className="text-left focus-visible:outline-none before:absolute before:inset-0 before:z-[1] before:rounded-xl focus-visible:before:[outline:3px_solid_var(--ring)] focus-visible:before:[outline-offset:2px]"
+            className="block w-full cursor-pointer text-left [overflow-wrap:anywhere] focus-visible:outline-none before:absolute before:inset-0 before:z-[1] before:rounded-xl focus-visible:before:[outline:3px_solid_var(--ring)] focus-visible:before:[outline-offset:2px]"
           >
             {name}
           </button>
@@ -131,7 +131,7 @@ export function RoutineRow({
         className="pointer-events-none flex size-[56px] items-center justify-center text-muted-foreground"
       >
         <ChevronDown
-          className={cn('size-[24px] motion-safe:transition-transform', open && 'rotate-180')}
+          className={cn('size-[24px] motion-safe:transition-transform motion-safe:ease-ember', open && 'rotate-180')}
         />
       </span>
     </Card>

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnyHabit, Habit, Me, ReminderDestination, Routine, WeeklyStats } from '@/lib/models';
+import { findGuideTarget } from '@/lib/guide/highlight';
 import { auth, backup, deviceSync, localMode } from '@/lib/services';
 import { type FetchMock, habit, letGoHabit, me, mockFetch } from '@/test/test-support';
 import TodayPage from './today';
@@ -1338,12 +1339,24 @@ describe('TodayPage routine row', () => {
     await waitFor(() => expect(button).toHaveAccessibleDescription('1 of 2 done'));
   });
 
-  it('opens the routine a reminder link points into', async () => {
-    Element.prototype.scrollIntoView = vi.fn();
+  it('opens the routine a reminder link points into, then scrolls to and rings the habit', async () => {
+    const scrolled = vi.fn<(this: Element, options?: ScrollIntoViewOptions) => void>(function (this: Element) {});
+    Element.prototype.scrollIntoView = scrolled;
     renderToday('/today?habit=2');
     await answerLoad(f, [member(1, 'Walk'), member(2, 'Water')], { routines: [morning([1, 2])] });
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Morning' })).toHaveAttribute('aria-expanded', 'true'));
-    expect(screen.getByRole('heading', { level: 4, name: 'Water' })).toBeVisible();
+    const row = screen.getByRole('heading', { level: 4, name: 'Water' }).closest('li')!;
+    expect(row).toBeVisible();
+    await waitFor(() => expect(scrolled.mock.contexts).toEqual([row]));
+    expect(row.firstElementChild!.className).toMatch(/ring-primary/);
+  });
+
+  it("points the guide's check-in at a shown check button, never one inside a closed routine", async () => {
+    renderToday();
+    await answerLoad(f, [member(1, 'Walk'), member(2, 'Read')], { routines: [morning([1])] });
+    await screen.findByRole('button', { name: 'Morning' });
+
+    expect(findGuideTarget('check-in')).toBe(screen.getByRole('button', { name: 'Check in Read for today' }));
   });
 });
