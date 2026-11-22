@@ -272,6 +272,8 @@ for (const { code, locale, strings } of languages) {
       await expect(page.getByRole('link', { name: tr('whatsNew.card.link') })).toBeVisible();
       await check(page, '/today (what is new card)', code, found);
 
+      await page.getByRole('button', { name: routineName, exact: true }).click();
+      await check(page, '/today (routine open)', code, found);
       await page.getByRole('link', { name: tr('today.edit', { name: longHabit }) }).first().click();
       await expect(page.getByLabel(tr('habitFields.name'), { exact: true })).toHaveValue(longHabit);
       await check(page, '/habits/:id/edit', code, found);

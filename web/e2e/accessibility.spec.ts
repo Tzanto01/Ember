@@ -197,6 +197,10 @@ for (const { code, locale, strings } of languages) {
             await expect(page.getByLabel(tr('habitFields.name'), { exact: true })).toBeVisible();
             await scan(page, '/habits/new (form)', found);
             await page.goto('/today');
+            const morning = page.getByRole('button', { name: 'Morning', exact: true });
+            await morning.click();
+            await expect(morning).toHaveAttribute('aria-expanded', 'true');
+            await scan(page, '/today (routine open)', found);
             await page.getByRole('link', { name: tr('today.edit', { name: 'Stretch' }) }).first().click();
             await expect(page.getByLabel(tr('habitFields.name'), { exact: true })).toHaveValue('Stretch');
             await scan(page, 'habit edit', found);
