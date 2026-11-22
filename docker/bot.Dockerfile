@@ -11,7 +11,7 @@ RUN dotnet publish src/Ember.Bot/Ember.Bot.csproj \
     -o /app/publish
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/runtime:10.0.15@sha256:64a538092439382d055c87c0f49092efb8bca883c736c54ae523da7fd8e02d18 AS runtime
+FROM mcr.microsoft.com/dotnet/runtime:11.0.0@sha256:3fe5f5495141c97986a49d3a4e76061f6225c3f93f94e8a7e522781376193863 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 USER $APP_UID
