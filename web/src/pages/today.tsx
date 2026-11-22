@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, ChevronDown, ListOrdered, Moon, Pencil, Plus } from 'lucide-react';
+import { CalendarDays, ChevronDown, ListOrdered, Moon, Plus } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,7 @@ import { TipSlot } from '@/components/tips/tip-slot';
 import { checkButtonId } from '@/components/today/check-button';
 import { HabitRow, habitRowId } from '@/components/today/habit-row';
 import { NoteSheet } from '@/components/today/note-sheet';
+import { RoutineRow, routineHeadingId } from '@/components/today/routine-row';
 import { ListMenu, RowMenu } from '@/components/today/row-menu';
 import { useReorder } from '@/components/today/use-reorder';
 import { HearthIllustration } from '@/components/today/hearth-illustration';
@@ -49,7 +50,7 @@ import { routinesKey, type TodayData, todayKey } from '@/lib/query-keys';
 import { loadFreshMe } from '@/components/today/fresh-me';
 import { api, auth, deviceSync } from '@/lib/services';
 import { useStore } from '@/lib/store';
-import { notTodayOpen, rememberNotTodayOpen, useCalmMode } from '@/lib/theme';
+import { notTodayOpen, openRoutines, rememberNotTodayOpen, rememberRoutineOpen, useCalmMode } from '@/lib/theme';
 import {
   habitKey,
   moveKey,
@@ -145,6 +146,7 @@ export default function TodayPage() {
   const calm = useCalmMode();
   const order = me?.todayOrder ?? null;
   const [laterOpen, setLaterOpen] = useState(notTodayOpen);
+  const [routinesOpen, setRoutinesOpen] = useState(openRoutines);
   const [note, setNote] = useState<{ habit: { id: number; name: string }; afterCheckIn: boolean; session: number } | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const orderSeq = useRef(0);
@@ -168,9 +170,12 @@ export default function TodayPage() {
     if (!data || query.isFetching || openHabit === null) return;
     const target = data.habits.find((h) => String(h.id) === openHabit);
     const row = target && document.getElementById(habitRowId(target.id));
-    if (row?.closest('#not-today-list[hidden]')) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- opens the Not for today list when the linked habit sits in it
-      setLaterOpen(true);
+    const closed = row?.closest<HTMLElement>('ul[hidden]');
+    if (closed) {
+      const routineId = Number(closed.dataset['routineId']);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- opens the routine or the Not for today list the linked habit sits in
+      if (routineId) setRoutinesOpen((open) => new Set(open).add(routineId));
+      else setLaterOpen(true);
       return;
     }
     setSearchParams(
@@ -183,7 +188,7 @@ export default function TodayPage() {
     if (!target || !row) return;
     row.scrollIntoView({ block: 'center', behavior: reduceMotion || calm ? 'auto' : 'smooth' });
     setHighlighted(target.id);
-  }, [data, query.isFetching, openHabit, setSearchParams, reduceMotion, calm, laterOpen]);
+  }, [data, query.isFetching, openHabit, setSearchParams, reduceMotion, calm, laterOpen, routinesOpen]);
 
   useEffect(() => {
     if (highlighted === null) return;
@@ -466,28 +471,45 @@ export default function TodayPage() {
       className={extras.list && extras.reorderKey ? liftClass(extras.list, extras.reorderKey) : undefined}
     />
   );
+  const toggleRoutine = (id: number, open: boolean) => {
+    rememberRoutineOpen(id, open);
+    setRoutinesOpen((current) => {
+      const next = new Set(current);
+      if (open) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
   const routineBlock = (item: Extract<TodayItem, { kind: 'routine' }>, keys: string[]) => {
     const { routine } = item;
     const list = `routine-${routine.id}`;
     const ids = item.habits.map((h) => String(h.id));
     const title = routineTitle(routine.name);
+    const open = routinesOpen.has(routine.id);
+    const membersId = `routine-habits-${routine.id}`;
     return (
       <li key={item.key} data-reorder-key={item.key} className={liftClass('today', item.key)}>
-        <section aria-labelledby={`routine-${routine.id}`} className="flex flex-col gap-3">
-          <div className="flex min-h-[48px] items-center justify-between gap-2">
-            <h3 id={`routine-${routine.id}`} className="min-w-0 text-[1.125rem] [overflow-wrap:anywhere]">
-              {routine.name}
-            </h3>
-            <div className="flex shrink-0">
-              <Button asChild variant="ghost" size="icon" className="text-muted-foreground">
-                <Link to={`/routines/${routine.id}/edit`} aria-label={t('today.edit', { name: title })}>
-                  <Pencil aria-hidden />
-                </Link>
-              </Button>
-              <RowMenu name={title} move={sectionMove(0, keys, item.key, title)} onNote={null} />
-            </div>
-          </div>
-          <ul role="list" className={listClass} {...reorder.listProps(list, ids)}>
+        <section aria-labelledby={routineHeadingId(routine.id)} className="flex flex-col gap-3">
+          <RoutineRow
+            routineId={routine.id}
+            name={routine.name}
+            title={title}
+            habits={item.habits}
+            date={planDate}
+            lowDay={lowDay}
+            open={open}
+            onToggle={() => toggleRoutine(routine.id, !open)}
+            controls={membersId}
+            menu={<RowMenu name={title} move={sectionMove(0, keys, item.key, title)} onNote={null} />}
+          />
+          <ul
+            id={membersId}
+            role="list"
+            hidden={!open}
+            data-routine-id={routine.id}
+            className={listClass}
+            {...reorder.listProps(list, ids)}
+          >
             {reorder.orderOf(list, ids).map((id) => {
               const habit = item.habits.find((h) => String(h.id) === id)!;
               const onMove = (by: -1 | 1) =>

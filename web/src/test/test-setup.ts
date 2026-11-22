@@ -7,6 +7,7 @@ afterEach(async () => {
   cleanup();
   await i18n.changeLanguage('en');
   localStorage.removeItem('ember.language');
+  localStorage.removeItem('ember.openRoutines');
   document.documentElement.lang = '';
 });
 

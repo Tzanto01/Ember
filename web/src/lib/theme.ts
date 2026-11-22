@@ -52,6 +52,7 @@ const accountKey = 'ember.accountTheme';
 const schemeKey = 'ember.colorScheme';
 const calmKey = 'ember.calm';
 const notTodayKey = 'ember.notTodayOpen';
+const routinesOpenKey = 'ember.openRoutines';
 const gentleKey = 'ember.gentleMotion';
 
 /** Light or dark on this device; `system` follows `prefers-color-scheme`. Never synced to the account. */
@@ -189,6 +190,19 @@ export function notTodayOpen(): boolean {
 /** Remembers on this device whether Today's "Not for today" section is open. */
 export function rememberNotTodayOpen(open: boolean): void {
   write(notTodayKey, open ? '1' : null);
+}
+
+/** The routines open on Today on this device; every other routine shows as one closed row. */
+export function openRoutines(): Set<number> {
+  return new Set((read(routinesOpenKey) ?? '').split(',').filter(Boolean).map(Number));
+}
+
+/** Remembers on this device whether a routine is open on Today. */
+export function rememberRoutineOpen(id: number, open: boolean): void {
+  const ids = openRoutines();
+  if (open) ids.add(id);
+  else ids.delete(id);
+  write(routinesOpenKey, [...ids].join(',') || null);
 }
 
 /** The Android widget's "Gentle motion" on this device; on unless turned off. */
