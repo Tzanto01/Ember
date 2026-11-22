@@ -114,6 +114,45 @@ describe('reflection blocks round trip', () => {
     ]);
   });
 
+  it('reads question answers as their own parts after "What helped", in either language, without adding them to it', async () => {
+    const english = reflectionBlock({
+      time: '08:00',
+      helped: 'Slow breathing',
+      answers: [
+        { question: 'What do you need right now?', text: 'Quiet\nand tea' },
+        { question: 'What feels even a little bit okay right now?', text: '' },
+        { question: 'What would you like to take with you from this moment?', text: 'It passed' },
+      ],
+    });
+    await inGerman();
+    const german = reflectionBlock({
+      time: '20:15',
+      trigger: 'Lärm',
+      answers: [{ question: 'Was brauchst du gerade?', text: 'Ruhe' }],
+    });
+
+    expect(english).toBe(
+      'Moment 08:00\nWhat helped: Slow breathing\nWhat do you need right now? Quiet\nand tea\nWhat would you like to take with you from this moment? It passed',
+    );
+    expect(parseMoments('2026-11-01', `${english}\n\n${german}`)).toEqual([
+      {
+        date: '2026-11-01',
+        time: '08:00',
+        helped: 'Slow breathing',
+        answers: [
+          { question: 'What do you need right now?', text: 'Quiet\nand tea' },
+          { question: 'What would you like to take with you from this moment?', text: 'It passed' },
+        ],
+      },
+      {
+        date: '2026-11-01',
+        time: '20:15',
+        setItOff: 'Lärm',
+        answers: [{ question: 'Was brauchst du gerade?', text: 'Ruhe' }],
+      },
+    ]);
+  });
+
   it('does not swallow the free text that follows a block directly after a blank line', () => {
     const note = `${reflectionBlock({ time: '08:00', trigger: 'noise' })}\n\nWhat helped: tea, I think.`;
     expect(parseMoments('2026-11-01', note)[0]).toEqual({

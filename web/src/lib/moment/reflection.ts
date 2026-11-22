@@ -14,11 +14,14 @@ export interface Reflection {
   trigger?: string;
   /** The practice title that helped, or "Nothing really". */
   helped?: string;
+  /** Answers to the optional questions, each with the question as shown; empty answers are left out. */
+  answers?: { question: string; text: string }[];
 }
 
 /**
  * The contract block for `appendPrivate` in the current language: `Moment HH:MM · {tile} · {before} → {after}`, then
- * `What set it off: …` and `What helped: …`. Empty segments and lines are left out; without `after` there is no arrow.
+ * `What set it off: …`, `What helped: …` and one `{question} …` line per answer. Empty segments and lines are left out;
+ * without `after` there is no arrow.
  */
 export function reflectionBlock({
   time,
@@ -27,6 +30,7 @@ export function reflectionBlock({
   after,
   trigger,
   helped,
+  answers = [],
 }: Reflection): string {
   const intensity = after ? [before, `→ ${after}`].filter(Boolean).join(' ') : before;
   const heading = [t('moment.block.heading', { time }), tile, intensity].filter(Boolean).join(' · ');
@@ -34,6 +38,10 @@ export function reflectionBlock({
   const setOff = trigger?.trim();
   if (setOff) lines.push(t('moment.block.setItOff', { text: setOff }));
   if (helped) lines.push(t('moment.block.helped', { text: helped }));
+  for (const { question, text } of answers) {
+    const answer = text.trim();
+    if (answer) lines.push(t('moment.block.answer', { question, text: answer }));
+  }
   return lines.join('\n');
 }
 

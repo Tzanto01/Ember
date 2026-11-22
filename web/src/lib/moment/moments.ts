@@ -1,5 +1,7 @@
 import practicesDe from '@/content/practices.de.json';
 import practicesEn from '@/content/practices.en.json';
+import questionsDe from '@/content/reflect-questions.de.json';
+import questionsEn from '@/content/reflect-questions.en.json';
 import { de, en } from '@/lib/i18n';
 import type { LocalDateString } from '@/lib/models';
 
@@ -13,6 +15,13 @@ export interface SavedMoment {
   after?: string;
   setItOff?: string;
   helped?: string;
+  /** Answers to the optional questions, in note order, each with the question as it was saved. */
+  answers?: Answer[];
+}
+
+interface Answer {
+  question: string;
+  text: string;
 }
 
 const locales = [en, de];
@@ -30,6 +39,19 @@ const headingLine = new RegExp(
 );
 const setItOffPrefixes = prefixes('moment.block.setItOff');
 const helpedPrefixes = prefixes('moment.block.helped');
+const answerPrefixes = (
+  [
+    [en, questionsEn],
+    [de, questionsDe],
+  ] as const
+).flatMap(([locale, questions]) =>
+  questions.map(({ text: question }) => ({
+    question,
+    prefix: locale['moment.block.answer']
+      .split(/\{\{\s*text\s*\}\}/)[0]!
+      .replace(/\{\{\s*question\s*\}\}/, () => question),
+  })),
+);
 const intensityWords = new Set(
   locales.flatMap((locale) =>
     (['1', '2', '3', '4', '5'] as const).map((n) => locale[`moment.intensity.${n}`]),
@@ -40,6 +62,11 @@ const nothingWords = new Set(locales.map((locale) => locale['moment.reflect.noth
 function after(line: string, starts: string[]): string | null {
   const start = starts.find((prefix) => line.startsWith(prefix));
   return start === undefined ? null : line.slice(start.length).trim();
+}
+
+function readAnswer(line: string): Answer | null {
+  const found = answerPrefixes.find(({ prefix }) => line.startsWith(prefix));
+  return found ? { question: found.question, text: line.slice(found.prefix.length).trim() } : null;
 }
 
 function readHeading(date: LocalDateString, time: string, rest: string | undefined): SavedMoment {
@@ -63,12 +90,13 @@ function readHeading(date: LocalDateString, time: string, rest: string | undefin
 /**
  * The moment reflection blocks in a day note, in note order (contract companion-v1 "Your moments"). A block starts with
  * a line `Moment HH:MM · {tile} · {before} → {after}` and runs until a blank line or the next such line; its "What set
- * it off:" and "What helped:" lines are read in English and German. A line that continues a label adds to it.
+ * it off:", "What helped:" and question-answer lines are read in English and German. A line that continues a label adds
+ * to it.
  */
 export function parseMoments(date: LocalDateString, text: string | null): SavedMoment[] {
   const moments: SavedMoment[] = [];
   let current: SavedMoment | null = null;
-  let label: 'setItOff' | 'helped' | null = null;
+  let label: 'setItOff' | 'helped' | Answer | null = null;
   for (const raw of (text ?? '').split(/\r?\n/)) {
     const line = raw.trim();
     const heading = headingLine.exec(line);
@@ -85,14 +113,20 @@ export function parseMoments(date: LocalDateString, text: string | null): SavedM
     }
     const setItOff = after(line, setItOffPrefixes);
     const helped = setItOff === null ? after(line, helpedPrefixes) : null;
+    const answer = setItOff === null && helped === null ? readAnswer(line) : null;
     if (setItOff !== null) {
       label = 'setItOff';
       current.setItOff = setItOff;
     } else if (helped !== null) {
       label = 'helped';
       current.helped = helped;
-    } else if (label) {
+    } else if (answer) {
+      label = answer;
+      current.answers = [...(current.answers ?? []), answer];
+    } else if (typeof label === 'string') {
       current[label] = `${current[label]}\n${line}`;
+    } else if (label) {
+      label.text = `${label.text}\n${line}`;
     }
   }
   return moments;

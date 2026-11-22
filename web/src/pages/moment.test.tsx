@@ -201,7 +201,8 @@ describe('MomentPage', () => {
       consent: consent as typeof me.consent,
     });
     const { journal } = open('unlocked');
-    await quickToReflect();
+    const user = await quickToReflect();
+    await user.type(screen.getByRole('textbox', { name: /What do you need right now\?/ }), 'Rest');
     expect(screen.getByText(/needs your consent to the privacy policy/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Review consent' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
@@ -251,6 +252,7 @@ describe('MomentPage', () => {
     await heading("That's it for now.");
     await user.click(screen.getByRole('button', { name: 'Reflect on it' }));
     await heading('Reflect, if you like');
+    await user.type(screen.getByRole('textbox', { name: /What do you need right now\?/ }), 'Rest');
     await user.click(screen.getByRole('button', { name: 'Another question' }));
     await user.click(screen.getByRole('button', { name: 'Skip the questions' }));
     await user.type(screen.getByRole('textbox', { name: /What set it off/ }), 'Unsent words');
@@ -484,6 +486,8 @@ describe('MomentPage', () => {
       'What would you like to take with you from this moment?',
     ];
     const shown = () => questions.filter((question) => screen.queryByText(question));
+    const answerBox = (question: string) =>
+      screen.getByRole('textbox', { name: (name) => name.startsWith(question) });
 
     it('shows one question at a time, announces the next one and goes back to the first after the last', async () => {
       auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
@@ -504,8 +508,10 @@ describe('MomentPage', () => {
       auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
       const { journal } = open('unlocked');
       const user = await quickToReflect();
+      await user.type(answerBox(questions[0]!), 'Rest');
       await user.click(screen.getByRole('button', { name: 'Skip the questions' }));
       expect(shown()).toEqual([]);
+      expect(screen.queryByRole('textbox', { name: /What do you need/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Another question' })).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { level: 1, name: 'Reflect, if you like' })).toHaveFocus();
       await user.type(screen.getByRole('textbox', { name: /What set it off/ }), 'A long day');
@@ -516,15 +522,93 @@ describe('MomentPage', () => {
       );
     });
 
-    it('saves no question text when the note is left empty', async () => {
+    it('saves no question text when the note and the answers are left empty or blank', async () => {
       auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
       const { journal } = open('unlocked');
       const user = await quickToReflect();
+      await user.type(answerBox(questions[0]!), '   ');
       await user.click(screen.getByRole('button', { name: 'Another question' }));
       await user.click(screen.getByRole('button', { name: 'Save' }));
       expect(await screen.findByText("Saved to today's private note.")).toBeInTheDocument();
       expect(journal.appendPrivate.mock.calls[0]![1]).toMatch(
         /^Moment \d\d:\d\d\nWhat helped: Slow breathing$/,
+      );
+    });
+    it('saves an answer as its own part, labelled with the question', async () => {
+      auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
+      const { journal } = open('unlocked');
+      const user = await quickToReflect();
+      await user.type(answerBox(questions[0]!), '  An early night  ');
+      await user.type(screen.getByRole('textbox', { name: /What set it off/ }), 'A long day');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText("Saved to today's private note.")).toBeInTheDocument();
+      expect(journal.appendPrivate.mock.calls[0]![1]).toMatch(
+        /^Moment \d\d:\d\d\nWhat set it off: A long day\nWhat helped: Slow breathing\nWhat do you need right now\? An early night$/,
+      );
+    });
+
+    it('saves every answered question in question order and leaves out the unanswered one', async () => {
+      auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
+      const { journal } = open('unlocked');
+      const user = await quickToReflect();
+      await user.click(screen.getByRole('button', { name: 'Another question' }));
+      await user.click(screen.getByRole('button', { name: 'Another question' }));
+      await user.type(answerBox(questions[2]!), 'The tea');
+      await user.click(screen.getByRole('button', { name: 'Another question' }));
+      await user.click(screen.getByRole('button', { name: 'Another question' }));
+      await user.click(screen.getByRole('button', { name: 'Another question' }));
+      await user.type(answerBox(questions[0]!), 'Quiet');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText("Saved to today's private note.")).toBeInTheDocument();
+      const block = journal.appendPrivate.mock.calls[0]![1];
+      expect(block).toMatch(
+        /^Moment \d\d:\d\d\nWhat helped: Slow breathing\nWhat do you need right now\? Quiet\nWhat feels even a little bit okay right now\? The tea$/,
+      );
+    });
+
+    it('keeps what was typed for each question when moving on and coming back', async () => {
+      auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
+      open('unlocked');
+      const user = await quickToReflect();
+      await user.type(answerBox(questions[0]!), 'Some rest');
+      await user.click(screen.getByRole('button', { name: 'Another question' }));
+      expect(answerBox(questions[1]!)).toHaveValue('');
+      await user.type(answerBox(questions[1]!), 'A walk');
+      for (let step = 0; step < 4; step++) {
+        await user.click(screen.getByRole('button', { name: 'Another question' }));
+      }
+      expect(answerBox(questions[0]!)).toHaveValue('Some rest');
+      await user.click(screen.getByRole('button', { name: 'Another question' }));
+      expect(answerBox(questions[1]!)).toHaveValue('A walk');
+    });
+
+    it('asks before leaving with only an answer typed', async () => {
+      auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
+      const { router } = open('unlocked');
+      const user = await quickToReflect();
+      await user.type(answerBox(questions[0]!), 'Rest');
+      await user.click(screen.getByRole('button', { name: 'Leave' }));
+      expect(screen.getByText('Leave without saving this note?')).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/moment');
+    });
+
+    it('saves the answer under the question in the language shown', async () => {
+      await inGerman();
+      auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
+      const { journal } = open('unlocked');
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'Einfach mit mir atmen' }));
+      await user.click(await screen.findByRole('button', { name: 'Zum Ende springen' }));
+      await user.click(await screen.findByRole('button', { name: 'Überspringen' }));
+      await user.click(await screen.findByRole('button', { name: 'Darüber nachdenken' }));
+      await user.type(
+        await screen.findByRole('textbox', { name: /^Was brauchst du gerade\?/ }),
+        'Ruhe',
+      );
+      await user.click(screen.getByRole('button', { name: 'Speichern' }));
+      expect(await screen.findByText('In deiner privaten Notiz von heute gespeichert.')).toBeInTheDocument();
+      expect(journal.appendPrivate.mock.calls[0]![1]).toMatch(
+        /\nWas brauchst du gerade\? Ruhe$/,
       );
     });
   });

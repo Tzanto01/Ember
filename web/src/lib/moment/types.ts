@@ -20,7 +20,7 @@ export interface Practice {
   basis: string;
 }
 
-/** One optional question of `content/reflect-questions.{en,de}.json`, shown on the reflect step and never stored. */
+/** One optional question of `content/reflect-questions.{en,de}.json`, shown on the reflect step; only an answer is saved, with the reflection. */
 export interface ReflectQuestion {
   id: string;
   version: number;

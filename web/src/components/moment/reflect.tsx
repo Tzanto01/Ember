@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { BusyButton, TapLink } from '@/components/auth/busy-button';
 import { FiresideAsk } from '@/components/fireside/fireside-ask';
 import { FormField } from '@/components/form-field';
-import { LiveRegion } from '@/components/live-region';
 import { useJournal } from '@/components/journal/journal-context';
 import { UnlockForm } from '@/components/settings/journal-forms';
 import { Spinner } from '@/components/spinner';
@@ -13,18 +12,18 @@ import { controlClass } from '@/components/ui/input';
 import { Notice } from '@/components/ui/notice';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { momentCopy } from '@/lib/moment/copy';
+import { reflectQuestions } from '@/lib/moment/questions';
 import { momentTime, reflectionBlock } from '@/lib/moment/reflection';
 import type { Intensity, Practice } from '@/lib/moment/types';
 import { deviceToday } from '@/lib/guards';
 import { auth, deviceSync, localMode, offlineQueue } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { CharactersLeft, maxReflectText } from './characters-left';
 import { IntensityScale } from './intensity-scale';
 import { ReflectQuestions } from './reflect-questions';
 
-const maxTrigger = 300;
 const nothing = 'nothing';
-const announceFrom = 20;
 
 type SaveCase = 'checking' | 'unlocked' | 'locked' | 'plain' | 'consent' | 'none';
 
@@ -100,6 +99,7 @@ export function Reflect({
   const saveCase = useSaveCase();
   const journal = useJournal();
   const [trigger, setTrigger] = useState('');
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [helped, setHelped] = useState(used?.id ?? nothing);
   const [now, setNow] = useState(after);
   const [newPassphrase, setNewPassphrase] = useState(false);
@@ -109,13 +109,12 @@ export function Reflect({
   const [unlocked, setUnlocked] = useState(false);
   const savedRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLTextAreaElement>(null);
-  const left = maxTrigger - trigger.length;
 
   useEffect(() => {
     if (saved) savedRef.current?.focus();
   }, [saved]);
 
-  const draft = !saved && trigger.trim() !== '';
+  const draft = !saved && [trigger, ...Object.values(answers)].some((text) => text.trim() !== '');
   useEffect(() => {
     onDraft?.(draft);
   }, [draft, onDraft]);
@@ -145,6 +144,10 @@ export function Reflect({
           after: now && momentCopy.intensity[now],
           trigger,
           helped: tried.find((practice) => practice.id === helped)?.title,
+          answers: reflectQuestions().map((question) => ({
+            question: question.text,
+            text: answers[question.id] ?? '',
+          })),
         }),
       );
       setSaved(true);
@@ -237,7 +240,13 @@ export function Reflect({
               <p>{momentCopy.notSaved}</p>
             </Notice>
           )}
-          <ReflectQuestions />
+          <ReflectQuestions
+            answers={answers}
+            onAnswer={(questionId, text) =>
+              setAnswers((current) => ({ ...current, [questionId]: text }))
+            }
+            onSkip={() => setAnswers({})}
+          />
           <form noValidate onSubmit={(event) => void save(event)} className="flex flex-col gap-6">
             <FormField label={momentCopy.setItOff} hint={momentCopy.setItOffHint} optional>
               {(field) => (
@@ -248,25 +257,11 @@ export function Reflect({
                     aria-describedby={cn(field['aria-describedby'], `${field.id}-count`)}
                     value={trigger}
                     rows={3}
-                    maxLength={maxTrigger}
+                    maxLength={maxReflectText}
                     onChange={(event) => setTrigger(event.target.value)}
                     className={cn(controlClass, 'min-h-[6rem] resize-y leading-relaxed')}
                   />
-                  <p
-                    id={`${field.id}-count`}
-                    className="self-end text-[0.875rem] text-muted-foreground"
-                  >
-                    {momentCopy.charactersLeft(left)}
-                  </p>
-                  <LiveRegion
-                    message={
-                      left === 0
-                        ? momentCopy.limitReached
-                        : left <= announceFrom
-                          ? momentCopy.charactersLeft(announceFrom)
-                          : ''
-                    }
-                  />
+                  <CharactersLeft id={`${field.id}-count`} text={trigger} />
                 </>
               )}
             </FormField>

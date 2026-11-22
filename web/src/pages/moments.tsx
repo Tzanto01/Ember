@@ -74,7 +74,7 @@ function MomentItem({
         {t('moments.at', { date: formatDate(moment.date, longDate), time: moment.time })}
       </h3>
       {moment.tile && <p className="font-medium">{moment.tile}</p>}
-      {(moment.before || moment.after || moment.setItOff || moment.helped) && (
+      {(moment.before || moment.after || moment.setItOff || moment.helped || moment.answers) && (
         <dl className="flex flex-col gap-3">
           {(moment.before || moment.after) && (
             <div>
@@ -103,6 +103,12 @@ function MomentItem({
               <dd className="whitespace-pre-line [overflow-wrap:anywhere]">{moment.helped}</dd>
             </div>
           )}
+          {moment.answers?.map((answer, index) => (
+            <div key={index}>
+              <dt className="text-[0.875rem] text-muted-foreground">{answer.question}</dt>
+              <dd className="whitespace-pre-line [overflow-wrap:anywhere]">{answer.text}</dd>
+            </div>
+          ))}
         </dl>
       )}
       {entry &&

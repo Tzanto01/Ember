@@ -289,3 +289,36 @@ test('a cold start on /moment loads the account once at Reflect and saves with t
   expect(Object.keys(puts.bodies[0] as object)).toEqual(['encrypted']);
   expect(meRequests).toEqual(['GET']);
 });
+
+test('an answer to a reflect question is saved encrypted and shows in Your moments and the day note', async ({
+  page,
+}) => {
+  await createUserWithHabit(page);
+  await enableJournal(page, newPassphrase());
+  await openPage(page, 'Today');
+  await momentDoor(page).click();
+  await reachReflect(page);
+
+  await page.getByLabel(/^What do you need right now\?/).fill('Synthetic answer: some quiet');
+  await page.getByRole('button', { name: 'Another question' }).click();
+  await expect(page.getByLabel(/^What good thing could you do/)).toHaveValue('');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText(savedText)).toBeVisible();
+
+  const stored = await dayNotes(page);
+  expect(stored).toHaveLength(1);
+  expect(JSON.stringify(stored)).not.toContain('quiet');
+
+  await page.getByRole('link', { name: 'See your moments' }).click();
+  const moment = page.getByRole('listitem').filter({ hasText: 'Synthetic answer' });
+  await expect(moment.getByRole('term')).toHaveText(['What helped', 'What do you need right now?']);
+  await expect(moment.getByRole('definition')).toHaveText([
+    'Slow breathing',
+    'Synthetic answer: some quiet',
+  ]);
+
+  await openPage(page, 'Today');
+  await expect(page.getByLabel('A few words')).toHaveValue(
+    /^Moment \d{2}:\d{2}\nWhat helped: Slow breathing\nWhat do you need right now\? Synthetic answer: some quiet$/,
+  );
+});
