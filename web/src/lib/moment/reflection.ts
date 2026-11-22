@@ -14,7 +14,7 @@ export interface Reflection {
   trigger?: string;
   /** The practice title that helped, or "Nothing really". */
   helped?: string;
-  /** Answers to the optional questions, each with the question as shown; empty answers are left out. */
+  /** Answers to the optional questions, each with the question as shown; empty answers and blank lines are left out. */
   answers?: { question: string; text: string }[];
 }
 
@@ -33,13 +33,15 @@ export function reflectionBlock({
   answers = [],
 }: Reflection): string {
   const intensity = after ? [before, `→ ${after}`].filter(Boolean).join(' ') : before;
-  const heading = [t('moment.block.heading', { time }), tile, intensity].filter(Boolean).join(' · ');
+  const heading = [t('moment.block.heading', { time }), tile, intensity]
+    .filter(Boolean)
+    .join(' · ');
   const lines = [heading];
   const setOff = trigger?.trim();
   if (setOff) lines.push(t('moment.block.setItOff', { text: setOff }));
   if (helped) lines.push(t('moment.block.helped', { text: helped }));
   for (const { question, text } of answers) {
-    const answer = text.trim();
+    const answer = text.trim().replace(/\n\s*\n/g, '\n');
     if (answer) lines.push(t('moment.block.answer', { question, text: answer }));
   }
   return lines.join('\n');

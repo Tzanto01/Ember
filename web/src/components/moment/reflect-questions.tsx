@@ -50,7 +50,10 @@ export function ReflectQuestions({
         {momentCopy.questionsLabel}
       </h2>
       <div className="flex flex-col gap-2">
-        <Label htmlFor={`${id}-answer`} className="text-[1.125rem] leading-relaxed font-normal">
+        <Label
+          htmlFor={`${id}-answer`}
+          className="block min-h-[2lh] text-[1.125rem] leading-relaxed font-normal max-sm:min-h-[3lh]"
+        >
           <span aria-live="polite" aria-atomic="true">
             {question.text}
           </span>
@@ -65,7 +68,7 @@ export function ReflectQuestions({
           onChange={(event) => onAnswer(question.id, event.target.value)}
           className={cn(controlClass, 'min-h-[6rem] resize-y leading-relaxed')}
         />
-        <CharactersLeft id={`${id}-count`} text={answer} />
+        <CharactersLeft key={question.id} id={`${id}-count`} text={answer} />
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" onClick={() => setIndex(index + 1)}>

@@ -114,12 +114,12 @@ describe('reflection blocks round trip', () => {
     ]);
   });
 
-  it('reads question answers as their own parts after "What helped", in either language, without adding them to it', async () => {
+  it('reads question answers as their own parts after "What helped", in either language, with blank lines dropped so the block stays whole', async () => {
     const english = reflectionBlock({
       time: '08:00',
       helped: 'Slow breathing',
       answers: [
-        { question: 'What do you need right now?', text: 'Quiet\nand tea' },
+        { question: 'What do you need right now?', text: 'Quiet\n\n  \nand tea' },
         { question: 'What feels even a little bit okay right now?', text: '' },
         { question: 'What would you like to take with you from this moment?', text: 'It passed' },
       ],
