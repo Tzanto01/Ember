@@ -49,7 +49,7 @@ public sealed class IntegrationTestHost : IAsyncDisposable
         }
 
         var discord = new TestDiscordDmSender();
-        var host = AppHost.CreateHostBuilder(args ?? [], new EmberHostOptions
+        var host = AppHost.CreateHostBuilder([.. args ?? [], "--hostBuilder:reloadConfigOnChange=false"], new EmberHostOptions
         {
             IncludeDiscordGateway = includeDiscordGateway,
             ConfigureDbContext = (options, _) =>
