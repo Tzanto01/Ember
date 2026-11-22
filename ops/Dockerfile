@@ -6,7 +6,7 @@ RUN dotnet restore src/Ember.Ops/Ember.Ops.csproj
 COPY src/ src/
 RUN dotnet publish src/Ember.Ops/Ember.Ops.csproj -c Release --no-restore -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 ARG BUILD_SHA=""
