@@ -11,7 +11,7 @@ RUN dotnet publish src/Ember.Api/Ember.Api.csproj \
     -o /app/publish
 
 # ── Web build stage ───────────────────────────────────────────────────────────
-FROM oven/bun:1.3.14@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS web
+FROM oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18 AS web
 WORKDIR /web
 COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
