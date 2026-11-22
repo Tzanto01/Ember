@@ -20,6 +20,7 @@ import { auth, deviceSync, localMode, offlineQueue } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { IntensityScale } from './intensity-scale';
+import { ReflectQuestions } from './reflect-questions';
 
 const maxTrigger = 300;
 const nothing = 'nothing';
@@ -236,6 +237,7 @@ export function Reflect({
               <p>{momentCopy.notSaved}</p>
             </Notice>
           )}
+          <ReflectQuestions />
           <form noValidate onSubmit={(event) => void save(event)} className="flex flex-col gap-6">
             <FormField label={momentCopy.setItOff} hint={momentCopy.setItOffHint} optional>
               {(field) => (

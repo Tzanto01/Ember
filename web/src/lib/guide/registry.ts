@@ -91,7 +91,11 @@ export const guides: Record<GuideScreen, Guide> = {
         questionKey: 'guide.today.moment.q',
         answerKey: 'guide.today.moment.a',
         target: 'moment',
-        covers: ['web/src/pages/moment.tsx', 'web/src/components/moment/reflect.tsx'],
+        covers: [
+          'web/src/pages/moment.tsx',
+          'web/src/components/moment/reflect.tsx',
+          'web/src/components/moment/reflect-questions.tsx',
+        ],
       },
     ],
   },

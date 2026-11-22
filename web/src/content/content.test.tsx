@@ -9,16 +9,22 @@ import localeDe from '@/locales/de.json';
 import localeEn from '@/locales/en.json';
 import { momentCopy } from '@/lib/moment/copy';
 import type { CrisisLine } from '@/lib/moment/region';
-import type { MomentState, Practice } from '@/lib/moment/types';
+import type { MomentState, Practice, ReflectQuestion } from '@/lib/moment/types';
 import HelpPage from '@/pages/help';
 import { inGerman } from '@/test/test-utils';
 import crisisLinesDe from './crisis-lines.de.json';
 import crisisLinesEn from './crisis-lines.en.json';
 import practicesDe from './practices.de.json';
 import practicesEn from './practices.en.json';
+import questionsDe from './reflect-questions.de.json';
+import questionsEn from './reflect-questions.en.json';
 
 const languages = ['en', 'de'] as const;
 const practiceFiles = { en: practicesEn as Practice[], de: practicesDe as Practice[] };
+const questionFiles = {
+  en: questionsEn as ReflectQuestion[],
+  de: questionsDe as ReflectQuestion[],
+};
 const crisisFiles = { en: crisisLinesEn as CrisisLine[], de: crisisLinesDe as CrisisLine[] };
 const states: MomentState[] = ['rejected', 'overloaded', 'racing', 'replaying', 'craving', 'unsure'];
 const claims = /\b(treat|cure|therap|heal|clinical|diagnos|prevent|reliev|relief|reduc|proven)\w*/i;
@@ -152,6 +158,21 @@ describe.each(languages)('practices.%s.json', (language) => {
   });
 });
 
+describe.each(languages)('reflect-questions.%s.json', (language) => {
+  it('holds 3 to 5 short questions with unique kebab-case ids and integer versions', () => {
+    const questions = questionFiles[language];
+    expect(questions.length).toBeGreaterThanOrEqual(3);
+    expect(questions.length).toBeLessThanOrEqual(5);
+    const ids = questions.map((question) => question.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const question of questions) {
+      expect(question.id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+      expect(Number.isInteger(question.version) && question.version >= 1, question.id).toBe(true);
+      expect(question.text, question.id).toMatch(/^\S.{0,118}\?$/);
+    }
+  });
+});
+
 describe.each(languages)('crisis-lines.%s.json', (language) => {
   const lines = crisisFiles[language];
   const numbersOf = (region: string) =>
@@ -199,6 +220,12 @@ describe('English and German content files', () => {
     const shape = (lines: CrisisLine[]) =>
       lines.map(({ name: _name, hours: _hours, ...rest }) => rest);
     expect(shape(crisisFiles.de)).toEqual(shape(crisisFiles.en));
+  });
+
+  it('have the same reflect questions apart from the shown text', () => {
+    const shape = (questions: ReflectQuestion[]) =>
+      questions.map(({ text: _text, ...rest }) => rest);
+    expect(shape(questionFiles.de)).toEqual(shape(questionFiles.en));
   });
 });
 
@@ -248,8 +275,10 @@ describe('claims wordlist', () => {
   it('finds no claim words in the bundled content, including basis', () => {
     expect(claimsIn(strings(practicesEn))).toEqual([]);
     expect(claimsIn(strings(crisisLinesEn))).toEqual([]);
+    expect(claimsIn(strings(questionsEn))).toEqual([]);
     expect(germanClaimsIn(strings(practicesDe))).toEqual([]);
     expect(germanClaimsIn(strings(crisisLinesDe))).toEqual([]);
+    expect(germanClaimsIn(strings(questionsDe))).toEqual([]);
   });
 
   it('finds no claim words in any English or German app string', () => {

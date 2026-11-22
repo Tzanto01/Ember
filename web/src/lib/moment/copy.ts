@@ -249,4 +249,13 @@ export const momentCopy = {
   get saveFailed() {
     return t('moment.reflect.saveFailed');
   },
+  get questionsLabel() {
+    return t('moment.reflect.questions.label');
+  },
+  get anotherQuestion() {
+    return t('moment.reflect.questions.another');
+  },
+  get skipQuestions() {
+    return t('moment.reflect.questions.skip');
+  },
 };

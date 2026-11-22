@@ -1,0 +1,19 @@
+[
+  { "id": "need", "version": 1, "text": "What do you need right now?" },
+  {
+    "id": "something-good",
+    "version": 1,
+    "text": "What good thing could you do for yourself now?"
+  },
+  { "id": "a-little-okay", "version": 1, "text": "What feels even a little bit okay right now?" },
+  {
+    "id": "say-to-yourself",
+    "version": 1,
+    "text": "What would you like to say to yourself right now?"
+  },
+  {
+    "id": "take-with-you",
+    "version": 1,
+    "text": "What would you like to take with you from this moment?"
+  }
+]

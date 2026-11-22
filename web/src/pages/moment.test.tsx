@@ -251,6 +251,8 @@ describe('MomentPage', () => {
     await heading("That's it for now.");
     await user.click(screen.getByRole('button', { name: 'Reflect on it' }));
     await heading('Reflect, if you like');
+    await user.click(screen.getByRole('button', { name: 'Another question' }));
+    await user.click(screen.getByRole('button', { name: 'Skip the questions' }));
     await user.type(screen.getByRole('textbox', { name: /What set it off/ }), 'Unsent words');
 
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
@@ -470,6 +472,60 @@ describe('MomentPage', () => {
       await user.click(screen.getByRole('button', { name: 'Cold water on my wrists' }));
       await user.click(screen.getByRole('button', { name: 'Continue' }));
       await heading("What's happening?");
+    });
+  });
+
+  describe('reflect questions', () => {
+    const questions = [
+      'What do you need right now?',
+      'What good thing could you do for yourself now?',
+      'What feels even a little bit okay right now?',
+      'What would you like to say to yourself right now?',
+      'What would you like to take with you from this moment?',
+    ];
+    const shown = () => questions.filter((question) => screen.queryByText(question));
+
+    it('shows one question at a time, announces the next one and goes back to the first after the last', async () => {
+      auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
+      open('unlocked');
+      const user = await quickToReflect();
+      expect(
+        screen.getByRole('region', { name: 'A question to think about, if you like' }),
+      ).toBeInTheDocument();
+      expect(shown()).toEqual([questions[0]]);
+      for (const question of [...questions.slice(1), questions[0]!]) {
+        await user.click(screen.getByRole('button', { name: 'Another question' }));
+        expect(shown()).toEqual([question]);
+        expect(announced()).toContain(question);
+      }
+    });
+
+    it('hides the questions on Skip, returns focus to the heading and saves the same block as before', async () => {
+      auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
+      const { journal } = open('unlocked');
+      const user = await quickToReflect();
+      await user.click(screen.getByRole('button', { name: 'Skip the questions' }));
+      expect(shown()).toEqual([]);
+      expect(screen.queryByRole('button', { name: 'Another question' })).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'Reflect, if you like' })).toHaveFocus();
+      await user.type(screen.getByRole('textbox', { name: /What set it off/ }), 'A long day');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText("Saved to today's private note.")).toBeInTheDocument();
+      expect(journal.appendPrivate.mock.calls[0]![1]).toMatch(
+        /^Moment \d\d:\d\d\nWhat set it off: A long day\nWhat helped: Slow breathing$/,
+      );
+    });
+
+    it('saves no question text when the note is left empty', async () => {
+      auth.me.set({ ...me, journal: { ...me.journal, encrypted: true } });
+      const { journal } = open('unlocked');
+      const user = await quickToReflect();
+      await user.click(screen.getByRole('button', { name: 'Another question' }));
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText("Saved to today's private note.")).toBeInTheDocument();
+      expect(journal.appendPrivate.mock.calls[0]![1]).toMatch(
+        /^Moment \d\d:\d\d\nWhat helped: Slow breathing$/,
+      );
     });
   });
 });
