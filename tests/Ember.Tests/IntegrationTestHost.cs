@@ -19,6 +19,7 @@ namespace Ember.Tests;
 public sealed class IntegrationTestHost : IAsyncDisposable
 {
     private readonly SqliteConnection? _connection;
+    private IScheduler? _pausedScheduler;
 
     private IntegrationTestHost(IHost host, SqliteConnection? connection, TestDiscordDmSender discord)
     {
@@ -75,7 +76,7 @@ public sealed class IntegrationTestHost : IAsyncDisposable
             await AppHost.InitializeAsync(host);
 
         if (time is not null)
-            await PauseScheduledTriggersAsync(host);
+            harness._pausedScheduler = await PauseScheduledTriggersAsync(host);
 
         if (start)
             await host.StartAsync();
@@ -86,12 +87,14 @@ public sealed class IntegrationTestHost : IAsyncDisposable
     /// <summary>
     /// Quartz fires the app's cron triggers on the real clock, which a fake <see cref="TimeProvider"/> does not move, so a
     /// scheduled run would land mid-test and see the fake time. A test with a fake clock runs its jobs itself instead.
+    /// Fetching the scheduler creates it, so <see cref="DisposeAsync"/> shuts it down even when the host never started.
     /// </summary>
-    private static async Task PauseScheduledTriggersAsync(IHost host)
+    private static async Task<IScheduler> PauseScheduledTriggersAsync(IHost host)
     {
         var scheduler = await host.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
         foreach (var trigger in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup()))
             await scheduler.PauseTrigger(trigger);
+        return scheduler;
     }
 
     public async Task EnsureCreatedAsync()
@@ -176,6 +179,8 @@ public sealed class IntegrationTestHost : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Host.StopAsync();
+        if (_pausedScheduler is { IsShutdown: false })
+            await _pausedScheduler.Shutdown();
         Host.Dispose();
         LogContext.SetCurrentLogProvider(NullLoggerFactory.Instance);
         if (_connection is not null) await _connection.DisposeAsync();
