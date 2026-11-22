@@ -153,6 +153,30 @@ describe('reflection blocks round trip', () => {
     ]);
   });
 
+  it('keeps the parts after "What set it off" when the trigger has a blank line in it', () => {
+    const block = reflectionBlock({
+      time: '08:00',
+      tile: 'Racing / on edge',
+      trigger: 'the call\n\n  \nand then the noise',
+      helped: 'Slow breathing',
+      answers: [{ question: 'What do you need right now?', text: 'Quiet' }],
+    });
+
+    expect(block).toBe(
+      'Moment 08:00 · Racing / on edge\nWhat set it off: the call\nand then the noise\nWhat helped: Slow breathing\nWhat do you need right now? Quiet',
+    );
+    expect(parseMoments('2026-11-01', block)).toEqual([
+      {
+        date: '2026-11-01',
+        time: '08:00',
+        tile: 'Racing / on edge',
+        setItOff: 'the call\nand then the noise',
+        helped: 'Slow breathing',
+        answers: [{ question: 'What do you need right now?', text: 'Quiet' }],
+      },
+    ]);
+  });
+
   it('does not swallow the free text that follows a block directly after a blank line', () => {
     const note = `${reflectionBlock({ time: '08:00', trigger: 'noise' })}\n\nWhat helped: tea, I think.`;
     expect(parseMoments('2026-11-01', note)[0]).toEqual({

@@ -10,7 +10,7 @@ export interface Reflection {
   before?: string;
   /** Intensity word now. */
   after?: string;
-  /** "What set it off", as typed. */
+  /** "What set it off", as typed; blank lines are left out. */
   trigger?: string;
   /** The practice title that helped, or "Nothing really". */
   helped?: string;
@@ -37,14 +37,19 @@ export function reflectionBlock({
     .filter(Boolean)
     .join(' · ');
   const lines = [heading];
-  const setOff = trigger?.trim();
+  const setOff = withoutBlankLines(trigger ?? '');
   if (setOff) lines.push(t('moment.block.setItOff', { text: setOff }));
   if (helped) lines.push(t('moment.block.helped', { text: helped }));
   for (const { question, text } of answers) {
-    const answer = text.trim().replace(/\n\s*\n/g, '\n');
+    const answer = withoutBlankLines(text);
     if (answer) lines.push(t('moment.block.answer', { question, text: answer }));
   }
   return lines.join('\n');
+}
+
+/** A blank line ends a block when it is read back, so the parts keep their lines but drop the blank ones. */
+function withoutBlankLines(text: string): string {
+  return text.trim().replace(/\n\s*\n/g, '\n');
 }
 
 /** `HH:MM` (24 h, current language) of `at` in the IANA `timeZone`, or in the device zone when it is missing or unknown. */
