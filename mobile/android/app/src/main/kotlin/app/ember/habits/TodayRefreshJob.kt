@@ -14,7 +14,7 @@ import java.util.concurrent.Executors
 
 /**
  * Fetches the Today widget's day with the widget key ([DayClient]) once a network is up, then redraws the widget. One
- * job at a time, not kept across reboots; a failed fetch waits for the widget's next trigger.
+ * job at a time, not kept across reboots, and one fetch at a time; a failed fetch waits for the widget's next trigger.
  */
 class TodayRefreshJob : JobService() {
 
@@ -29,6 +29,8 @@ class TodayRefreshJob : JobService() {
         private const val JOB_ID = 1
         private const val BUDGET_MS = 8000L
         private val FETCH: ExecutorService = Executors.newSingleThreadExecutor()
+        private val waiting = ArrayList<Runnable>()
+        private var fetching = false
 
         /** Schedules the fetch, replacing one still waiting. */
         internal fun schedule(context: Context) {
@@ -42,10 +44,26 @@ class TodayRefreshJob : JobService() {
 
         /**
          * Runs the fetch on its own thread, apart from the widget's check-ins, with [BUDGET_MS] from its start,
-         * redraws the widget and then calls [finished].
+         * redraws the widget and then calls [finished]. Runs while a fetch is running share one more fetch after it.
          */
         internal fun run(context: Context, finished: Runnable) {
-            FETCH.execute {
+            synchronized(waiting) {
+                waiting.add(finished)
+                if (fetching) return
+                fetching = true
+            }
+            FETCH.execute { drain(context) }
+        }
+
+        private fun drain(context: Context) {
+            while (true) {
+                val finished = synchronized(waiting) {
+                    if (waiting.isEmpty()) {
+                        fetching = false
+                        return
+                    }
+                    ArrayList(waiting).also { waiting.clear() }
+                }
                 try {
                     val key = WidgetKey.get(context)
                     val apiBase = WidgetKey.apiBase(context)
@@ -54,7 +72,7 @@ class TodayRefreshJob : JobService() {
                     }
                     TodayWidget.refresh(context)
                 } finally {
-                    finished.run()
+                    finished.forEach { it.run() }
                 }
             }
         }

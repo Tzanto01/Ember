@@ -5,12 +5,16 @@ import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import app.ember.habits.widget.WidgetKey
 import app.ember.habits.widget.WidgetStore
 import java.time.LocalDate
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -18,7 +22,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
-/** When the Today widget asks for its own day: always at midnight, else at most every 15 minutes, and only with a key. */
+/**
+ * When the Today widget asks for its own day: at midnight at most every minute, else at most every 15 minutes, only
+ * with a key, and never two fetches at once.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class TodayRefreshJobTest {
@@ -47,12 +54,16 @@ class TodayRefreshJobTest {
     private fun alarm() = shadowOf(host.context.getSystemService(AlarmManager::class.java)).nextScheduledAlarm
 
     @Test
-    fun midnightAsksForTheDayEvenRightAfterAnotherRequest() {
+    fun midnightAsksForTheDayAMinuteAfterAnotherRequestButNotSooner() {
         host.key()
         host.today(host.habit(1, "Water"))
         update()
         scheduler.cancelAll()
 
+        midnight()
+        assertEquals(0, jobs().size)
+
+        lastRequestAt(System.currentTimeMillis() - 61 * 1000)
         midnight()
 
         val job = jobs().single()
@@ -101,6 +112,26 @@ class TodayRefreshJobTest {
         scheduler.cancelAll()
         TodayWidget.refresh(host.context)
         assertEquals(0, jobs().size)
+    }
+
+    @Test
+    fun jobsStartedDuringAFetchShareOneMoreFetchAfterIt() {
+        HangingOrigin().use { origin ->
+            FakeAndroidKeyStore.install()
+            WidgetKey.set(host.context, "k".repeat(43), origin.base)
+            host.today(host.habit(1, "Water"))
+            val finished = CountDownLatch(3)
+
+            TodayRefreshJob.run(host.context) { finished.countDown() }
+            assertTrue(origin.accepted.tryAcquire(2, TimeUnit.SECONDS))
+            TodayRefreshJob.run(host.context) { finished.countDown() }
+            TodayRefreshJob.run(host.context) { finished.countDown() }
+            assertFalse(origin.accepted.tryAcquire(500, TimeUnit.MILLISECONDS))
+            origin.release()
+
+            assertTrue(finished.await(5, TimeUnit.SECONDS))
+            assertEquals(1, origin.accepted.availablePermits())
+        }
     }
 
     @Test

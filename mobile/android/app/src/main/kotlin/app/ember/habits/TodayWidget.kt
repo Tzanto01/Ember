@@ -22,7 +22,8 @@ import org.json.JSONObject
  * The "Today in Ember" home-screen widget. It shows the stored snapshot ([WidgetStore]) only while that snapshot (or
  * the next day it carries) is for today in the account's zone, drawn by [TodayWidgetViews]. The app pushes the
  * snapshot; with a widget key stored the widget also fetches its day itself ([TodayRefreshJob]) after midnight, on a
- * widget update and when it finds the snapshot stale, the last two at most once per [REQUEST_GAP_MS].
+ * widget update and when it finds the snapshot stale, the last two at most once per [REQUEST_GAP_MS], midnight at most
+ * once per [MIDNIGHT_GAP_MS].
  * Every row action carries the habit, date, user and a per-snapshot token in an explicit, immutable intent with its
  * own data Uri. With a widget key stored, checking an open or partial row (a CheckBox on API 31+, the row tap below)
  * is a broadcast to this receiver, which checks in at once and posts it with the key; without one it opens
@@ -46,7 +47,7 @@ class TodayWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             ACTION_MIDNIGHT -> {
-                if (WidgetKey.get(context) != null) requestDay(context, 0)
+                if (WidgetKey.get(context) != null) requestDay(context, MIDNIGHT_GAP_MS)
                 refresh(context)
             }
             ACTION_CHECK_IN -> checkIn(context, intent)
@@ -128,6 +129,9 @@ class TodayWidget : AppWidgetProvider() {
 
         /** The least time between two day requests from a widget update or a stale snapshot. */
         internal const val REQUEST_GAP_MS = 15 * 60 * 1000L
+
+        /** The least time between a midnight day request and the request before it. */
+        internal const val MIDNIGHT_GAP_MS = 60 * 1000L
 
         /** The actions of the intents a widget tap sends to [MainActivity]. */
         internal val TAP_ACTIONS = setOf(ACTION_CHECK_IN, ACTION_OPEN_TODAY, ACTION_OPEN_HABIT)
