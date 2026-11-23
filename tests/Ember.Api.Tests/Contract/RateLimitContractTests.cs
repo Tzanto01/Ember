@@ -32,6 +32,7 @@ public class RateLimitContractTests(PostgresFixture postgres) : ContractTestBase
 
         await Rec("widget.first", "/api/widget/check-in", Widget());
         await Rec("widget.limited", "/api/widget/check-in", Widget());
+        await Rec("widget.today-shares-the-limit", "/api/widget/today", Host.NewClient().Get("/api/widget/today"));
 
         var feedback = new { title = "Crash", text = "It closes right away", platform = "web" };
         await Rec("feedback.first", "/api/feedback", anonymous.Post("/api/feedback", feedback));

@@ -153,5 +153,19 @@
       "title": "Too Many Requests",
       "type": "rate_limited"
     }
+  },
+  "widget.today-shares-the-limit": {
+    "method": "GET",
+    "route": "/api/widget/today",
+    "status": 429,
+    "contentType": "application/problem+json",
+    "headers": {
+      "Retry-After": "present"
+    },
+    "body": {
+      "status": 429,
+      "title": "Too Many Requests",
+      "type": "rate_limited"
+    }
   }
 }

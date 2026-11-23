@@ -106,5 +106,6 @@ PATCH /api/routines/{p1:int} | signed-in | - | route[p1:integer] query[] | body[
 GET /api/stats/days | signed-in | - | route[] query[from?:string, to?:string] | body[-]
 GET /api/stats/weekly | signed-in | - | route[] query[] | body[-]
 POST /api/widget/check-in | anonymous | widget | route[] query[] | body[{date?: string, habitId?: integer}]
+GET /api/widget/today | anonymous | widget | route[] query[] | body[-]
 ANY /api/{**p1} | anonymous | - | route[p1:string] query[] | body[-]
 ANY /health | anonymous | - | route[] query[] | body[-]

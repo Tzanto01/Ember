@@ -472,6 +472,105 @@
       "type": "unauthenticated"
     }
   },
+  "today.cookie-session-is-not-a-key": {
+    "method": "GET",
+    "route": "/api/widget/today",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "today.ended-session": {
+    "method": "GET",
+    "route": "/api/widget/today",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "today.no-header": {
+    "method": "GET",
+    "route": "/api/widget/today",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "today.ok": {
+    "method": "GET",
+    "route": "/api/widget/today",
+    "status": 200,
+    "contentType": "application/json",
+    "headers": {},
+    "body": {
+      "date": "date",
+      "done": "integer",
+      "habits": [
+        {
+          "count": "integer",
+          "id": "integer",
+          "name": "string",
+          "state": "enum(done,rest)",
+          "timesPerDay": "integer"
+        }
+      ],
+      "more": "integer",
+      "next": {
+        "date": "date",
+        "done": "integer",
+        "habits": [
+          {
+            "count": "integer",
+            "id": "integer",
+            "name": "string",
+            "state": "enum(open)",
+            "timesPerDay": "integer"
+          }
+        ],
+        "more": "integer",
+        "total": "integer"
+      },
+      "timeZone": "enum(UTC)",
+      "total": "integer",
+      "userId": "guid"
+    }
+  },
+  "today.unknown-key": {
+    "method": "GET",
+    "route": "/api/widget/today",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
+  "today.wrong-scheme": {
+    "method": "GET",
+    "route": "/api/widget/today",
+    "status": 401,
+    "contentType": "application/problem+json",
+    "headers": {},
+    "body": {
+      "status": 401,
+      "title": "Unauthorized",
+      "type": "unauthenticated"
+    }
+  },
   "unsubscribe.missing-endpoint": {
     "method": "DELETE",
     "route": "/api/me/push-subscriptions",
