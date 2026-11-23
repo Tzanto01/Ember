@@ -1,9 +1,16 @@
+import 'fake-indexeddb/auto';
+import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import fixture from '../../../../docs/contracts/fixtures/rules-v1.json';
 import { firesideLimits } from '../fireside-limits';
-import { settled } from '../native/reminder-plan';
+import { addDays } from '../local-date';
+import type { AnyHabit, Me, Routine } from '../models';
+import { settled, zonedToUtc } from '../native/reminder-plan';
+import { widgetSnapshot } from '../native/widget';
+import { LocalBackend } from './backend';
 import { limits } from './limits';
 import { dayStats, habitDays, habitView, pause, retarget, weeklySummary, writeDay } from './rules';
+import { LocalStore } from './store';
 import type { LocalData, LocalHabit, LocalLog } from './types';
 
 interface FixtureHabit {
@@ -25,6 +32,22 @@ interface FixtureUser {
   lowDays: string[];
   routines: { id: number; habitIds: number[] }[];
   habits: FixtureHabit[];
+}
+
+interface FixtureWidgetHabit extends FixtureHabit {
+  name: string;
+  kind: string;
+  reminderTimes: string[];
+}
+
+interface FixtureWidgetCase {
+  today: string;
+  timezone: string;
+  graceDaysPerWeek: number;
+  lowDays: string[];
+  todayOrder: string[] | null;
+  habits: FixtureWidgetHabit[];
+  routines: { id: number; name: string; reminderTime: string | null; habitIds: number[] }[];
 }
 
 const editsStart = '2027-01-01';
@@ -147,6 +170,53 @@ describe('client rules match the Core rules fixture', () => {
     }
 
     expect(weeklySummary(data, c.today)).toEqual(c.expected.weekly);
+  });
+});
+
+/** Device data for a widget case: the fixture habits with names, kinds, reminder times and routine positions, and its Today order. */
+function widgetData(c: FixtureWidgetCase): LocalData {
+  const data = toLocalData({ ...c, routines: [] });
+  data.habits = c.habits.map((h) => ({
+    ...localHabit(h),
+    kind: h.kind as LocalHabit['kind'],
+    name: h.name,
+    reminderTime: h.reminderTimes[0] ?? null,
+    reminderTimes: h.reminderTimes,
+    routinePosition: c.routines.find((r) => r.id === h.routineId)?.habitIds.indexOf(h.id) ?? null,
+  }));
+  data.routines = c.routines.map((r) => ({ id: r.id, name: r.name, reminderTime: r.reminderTime, reminderChannels: [] }));
+  data.profile.todayOrder = c.todayOrder;
+  data.profile.todayOrderRestored = true;
+  return data;
+}
+
+async function get<T>(backend: LocalBackend, url: string): Promise<T> {
+  const response = await backend.handle('GET', url, null);
+  expect(response.status).toBe(200);
+  return (await response.json()) as T;
+}
+
+describe('client widget days match the Core rules fixture', () => {
+  it('has all 13 widget cases', () => {
+    expect(fixture.widgetDays).toHaveLength(13);
+  });
+
+  it.each(fixture.widgetDays.map((c) => [c.name, c] as const))('%s', async (_name, c) => {
+    (globalThis as unknown as { indexedDB: unknown }).indexedDB = new IDBFactory();
+    const store = new LocalStore();
+    await store.replace(widgetData(c));
+    const now = new Date(zonedToUtc(c.today, '12:00', c.timezone));
+    const backend = new LocalBackend(store, { native: true, now: () => now });
+    const me = await get<Me>(backend, '/api/me');
+    const habits = await get<AnyHabit[]>(backend, '/api/habits');
+    const routines = await get<Routine[]>(backend, '/api/routines');
+    expect(me.localToday).toBe(c.today);
+
+    const day = (date: string) => {
+      const { userId: _u, timeZone: _z, ...rest } = widgetSnapshot(me.id, me.timezone, date, habits, routines, me.todayOrder);
+      return rest;
+    };
+    expect({ today: day(c.today), next: day(addDays(c.today, 1)) }).toEqual(c.expected);
   });
 });
 

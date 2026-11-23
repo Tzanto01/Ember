@@ -60,6 +60,17 @@ public partial class RulesFixtureTests
 
     private sealed record RetargetCase(string Name, int TimesPerDay, int NewTimesPerDay, List<LogInput> Logs);
 
+    private sealed record WidgetHabitInput(int Id, string Name, string Kind, string Frequency, int? WeeklyTarget, List<string>? Days,
+        int TimesPerDay, DateOnly StartDate, DateOnly? PausedFrom, DateOnly? PausedUntil, int? RoutineId, List<string> ReminderTimes,
+        List<LogInput> Logs);
+
+    private sealed record WidgetRoutineInput(int Id, string Name, string? ReminderTime, List<int> HabitIds);
+
+    private sealed record WidgetCaseInput(string Name, DateOnly Today, string Timezone, int GraceDaysPerWeek, List<DateOnly> LowDays,
+        List<string>? TodayOrder, List<WidgetHabitInput> Habits, List<WidgetRoutineInput> Routines);
+
+    private sealed record WidgetOut(WidgetDay Today, WidgetDay Next);
+
     private static readonly DateOnly EditStart = new(2027, 1, 1);
 
     [Fact]
@@ -78,6 +89,27 @@ public partial class RulesFixtureTests
                 node!["expected"] = computed;
             else
                 failures.AddRange(Differences(input.Name, node!["expected"], computed));
+        }
+
+        SaveOrAssert(root, failures);
+    }
+
+    [Fact]
+    public void Core_widget_days_match_the_shared_rules_fixtures()
+    {
+        var root = LoadFixture();
+        var cases = root["widgetDays"]!.AsArray();
+        cases.Should().NotBeEmpty();
+
+        var failures = new List<string>();
+        foreach (var node in cases)
+        {
+            var input = node.Deserialize<WidgetCaseInput>(Json)!;
+            var computed = JsonSerializer.SerializeToNode(ComputeWidget(input), Json)!;
+            if (Write)
+                node!["expected"] = computed;
+            else if (FirstDifference(node!["expected"], computed) is { } diff)
+                failures.Add($"widgetDays \"{input.Name}\": {diff}");
         }
 
         SaveOrAssert(root, failures);
@@ -275,6 +307,41 @@ public partial class RulesFixtureTests
 
     [GeneratedRegex(@"\*\*|__|~~|\|\||`")]
     private static partial Regex DiscordMarkdown();
+
+    private static WidgetOut ComputeWidget(WidgetCaseInput input)
+    {
+        var tz = TimeZones.Find(input.Timezone) ?? throw new InvalidOperationException($"Unknown timezone {input.Timezone}.");
+        var lowDays = input.LowDays.ToHashSet();
+        var habits = input.Habits.Select(h =>
+        {
+            var habit = ToHabit(new HabitInput(h.Id, h.Frequency, h.WeeklyTarget, h.Days, h.TimesPerDay, h.StartDate, h.PausedFrom,
+                h.PausedUntil, h.RoutineId, h.Logs));
+            habit.Name = h.Name;
+            habit.Kind = Enum.Parse<HabitKind>(h.Kind, ignoreCase: true);
+            habit.ReminderTimes = h.ReminderTimes.Select(t => TimeOnly.Parse(t, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+            return habit;
+        }).ToList();
+        var routines = input.Routines.Select(r =>
+        {
+            var routine = new Routine
+            {
+                Id = r.Id,
+                Name = r.Name,
+                ReminderTime = r.ReminderTime is { } time ? TimeOnly.Parse(time, System.Globalization.CultureInfo.InvariantCulture) : null,
+            };
+            for (var i = 0; i < r.HabitIds.Count; i++)
+            {
+                var member = habits.Single(h => h.Id == r.HabitIds[i]);
+                member.RoutineId.Should().Be(r.Id, $"widget case \"{input.Name}\": habit {member.Id} is listed in routine {r.Id}");
+                member.RoutinePosition = i;
+                routine.Habits.Add(member);
+            }
+            return routine;
+        }).ToList();
+
+        WidgetDay On(DateOnly date) => WidgetDays.On(habits, routines, input.TodayOrder, date, input.Today, tz, lowDays);
+        return new WidgetOut(On(input.Today), On(input.Today.AddDays(1)));
+    }
 
     private static Habit ToHabit(HabitInput input)
     {
