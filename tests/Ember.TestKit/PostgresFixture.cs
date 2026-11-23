@@ -51,9 +51,34 @@ public sealed class PostgresFixture : IAsyncLifetime
         var container = new PostgreSqlBuilder("postgres:17-alpine")
             .WithCommand("-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off", "-c", "max_connections=300")
             .Build();
-        await container.StartAsync();
+        await using (await HoldStartLockAsync())
+            await container.StartAsync();
         return container;
     }
+
+    /// <summary>
+    /// Test runs in several checkouts on one machine start their containers one at a time. Starting them all at once overloads the
+    /// Docker daemon: a cancelled start leaves its reaper container behind in "created", where nothing removes it. The lock is a file
+    /// in the temp folder, so the operating system releases it when a test process dies.
+    /// </summary>
+    private static async Task<FileStream> HoldStartLockAsync()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "ember-testcontainers-start.lock");
+        var deadline = DateTime.UtcNow + StartLockTimeout;
+        while (true)
+        {
+            try
+            {
+                return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException) when (DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(250));
+            }
+        }
+    }
+
+    private static readonly TimeSpan StartLockTimeout = TimeSpan.FromMinutes(5);
 
     private static async Task CreateTemplateAsync()
     {
