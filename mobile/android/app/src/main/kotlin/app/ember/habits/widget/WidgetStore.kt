@@ -16,9 +16,10 @@ import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * The widgets' app-private store: the snapshot the app last pushed, the check-ins JS has not taken yet and the style,
- * in one SharedPreferences file that [WidgetKey] shares for the sealed key and API origin. Every write of the file but
- * [setStyle]'s, and every use of the in-memory count of check-in requests in flight, holds [LOCK].
+ * The widgets' app-private store: the snapshot the app last pushed or the widget fetched with its key ([saveFetched]),
+ * the check-ins JS has not taken yet, the time of the last day request and the style, in one SharedPreferences file
+ * that [WidgetKey] shares for the sealed key and API origin. Every write of the file but [setStyle]'s, and every use of
+ * the in-memory count of check-in requests in flight, holds [LOCK].
  */
 internal object WidgetStore {
 
@@ -27,6 +28,7 @@ internal object WidgetStore {
     const val MAX_HABITS = 25
     const val THEME = "theme"
     const val COLOR_SCHEME = "colorScheme"
+    const val DAY_REQUESTED = "dayRequestedAt"
 
     val ISO_DATE: Pattern = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$")
 
@@ -60,6 +62,88 @@ internal object WidgetStore {
         total: Int?,
         next: JSONObject?,
     ) {
+        val snapshot = snapshot(userId, date, timeZone, habits, more, done, total, next)
+        synchronized(LOCK) {
+            prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()
+        }
+    }
+
+    /**
+     * Stores a day the widget fetched, [answer] in [save]'s shape (`userId`, `date`, `timeZone`, `habits`, `more`,
+     * `done`, `total`, `next`), with a fresh tap token; true when stored. It is stored only when it validates, a
+     * snapshot of the same user is stored and its date is not before the stored one. First each of that user's pending
+     * check-ins on one of its days raises that row to the pending count (capped at `timesPerDay`), never lowering it,
+     * and keeps that day's `done` in step. Pending check-ins stay pending.
+     */
+    fun saveFetched(context: Context, answer: JSONObject): Boolean {
+        val fetched = try {
+            val next = if (answer.isNull("next")) null else answer.getJSONObject("next")
+            snapshot(
+                answer.getString("userId"),
+                answer.getString("date"),
+                answer.getString("timeZone"),
+                answer.getJSONArray("habits"),
+                answer.getInt("more"),
+                answer.intOrNull("done"),
+                answer.intOrNull("total"),
+                next,
+            )
+        } catch (e: JSONException) {
+            return false
+        } catch (e: IllegalArgumentException) {
+            return false
+        }
+        synchronized(LOCK) {
+            val stored = stored(context) ?: return false
+            try {
+                val userId = fetched.getString("userId")
+                if (userId != stored.optString("userId")) return false
+                if (fetched.getString("date") < stored.optString("date")) return false
+                raise(fetched, userId, pending(context))
+            } catch (e: JSONException) {
+                return false
+            }
+            prefs(context).edit().putString(SNAPSHOT, fetched.toString()).commit()
+            return true
+        }
+    }
+
+    @Throws(JSONException::class)
+    private fun raise(snapshot: JSONObject, userId: String, entries: JSONArray) {
+        val days = listOfNotNull(snapshot, snapshot.optJSONObject("next"))
+        for (i in 0 until entries.length()) {
+            val entry = entries.optJSONObject(i) ?: continue
+            if (entry.optString("userId") != userId) continue
+            val day = days.firstOrNull { it.getString("date") == entry.optString("date") } ?: continue
+            val habits = day.getJSONArray("habits")
+            for (j in 0 until habits.length()) {
+                val row = habits.getJSONObject(j)
+                if (row.getLong("id") != entry.optLong("habitId")) continue
+                val timesPerDay = row.getInt("timesPerDay")
+                val count = min(entry.optInt("count"), timesPerDay)
+                if (count <= row.getInt("count")) break
+                val before = row.getString("state")
+                val after = if (count >= timesPerDay || before == "done") "done" else "partial"
+                row.put("count", count).put("state", after)
+                day.put("done", WidgetPlan.done(day.getInt("done"), day.getInt("total"), before, after))
+                break
+            }
+        }
+    }
+
+    private fun JSONObject.intOrNull(name: String): Int? = if (has(name)) getInt(name) else null
+
+    @Throws(JSONException::class)
+    private fun snapshot(
+        userId: String?,
+        date: String?,
+        timeZone: String?,
+        habits: JSONArray?,
+        more: Int,
+        done: Int?,
+        total: Int?,
+        next: JSONObject?,
+    ): JSONObject {
         if (userId == null || userId.isEmpty() || userId.length > 100) throw IllegalArgumentException("userId")
         if (timeZone == null || timeZone.isEmpty()) throw IllegalArgumentException("timeZone")
         val random = ByteArray(16)
@@ -73,13 +157,16 @@ internal object WidgetStore {
         if (next != null) {
             val nextDate = next.optString("date")
             if (nextDate <= date!!) throw IllegalArgumentException("next")
-            val nextDone = if (next.has("done")) next.getInt("done") else null
-            val nextTotal = if (next.has("total")) next.getInt("total") else null
-            snapshot.put("next", day(nextDate, next.getJSONArray("habits"), next.getInt("more"), nextDone, nextTotal))
+            val nextDay = day(
+                nextDate,
+                next.getJSONArray("habits"),
+                next.getInt("more"),
+                next.intOrNull("done"),
+                next.intOrNull("total"),
+            )
+            snapshot.put("next", nextDay)
         }
-        synchronized(LOCK) {
-            prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()
-        }
+        return snapshot
     }
 
     @Throws(JSONException::class)
@@ -121,9 +208,8 @@ internal object WidgetStore {
 
     /** The stored snapshot when it, or its `next` day, is for today in its zone, else null. */
     fun current(context: Context): JSONObject? {
-        val stored = prefs(context).getString(SNAPSHOT, null) ?: return null
+        val snapshot = stored(context) ?: return null
         try {
-            val snapshot = JSONObject(stored)
             val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
             format.timeZone = zone(snapshot.getString("timeZone"))
             val today = format.format(Date())
@@ -150,8 +236,40 @@ internal object WidgetStore {
         return if (zone.id == "GMT" && id != "GMT") TimeZone.getDefault() else zone
     }
 
+    /** The stored snapshot as stored, even for another day, or null. */
+    fun stored(context: Context): JSONObject? {
+        val stored = prefs(context).getString(SNAPSHOT, null) ?: return null
+        return try {
+            JSONObject(stored)
+        } catch (e: JSONException) {
+            null
+        }
+    }
+
     /** Whether any snapshot is stored, even one for another day. */
     fun hasSnapshot(context: Context) = prefs(context).contains(SNAPSHOT)
+
+    /** Forgets the stored snapshot while its tap token is still [token], keeping key, pending check-ins and style. */
+    fun dropSnapshot(context: Context, token: String) {
+        synchronized(LOCK) {
+            if (stored(context)?.optString("token") != token) return
+            prefs(context).edit().remove(SNAPSHOT).commit()
+        }
+    }
+
+    /**
+     * Records [now] (wall clock ms) as the last day request unless the last one was less than [gap] ms before it;
+     * true when recorded. A last request after [now] counts as expired.
+     */
+    fun claimDayRequest(context: Context, now: Long, gap: Long): Boolean {
+        synchronized(LOCK) {
+            val prefs = prefs(context)
+            val last = prefs.getLong(DAY_REQUESTED, 0)
+            if (prefs.contains(DAY_REQUESTED) && last <= now && now - last < gap) return false
+            prefs.edit().putLong(DAY_REQUESTED, now).commit()
+            return true
+        }
+    }
 
     /** A change to one stored row; true when it changed the row. */
     fun interface RowEdit {
