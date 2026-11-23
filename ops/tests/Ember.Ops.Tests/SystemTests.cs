@@ -23,6 +23,24 @@ public sealed class SystemTests(V2DatabaseFixture database) : IDisposable
         var report = await SystemAsync("""{"writtenAt":"2026-11-18T12:00:00Z","disk":{"freeBytes":100,"totalBytes":400}}""");
 
         report.Disks.Should().Equal(new HostDisk("/home", 100, 400));
+        report.NightlyBackup.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task The_nightly_backup_and_the_pre_deploy_dump_are_read_and_aged_separately()
+    {
+        var clock = database.Time.GetUtcNow().UtcDateTime;
+        var now = clock.AddTicks(-(clock.Ticks % TimeSpan.TicksPerSecond));
+        string At(double hoursAgo) => now.AddHours(-hoursAgo).ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture);
+
+        var report = await SystemAsync($$$"""
+            {"writtenAt":"{{{At(0)}}}",
+             "backup":{"name":"emberdb-20261115-101500.dump","at":"{{{At(75)}}}","sizeBytes":500},
+             "nightlyBackup":{"name":"pg_dumpall_20261118_033000.sql.gz","at":"{{{At(6.5)}}}","sizeBytes":2345}}
+            """);
+
+        report.NightlyBackup.Should().Be(new BackupInfo("pg_dumpall_20261118_033000.sql.gz", now.AddHours(-6.5), 6.5, 2345));
+        report.Backup.Should().Be(new BackupInfo("emberdb-20261115-101500.dump", now.AddHours(-75), 75, 500));
     }
 
     [Fact]

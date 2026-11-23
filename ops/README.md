@@ -17,7 +17,7 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 | `releases` | Deployed SHA of production and staging, the provider's build SHA, the published APK version, CI of `main`, `test` and `v2/next` |
 | `feedback` | The reports, one column per Ember status (open, planned, implemented, released, declined). Each card has its description, pictures, platform, version, send time, whether it was sent anonymously, and its comments. A move sets the status and the card position. Moves are not logged |
 | `notices` | Live, scheduled and ended notices: info or maintenance, English and German, up to 280 characters each, up to 10 notices in a 16 KiB document. Publish, end now or delete. Each change is written to `NoticeLog` in `emberops` with the author |
-| `system` | Container states, whether reminders are advancing (a health check only), `emberdb` size, connections in use against `max_connections` and latest migration, free space per disk, newest pre-deploy dump, Lookout outbox (pending and parked rows and the oldest pending row's age; a warning when any row is parked or one has waited over an hour; unavailable before Ember has the outbox) |
+| `system` | Container states, whether reminders are advancing (a health check only), `emberdb` size, connections in use against `max_connections` and latest migration, free space per disk, newest nightly backup (Hosting's 03:30 `pg_dumpall` in `~/backups/postgres/daily`; a warning on the page and in the summary when it is over 26 hours old or none is found, bad over 50 hours), newest pre-deploy dump, Lookout outbox (pending and parked rows and the oldest pending row's age; a warning when any row is parked or one has waited over an hour; unavailable before Ember has the outbox) |
 
 The overview, releases, notices and system pages refresh every 30 seconds, the engagement, devices and health pages every 60. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the series at most every 5 minutes, shared by all viewers.
 
@@ -95,7 +95,7 @@ Publishing a notice sends the whole `notices.json` document to `PUT https://beta
 
    Both scripts can run again safely. Re-run `ember_dashboard.sql` after an Ember release that adds tables or columns the dashboard reads, then restart the container.
 4. Checkout: `git clone --branch v2/next <Ember repo> ~/ember-ops`. Ops deploys from `v2/next`, the same line as the rest of Ember; CI builds and tests the ops projects there, so there is no separate ops branch.
-5. Host status timer: it writes `~/.local/state/ember-ops/status.json` every minute (free space of every local disk, newest dump, deployed SHAs, container states; it needs `jq`). The container reads only that folder, read-only.
+5. Host status timer: it writes `~/.local/state/ember-ops/status.json` every minute (free space of every local disk, the newest nightly backup in `~/backups/postgres/daily` as `nightlyBackup` and the newest pre-deploy dump in `~/backups/ember` as `backup`, each name, time and size only, deployed SHAs, container states; it needs `jq`). The container reads only that folder, read-only.
 
    ```bash
    mkdir -p ~/.config/systemd/user

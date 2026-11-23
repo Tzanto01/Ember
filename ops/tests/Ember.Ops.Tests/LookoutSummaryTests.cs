@@ -1,3 +1,4 @@
+using System.Globalization;
 using Ember.Ops.Lookout;
 using FluentAssertions;
 
@@ -21,7 +22,12 @@ public sealed class LookoutSummaryTests
     private static SystemReport System(IReadOnlyList<ServiceState>? services = null, IReadOnlyList<HostDisk>? disks = null, IReadOnlyList<CiRun>? ci = null,
         string? statusError = null) =>
         new(Now, Now, services ?? [new("API", true, null)], null, disks ?? [Disk("/", 50)], null, null, ci ?? [Ci("main", "success")], null, null, null,
-            statusError is null ? new Dictionary<string, string>() : new Dictionary<string, string> { ["status"] = statusError });
+            statusError is null ? new Dictionary<string, string>() : new Dictionary<string, string> { ["status"] = statusError }, NightlyBackup: Nightly(8.5));
+
+    private static BackupInfo Nightly(double ageHours) => new("pg_dumpall_20261118_033000.sql.gz", new(2026, 11, 18, 3, 30, 0, DateTimeKind.Utc), ageHours, 12_345_678);
+
+    private static StatsWidget NightlyWidget(SystemReport report) =>
+        LookoutPages.System(report).Widgets.OfType<StatsWidget>().Single(w => w.Id == "nightly-backup");
 
     private static Summary Build(SystemReport? system = null) => LookoutPages.Summary(Overview(), Feedback("open", "open", "planned"), system ?? System(), Now);
 
@@ -119,6 +125,46 @@ public sealed class LookoutSummaryTests
         summary.State.Should().Be(alert is null ? "ok" : "warn");
         if (alert is null) summary.Alerts.Should().BeEmpty();
         else summary.Alerts.Should().Equal(new Alert(alert, "warn", "system"));
+    }
+
+    [Theory]
+    [InlineData(25.9, "ok", null)]
+    [InlineData(26.1, "warn", "warn")]
+    [InlineData(50, "warn", "warn")]
+    [InlineData(50.1, "bad", "bad")]
+    public void A_nightly_backup_past_26_hours_warns_and_past_50_is_bad_on_the_page_and_in_the_summary(double ageHours, string state, string? tone)
+    {
+        var report = System() with { NightlyBackup = Nightly(ageHours) };
+
+        var summary = Build(report);
+
+        summary.State.Should().Be(state);
+        if (tone is null) summary.Alerts.Should().BeEmpty();
+        else summary.Alerts.Should().Equal(new Alert($"Nightly backup overdue: {ageHours.ToString(CultureInfo.InvariantCulture)} h", tone, "system"));
+        NightlyWidget(report).Items.Select(i => (i.Label, i.Value, i.Format, i.Tone)).Should().Equal(
+            ("File", (object?)"pg_dumpall_20261118_033000.sql.gz", (string?)"code", (string?)null), ("Written", "2026-11-18T03:30:00Z", "time", null),
+            ("Age", ageHours, "hours", tone), ("Size", 12_345_678L, "bytes", null));
+    }
+
+    [Fact]
+    public void A_readable_host_status_without_a_nightly_backup_says_none_was_found_and_warns()
+    {
+        var report = System() with { NightlyBackup = null };
+
+        var summary = Build(report);
+
+        summary.State.Should().Be("warn");
+        summary.Alerts.Should().Equal(new Alert("Nightly backup: none found", "warn", "system"));
+        NightlyWidget(report).Unavailable.Should().Be("No nightly backup found in ~/backups/postgres/daily");
+    }
+
+    [Fact]
+    public void An_unreadable_host_status_raises_only_its_own_alert_for_the_nightly_backup()
+    {
+        var report = System(statusError: "status file missing") with { StatusWrittenAt = null, NightlyBackup = null };
+
+        Build(report).Alerts.Should().Equal(new Alert("Host status: status file missing", "warn", "system"));
+        NightlyWidget(report).Unavailable.Should().Be("Unavailable: status file missing");
     }
 
     [Fact]

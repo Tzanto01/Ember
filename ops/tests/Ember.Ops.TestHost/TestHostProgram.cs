@@ -86,7 +86,8 @@ public static class TestHostProgram
                 new("ember-ember-1", "running", "none"), new("ember-api-1", "running", "healthy"),
                 new("ember-staging-api-1", "running", "unhealthy"), new("homeserver-postgres", "running", "healthy"),
             ],
-            [new("/", 9L << 30, 110L << 30), new("/srv/data", 3_400L << 30, 3_600L << 30)]);
+            [new("/", 9L << 30, 110L << 30), new("/srv/data", 3_400L << 30, 3_600L << 30)],
+            new("pg_dumpall_20261118_033000.sql.gz", now.AddHours(-4), 98_765_432));
         return File.WriteAllTextAsync(path, JsonSerializer.Serialize(status, JsonSerializerOptions.Web));
     }
 

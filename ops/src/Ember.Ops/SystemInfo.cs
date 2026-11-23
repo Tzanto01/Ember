@@ -21,14 +21,19 @@ public sealed record ApkInfo(string VersionName, long VersionCode);
 public sealed record OutboxInfo(int Pending, int Parked, TimeSpan? OldestPending);
 
 /// <summary>The system report. A failing part is null and named in <see cref="Errors"/>; it never fails the whole call.</summary>
+/// <param name="Backup">The newest pre-deploy dump.</param>
+/// <param name="NightlyBackup">The newest nightly pg_dumpall; null when the host status is unreadable or names none.</param>
 public sealed record SystemReport(
     DateTime GeneratedAt, DateTime? StatusWrittenAt, IReadOnlyList<ServiceState> Services, DatabaseInfo? Database, IReadOnlyList<HostDisk>? Disks,
     BackupInfo? Backup, DeployedShas? Deployed, IReadOnlyList<CiRun>? Ci, JsonElement? Notice, ApkInfo? Apk, string? DashboardSha,
-    IReadOnlyDictionary<string, string> Errors, OutboxInfo? Outbox = null);
+    IReadOnlyDictionary<string, string> Errors, OutboxInfo? Outbox = null, BackupInfo? NightlyBackup = null);
 
-/// <summary>The status file <c>ops/host/ops-status.sh</c> writes every minute. <see cref="Disk"/> is the single <c>/home</c> disk of files written before <see cref="Disks"/>.</summary>
+/// <summary>
+/// The status file <c>ops/host/ops-status.sh</c> writes every minute. <see cref="Disk"/> is the single <c>/home</c> disk of files written before <see cref="Disks"/>;
+/// <see cref="NightlyBackup"/> is null in files written before it, as when no nightly backup is found.
+/// </summary>
 public sealed record HostStatus(DateTime WrittenAt, DiskInfo? Disk, HostBackup? Backup, DeployedShas? Deployed, IReadOnlyList<HostContainer>? Containers,
-    IReadOnlyList<HostDisk>? Disks = null);
+    IReadOnlyList<HostDisk>? Disks = null, HostBackup? NightlyBackup = null);
 public sealed record HostBackup(string Name, DateTime At, long SizeBytes);
 public sealed record HostContainer(string Name, string State, string? Health);
 
@@ -104,10 +109,10 @@ public sealed class SystemInfo(IOptions<OpsOptions> options, OpsDatabases db, IH
         if (notice.Error is not null) errors["notice"] = notice.Error;
         if (apk.Error is not null) errors["apk"] = apk.Error;
 
-        var backup = status?.Backup is { } b ? new BackupInfo(b.Name, b.At, Math.Round((now - b.At).TotalHours, 1), b.SizeBytes) : null;
+        BackupInfo? Aged(HostBackup? b) => b is null ? null : new(b.Name, b.At, Math.Round((now - b.At).TotalHours, 1), b.SizeBytes);
         IReadOnlyList<HostDisk>? disks = status?.Disks ?? (status?.Disk is { } d ? [new("/home", d.FreeBytes, d.TotalBytes)] : null);
-        return new(now, status?.WrittenAt, services, database, disks, backup, status?.Deployed, ci.Value, notice.Value, apk.Value,
-            string.IsNullOrWhiteSpace(o.BuildSha) ? null : o.BuildSha, errors, outbox);
+        return new(now, status?.WrittenAt, services, database, disks, Aged(status?.Backup), status?.Deployed, ci.Value, notice.Value, apk.Value,
+            string.IsNullOrWhiteSpace(o.BuildSha) ? null : o.BuildSha, errors, outbox, Aged(status?.NightlyBackup));
     }
 
     /// <summary>Reads the host status file; null with an error message when it is missing or unreadable.</summary>

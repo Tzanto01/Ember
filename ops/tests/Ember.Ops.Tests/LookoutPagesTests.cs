@@ -243,7 +243,7 @@ public sealed class LookoutPagesTests
 
         releases.Widgets.Select(w => w.Id).Should().Equal("deployed", "apk", "ci");
         Stats(Widget(releases, "deployed")).Items.Select(i => i.Value).Should().Equal("abc1234", "def5678", null);
-        LookoutPages.System(system).Widgets.Select(w => w.Id).Should().Equal("services", "database", "disks", "backup", "outbox");
+        LookoutPages.System(system).Widgets.Select(w => w.Id).Should().Equal("services", "database", "disks", "nightly-backup", "backup", "outbox");
     }
 
     [Fact]

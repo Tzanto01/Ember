@@ -107,6 +107,7 @@ public static class LookoutPages
             Section(s, "disks", "Disks", s.Disks?.Select(d =>
                 new StatItem(d.Mount, d.FreeBytes, "bytes", DiskTone(d), $"of {Bytes(d.TotalBytes)} ({Pct(d.FreeBytes, d.TotalBytes)} free)",
                     Max: d.TotalBytes, Goal: new(Above: d.TotalBytes * 0.1))).ToList()),
+            NightlyBackupSection(s),
             Section(s, "backup", "Newest pre-deploy dump", s.Backup is { } backup
                 ? [new("File", backup.Name, "code"), new("Written", Iso(backup.At), "time"), new("Age", backup.AgeHours, "hours"), new("Size", backup.SizeBytes, "bytes")]
                 : null),
@@ -122,6 +123,31 @@ public static class LookoutPages
                 : null),
         ]);
     }
+
+    /// <summary>How old the newest nightly backup may get before the system page and the summary warn; Hosting's own verifier uses the same limit.</summary>
+    public static readonly TimeSpan NightlyBackupLimit = TimeSpan.FromHours(26);
+
+    /// <summary>The nightly backup age at which the warning turns bad: two missed nights.</summary>
+    public static readonly TimeSpan NightlyBackupBadLimit = TimeSpan.FromHours(50);
+
+    private const string NightlyBackupTitle = "Newest nightly backup";
+    private const string NoNightlyBackup = "No nightly backup found in ~/backups/postgres/daily";
+
+    /// <summary>"bad" past <see cref="NightlyBackupBadLimit"/>, "warn" past <see cref="NightlyBackupLimit"/>, otherwise null.</summary>
+    public static string? NightlyBackupTone(BackupInfo backup) =>
+        backup.AgeHours > NightlyBackupBadLimit.TotalHours ? "bad" : backup.AgeHours > NightlyBackupLimit.TotalHours ? "warn" : null;
+
+    private static StatsWidget NightlyBackupSection(SystemReport s) => s.NightlyBackup is { } b
+        ? Section(s, "nightly-backup", NightlyBackupTitle,
+            [new("File", b.Name, "code"), new("Written", Iso(b.At), "time"), new("Age", b.AgeHours, "hours", NightlyBackupTone(b)), new("Size", b.SizeBytes, "bytes")])
+        : s.StatusWrittenAt is null
+            ? Section(s, "nightly-backup", NightlyBackupTitle, null)
+            : Stats("nightly-backup", NightlyBackupTitle, "list", []) with { Unavailable = NoNightlyBackup };
+
+    /// <summary>The nightly backup warning: overdue past <see cref="NightlyBackupLimit"/>, or none found in a readable host status.</summary>
+    private static Alert? NightlyBackupAlert(SystemReport s) => s.NightlyBackup is { } b
+        ? NightlyBackupTone(b) is { } tone ? new($"Nightly backup overdue: {b.AgeHours.ToString(CultureInfo.InvariantCulture)} h", tone, "system") : null
+        : s.StatusWrittenAt is null ? null : new("Nightly backup: none found", "warn", "system");
 
     /// <summary>How long the oldest pending outbox row may wait before the system page and the summary warn.</summary>
     public static readonly TimeSpan OutboxPendingLimit = TimeSpan.FromHours(1);
@@ -264,6 +290,8 @@ public static class LookoutPages
     /// The summary card. A null overview or feedback is a failed database read: its tiles are null, the state is bad and the first alert says so.
     /// Overdue reminders show only as the failing "Reminders advancing" health check.
     /// Parked Lookout outbox rows and a pending one older than <see cref="OutboxPendingLimit"/> are warnings; a missing outbox raises nothing.
+    /// A nightly backup older than <see cref="NightlyBackupLimit"/> warns and turns bad past <see cref="NightlyBackupBadLimit"/>; a readable host status
+    /// without one warns, an unreadable one only raises its own alert.
     /// </summary>
     public static Summary Summary(OverviewCounters? overview, FeedbackList? feedback, SystemReport system, DateTime now,
         OverviewSeries? series = null, ApiHealth? api = null)
@@ -280,12 +308,15 @@ public static class LookoutPages
         if (statusError is not null) alerts.Add(new($"Host status: {statusError}", "warn", "system"));
         var lowDisks = (system.Disks ?? []).Where(d => DiskTone(d) is not null).ToList();
         alerts.AddRange(lowDisks.Select(d => new Alert($"Disk {d.Mount}: {Pct(d.FreeBytes, d.TotalBytes)} free", DiskTone(d)!, "system")));
+        var backupAlert = NightlyBackupAlert(system);
+        if (backupAlert is not null) alerts.Add(backupAlert);
         var outboxAlerts = OutboxAlerts(system.Outbox).ToList();
         alerts.AddRange(outboxAlerts);
 
-        var bad = databaseFailed || system.Services.Any(x => !x.Ok) || failedCi.Any(run => run.Branch == "main") || lowDisks.Any(d => DiskTone(d) == "bad");
+        var bad = databaseFailed || system.Services.Any(x => !x.Ok) || failedCi.Any(run => run.Branch == "main") || lowDisks.Any(d => DiskTone(d) == "bad")
+            || backupAlert?.Tone == "bad";
         var generatedAt = new[] { overview?.GeneratedAt, feedback is null ? null : now, system.GeneratedAt }.Where(t => t is not null).Min()!.Value;
-        return new(generatedAt, bad ? "bad" : statusError is not null || lowDisks.Count > 0 || outboxAlerts.Count > 0 ? "warn" : "ok",
+        return new(generatedAt, bad ? "bad" : statusError is not null || lowDisks.Count > 0 || backupAlert is not null || outboxAlerts.Count > 0 ? "warn" : "ok",
         [
             overview is null ? new("Users", null) : UsersItem(overview.Users, series),
             overview is null ? new("Active 7 days", null) : Active7Item(overview.Active7, overview.Users, series),
@@ -391,7 +422,7 @@ public static class LookoutPages
 
     private static string Unavailable(SystemReport s, string section)
     {
-        var reason = s.Errors.GetValueOrDefault(section) ?? (section is "disks" or "backup" or "deployed" ? s.Errors.GetValueOrDefault("status") : null);
+        var reason = s.Errors.GetValueOrDefault(section) ?? (section is "disks" or "nightly-backup" or "backup" or "deployed" ? s.Errors.GetValueOrDefault("status") : null);
         return "Unavailable" + (reason is null ? "" : $": {reason}");
     }
 
