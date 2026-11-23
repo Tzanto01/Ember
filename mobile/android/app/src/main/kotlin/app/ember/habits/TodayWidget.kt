@@ -132,6 +132,9 @@ class TodayWidget : AppWidgetProvider() {
         /** The least time between a midnight day request and the request before it. */
         internal const val MIDNIGHT_GAP_MS = 60 * 1000L
 
+        /** How late the midnight alarm may fire: the shortest window Android grants without the exact-alarm permission. */
+        internal const val MIDNIGHT_WINDOW_MS = 10 * 60 * 1000L
+
         /** The actions of the intents a widget tap sends to [MainActivity]. */
         internal val TAP_ACTIONS = setOf(ACTION_CHECK_IN, ACTION_OPEN_TODAY, ACTION_OPEN_HABIT)
 
@@ -214,7 +217,7 @@ class TodayWidget : AppWidgetProvider() {
             midnight.set(Calendar.SECOND, 5)
             midnight.set(Calendar.MILLISECOND, 0)
             val intent = Intent(context, TodayWidget::class.java).setAction(ACTION_MIDNIGHT)
-            alarms.set(AlarmManager.RTC, midnight.timeInMillis, WidgetIntents.broadcast(context, 0, intent))
+            alarms.setWindow(AlarmManager.RTC, midnight.timeInMillis, MIDNIGHT_WINDOW_MS, WidgetIntents.broadcast(context, 0, intent))
         }
     }
 }

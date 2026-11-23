@@ -162,6 +162,7 @@ class TodayWidgetTest {
         val midnight = ZonedDateTime.now(zone).toLocalDate().plusDays(1).atTime(0, 0, 5).atZone(zone)
         assertEquals(AlarmManager.RTC, alarm!!.getType())
         assertEquals(midnight.toInstant().toEpochMilli(), alarm.getTriggerAtMs())
+        assertEquals(TodayWidget.MIDNIGHT_WINDOW_MS, alarm.getWindowLengthMs())
         return alarm
     }
 
