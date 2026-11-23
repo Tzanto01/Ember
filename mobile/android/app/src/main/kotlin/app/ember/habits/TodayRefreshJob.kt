@@ -45,7 +45,7 @@ class TodayRefreshJob : JobService() {
         /**
          * Runs the fetch on its own thread, apart from the widget's check-ins, with [CheckInClient.BUDGET_MS] from
          * its start, redraws the widget and then calls [finished]. Runs while a fetch is running share one more fetch
-         * after it.
+         * after it. A fetch or redraw that throws counts as a failed fetch and never stops later ones.
          */
         internal fun run(context: Context, finished: Runnable) {
             synchronized(waiting) {
@@ -72,8 +72,14 @@ class TodayRefreshJob : JobService() {
                         DayClient.fetch(context, apiBase, key, SystemClock.elapsedRealtime() + CheckInClient.BUDGET_MS)
                     }
                     TodayWidget.refresh(context)
+                } catch (e: RuntimeException) {
                 } finally {
-                    finished.forEach { it.run() }
+                    for (job in finished) {
+                        try {
+                            job.run()
+                        } catch (e: RuntimeException) {
+                        }
+                    }
                 }
             }
         }

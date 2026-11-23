@@ -135,6 +135,25 @@ class TodayRefreshJobTest {
     }
 
     @Test
+    fun aJobThatThrowsOnFinishingNeitherStopsItsBatchNorLaterFetches() {
+        HangingOrigin().use { origin ->
+            FakeAndroidKeyStore.install()
+            WidgetKey.set(host.context, "k".repeat(43), origin.base)
+            host.today(host.habit(1, "Water"))
+            val finished = CountDownLatch(2)
+
+            TodayRefreshJob.run(host.context) { throw IllegalStateException("finished twice") }
+            assertTrue(origin.accepted.tryAcquire(2, TimeUnit.SECONDS))
+            TodayRefreshJob.run(host.context) { finished.countDown() }
+            origin.release()
+            assertTrue(origin.accepted.tryAcquire(2, TimeUnit.SECONDS))
+            TodayRefreshJob.run(host.context) { finished.countDown() }
+
+            assertTrue(finished.await(5, TimeUnit.SECONDS))
+        }
+    }
+
+    @Test
     fun withoutAKeyNothingAsksAndAStaleSnapshotSetsNoAlarm() {
         stale()
 
