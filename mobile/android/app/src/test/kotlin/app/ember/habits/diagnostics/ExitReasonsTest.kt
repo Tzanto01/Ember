@@ -11,12 +11,13 @@ import java.io.IOException
 import java.io.InputStream
 
 /**
- * Exit records become exits: the last 7 days newest first, at most 5, reason and signal names, a CRASH matched to
+ * Exit records become exits: the app's own process only, the last 7 days newest first, at most 5, reason and signal names, a CRASH matched to
  * Ember's own crash record, an ANR's main-thread frames, a trace that fails to read giving no frames.
  */
 class ExitReasonsTest {
 
     private val now = 1_795_000_000_000L
+    private val app = "app.ember.habits"
     private val noTrace: () -> InputStream? = { null }
 
     private fun crash(at: Long, type: String) = JSONObject()
@@ -27,20 +28,35 @@ class ExitReasonsTest {
     @Test
     fun exitsAreTheLastSevenDaysLessAnHourNewestFirstWithReasonAndSignalNames() {
         val records = listOf(
-            ExitRecord(now - 10, 2, 9, noTrace),
-            ExitRecord(now - 20, 5, 11, noTrace),
-            ExitRecord(now - 30, 5, 64, noTrace),
-            ExitRecord(now - 40, 3, 9, noTrace),
-            ExitRecord(now - 50, 99, 0, noTrace),
-            ExitRecord(now - 60, 10, 0, noTrace),
-            ExitRecord(now - DiagnosticsGrammar.REPORT_MS - 1, 4, 0, noTrace),
+            ExitRecord(app, now - 10, 2, 9, noTrace),
+            ExitRecord(app, now - 20, 5, 11, noTrace),
+            ExitRecord(app, now - 30, 5, 64, noTrace),
+            ExitRecord(app, now - 40, 3, 9, noTrace),
+            ExitRecord(app, now - 50, 99, 0, noTrace),
+            ExitRecord(app, now - 60, 10, 0, noTrace),
+            ExitRecord(app, now - DiagnosticsGrammar.REPORT_MS - 1, 4, 0, noTrace),
         ).shuffled()
 
-        val exits = ExitReasons.from(records, emptyList(), now, 34)
+        val exits = ExitReasons.from(records, app, emptyList(), now, 34)
 
         assertEquals(listOf(now - 10, now - 20, now - 30, now - 40, now - 50), exits.map { it.at })
         assertEquals(listOf("SIGNALED", "CRASH_NATIVE", "CRASH_NATIVE", "LOW_MEMORY", "UNKNOWN"), exits.map { it.reason })
         assertEquals(listOf("SIGKILL", "SIGSEGV", null, null, null), exits.map { it.signal })
+    }
+
+    @Test
+    fun aSwipeAwayThatEndsTheAppAndItsWebViewRendererIsOneExit() {
+        val renderer = "com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0"
+        val records = listOf(
+            ExitRecord(app, now - 1000, 10, 0, noTrace),
+            ExitRecord(renderer, now - 1000, 10, 0, noTrace),
+            ExitRecord(renderer, now - 2000, 1, 0, noTrace),
+        )
+
+        val exits = ExitReasons.from(records, app, emptyList(), now, 37)
+
+        assertEquals(listOf(now - 1000), exits.map { it.at })
+        assertEquals(listOf("USER_REQUESTED"), exits.map { it.reason })
     }
 
     @Test
@@ -53,8 +69,8 @@ class ExitReasonsTest {
             crash(exitAt + 10, "After"),
         )
 
-        val exit = ExitReasons.from(listOf(ExitRecord(exitAt, 4, 0, noTrace)), crashes, now, 34).single()
-        val unmatched = ExitReasons.from(listOf(ExitRecord(exitAt - 120_000, 4, 0, noTrace)), crashes, now, 34).single()
+        val exit = ExitReasons.from(listOf(ExitRecord(app, exitAt, 4, 0, noTrace)), app, crashes, now, 34).single()
+        val unmatched = ExitReasons.from(listOf(ExitRecord(app, exitAt - 120_000, 4, 0, noTrace)), app, crashes, now, 34).single()
 
         assertEquals(listOf("Newest"), exit.exception)
         assertEquals(listOf("app.ember.habits.Newest.run(Newest.kt:1)"), exit.frames)
@@ -72,10 +88,11 @@ class ExitReasonsTest {
 
         val exits = ExitReasons.from(
             listOf(
-                ExitRecord(now, 6, 0) { ByteArrayInputStream(trace.toByteArray()) },
-                ExitRecord(now - 1, 6, 0) { broken },
-                ExitRecord(now - 2, 5, 6) { throw SecurityException("no") },
+                ExitRecord(app, now, 6, 0) { ByteArrayInputStream(trace.toByteArray()) },
+                ExitRecord(app, now - 1, 6, 0) { broken },
+                ExitRecord(app, now - 2, 5, 6) { throw SecurityException("no") },
             ),
+            app,
             emptyList(),
             now,
             34,
@@ -92,7 +109,7 @@ class ExitReasonsTest {
     fun aNativeCrashOnApi30ReadsTheTextTombstone() {
         val tombstone = "backtrace:\n      #00 pc 0004e1d4  /system/lib/libc.so (abort+164) (BuildId: 0a1b)\n"
 
-        val exit = ExitReasons.from(listOf(ExitRecord(now, 5, 6) { ByteArrayInputStream(tombstone.toByteArray()) }), emptyList(), now, 30)
+        val exit = ExitReasons.from(listOf(ExitRecord(app, now, 5, 6) { ByteArrayInputStream(tombstone.toByteArray()) }), app, emptyList(), now, 30)
             .single()
 
         assertEquals(listOf("#00 pc 0004e1d4 libc.so (abort)"), exit.frames)

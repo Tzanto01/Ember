@@ -11,11 +11,21 @@ import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
 
-/** One exit as Android reports it: epoch-millisecond [at], `REASON_*` value, status, and its trace if it has one. */
-internal class ExitRecord(val at: Long, val reason: Int, val status: Int, val trace: () -> InputStream?)
+/**
+ * One exit as Android reports it: the [process] that ended, epoch-millisecond [at], `REASON_*` value, status, and its
+ * trace if it has one.
+ */
+internal class ExitRecord(
+    val process: String,
+    val at: Long,
+    val reason: Int,
+    val status: Int,
+    val trace: () -> InputStream?,
+)
 
 /**
- * Ember's recent process exits from `ActivityManager.getHistoricalProcessExitReasons` (API 30+): the last 7 days less an hour,
+ * Ember's recent process exits from `ActivityManager.getHistoricalProcessExitReasons` (API 30+): the app's own process
+ * only, never the WebView's sandboxed renderer that Android lists under the same package, the last 7 days less an hour,
  * newest first, at most [DiagnosticsPayload.MAX_EXITS]. Each carries its reason name, the signal for `CRASH_NATIVE`
  * and `SIGNALED`, for `CRASH` the matching record of Ember's own [CrashRecorder], for `ANR` the main thread's frames
  * and for `CRASH_NATIVE` the crashing thread's tombstone frames, all through the [Frames] allowlist parser. It never
@@ -34,12 +44,15 @@ internal object ExitReasons {
     /** The exits for this app as of [now]; empty below API 30. */
     fun collect(context: Context, crashes: List<JSONObject>, now: Long): List<Exit> {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return emptyList()
-        return from(records(context), crashes, now, Build.VERSION.SDK_INT)
+        return from(records(context), context.packageName, crashes, now, Build.VERSION.SDK_INT)
     }
 
-    /** [records] turned into exits as of [now] on API level [sdk], each crash matched against [crashes]. */
-    fun from(records: List<ExitRecord>, crashes: List<JSONObject>, now: Long, sdk: Int): List<Exit> =
-        records.filter { it.at in (now - DiagnosticsGrammar.REPORT_MS)..now }
+    /**
+     * [records] of the main process [app] turned into exits as of [now] on API level [sdk], each crash matched against
+     * [crashes].
+     */
+    fun from(records: List<ExitRecord>, app: String, crashes: List<JSONObject>, now: Long, sdk: Int): List<Exit> =
+        records.filter { it.process == app && it.at in (now - DiagnosticsGrammar.REPORT_MS)..now }
             .sortedByDescending { it.at }
             .take(DiagnosticsPayload.MAX_EXITS)
             .map { exit(it, crashes, sdk) }
@@ -93,7 +106,7 @@ internal object ExitReasons {
     private fun records(context: Context): List<ExitRecord> {
         val manager = context.getSystemService(ActivityManager::class.java) ?: return emptyList()
         return manager.getHistoricalProcessExitReasons(context.packageName, 0, 0).map { info: ApplicationExitInfo ->
-            ExitRecord(info.timestamp, info.reason, info.status) { info.traceInputStream }
+            ExitRecord(info.processName, info.timestamp, info.reason, info.status) { info.traceInputStream }
         }
     }
 }
