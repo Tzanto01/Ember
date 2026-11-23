@@ -44,7 +44,7 @@ describe('FeedbackForm', () => {
     call.respond(204);
     await screen.findByText('Thank you, that really helps.');
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Send more feedback' })).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send more feedback' })).toHaveFocus());
 
     await user.click(screen.getByRole('button', { name: 'Send more feedback' }));
 
