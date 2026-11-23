@@ -19,7 +19,7 @@ import org.json.JSONObject
  * The widgets' app-private store: the snapshot the app last pushed or the widget fetched with its key ([saveFetched]),
  * the check-ins JS has not taken yet, the time of the last day request and the style, in one SharedPreferences file
  * that [WidgetKey] shares for the sealed key and API origin. Every write of the file but [setStyle]'s, and every use of
- * the in-memory count of check-in requests in flight, holds [LOCK].
+ * the in-memory count of check-in requests in flight and of the snapshot revision ([version]), holds [LOCK].
  */
 internal object WidgetStore {
 
@@ -41,6 +41,24 @@ internal object WidgetStore {
     private const val MAX_NAME = 100
     private val STYLE = listOf(THEME, COLOR_SCHEME, WidgetPlan.MOTION)
     private val requests = HashMap<String, Int>()
+    private var revision = 0L
+
+    /** The stored snapshot's tap token with the in-memory revision every snapshot write in this process bumps. */
+    data class Version(val token: String, val revision: Long)
+
+    /** The stored snapshot's [Version], read together under [LOCK], or null while none is stored. */
+    fun version(context: Context): Version? =
+        synchronized(LOCK) { stored(context)?.let { Version(it.optString("token"), revision) } }
+
+    private fun unchanged(stored: JSONObject?, seen: Version) =
+        stored != null && stored.optString("token") == seen.token && revision == seen.revision
+
+    private fun write(context: Context, snapshot: JSONObject?) {
+        val edit = prefs(context).edit()
+        if (snapshot == null) edit.remove(SNAPSHOT) else edit.putString(SNAPSHOT, snapshot.toString())
+        edit.commit()
+        revision++
+    }
 
     fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -64,18 +82,19 @@ internal object WidgetStore {
     ) {
         val snapshot = snapshot(userId, date, timeZone, habits, more, done, total, next)
         synchronized(LOCK) {
-            prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()
+            write(context, snapshot)
         }
     }
 
     /**
      * Stores a day the widget fetched, [answer] in [save]'s shape (`userId`, `date`, `timeZone`, `habits`, `more`,
-     * `done`, `total`, `next`), with a fresh tap token; true when stored. It is stored only when it validates, a
-     * snapshot of the same user is stored and its date is not before the stored one. First each of that user's pending
+     * `done`, `total`, `next`), with a fresh tap token; true when stored. It is stored only when it validates, the
+     * stored snapshot is still at [seen] (taken before the request, so a push or a row edit since wins), is of the same
+     * user and its date is not before the answer's. First each of that user's pending
      * check-ins on one of its days raises that row to the pending count (capped at `timesPerDay`), never lowering it,
      * and keeps that day's `done` in step. Pending check-ins stay pending.
      */
-    fun saveFetched(context: Context, answer: JSONObject): Boolean {
+    fun saveFetched(context: Context, answer: JSONObject, seen: Version): Boolean {
         val fetched = try {
             val next = if (answer.isNull("next")) null else answer.getJSONObject("next")
             snapshot(
@@ -95,6 +114,7 @@ internal object WidgetStore {
         }
         synchronized(LOCK) {
             val stored = stored(context) ?: return false
+            if (!unchanged(stored, seen)) return false
             try {
                 val userId = fetched.getString("userId")
                 if (userId != stored.optString("userId")) return false
@@ -103,7 +123,7 @@ internal object WidgetStore {
             } catch (e: JSONException) {
                 return false
             }
-            prefs(context).edit().putString(SNAPSHOT, fetched.toString()).commit()
+            write(context, fetched)
             return true
         }
     }
@@ -249,11 +269,11 @@ internal object WidgetStore {
     /** Whether any snapshot is stored, even one for another day. */
     fun hasSnapshot(context: Context) = prefs(context).contains(SNAPSHOT)
 
-    /** Forgets the stored snapshot while its tap token is still [token], keeping key, pending check-ins and style. */
-    fun dropSnapshot(context: Context, token: String) {
+    /** Forgets the stored snapshot while it is still at [seen], keeping key, pending check-ins and style. */
+    fun dropSnapshot(context: Context, seen: Version) {
         synchronized(LOCK) {
-            if (stored(context)?.optString("token") != token) return
-            prefs(context).edit().remove(SNAPSHOT).commit()
+            if (!unchanged(stored(context), seen)) return
+            write(context, null)
         }
     }
 
@@ -304,7 +324,7 @@ internal object WidgetStore {
                         val done = WidgetPlan.done(day.optInt("done"), day.optInt("total"), before, row.optString("state"))
                         day.put("done", done)
                     }
-                    prefs(context).edit().putString(SNAPSHOT, snapshot.toString()).commit()
+                    write(context, snapshot)
                     return true
                 }
                 return false

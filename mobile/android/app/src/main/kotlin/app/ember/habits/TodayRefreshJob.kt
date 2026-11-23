@@ -7,9 +7,10 @@ import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
 import android.os.SystemClock
-import app.ember.habits.widget.CheckInClient
 import app.ember.habits.widget.DayClient
 import app.ember.habits.widget.WidgetKey
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * Fetches the Today widget's day with the widget key ([DayClient]) once a network is up, then redraws the widget. One
@@ -27,6 +28,7 @@ class TodayRefreshJob : JobService() {
     companion object {
         private const val JOB_ID = 1
         private const val BUDGET_MS = 8000L
+        private val FETCH: ExecutorService = Executors.newSingleThreadExecutor()
 
         /** Schedules the fetch, replacing one still waiting. */
         internal fun schedule(context: Context) {
@@ -39,11 +41,11 @@ class TodayRefreshJob : JobService() {
         }
 
         /**
-         * Queues the fetch on the widget's network thread behind the check-ins queued before it, with [BUDGET_MS]
-         * from its start, redraws the widget and then calls [finished].
+         * Runs the fetch on its own thread, apart from the widget's check-ins, with [BUDGET_MS] from its start,
+         * redraws the widget and then calls [finished].
          */
         internal fun run(context: Context, finished: Runnable) {
-            CheckInClient.queue {
+            FETCH.execute {
                 try {
                     val key = WidgetKey.get(context)
                     val apiBase = WidgetKey.apiBase(context)

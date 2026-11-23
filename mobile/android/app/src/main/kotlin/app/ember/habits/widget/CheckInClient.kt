@@ -21,9 +21,9 @@ import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * The widget's own check-ins: one POST per tap with the widget key. Taps and day fetches ([DayClient]) queue on one
- * network thread, and each request runs on a thread of its own ([call]), so one that outlives its deadline can be cut
- * off.
+ * The widget's own check-ins: one POST per tap with the widget key. Taps queue on one network thread, apart from the
+ * day fetches ([DayClient]), and each request runs on a thread of its own ([call]), so one that outlives its deadline
+ * can be cut off.
  */
 internal object CheckInClient {
 
@@ -33,7 +33,7 @@ internal object CheckInClient {
     private val NETWORK: ExecutorService = Executors.newSingleThreadExecutor()
     private val CALLS: ExecutorService = Executors.newCachedThreadPool()
 
-    /** Runs [task] on the network thread, after the check-ins and day fetches queued before it. */
+    /** Runs [task] on the network thread, after the check-ins queued before it. */
     fun queue(task: Runnable) = NETWORK.execute(task)
 
     /**

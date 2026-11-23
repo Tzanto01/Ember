@@ -31,10 +31,15 @@ class WidgetStoreFetchTest {
     private fun answer(date: String, vararg rows: JSONObject, userId: String = "user-1", next: JSONObject? = null) =
         day(date, *rows).put("userId", userId).put("timeZone", "Europe/Berlin").put("next", next ?: JSONObject.NULL)
 
+    private lateinit var seen: WidgetStore.Version
+
     @Before
     fun setUp() {
         WidgetStore.save(context, "user-1", "2027-03-10", "Europe/Berlin", JSONArray().put(row(1)), 0, null, null, null)
+        seen = WidgetStore.version(context)!!
     }
+
+    private fun fetch(answer: JSONObject) = WidgetStore.saveFetched(context, answer, seen)
 
     private fun stored() = WidgetStore.stored(context)!!
 
@@ -55,7 +60,7 @@ class WidgetStoreFetchTest {
             row(2, timesPerDay = 2),
             next = day("2027-03-12", row(3, timesPerDay = 3)),
         )
-        assertTrue(WidgetStore.saveFetched(context, fetched))
+        assertTrue(fetch(fetched))
 
         val today = stored()
         assertEquals("partial", today.row(1).getString("state"))
@@ -74,7 +79,7 @@ class WidgetStoreFetchTest {
         WidgetStore.addPending(context, "user-1", 1, "2027-03-11", 1)
         WidgetStore.addPending(context, "user-1", 2, "2027-03-11", 1)
 
-        assertTrue(WidgetStore.saveFetched(context, answer("2027-03-11", row(1, "partial", 2, 3), row(2, "done", 1, 2))))
+        assertTrue(fetch(answer("2027-03-11", row(1, "partial", 2, 3), row(2, "done", 1, 2))))
 
         assertEquals("partial", stored().row(1).getString("state"))
         assertEquals(2, stored().row(1).getInt("count"))
@@ -88,7 +93,7 @@ class WidgetStoreFetchTest {
         WidgetStore.addPending(context, "user-1", 1, "2027-03-09", 1)
         WidgetStore.addPending(context, "user-1", 1, "2027-03-11", 1)
 
-        assertTrue(WidgetStore.saveFetched(context, answer("2027-03-11", row(1), row(2))))
+        assertTrue(fetch(answer("2027-03-11", row(1), row(2))))
 
         assertEquals("done", stored().row(1).getString("state"))
         assertEquals("open", stored().row(2).getString("state"))
@@ -99,7 +104,7 @@ class WidgetStoreFetchTest {
     fun aDayForTheSameUserReplacesTheSnapshotWithAFreshTapToken() {
         val token = stored().getString("token")
 
-        assertTrue(WidgetStore.saveFetched(context, answer("2027-03-10", row(1, "done", 1))))
+        assertTrue(fetch(answer("2027-03-10", row(1, "done", 1))))
 
         assertEquals("done", stored().row(1).getString("state"))
         assertNotEquals(token, stored().getString("token"))
@@ -109,12 +114,12 @@ class WidgetStoreFetchTest {
     fun aDayForAnotherUserOrAnEarlierDateOrWithoutAStoredSnapshotIsNotStored() {
         val before = stored().toString()
 
-        assertFalse(WidgetStore.saveFetched(context, answer("2027-03-11", row(2), userId = "user-2")))
-        assertFalse(WidgetStore.saveFetched(context, answer("2027-03-09", row(2))))
+        assertFalse(fetch(answer("2027-03-11", row(2), userId = "user-2")))
+        assertFalse(fetch(answer("2027-03-09", row(2))))
         assertEquals(before, stored().toString())
 
         WidgetStore.clear(context)
-        assertFalse(WidgetStore.saveFetched(context, answer("2027-03-11", row(2))))
+        assertFalse(fetch(answer("2027-03-11", row(2))))
         assertFalse(WidgetStore.hasSnapshot(context))
     }
 
@@ -131,7 +136,7 @@ class WidgetStoreFetchTest {
             answer("2027-03-11", row(2)).apply { remove("timeZone") },
             answer("2027-03-11", row(2)).apply { remove("habits") },
         )
-        for (each in invalid) assertFalse(each.toString(), WidgetStore.saveFetched(context, each))
+        for (each in invalid) assertFalse(each.toString(), fetch(each))
         assertEquals(before, stored().toString())
     }
 }

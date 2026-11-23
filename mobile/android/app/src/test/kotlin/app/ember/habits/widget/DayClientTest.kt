@@ -2,14 +2,16 @@ package app.ember.habits.widget
 
 import android.os.SystemClock
 import app.ember.habits.FakeAndroidKeyStore
+import app.ember.habits.HangingOrigin
 import app.ember.habits.TodayHost
 import app.ember.habits.TodayRefreshJob
 import java.time.LocalDate
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
@@ -146,27 +148,54 @@ class DayClientTest {
     }
 
     @Test
-    fun theJobsFetchWaitsForATapsCheckInQueuedBeforeIt() {
-        host.key()
-        val token = WidgetStore.stored(host.context)!!.getString("token")
-        server.enqueue(
-            MockResponse().setHeadersDelay(800, TimeUnit.MILLISECONDS).setBody("""{"state":"done","count":1,"timesPerDay":1}"""),
+    fun aTapsCheckInIsSentWhileTheJobsFetchHangs() {
+        HangingOrigin().use { origin ->
+            FakeAndroidKeyStore.install()
+            WidgetKey.set(host.context, key, origin.base)
+            val token = WidgetStore.stored(host.context)!!.getString("token")
+            server.enqueue(MockResponse().setBody("""{"state":"done","count":1,"timesPerDay":1}"""))
+            val finished = CountDownLatch(1)
+
+            TodayRefreshJob.run(host.context) { finished.countDown() }
+            assertTrue(origin.accepted.tryAcquire(2, TimeUnit.SECONDS))
+            CheckInClient.queue {
+                CheckInClient.send(host.context, base, key, token, "user-1", 1, yesterday, SystemClock.elapsedRealtime() + 8000)
+            }
+
+            assertEquals("/api/widget/check-in", server.takeRequest(2, TimeUnit.SECONDS)?.path)
+            assertEquals(1L, finished.count)
+            origin.release()
+            assertTrue(finished.await(5, TimeUnit.SECONDS))
+        }
+    }
+
+    @Test
+    fun aRowEditOrAnAppPushDuringTheFetchDiscardsItsAnswer() {
+        val walk = day(host.habit(2, "Walk")).toString()
+        val changes = listOf(
+            {
+                val token = WidgetStore.stored(host.context)!!.getString("token")
+                WidgetStore.editRow(host.context, token, yesterday, 1) { row ->
+                    row.put("state", "done").put("count", 1)
+                    true
+                }
+            },
+            { host.today(host.habit(3, "Read")) },
         )
-        val posted = CountDownLatch(1)
-        CheckInClient.queue {
-            CheckInClient.send(host.context, base, key, token, "user-1", 1, yesterday, SystemClock.elapsedRealtime() + 8000)
-            posted.countDown()
-        }
-        val postedFirst = AtomicBoolean(false)
-        val finished = CountDownLatch(1)
+        for (change in changes) {
+            host.today(host.habit(1, "Water"), date = yesterday)
+            var changed: String? = null
+            server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse {
+                    change()
+                    changed = WidgetStore.stored(host.context).toString()
+                    return MockResponse().setBody(walk)
+                }
+            }
 
-        TodayRefreshJob.run(host.context) {
-            postedFirst.set(posted.count == 0L)
-            finished.countDown()
-        }
+            assertFalse(fetch())
 
-        assertTrue(finished.await(5, TimeUnit.SECONDS))
-        assertTrue(postedFirst.get())
-        assertEquals(1, server.requestCount)
+            assertEquals(changed, WidgetStore.stored(host.context).toString())
+        }
     }
 }
