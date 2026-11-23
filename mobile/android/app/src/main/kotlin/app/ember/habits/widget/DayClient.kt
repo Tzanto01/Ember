@@ -10,7 +10,7 @@ import org.json.JSONObject
 /** The widget's own day: one GET of `/api/widget/today` with the widget key, never on [CheckInClient]'s network thread. */
 internal object DayClient {
 
-    private const val MAX_ANSWER = 32 * 1024
+    private const val MAX_ANSWER = 64 * 1024
     private const val MAX_PROBLEM = 4096
 
     /**

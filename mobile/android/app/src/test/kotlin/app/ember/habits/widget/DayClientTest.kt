@@ -84,6 +84,20 @@ class DayClientTest {
     }
 
     @Test
+    fun aFullDayOfLongNamesTheServerEscapesIsStored() {
+        val name = "\u00e4".repeat(100)
+        val rows = (1L..25L).map { host.habit(it, name) }.toTypedArray()
+        val next = day(*rows, date = LocalDate.parse(host.today).plusDays(1).toString())
+        val body = day(*rows).put("next", next).toString().replace("\u00e4", "\\u00e4")
+        assertTrue(body.length > 32 * 1024)
+        server.enqueue(MockResponse().setBody(body))
+
+        assertTrue(fetch())
+
+        assertEquals(List(25) { name }, names())
+    }
+
+    @Test
     fun aFailedOrInvalidAnswerKeepsTheStoredSnapshot() {
         val next = JSONObject().put("date", host.today).put("habits", JSONArray().put(host.habit(3, "Read"))).put("more", 0)
         WidgetStore.save(host.context, "user-1", yesterday, host.zone, JSONArray().put(host.habit(1, "Water")), 0, null, null, next)
@@ -95,7 +109,7 @@ class DayClientTest {
             MockResponse().setResponseCode(302).setHeader("Location", server.url("/elsewhere")),
             MockResponse().setBody("not json"),
             MockResponse().setBody(day(host.habit(2, "Walk", "skipped")).toString()),
-            MockResponse().setBody(day(host.habit(2, "Walk")).put("pad", "x".repeat(33 * 1024)).toString()),
+            MockResponse().setBody(day(host.habit(2, "Walk")).put("pad", "x".repeat(65 * 1024)).toString()),
         )
         for (each in answers) {
             server.enqueue(each)

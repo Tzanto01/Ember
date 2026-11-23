@@ -58,11 +58,11 @@ class TodayWidget : AppWidgetProvider() {
     /**
      * Checks in a validated open or partial row: the stored row moves to `min(count + 1, timesPerDay)` and a pending
      * entry for that count is saved before the POST ([CheckInClient.send]), so a failed or killed request is replayed
-     * by JS. The request must finish within [BUDGET_MS] of the tap, or it is dropped and stays pending. Any other tap
-     * only redraws.
+     * by JS. The request must finish within [CheckInClient.BUDGET_MS] of the tap, or it is dropped and stays
+     * pending. Any other tap only redraws.
      */
     private fun checkIn(context: Context, intent: Intent) {
-        val deadline = SystemClock.elapsedRealtime() + BUDGET_MS
+        val deadline = SystemClock.elapsedRealtime() + CheckInClient.BUDGET_MS
         val snapshot = WidgetStore.current(context)
         val key = WidgetKey.get(context)
         val apiBase = WidgetKey.apiBase(context)
@@ -125,7 +125,6 @@ class TodayWidget : AppWidgetProvider() {
         internal const val ACTION_OPEN_TODAY = "app.ember.habits.WIDGET_OPEN_TODAY"
         internal const val ACTION_OPEN_HABIT = "app.ember.habits.WIDGET_OPEN_HABIT"
         internal const val ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT"
-        private const val BUDGET_MS = 8000L
 
         /** The least time between two day requests from a widget update or a stale snapshot. */
         internal const val REQUEST_GAP_MS = 15 * 60 * 1000L

@@ -27,6 +27,9 @@ import org.json.JSONObject
  */
 internal object CheckInClient {
 
+    /** How long a widget request may take from what set it off: a tap, or the start of a day fetch. */
+    const val BUDGET_MS = 8000L
+
     private const val TIMEOUT_MS = 4000L
     private const val MIN_REQUEST_MS = 1000L
     private const val MAX_ANSWER = 4096

@@ -7,6 +7,7 @@ import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
 import android.os.SystemClock
+import app.ember.habits.widget.CheckInClient
 import app.ember.habits.widget.DayClient
 import app.ember.habits.widget.WidgetKey
 import java.util.concurrent.ExecutorService
@@ -27,7 +28,6 @@ class TodayRefreshJob : JobService() {
 
     companion object {
         private const val JOB_ID = 1
-        private const val BUDGET_MS = 8000L
         private val FETCH: ExecutorService = Executors.newSingleThreadExecutor()
         private val waiting = ArrayList<Runnable>()
         private var fetching = false
@@ -43,8 +43,9 @@ class TodayRefreshJob : JobService() {
         }
 
         /**
-         * Runs the fetch on its own thread, apart from the widget's check-ins, with [BUDGET_MS] from its start,
-         * redraws the widget and then calls [finished]. Runs while a fetch is running share one more fetch after it.
+         * Runs the fetch on its own thread, apart from the widget's check-ins, with [CheckInClient.BUDGET_MS] from
+         * its start, redraws the widget and then calls [finished]. Runs while a fetch is running share one more fetch
+         * after it.
          */
         internal fun run(context: Context, finished: Runnable) {
             synchronized(waiting) {
@@ -68,7 +69,7 @@ class TodayRefreshJob : JobService() {
                     val key = WidgetKey.get(context)
                     val apiBase = WidgetKey.apiBase(context)
                     if (key != null && apiBase != null) {
-                        DayClient.fetch(context, apiBase, key, SystemClock.elapsedRealtime() + BUDGET_MS)
+                        DayClient.fetch(context, apiBase, key, SystemClock.elapsedRealtime() + CheckInClient.BUDGET_MS)
                     }
                     TodayWidget.refresh(context)
                 } finally {
