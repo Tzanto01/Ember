@@ -137,7 +137,10 @@ class DayClientTest {
         WidgetKey.set(host.context, key, "https://ember.example")
         WidgetStore.setStyle(host.context, "dark", true, "ember")
         WidgetStore.addPending(host.context, "user-1", 1, yesterday, 1)
-        server.enqueue(MockResponse().setResponseCode(403))
+        server.enqueue(
+            MockResponse().setResponseCode(403).setHeader("Content-Type", "application/problem+json")
+                .setBody("""{"type":"consent_required","title":"Forbidden","status":403}"""),
+        )
 
         assertFalse(fetch())
 
@@ -145,6 +148,21 @@ class DayClientTest {
         assertNotNull(WidgetKey.get(host.context))
         assertEquals("dark", WidgetStore.prefs(host.context).getString(WidgetStore.THEME, null))
         assertEquals(1, WidgetStore.takePending(host.context).length())
+    }
+
+    @Test
+    fun aForbiddenAnswerWithoutTheConsentProblemKeepsTheSnapshot() {
+        val stored = WidgetStore.stored(host.context).toString()
+        val answers = listOf(
+            MockResponse().setResponseCode(403),
+            MockResponse().setResponseCode(403).setBody("<html>Sign in to this network</html>"),
+            MockResponse().setResponseCode(403).setBody("""{"type":"forbidden","status":403}"""),
+        )
+        for (each in answers) {
+            server.enqueue(each)
+            assertFalse(fetch())
+            assertEquals(each.toString(), stored, WidgetStore.stored(host.context).toString())
+        }
     }
 
     @Test
