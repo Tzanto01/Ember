@@ -65,8 +65,9 @@ internal object WidgetStore {
     /**
      * Validates and stores a snapshot with a fresh tap token; on invalid input it throws IllegalArgumentException or
      * JSONException and keeps the stored one. [done] and [total] (counted from the rows when missing) are the day's
-     * "x of y". [next] (optional, `date`, `habits`, `more`, `done`, `total`) is the following day, shown once the zone
-     * reaches its date.
+     * "x of y". [held] (optional, at most [MAX_HABITS] ids above 0) names the rows the app holds check-ins for that
+     * it has not saved yet. [next] (optional, `date`, `habits`, `more`, `done`, `total`, `held`) is the following day,
+     * shown once the zone reaches its date.
      */
     @Throws(JSONException::class)
     fun save(
@@ -79,8 +80,9 @@ internal object WidgetStore {
         done: Int?,
         total: Int?,
         next: JSONObject?,
+        held: JSONArray? = null,
     ) {
-        val snapshot = snapshot(userId, date, timeZone, habits, more, done, total, next)
+        val snapshot = snapshot(userId, date, timeZone, habits, more, done, total, next, held)
         synchronized(LOCK) {
             write(context, snapshot)
         }
@@ -90,9 +92,10 @@ internal object WidgetStore {
      * Stores a day the widget fetched, [answer] in [save]'s shape (`userId`, `date`, `timeZone`, `habits`, `more`,
      * `done`, `total`, `next`), with a fresh tap token; true when stored. It is stored only when it validates, the
      * stored snapshot is still at [seen] (taken before the request, so a push or a row edit since wins), is of the same
-     * user and its date is not before the answer's. First each of that user's pending
-     * check-ins on one of its days raises that row to the pending count (capped at `timesPerDay`), never lowering it,
-     * and keeps that day's `done` in step. Pending check-ins stay pending.
+     * user and its date is not before the answer's. On a day the stored snapshot also has, each row it holds
+     * (`held`, see [save]) keeps its stored state and count, and the held ids carry over. Then each of that user's
+     * pending check-ins on one of its days raises that row to the pending count (capped at `timesPerDay`), never
+     * lowering it. Both keep that day's `done` in step. Pending check-ins stay pending.
      */
     fun saveFetched(context: Context, answer: JSONObject, seen: Version): Boolean {
         val fetched = try {
@@ -119,6 +122,7 @@ internal object WidgetStore {
                 val userId = fetched.getString("userId")
                 if (userId != stored.optString("userId")) return false
                 if (fetched.getString("date") < stored.optString("date")) return false
+                keepHeld(fetched, stored)
                 raise(fetched, userId, pending(context))
             } catch (e: JSONException) {
                 return false
@@ -126,6 +130,32 @@ internal object WidgetStore {
             write(context, fetched)
             return true
         }
+    }
+
+    @Throws(JSONException::class)
+    private fun keepHeld(fetched: JSONObject, stored: JSONObject) {
+        val storedDays = listOfNotNull(stored, stored.optJSONObject("next"))
+        for (day in listOfNotNull(fetched, fetched.optJSONObject("next"))) {
+            day.remove("held")
+            val kept = storedDays.firstOrNull { it.optString("date") == day.getString("date") } ?: continue
+            val held = kept.optJSONArray("held") ?: continue
+            day.put("held", held)
+            for (i in 0 until held.length()) {
+                val was = kept.row(held.getLong(i)) ?: continue
+                val row = day.row(held.getLong(i)) ?: continue
+                val before = row.getString("state")
+                row.put("state", was.getString("state"))
+                row.put("count", min(was.getInt("count"), row.getInt("timesPerDay")))
+                val done = WidgetPlan.done(day.getInt("done"), day.getInt("total"), before, row.getString("state"))
+                day.put("done", done)
+            }
+        }
+    }
+
+    @Throws(JSONException::class)
+    private fun JSONObject.row(id: Long): JSONObject? {
+        val habits = getJSONArray("habits")
+        return (0 until habits.length()).map { habits.getJSONObject(it) }.firstOrNull { it.getLong("id") == id }
     }
 
     @Throws(JSONException::class)
@@ -163,6 +193,7 @@ internal object WidgetStore {
         done: Int?,
         total: Int?,
         next: JSONObject?,
+        held: JSONArray? = null,
     ): JSONObject {
         if (userId == null || userId.isEmpty() || userId.length > 100) throw IllegalArgumentException("userId")
         if (timeZone == null || timeZone.isEmpty()) throw IllegalArgumentException("timeZone")
@@ -170,7 +201,7 @@ internal object WidgetStore {
         SecureRandom().nextBytes(random)
         val token = StringBuilder()
         for (b in random) token.append(String.format(Locale.US, "%02x", b))
-        val snapshot = day(date, habits, more, done, total)
+        val snapshot = day(date, habits, more, done, total, held)
             .put("userId", userId)
             .put("timeZone", timeZone)
             .put("token", token.toString())
@@ -183,6 +214,7 @@ internal object WidgetStore {
                 next.getInt("more"),
                 next.intOrNull("done"),
                 next.intOrNull("total"),
+                next.optJSONArray("held"),
             )
             snapshot.put("next", nextDay)
         }
@@ -190,7 +222,14 @@ internal object WidgetStore {
     }
 
     @Throws(JSONException::class)
-    private fun day(date: String?, habits: JSONArray?, more: Int, done: Int?, total: Int?): JSONObject {
+    private fun day(
+        date: String?,
+        habits: JSONArray?,
+        more: Int,
+        done: Int?,
+        total: Int?,
+        held: JSONArray?,
+    ): JSONObject {
         if (date == null || !ISO_DATE.matcher(date).matches()) throw IllegalArgumentException("date")
         if (habits == null || habits.length() > MAX_HABITS || more < 0) throw IllegalArgumentException("habits")
         val rows = JSONArray()
@@ -218,12 +257,23 @@ internal object WidgetStore {
         val dayTotal = total ?: (habits.length() + more)
         val dayDone = done ?: doneRows
         if (!WidgetPlan.counts(dayDone, dayTotal, doneRows, habits.length(), more)) throw IllegalArgumentException("done")
-        return JSONObject()
+        val day = JSONObject()
             .put("date", date)
             .put("habits", rows)
             .put("more", more)
             .put("done", dayDone)
             .put("total", dayTotal)
+        if (held != null) {
+            if (held.length() > MAX_HABITS) throw IllegalArgumentException("held")
+            val ids = JSONArray()
+            for (i in 0 until held.length()) {
+                val id = held.getLong(i)
+                if (id <= 0) throw IllegalArgumentException("held")
+                ids.put(id)
+            }
+            day.put("held", ids)
+        }
+        return day
     }
 
     /** The stored snapshot when it, or its `next` day, is for today in its zone, else null. */

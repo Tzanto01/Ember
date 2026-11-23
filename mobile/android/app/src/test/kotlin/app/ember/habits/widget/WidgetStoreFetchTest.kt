@@ -74,6 +74,54 @@ class WidgetStoreFetchTest {
         assertEquals(0, next.getInt("done"))
     }
 
+    private fun push(today: JSONObject, next: JSONObject? = null) {
+        val held = today.optJSONArray("held")
+        WidgetStore.save(context, "user-1", today.getString("date"), "Europe/Berlin", today.getJSONArray("habits"), 0, null, null, next, held)
+        seen = WidgetStore.version(context)!!
+    }
+
+    @Test
+    fun aRowTheAppHoldsKeepsItsStoredStateThroughEveryFetchOnTheSameDate() {
+        push(
+            day("2027-03-10", row(1, "done", 1), row(2, "partial", 1, 3), row(3)).put("held", JSONArray().put(1).put(2)),
+            day("2027-03-11", row(1, "done", 1), row(2)).put("held", JSONArray().put(1)),
+        )
+        val server = answer("2027-03-10", row(1), row(2), row(3, "done", 1), next = day("2027-03-11", row(1), row(2)))
+
+        for (each in 1..2) {
+            assertTrue(fetch(JSONObject(server.toString())))
+            seen = WidgetStore.version(context)!!
+
+            val today = stored()
+            assertEquals("done", today.row(1).getString("state"))
+            assertEquals(1, today.row(1).getInt("count"))
+            assertEquals("partial", today.row(2).getString("state"))
+            assertEquals(1, today.row(2).getInt("count"))
+            assertEquals("done", today.row(3).getString("state"))
+            assertEquals(2, today.getInt("done"))
+            val next = today.getJSONObject("next")
+            assertEquals("done", next.row(1).getString("state"))
+            assertEquals("open", next.row(2).getString("state"))
+            assertEquals(1, next.getInt("done"))
+        }
+
+        assertTrue(fetch(answer("2027-03-11", row(1), row(2))))
+        assertEquals("done", stored().row(1).getString("state"))
+        assertEquals(1, stored().getInt("done"))
+    }
+
+    @Test
+    fun withoutHeldRowsOrOnAnotherDateTheFetchedRowsWin() {
+        push(day("2027-03-10", row(1, "done", 1)))
+        assertTrue(fetch(answer("2027-03-10", row(1))))
+        assertEquals("open", stored().row(1).getString("state"))
+
+        push(day("2027-03-10", row(1, "done", 1)).put("held", JSONArray().put(1)))
+        assertTrue(fetch(answer("2027-03-11", row(1))))
+        assertEquals("open", stored().row(1).getString("state"))
+        assertEquals(0, stored().getInt("done"))
+    }
+
     @Test
     fun aPendingCheckInNeverLowersARowTheServerAlreadyHasFurther() {
         WidgetStore.addPending(context, "user-1", 1, "2027-03-11", 1)

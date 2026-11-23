@@ -30,8 +30,8 @@ class EmberWidgetPlugin : Plugin() {
     private var launchAction: String? = null
 
     /**
-     * Validates and stores the snapshot ([WidgetStore.save]) with a fresh tap token, then redraws the Today widget.
-     * Rejects an invalid snapshot and keeps the stored one.
+     * Validates and stores the snapshot ([WidgetStore.save], with the `held` rows of the day and of `next`) with a
+     * fresh tap token, then redraws the Today widget. Rejects an invalid snapshot and keeps the stored one.
      */
     @PluginMethod
     fun update(call: PluginCall) {
@@ -49,6 +49,7 @@ class EmberWidgetPlugin : Plugin() {
                 call.getInt("done"),
                 call.getInt("total"),
                 call.getObject("next"),
+                call.getArray("held"),
             )
             TodayWidget.refresh(context)
         } catch (e: JSONException) {

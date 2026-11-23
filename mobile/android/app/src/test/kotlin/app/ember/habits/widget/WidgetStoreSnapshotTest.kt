@@ -47,8 +47,9 @@ class WidgetStoreSnapshotTest {
         more: Int = 0,
         done: Int? = null,
         total: Int? = null,
-        next: JSONObject? = null
-    ) = WidgetStore.save(context, userId, date, timeZone, habits, more, done, total, next)
+        next: JSONObject? = null,
+        held: JSONArray? = null
+    ) = WidgetStore.save(context, userId, date, timeZone, habits, more, done, total, next, held)
 
     private fun dayBefore(date: String) = LocalDate.parse(date).minusDays(1).toString()
 
@@ -159,6 +160,12 @@ class WidgetStoreSnapshotTest {
             },
             "invalid next row" to {
                 save(next = JSONObject().put("date", "9999-12-31").put("habits", rows(habit(2, state = "skipped"))).put("more", 0))
+            },
+            "held id 0" to { save(held = JSONArray().put(1).put(0)) },
+            "held not an id" to { save(held = JSONArray().put("water")) },
+            "too many held" to { save(held = JSONArray((1L..WidgetStore.MAX_HABITS + 1L).toList())) },
+            "invalid next held" to {
+                save(next = JSONObject().put("date", "9999-12-31").put("habits", rows(habit(2))).put("more", 0).put("held", JSONArray().put(-2)))
             }
         )
 

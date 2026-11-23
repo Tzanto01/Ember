@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONException
 import org.json.JSONObject
 
-/** The widget's own day: one GET of `/api/widget/today` with the widget key, never on [CheckInClient]'s network thread. */
+/** The widget's own day: one GET of `/api/widget/today` with the widget key, off [CheckInClient]'s network thread. */
 internal object DayClient {
 
     private const val MAX_ANSWER = 64 * 1024
@@ -16,8 +16,8 @@ internal object DayClient {
     /**
      * Fetches the key's day, waiting for it until [deadline] ([CheckInClient.call]), and stores it
      * ([WidgetStore.saveFetched]); true when stored. Sends nothing while no snapshot is stored. A 401 erases the key
-     * and a 403 whose problem `type` is `consent_required` drops the snapshot; any other failure keeps what is stored. The answer and the drop apply only while
-     * the snapshot is unchanged since the request was sent.
+     * and a 403 whose problem `type` is `consent_required` drops the snapshot; any other failure keeps what is
+     * stored. The answer and the drop apply only while the snapshot is unchanged since the request was sent.
      */
     fun fetch(context: Context, apiBase: String, key: String, deadline: Long): Boolean {
         val seen = WidgetStore.version(context) ?: return false
