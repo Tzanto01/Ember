@@ -92,7 +92,7 @@ internal object WidgetStore {
      * Stores a day the widget fetched, [answer] in [save]'s shape (`userId`, `date`, `timeZone`, `habits`, `more`,
      * `done`, `total`, `next`), with a fresh tap token; true when stored. It is stored only when it validates, the
      * stored snapshot is still at [seen] (taken before the request, so a push or a row edit since wins), is of the same
-     * user and its date is not before the answer's. On a day the stored snapshot also has, each row it holds
+     * user, and the answer's date is not before its date. On a day the stored snapshot also has, each row it holds
      * (`held`, see [save]) keeps its stored state and count, and the held ids carry over. Then each of that user's
      * pending check-ins on one of its days raises that row to the pending count (capped at `timesPerDay`), never
      * lowering it. Both keep that day's `done` in step. Pending check-ins stay pending.
