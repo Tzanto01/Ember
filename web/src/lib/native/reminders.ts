@@ -13,7 +13,7 @@ import { reminderNames } from './reminder-names';
 import { cachedPhone, forgetPhone, installId, phoneLabel, type ReminderPhone, rememberPhone } from './phone';
 import { localDate, type PlannedReminder, planReminders, type ReminderTarget, settled } from './reminder-plan';
 import { updaterAvailable } from './updater';
-import { capacitorWidget, type EmberWidgetPlugin, widgetSnapshot } from './widget';
+import { capacitorWidget, type EmberWidgetPlugin, heldRows, widgetSnapshot } from './widget';
 
 /** Lock-screen text: names no habit (contract, web push rule). */
 export const reminderBody = () => t('reminders.body');
@@ -114,8 +114,8 @@ export class Reminders {
    * Rebuilds the user's reminders from the current habit list (when offline: the cached list with the queued
    * day edits applied, so an offline check-in still cancels today's reminder), in `timeZone`, with a second
    * reminder `secondMinutes` after each one when above 0, pushes the widget's snapshot in the account's Today
-   * `order`, and removes the delivered reminders that have nothing left to remind of. Rebuilds run one after another.
-   * Never throws.
+   * `order` (marking the rows with queued day edits as held), and removes the delivered reminders that have
+   * nothing left to remind of. Rebuilds run one after another. Never throws.
    */
   rebuild(userId: string, timeZone: string, secondMinutes = 0, order: string[] | null = null): Promise<void> {
     this.chain = this.chain.then(() => this.run(userId, timeZone, secondMinutes, order)).catch(() => undefined);
@@ -320,11 +320,21 @@ export class Reminders {
     const { habits, routines, live } = loaded;
     const now = Date.now();
     const today = localDate(now, timeZone);
+    const queued = await this.store.edits(userId).catch(() => []);
+    const day = widgetSnapshot(userId, timeZone, today, habits, routines, order);
     const next = widgetSnapshot(userId, timeZone, addDays(today, 1), habits, routines, order);
     await this.toWidget((widget) =>
       widget.update({
-        ...widgetSnapshot(userId, timeZone, today, habits, routines, order),
-        next: { date: next.date, habits: next.habits, more: next.more, done: next.done, total: next.total },
+        ...day,
+        held: heldRows(day, queued),
+        next: {
+          date: next.date,
+          habits: next.habits,
+          more: next.more,
+          done: next.done,
+          total: next.total,
+          held: heldRows(next, queued),
+        },
       }),
     );
     if (live && !localModeOn()) await this.handOffKey();

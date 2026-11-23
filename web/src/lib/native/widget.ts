@@ -1,4 +1,5 @@
 import { type PluginListenerHandle, registerPlugin } from '@capacitor/core';
+import { isDayEdit, type QueueEdit } from '../device-store';
 import type { Language } from '../i18n';
 import type { AnyHabit, LocalDateString, Routine } from '../models';
 import type { ColorScheme, ThemeId } from '../theme';
@@ -22,6 +23,11 @@ export interface WidgetDay {
   more: number;
   done: number;
   total: number;
+  /**
+   * The listed habits with a day edit in the offline queue for `date` ({@link heldRows}): the widget keeps these rows
+   * as pushed when it fetches the day itself. Ignored by native builds before it.
+   */
+  held?: number[];
 }
 
 /** What the "Today in Ember" widget shows: today's habits by the Today rules (`today-plan.ts`). */
@@ -77,6 +83,12 @@ const EmberWidget = registerPlugin<EmberWidgetPlugin>('EmberWidget');
 
 /** Loads the plugin wrapped in an object (a Capacitor proxy must never be awaited itself). */
 export const capacitorWidget = async (): Promise<{ EmberWidget: EmberWidgetPlugin }> => ({ EmberWidget });
+
+/** The ids of `day`'s listed habits that one of the queued `edits` changes on its date. */
+export function heldRows(day: WidgetDay, edits: QueueEdit[]): number[] {
+  const edited = new Set(edits.flatMap((edit) => (isDayEdit(edit) && edit.date === day.date ? [edit.habitId] : [])));
+  return day.habits.filter((habit) => edited.has(habit.id)).map((habit) => habit.id);
+}
 
 /**
  * The snapshot day for `date`: the Today rules' widget day (For today in the account's order, routines flattened, done

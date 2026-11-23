@@ -13,7 +13,7 @@ import { applyTheme } from '../theme';
 import { reminderNames } from './reminder-names';
 import { planDays } from './reminder-plan';
 import { doneActionType, Reminders, reminderBody, secondReminderBody } from './reminders';
-import type { EmberWidgetPlugin } from './widget';
+import type { EmberWidgetPlugin, WidgetSnapshot } from './widget';
 
 const zone = 'Europe/Berlin';
 const reminded: Habit = { ...habit, reminderTime: '20:00', reminderChannels: ['mobile'] };
@@ -129,6 +129,43 @@ describe('Reminders', () => {
     const at = scheduledAt();
     expect(at).toHaveLength(planDays - 1);
     expect(at[0]).toBe('2026-11-02T19:00:00.000Z');
+  });
+
+  describe('widget rows held by the offline queue', () => {
+    let update: Mock<(snapshot: WidgetSnapshot) => Promise<void>>;
+
+    beforeEach(async () => {
+      update = vi.fn<(snapshot: WidgetSnapshot) => Promise<void>>(async () => undefined);
+      widget.update = update;
+      await device.saveHabits({ userId: 'u1', timeZone: zone, habits: [reminded, { ...habit, id: 2, name: 'Read' }] });
+    });
+
+    async function pushedOffline(): Promise<WidgetSnapshot> {
+      const done = reminders.rebuild('u1', zone);
+      (await mock.next('GET', '/api/habits')).fail();
+      await done;
+      return update.mock.calls[0][0];
+    }
+
+    it("marks only the rows this user's queued day edits change on that day", async () => {
+      await device.addEdit('u1', { habitId: 1, date: '2026-11-01', completed: null, count: 1 });
+      await device.addEdit('u1', { kind: 'note', date: '2026-11-01', body: null });
+      await device.addEdit('u2', { habitId: 2, date: '2026-11-01', completed: true });
+      await device.addEdit('u1', { habitId: 2, date: '2026-10-31', completed: true });
+
+      const snapshot = await pushedOffline();
+
+      expect(snapshot.habits.find((row) => row.id === 1)?.state).toBe('done');
+      expect(snapshot.held).toEqual([1]);
+      expect(snapshot.next?.held).toEqual([]);
+    });
+
+    it('marks none while nothing is queued', async () => {
+      const snapshot = await pushedOffline();
+
+      expect(snapshot.held).toEqual([]);
+      expect(snapshot.next?.held).toEqual([]);
+    });
   });
 
   it('asks for the notification permission when the phone never asked, then schedules once granted', async () => {

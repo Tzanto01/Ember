@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed, skipped } (skipped optional, false when missing) where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done, with counts above it clamped to it). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count, skipped } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial); skipped is the log\u0027s skip marker (true for a day written by a skip, false without a log; a skipped day is never done); a skipped day keeps its state (pending on an open day, notdone on a closed one, partial when the skip kept some check-ins). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today and not skipped today), in routine order. expected.routineDone[routineId]: whether a routine reminder for today has nothing left to remind of: the routine has build members and every one is settled today: done, or skipped today whatever its state (a member pending, partial or not done and not skipped keeps the routine open), so its Discord reminder closes as logged and its notifications clear. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done (a skip: count 0, skipped true), { completed: null } clears the day, { count } sets the count and clears skipped, also for 0), expected (the day\u0027s log after { date, count, completed, skipped }, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after { date, count, completed, skipped }, by date) }. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
+  "about": "Shared rules fixtures for clients that reimplement Ember Core\u0027s day rules without a server (web/src/lib/local/). Generated from Core by tests/Ember.Tests/RulesFixtureTests.cs, which fails when Core and this file disagree; after a deliberate rule change, regenerate the expected values with EMBER_WRITE_FIXTURES=1 dotnet test --filter RulesFixtureTests (inputs are kept, expected is rewritten). Each case: name, today (the user\u0027s local day), from (first day of the expected days and dayStats ranges, which run through today), timezone, graceDaysPerWeek, lowDays (the user\u0027s low days), habits, routines and expected. A habit: id, frequency (daily|weekly|weekdays), weeklyTarget (weekly only, else null), days (weekdays only: mon..sun, else null), timesPerDay, startDate (the habit was created at 12:00 UTC on this day), pausedFrom and pausedUntil (inclusive pause range; pausedFrom null with pausedUntil set pauses every day up to pausedUntil), routineId, and logs { date, count, completed, skipped } (skipped optional, false when missing) where completed is the stored done flag: set when count reached timesPerDay at the time of the check-in, so a day stays done after the target rises (only today is recomputed on a target change, and past days whose count reaches a lowered target become done, with counts above it clamped to it). A routine: id and habitIds in routine order. expected.days[habitId]: one { date, state, completed, count, skipped } per day from..today; state is the first that applies of beforestart, paused, lowday, done, partial, offday, pending (today or yesterday), notdone; completed is the log\u0027s flag (null without a log or when partial); skipped is the log\u0027s skip marker (true for a day written by a skip, false without a log; a skipped day is never done); a skipped day keeps its state (pending on an open day, notdone on a closed one, partial when the skip kept some check-ins). expected.stats[habitId]: exactly the API Habit DTO stats { streak, graceUsed, bestStreak, last7, week }: weekly habits have streak, graceUsed and bestStreak null and week { done, target }; other habits week null. expected.dayStats: one { date, scheduled, done, partial, showedUp } per day from..today. expected.routinePending[routineId]: ids of the member habits a routine reminder today lists (pending or partial today and not skipped today), in routine order. expected.routineDone[routineId]: whether a routine reminder for today has nothing left to remind of: the routine has build members and every one is settled today: done, or skipped today whatever its state (a member pending, partial or not done and not skipped keeps the routine open), so its Discord reminder closes as logged and its notifications clear. expected.weekly: what GET /api/stats/weekly returns on today (the 7 days ending yesterday): { totalDone, totalPossible, headline, footer, habits [{ habitId, name, done, possible, streak }] } in English with Discord markdown stripped; habit names are \u0022Habit {id}\u0022, streak is null for weekly habits, and headline and footer are empty when totalPossible is 0. A weekly habit with weeklyTarget null uses the default target 3 in stats.week and expected.weekly. edits: single-habit edits run through Core\u0027s HabitService on edits.today (UTC), on a daily habit created on 2027-01-01 at 12:00 UTC (habit id 1 on the client side). edits.pause: { name, pausedFrom, pausedUntil (the habit before), until (POST /api/habits/{id}/pause; null resumes), expected { pausedFrom, pausedUntil } }. edits.writeDay: { name, timesPerDay, date, log (the day\u0027s log before, or null), edit ({ completed: true|false } checks in done or not done (a skip: count 0, skipped true), { completed: null } clears the day, { count } sets the count and clears skipped, also for 0), expected (the day\u0027s log after { date, count, completed, skipped }, or null) }. edits.retarget: { name, timesPerDay, newTimesPerDay (the schedule change), logs (before), expected (logs after { date, count, completed, skipped }, by date) }. limits.local: the limits web/src/lib/local/limits.ts enforces like the API (all of them except rangeDays, an API constant Core doesn\u0027t hold), from Core constants and the database model\u0027s column lengths; limits.fireside: web/src/lib/fireside-limits.ts, from FiresideService. widgetDays: the home screen widget\u0027s day by the Today rules (web/src/lib/today-plan.ts widgetDay, web/src/lib/native/widget.ts widgetSnapshot; Core WidgetDays). Each case: name, today, timezone, graceDaysPerWeek, lowDays, todayOrder (the account\u0027s saved order of h:\u003Cid\u003E and r:\u003Cid\u003E keys, null for automatic), habits (as in cases, plus name, kind (build|letGo) and reminderTimes, sorted HH:mm), routines { id, name, reminderTime (HH:mm or null), habitIds in routine order } in the user\u0027s order, and expected { today, next }: the widget day on today and on the day after, each { date, habits (at most 25 rows { id, name, state (done|partial|open|rest), count, timesPerDay }), more, done, total }; every row of next is open with count 0. Core also treats an unlogged day on its timezone switchover date (2026-10-11) as protected in streaks; the fixtures use 2027 dates and avoid it.",
   "cases": [
     {
       "name": "daily streak with one grace day used",
@@ -9952,5 +9952,2701 @@
       "codeMinutes": 30,
       "friends": 20
     }
-  }
+  },
+  "widgetDays": [
+    {
+      "name": "saved order first, each missing item spliced in before the first later time, timeless ones last",
+      "today": "2027-03-10",
+      "timezone": "Europe/Berlin",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": [
+        "h:99",
+        "h:2",
+        "r:1",
+        "h:1"
+      ],
+      "habits": [
+        {
+          "id": 1,
+          "name": "Water",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "08:00"
+          ],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Read",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "21:00"
+          ],
+          "logs": []
+        },
+        {
+          "id": 3,
+          "name": "Stretch",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "12:00"
+          ],
+          "logs": []
+        },
+        {
+          "id": 4,
+          "name": "Journal",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 5,
+          "name": "Walk",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "07:00"
+          ],
+          "logs": []
+        },
+        {
+          "id": 6,
+          "name": "Tea",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "reminderTimes": [],
+          "logs": []
+        }
+      ],
+      "routines": [
+        {
+          "id": 1,
+          "name": "Evening",
+          "reminderTime": "22:00",
+          "habitIds": [
+            6
+          ]
+        }
+      ],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 5,
+              "name": "Walk",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "Stretch",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Read",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 6,
+              "name": "Tea",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Water",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            },
+            {
+              "id": 4,
+              "name": "Journal",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 1,
+          "total": 6
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 5,
+              "name": "Walk",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "Stretch",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Read",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 6,
+              "name": "Tea",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Water",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 4,
+              "name": "Journal",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 6
+        }
+      }
+    },
+    {
+      "name": "automatic order by time, then name ignoring case and accents, then id, then habit before routine",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "\u00E9clair",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "09:00"
+          ],
+          "logs": []
+        },
+        {
+          "id": 2,
+          "name": "Eclair",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "09:00"
+          ],
+          "logs": []
+        },
+        {
+          "id": 3,
+          "name": "apple",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "09:00"
+          ],
+          "logs": []
+        },
+        {
+          "id": 4,
+          "name": "Banana",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 2,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "08:00",
+            "20:00"
+          ],
+          "logs": []
+        },
+        {
+          "id": 5,
+          "name": "zest",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 6,
+          "name": "Apple",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 7,
+          "name": "Oats",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "reminderTimes": [],
+          "logs": []
+        }
+      ],
+      "routines": [
+        {
+          "id": 1,
+          "name": "ECLAIR",
+          "reminderTime": "09:00",
+          "habitIds": [
+            7
+          ]
+        }
+      ],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 4,
+              "name": "Banana",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 2
+            },
+            {
+              "id": 3,
+              "name": "apple",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "\u00E9clair",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 7,
+              "name": "Oats",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Eclair",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 6,
+              "name": "Apple",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 5,
+              "name": "zest",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 7
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 4,
+              "name": "Banana",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 2
+            },
+            {
+              "id": 3,
+              "name": "apple",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "\u00E9clair",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 7,
+              "name": "Oats",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Eclair",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 6,
+              "name": "Apple",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 5,
+              "name": "zest",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 7
+        }
+      }
+    },
+    {
+      "name": "routine flattened in member order, members not for the day left out, a routine without any left out",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Water",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "08:00"
+          ],
+          "logs": []
+        },
+        {
+          "id": 2,
+          "name": "Brush",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Floss",
+          "kind": "build",
+          "frequency": "weekdays",
+          "weeklyTarget": null,
+          "days": [
+            "thu"
+          ],
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 4,
+          "name": "Stretch",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": "2027-03-09",
+          "pausedUntil": "2027-03-12",
+          "routineId": 1,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 5,
+          "name": "Shave",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": 1,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 6,
+          "name": "Plan",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": "2027-03-20",
+          "routineId": 2,
+          "reminderTimes": [],
+          "logs": []
+        }
+      ],
+      "routines": [
+        {
+          "id": 1,
+          "name": "Morning",
+          "reminderTime": "07:00",
+          "habitIds": [
+            4,
+            2,
+            3,
+            5
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Work",
+          "reminderTime": null,
+          "habitIds": [
+            6
+          ]
+        }
+      ],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 2,
+              "name": "Brush",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            },
+            {
+              "id": 5,
+              "name": "Shave",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Water",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 1,
+          "total": 3
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 2,
+              "name": "Brush",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "Floss",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 5,
+              "name": "Shave",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Water",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 4
+        }
+      }
+    },
+    {
+      "name": "let-go habits left out",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": [
+        "h:2",
+        "h:1"
+      ],
+      "habits": [
+        {
+          "id": 1,
+          "name": "Water",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 2,
+          "name": "Sugar",
+          "kind": "letGo",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 1,
+              "name": "Water",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 1
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 1,
+              "name": "Water",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 1
+        }
+      }
+    },
+    {
+      "name": "paused by a range, up to a day, and from tomorrow",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Range",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": "2027-03-08",
+          "pausedUntil": "2027-03-10",
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 2,
+          "name": "Until",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": "2027-03-11",
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 3,
+          "name": "From tomorrow",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": "2027-03-11",
+          "pausedUntil": "2027-03-20",
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 4,
+          "name": "Ended",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": "2027-03-01",
+          "pausedUntil": "2027-03-09",
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 4,
+              "name": "Ended",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "From tomorrow",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 2
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 4,
+              "name": "Ended",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Range",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 2
+        }
+      }
+    },
+    {
+      "name": "weekdays habit left out on its rest day",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Gym",
+          "kind": "build",
+          "frequency": "weekdays",
+          "weeklyTarget": null,
+          "days": [
+            "mon",
+            "tue",
+            "thu"
+          ],
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 2,
+          "name": "Swim",
+          "kind": "build",
+          "frequency": "weekdays",
+          "weeklyTarget": null,
+          "days": [
+            "wed"
+          ],
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Water",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 2,
+              "name": "Swim",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "Water",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 1,
+          "total": 2
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 1,
+              "name": "Gym",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "Water",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 2
+        }
+      }
+    },
+    {
+      "name": "not started yet: shown on its own today only from its start, never before it on another day",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Today",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-10",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 2,
+          "name": "Tomorrow",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-11",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 3,
+          "name": "Later",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-12",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 1,
+              "name": "Today",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 1
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 1,
+              "name": "Today",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Tomorrow",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 2
+        }
+      }
+    },
+    {
+      "name": "weekly target met earlier in the week left out, met today shown done, open target shown",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Earlier",
+          "kind": "build",
+          "frequency": "weekly",
+          "weeklyTarget": 2,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-08",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-09",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Today",
+          "kind": "build",
+          "frequency": "weekly",
+          "weeklyTarget": 2,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-08",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Default",
+          "kind": "build",
+          "frequency": "weekly",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-08",
+              "count": 1,
+              "completed": true
+            },
+            {
+              "date": "2027-03-09",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Last week",
+          "kind": "build",
+          "frequency": "weekly",
+          "weeklyTarget": 1,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-07",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 3,
+              "name": "Default",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 4,
+              "name": "Last week",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Today",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 1,
+          "total": 3
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 3,
+              "name": "Default",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 4,
+              "name": "Last week",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 2
+        }
+      }
+    },
+    {
+      "name": "weekly target met on Sunday comes back on Monday of the new week",
+      "today": "2027-03-14",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Earlier",
+          "kind": "build",
+          "frequency": "weekly",
+          "weeklyTarget": 1,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-08",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Today",
+          "kind": "build",
+          "frequency": "weekly",
+          "weeklyTarget": 1,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-14",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Skipped",
+          "kind": "build",
+          "frequency": "weekly",
+          "weeklyTarget": 1,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-14",
+              "count": 0,
+              "completed": false
+            }
+          ]
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-14",
+          "habits": [
+            {
+              "id": 3,
+              "name": "Skipped",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Today",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 1,
+          "total": 2
+        },
+        "next": {
+          "date": "2027-03-15",
+          "habits": [
+            {
+              "id": 1,
+              "name": "Earlier",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "Skipped",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Today",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 3
+        }
+      }
+    },
+    {
+      "name": "low day shows rest unless the target is reached",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [
+        "2027-03-10"
+      ],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Open",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 2,
+          "name": "Done",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Some",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 3,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": false
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Reached",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 2,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 2,
+              "completed": false
+            }
+          ]
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 2,
+              "name": "Done",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Open",
+              "state": "rest",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 4,
+              "name": "Reached",
+              "state": "done",
+              "count": 2,
+              "timesPerDay": 2
+            },
+            {
+              "id": 3,
+              "name": "Some",
+              "state": "rest",
+              "count": 1,
+              "timesPerDay": 3
+            }
+          ],
+          "more": 0,
+          "done": 2,
+          "total": 4
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 2,
+              "name": "Done",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Open",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 4,
+              "name": "Reached",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 2
+            },
+            {
+              "id": 3,
+              "name": "Some",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 3
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 4
+        }
+      }
+    },
+    {
+      "name": "several check-ins a day: partial, done by count, done by the stored flag",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Partial",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 3,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": false
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Full",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 2,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 2,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Count reached",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 3,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 3,
+              "completed": false
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Target raised",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 3,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "Skipped",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 2,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 0,
+              "completed": false
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "Yesterday",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 2,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-09",
+              "count": 1,
+              "completed": false
+            }
+          ]
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 3,
+              "name": "Count reached",
+              "state": "done",
+              "count": 3,
+              "timesPerDay": 3
+            },
+            {
+              "id": 2,
+              "name": "Full",
+              "state": "done",
+              "count": 2,
+              "timesPerDay": 2
+            },
+            {
+              "id": 1,
+              "name": "Partial",
+              "state": "partial",
+              "count": 1,
+              "timesPerDay": 3
+            },
+            {
+              "id": 5,
+              "name": "Skipped",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 2
+            },
+            {
+              "id": 4,
+              "name": "Target raised",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 3
+            },
+            {
+              "id": 6,
+              "name": "Yesterday",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 2
+            }
+          ],
+          "more": 0,
+          "done": 3,
+          "total": 6
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 3,
+              "name": "Count reached",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 3
+            },
+            {
+              "id": 2,
+              "name": "Full",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 2
+            },
+            {
+              "id": 1,
+              "name": "Partial",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 3
+            },
+            {
+              "id": 5,
+              "name": "Skipped",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 2
+            },
+            {
+              "id": 4,
+              "name": "Target raised",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 3
+            },
+            {
+              "id": 6,
+              "name": "Yesterday",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 2
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 6
+        }
+      }
+    },
+    {
+      "name": "the first 25 rows, more after them, done and total over all",
+      "today": "2027-03-10",
+      "timezone": "UTC",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Habit 1",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Habit 2",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 3,
+          "name": "Habit 3",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 4,
+          "name": "Habit 4",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 5,
+          "name": "Habit 5",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 6,
+          "name": "Habit 6",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 7,
+          "name": "Habit 7",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 8,
+          "name": "Habit 8",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 9,
+          "name": "Habit 9",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "name": "Habit 10",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 11,
+          "name": "Habit 11",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 12,
+          "name": "Habit 12",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 13,
+          "name": "Habit 13",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 14,
+          "name": "Habit 14",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 15,
+          "name": "Habit 15",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 16,
+          "name": "Habit 16",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 17,
+          "name": "Habit 17",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 18,
+          "name": "Habit 18",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 19,
+          "name": "Habit 19",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 20,
+          "name": "Habit 20",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 21,
+          "name": "Habit 21",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 22,
+          "name": "Habit 22",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 23,
+          "name": "Habit 23",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 24,
+          "name": "Habit 24",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 25,
+          "name": "Habit 25",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 26,
+          "name": "Habit 26",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        },
+        {
+          "id": 27,
+          "name": "Habit 27",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 1,
+              "name": "Habit 1",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            },
+            {
+              "id": 10,
+              "name": "Habit 10",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 11,
+              "name": "Habit 11",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 12,
+              "name": "Habit 12",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 13,
+              "name": "Habit 13",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 14,
+              "name": "Habit 14",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 15,
+              "name": "Habit 15",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 16,
+              "name": "Habit 16",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 17,
+              "name": "Habit 17",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 18,
+              "name": "Habit 18",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 19,
+              "name": "Habit 19",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Habit 2",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 20,
+              "name": "Habit 20",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 21,
+              "name": "Habit 21",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 22,
+              "name": "Habit 22",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 23,
+              "name": "Habit 23",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 24,
+              "name": "Habit 24",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 25,
+              "name": "Habit 25",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 26,
+              "name": "Habit 26",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            },
+            {
+              "id": 27,
+              "name": "Habit 27",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "Habit 3",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 4,
+              "name": "Habit 4",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 5,
+              "name": "Habit 5",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 6,
+              "name": "Habit 6",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 7,
+              "name": "Habit 7",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 2,
+          "done": 3,
+          "total": 27
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 1,
+              "name": "Habit 1",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 10,
+              "name": "Habit 10",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 11,
+              "name": "Habit 11",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 12,
+              "name": "Habit 12",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 13,
+              "name": "Habit 13",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 14,
+              "name": "Habit 14",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 15,
+              "name": "Habit 15",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 16,
+              "name": "Habit 16",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 17,
+              "name": "Habit 17",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 18,
+              "name": "Habit 18",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 19,
+              "name": "Habit 19",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Habit 2",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 20,
+              "name": "Habit 20",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 21,
+              "name": "Habit 21",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 22,
+              "name": "Habit 22",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 23,
+              "name": "Habit 23",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 24,
+              "name": "Habit 24",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 25,
+              "name": "Habit 25",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 26,
+              "name": "Habit 26",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 27,
+              "name": "Habit 27",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 3,
+              "name": "Habit 3",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 4,
+              "name": "Habit 4",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 5,
+              "name": "Habit 5",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 6,
+              "name": "Habit 6",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 7,
+              "name": "Habit 7",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 2,
+          "done": 0,
+          "total": 27
+        }
+      }
+    },
+    {
+      "name": "a zone far east of UTC moves the start day",
+      "today": "2027-03-10",
+      "timezone": "Pacific/Auckland",
+      "graceDaysPerWeek": 1,
+      "lowDays": [],
+      "todayOrder": null,
+      "habits": [
+        {
+          "id": 1,
+          "name": "Created yesterday UTC",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-09",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 2,
+          "name": "Created today UTC",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-10",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [],
+          "logs": []
+        },
+        {
+          "id": 3,
+          "name": "Morning",
+          "kind": "build",
+          "frequency": "daily",
+          "weeklyTarget": null,
+          "days": null,
+          "timesPerDay": 1,
+          "startDate": "2027-03-01",
+          "pausedFrom": null,
+          "pausedUntil": null,
+          "routineId": null,
+          "reminderTimes": [
+            "06:30"
+          ],
+          "logs": [
+            {
+              "date": "2027-03-10",
+              "count": 1,
+              "completed": true
+            }
+          ]
+        }
+      ],
+      "routines": [],
+      "expected": {
+        "today": {
+          "date": "2027-03-10",
+          "habits": [
+            {
+              "id": 3,
+              "name": "Morning",
+              "state": "done",
+              "count": 1,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Created yesterday UTC",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 1,
+          "total": 2
+        },
+        "next": {
+          "date": "2027-03-11",
+          "habits": [
+            {
+              "id": 3,
+              "name": "Morning",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 2,
+              "name": "Created today UTC",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            },
+            {
+              "id": 1,
+              "name": "Created yesterday UTC",
+              "state": "open",
+              "count": 0,
+              "timesPerDay": 1
+            }
+          ],
+          "more": 0,
+          "done": 0,
+          "total": 3
+        }
+      }
+    }
+  ]
 }

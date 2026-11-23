@@ -104,6 +104,17 @@ public partial class HabitService
             .OrderBy(h => h.CreatedAt)
             .ToListAsync();
 
+    /// <summary>
+    /// The user's habits in creation order with only their logs from the local <paramref name="from"/> on, without slips or
+    /// made-it days: for <see cref="WidgetDays.On"/> with <paramref name="from"/> the Monday of today's week.
+    /// </summary>
+    public Task<List<Habit>> GetHabitsWithLogsFromAsync(Guid userId, DateOnly from)
+        => _db.Habits
+            .Where(h => h.UserId == userId)
+            .Include(h => h.Logs.Where(l => l.Date >= from))
+            .OrderBy(h => h.CreatedAt)
+            .ToListAsync();
+
     /// <summary>How many habits the user has.</summary>
     public Task<int> CountHabitsAsync(Guid userId) => _db.Habits.CountAsync(h => h.UserId == userId);
 

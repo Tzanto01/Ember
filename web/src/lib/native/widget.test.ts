@@ -93,12 +93,14 @@ describe('widget snapshot', () => {
       more: 0,
       done: 1,
       total: 3,
+      held: [],
       next: {
         date: '2026-11-02',
         habits: [open(5, 'Journal'), open(3, 'Read'), open(2, 'Stretch'), open(1, 'Walk', 3), open(4, 'Water')],
         more: 0,
         done: 0,
         total: 5,
+        held: [],
       },
     });
   });

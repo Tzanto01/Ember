@@ -4,13 +4,14 @@ using Ember.Core.Services;
 
 namespace Ember.Api.Tests.Contract;
 
-/// <summary>Web push (with a VAPID key configured), the reminder "Done" action and the home screen widget check-in.</summary>
+/// <summary>Web push (with a VAPID key configured), the reminder "Done" action and the home screen widget check-in and day.</summary>
 [ContractArea("push")]
 public class PushContractTests(PostgresFixture postgres) : ContractTestBase(postgres)
 {
     private const string Subscriptions = "/api/me/push-subscriptions";
     private const string Done = "/api/reminders/done";
     private const string CheckIn = "/api/widget/check-in";
+    private const string Today = "/api/widget/today";
 
     private sealed record Keys(string P256dh, string Auth);
 
@@ -24,6 +25,13 @@ public class PushContractTests(PostgresFixture postgres) : ContractTestBase(post
     private Task<HttpResponseMessage> WidgetCheckIn(string? authorization, object body)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, CheckIn) { Content = JsonContent.Create(body) };
+        if (authorization is not null) request.Headers.TryAddWithoutValidation("Authorization", authorization);
+        return Host.NewClient().Http.SendAsync(request);
+    }
+
+    private Task<HttpResponseMessage> WidgetToday(string? authorization)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, Today);
         if (authorization is not null) request.Headers.TryAddWithoutValidation("Authorization", authorization);
         return Host.NewClient().Http.SendAsync(request);
     }
@@ -100,8 +108,15 @@ public class PushContractTests(PostgresFixture postgres) : ContractTestBase(post
         await Rec("check-in.not-found", CheckIn, WidgetCheckIn($"Widget {key}", new { habitId = 9999, date = today }));
         await Rec("check-in.cookie-session-is-not-a-key", CheckIn, (await Host.SignedInAsync()).Post(CheckIn, new { habitId = habit, date = today }));
 
+        await Rec("today.ok", Today, WidgetToday($"Widget {key}"));
+        await Rec("today.no-header", Today, WidgetToday(null));
+        await Rec("today.wrong-scheme", Today, WidgetToday($"Bearer {key}"));
+        await Rec("today.unknown-key", Today, WidgetToday("Widget unknown-key"));
+        await Rec("today.cookie-session-is-not-a-key", Today, (await Host.SignedInAsync()).Get(Today));
+
         await bearer.Post("/api/auth/logout");
         await Rec("check-in.ended-session", CheckIn, WidgetCheckIn($"Widget {key}", new { habitId = habit, date = today }));
+        await Rec("today.ended-session", Today, WidgetToday($"Widget {key}"));
     }
 
     private async Task<HttpResponseMessage> WidgetLowDay(ApiClient bearer, string key)

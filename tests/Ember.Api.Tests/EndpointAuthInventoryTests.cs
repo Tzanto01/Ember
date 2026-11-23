@@ -74,6 +74,7 @@ public class EndpointAuthInventoryTests(PostgresFixture postgres) : ApiTestBase(
         GET /api/routines -> authenticated
         GET /api/stats/days -> authenticated
         GET /api/stats/weekly -> authenticated
+        GET /api/widget/today -> anonymous
         GET /{*path:nonfile} -> anonymous
         HEAD /{*path:nonfile} -> anonymous
         PATCH /api/fireside/friends/{id:int} -> authenticated

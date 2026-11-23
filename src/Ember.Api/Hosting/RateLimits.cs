@@ -12,8 +12,8 @@ namespace Ember.Api.Hosting;
 /// <summary>
 /// Per client IP on the credential endpoints of <c>/api/auth</c> (the strict <see cref="AuthPolicy"/> policy) and on every
 /// other <c>/api/auth</c> request (the loose <see cref="AuthOtherPolicy"/> policy, and the same limit as a global limiter on
-/// the Discord OAuth callback, which the authentication handler answers before any endpoint runs), on the widget check-in (its
-/// own <see cref="WidgetPolicy"/> policy, so widget taps never use up sign-in attempts), and on the mail-sending
+/// the Discord OAuth callback, which the authentication handler answers before any endpoint runs), on the widget check-in and day (their
+/// shared <see cref="WidgetPolicy"/> policy, so the widget never uses up sign-in attempts), and on the mail-sending
 /// endpoints per endpoint, normalized email and client IP, per email, per client IP and in total per day, <c>POST /api/feedback</c> per user (with a daily picture byte budget), or per client IP and in total per
 /// day for anonymous senders, <c>GET /api/me/export</c> per user, one at a time and <see cref="RateLimitSettings.ExportPerHour"/> per hour,
 /// and <c>POST /api/diagnostics</c> per client IP, per installation and in total per hour (the singleton
