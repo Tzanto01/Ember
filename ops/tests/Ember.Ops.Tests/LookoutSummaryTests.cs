@@ -144,6 +144,7 @@ public sealed class LookoutSummaryTests
         NightlyWidget(report).Items.Select(i => (i.Label, i.Value, i.Format, i.Tone)).Should().Equal(
             ("File", (object?)"pg_dumpall_20261118_033000.sql.gz", (string?)"code", (string?)null), ("Written", "2026-11-18T03:30:00Z", "time", null),
             ("Age", ageHours, "hours", tone), ("Size", 12_345_678L, "bytes", null));
+        NightlyWidget(report).Items.Single(i => i.Label == "Age").Goal.Should().Be(new Goal(Below: 26));
     }
 
     [Fact]

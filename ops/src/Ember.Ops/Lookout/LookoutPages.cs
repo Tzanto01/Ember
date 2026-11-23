@@ -139,7 +139,7 @@ public static class LookoutPages
 
     private static StatsWidget NightlyBackupSection(SystemReport s) => s.NightlyBackup is { } b
         ? Section(s, "nightly-backup", NightlyBackupTitle,
-            [new("File", b.Name, "code"), new("Written", Iso(b.At), "time"), new("Age", b.AgeHours, "hours", NightlyBackupTone(b)), new("Size", b.SizeBytes, "bytes")])
+            [new("File", b.Name, "code"), new("Written", Iso(b.At), "time"), new("Age", b.AgeHours, "hours", NightlyBackupTone(b), Goal: new(Below: NightlyBackupLimit.TotalHours)), new("Size", b.SizeBytes, "bytes")])
         : s.StatusWrittenAt is null
             ? Section(s, "nightly-backup", NightlyBackupTitle, null)
             : Stats("nightly-backup", NightlyBackupTitle, "list", []) with { Unavailable = NoNightlyBackup };
