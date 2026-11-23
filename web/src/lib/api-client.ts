@@ -62,7 +62,7 @@ function withJournal(me: Me): Me {
 }
 
 /** No answer from the API: a network error (status 0), or the service worker's own 504 without a problem body. */
-function unreachable(error: unknown): boolean {
+export function unreachable(error: unknown): boolean {
   const apiError = asApiError(error);
   return apiError.status === 0 || (apiError.status === 504 && !apiError.problem);
 }

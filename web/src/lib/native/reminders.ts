@@ -1,5 +1,5 @@
 import type { LocalNotificationsPlugin } from '@capacitor/local-notifications';
-import type { ApiClient } from '../api-client';
+import { type ApiClient, unreachable } from '../api-client';
 import { type DeviceStore, withDayEdit } from '../device-store';
 import { env } from '../env';
 import { currentLanguage, t } from '../i18n';
@@ -50,11 +50,6 @@ function readIssued(): Issued[] {
 async function digest(value: unknown): Promise<string> {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value)));
   return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function unreachable(error: unknown): boolean {
-  const apiError = asApiError(error);
-  return apiError.status === 0 || (apiError.status === 504 && !apiError.problem);
 }
 
 const capacitorNotifications = () => import('@capacitor/local-notifications');
