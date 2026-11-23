@@ -150,6 +150,8 @@ export interface Habit {
   days: Weekday[] | null;
   /** 1 to 10 check-ins a day for `daily` and `weekdays`; always 1 for `weekly`. */
   timesPerDay: number;
+  /** Length of its timer in whole minutes, 1 to 240, or null; always null for let-go habits. Missing from servers and caches before v1.28. */
+  timerMinutes?: number | null;
   /** The routine this habit belongs to, or null. */
   routineId: number | null;
   /** The first of `reminderTimes`, or null. */
@@ -248,6 +250,8 @@ export interface NewHabit {
   weeklyTarget?: number | null;
   days?: Weekday[] | null;
   timesPerDay?: number;
+  /** v1.28: 1 to 240, build habits only. */
+  timerMinutes?: number | null;
 }
 
 /** `PATCH /api/habits/{id}` body. */
@@ -261,6 +265,10 @@ export interface HabitPatch {
   weeklyTarget?: number | null;
   days?: Weekday[] | null;
   timesPerDay?: number;
+  /** v1.28: 1 to 240; absent or null leaves it unchanged. */
+  timerMinutes?: number | null;
+  /** v1.28: removes the timer; not together with `timerMinutes`. */
+  clearTimer?: boolean;
   reminderChannels?: ReminderChannel[];
   /** v1.14: replaces the whole set; absent leaves it unchanged. */
   reminderExclusions?: string[];

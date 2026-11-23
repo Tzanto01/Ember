@@ -147,6 +147,7 @@ function deviceData(): LocalData {
       weeklyTarget: null,
       days: null,
       timesPerDay: 1,
+      timerMinutes: 30,
       reminderTime: null,
       reminderChannels: [],
       pausedFrom: null,
@@ -213,7 +214,7 @@ describe('UpgradeService', () => {
     expect(server.imports).toHaveLength(1);
     expect(server.imports[0]).toMatchObject({
       format_version: 2,
-      habits: [{ id: 1, name: 'Walk' }],
+      habits: [{ id: 1, name: 'Walk', timer_minutes: 30 }],
       logs: [{ habit_id: 1, date: '2026-10-02', completed: true, count: 1 }],
       moods: [{ id: 1, label: moodLabel }, { id: 2, archived: true }],
       day_notes: [{ date: '2026-10-02', text: noteText, mood: 'custom:1' }, { date: '2026-10-03' }],

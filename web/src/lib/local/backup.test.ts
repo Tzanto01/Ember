@@ -14,6 +14,7 @@ function habit(id: number, overrides: Partial<LocalHabit> = {}): LocalHabit {
     weeklyTarget: null,
     days: null,
     timesPerDay: 1,
+    timerMinutes: null,
     reminderTime: null,
     reminderTimes: [],
     reminderChannels: [],
@@ -30,7 +31,7 @@ function sample(): LocalData {
   const data = newLocalData({ timezone: 'Europe/Berlin', theme: 'tidepool' }, new Date('2026-09-01T00:00:00Z'));
   data.profile.graceDaysPerWeek = 2;
   data.habits = [
-    habit(1, { routineId: 1, routinePosition: 1, reminderTime: '07:30', reminderTimes: ['07:30'], reminderChannels: ['mobile'] }),
+    habit(1, { timerMinutes: 30, routineId: 1, routinePosition: 1, reminderTime: '07:30', reminderTimes: ['07:30'], reminderChannels: ['mobile'] }),
     habit(2, {
       frequency: 'weekdays',
       days: ['mon', 'fri'],
@@ -212,6 +213,21 @@ describe('BackupService', () => {
 
     for (const log of logs) delete log['skipped'];
     expect(parsed(backup.parseBackup(fileText(doc))).data.logs.some((l) => l.skipped)).toBe(false);
+  });
+
+  it('reads a file from before timers as having none, and refuses a damaged length or one on a let-go habit', () => {
+    const doc = exportDocument(sample());
+    const habits = doc['habits'] as Record<string, unknown>[];
+    delete habits[0]['timer_minutes'];
+    expect(parsed(backup.parseBackup(fileText(doc))).data.habits[0].timerMinutes).toBeNull();
+
+    for (const value of [0, 241, 1.5, '30']) {
+      habits[0]['timer_minutes'] = value;
+      expect(backup.parseBackup(fileText(doc))).toHaveProperty('error');
+    }
+
+    const letGo = exportDocument({ ...sample(), habits: [habit(1, { kind: 'letGo', timerMinutes: 30 })], logs: [], habitNotes: [] });
+    expect(backup.parseBackup(fileText(letGo))).toHaveProperty('error');
   });
 
   it('reads reminder times sorted from reminder_times, and a file without them as its one reminder_time', () => {
