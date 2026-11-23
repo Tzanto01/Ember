@@ -43,7 +43,7 @@ internal static class WidgetEndpoints
 
             var tz = TimeZones.Find(user.Timezone) ?? TimeZoneInfo.Utc;
             var today = TimeZones.LocalToday(user.Timezone, time.GetUtcNow());
-            var list = await habits.GetHabitsAsync(userId);
+            var list = await habits.GetHabitsWithLogsFromAsync(userId, HabitRules.WeekStart(today));
             var routines = await habits.GetRoutinesAsync(userId);
             var lowDays = await habits.GetLowDaysAsync(userId);
             WidgetDay On(DateOnly date) => WidgetDays.On(list, routines, user.TodayOrder, date, today, tz, lowDays);

@@ -171,6 +171,35 @@ public class WidgetTodayApiTests(PostgresFixture postgres) : ApiTestBase(postgre
         after.GetProperty("done").GetInt32().Should().Be(0);
         after.GetProperty("next").GetProperty("date").GetString().Should().Be(sunday.AddDays(2).Iso());
     }
+
+    [DockerFact]
+    public async Task A_weekly_habit_counts_the_check_ins_of_todays_whole_week_and_none_of_the_week_before()
+    {
+        var bearer = await Host.BearerAsync();
+        await (await bearer.Patch("/api/me", new { timezone = "Europe/Berlin" })).Expect(HttpStatusCode.OK);
+        async Task<int> WeeklyAsync(string name)
+            => (await (await bearer.Post("/api/habits", new { name, frequency = "weekly", weeklyTarget = 2 })).ExpectJson(HttpStatusCode.Created))
+                .GetProperty("id").GetInt32();
+        var met = await WeeklyAsync("Met");
+        var carried = await WeeklyAsync("Carried");
+        var key = await IssueAsync(bearer);
+        async Task CheckInOn(DateOnly day, int habitId)
+        {
+            Host.Time.SetUtcNow(new DateTimeOffset(day.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero));
+            await (await CheckIn(key, habitId, day)).Expect(HttpStatusCode.OK);
+        }
+        var sunday = new DateOnly(2026, 11, 1);
+        await CheckInOn(sunday, carried);
+        await CheckInOn(sunday.AddDays(1), carried);
+        await CheckInOn(sunday.AddDays(1), met);
+        await CheckInOn(sunday.AddDays(2), met);
+
+        Host.Time.SetUtcNow(new DateTimeOffset(2026, 11, 4, 12, 0, 0, TimeSpan.Zero));
+        var day = await DayAsync(key);
+
+        Rows(day).Should().Be("Carried open 0/1");
+        Rows(day.GetProperty("next")).Should().Be("Carried open 0/1");
+    }
 }
 
 public class WidgetTodayRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
