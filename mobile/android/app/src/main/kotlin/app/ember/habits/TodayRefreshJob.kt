@@ -1,0 +1,60 @@
+package app.ember.habits
+
+import android.app.job.JobInfo
+import android.app.job.JobParameters
+import android.app.job.JobScheduler
+import android.app.job.JobService
+import android.content.ComponentName
+import android.content.Context
+import android.os.SystemClock
+import app.ember.habits.widget.CheckInClient
+import app.ember.habits.widget.DayClient
+import app.ember.habits.widget.WidgetKey
+
+/**
+ * Fetches the Today widget's day with the widget key ([DayClient]) once a network is up, then redraws the widget. One
+ * job at a time, not kept across reboots; a failed fetch waits for the widget's next trigger.
+ */
+class TodayRefreshJob : JobService() {
+
+    override fun onStartJob(params: JobParameters): Boolean {
+        run(applicationContext) { jobFinished(params, false) }
+        return true
+    }
+
+    override fun onStopJob(params: JobParameters) = false
+
+    companion object {
+        private const val JOB_ID = 1
+        private const val BUDGET_MS = 8000L
+
+        /** Schedules the fetch, replacing one still waiting. */
+        internal fun schedule(context: Context) {
+            val scheduler = context.getSystemService(JobScheduler::class.java) ?: return
+            val job = JobInfo.Builder(JOB_ID, ComponentName(context, TodayRefreshJob::class.java))
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                .setPersisted(false)
+                .build()
+            scheduler.schedule(job)
+        }
+
+        /**
+         * Queues the fetch on the widget's network thread behind the check-ins queued before it, with [BUDGET_MS]
+         * from its start, redraws the widget and then calls [finished].
+         */
+        internal fun run(context: Context, finished: Runnable) {
+            CheckInClient.queue {
+                try {
+                    val key = WidgetKey.get(context)
+                    val apiBase = WidgetKey.apiBase(context)
+                    if (key != null && apiBase != null) {
+                        DayClient.fetch(context, apiBase, key, SystemClock.elapsedRealtime() + BUDGET_MS)
+                    }
+                    TodayWidget.refresh(context)
+                } finally {
+                    finished.run()
+                }
+            }
+        }
+    }
+}

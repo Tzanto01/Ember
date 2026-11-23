@@ -19,8 +19,10 @@ import kotlin.math.min
 import org.json.JSONObject
 
 /**
- * The "Today in Ember" home-screen widget. It shows only the snapshot the app last pushed ([WidgetStore]), and only
- * while that snapshot (or the next day it carries) is for today in the account's zone, drawn by [TodayWidgetViews].
+ * The "Today in Ember" home-screen widget. It shows the stored snapshot ([WidgetStore]) only while that snapshot (or
+ * the next day it carries) is for today in the account's zone, drawn by [TodayWidgetViews]. The app pushes the
+ * snapshot; with a widget key stored the widget also fetches its day itself ([TodayRefreshJob]) after midnight, on a
+ * widget update and when it finds the snapshot stale, the last two at most once per [REQUEST_GAP_MS].
  * Every row action carries the habit, date, user and a per-snapshot token in an explicit, immutable intent with its
  * own data Uri. With a widget key stored, checking an open or partial row (a CheckBox on API 31+, the row tap below)
  * is a broadcast to this receiver, which checks in at once and posts it with the key; without one it opens
@@ -30,7 +32,7 @@ import org.json.JSONObject
 class TodayWidget : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        render(context, manager, ids)
+        render(context, manager, ids, update = true)
     }
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle?) {
@@ -38,12 +40,15 @@ class TodayWidget : AppWidgetProvider() {
     }
 
     /**
-     * Redraws at the alarm set for the snapshot zone's next midnight, so yesterday's states never linger, and
-     * handles a row's background check-in.
+     * Redraws at the alarm set for the snapshot zone's next midnight, so yesterday's states never linger, asking for
+     * the new day there when a key is stored, and handles a row's background check-in.
      */
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            ACTION_MIDNIGHT -> refresh(context)
+            ACTION_MIDNIGHT -> {
+                if (WidgetKey.get(context) != null) requestDay(context, 0)
+                refresh(context)
+            }
             ACTION_CHECK_IN -> checkIn(context, intent)
             else -> super.onReceive(context, intent)
         }
@@ -118,8 +123,11 @@ class TodayWidget : AppWidgetProvider() {
         internal const val ACTION_CHECK_IN = "app.ember.habits.WIDGET_CHECK_IN"
         internal const val ACTION_OPEN_TODAY = "app.ember.habits.WIDGET_OPEN_TODAY"
         internal const val ACTION_OPEN_HABIT = "app.ember.habits.WIDGET_OPEN_HABIT"
-        private const val ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT"
+        internal const val ACTION_MIDNIGHT = "app.ember.habits.WIDGET_MIDNIGHT"
         private const val BUDGET_MS = 8000L
+
+        /** The least time between two day requests from a widget update or a stale snapshot. */
+        internal const val REQUEST_GAP_MS = 15 * 60 * 1000L
 
         /** The actions of the intents a widget tap sends to [MainActivity]. */
         internal val TAP_ACTIONS = setOf(ACTION_CHECK_IN, ACTION_OPEN_TODAY, ACTION_OPEN_HABIT)
@@ -175,11 +183,23 @@ class TodayWidget : AppWidgetProvider() {
             render(context, manager, manager.getAppWidgetIds(ComponentName(context, TodayWidget::class.java)))
         }
 
-        private fun render(context: Context, manager: AppWidgetManager, ids: IntArray?) {
+        /**
+         * Draws [ids] and sets the midnight alarm from the current snapshot's zone, or with a key stored from the
+         * stale snapshot's. With a key, an [update] or a stale snapshot also asks for the day.
+         */
+        private fun render(context: Context, manager: AppWidgetManager, ids: IntArray?, update: Boolean = false) {
             if (ids == null || ids.isEmpty()) return
             val snapshot = WidgetStore.current(context)
-            if (snapshot != null) scheduleMidnight(context, snapshot.optString("timeZone"))
+            val stale = snapshot == null && WidgetStore.hasSnapshot(context)
+            val ask = (update || stale) && WidgetKey.get(context) != null
+            val stored = if (snapshot == null && ask) WidgetStore.stored(context) else snapshot
+            if (stored != null) scheduleMidnight(context, stored.optString("timeZone"))
+            if (ask) requestDay(context, REQUEST_GAP_MS)
             TodayWidgetViews.update(context, manager, ids, snapshot)
+        }
+
+        private fun requestDay(context: Context, gap: Long) {
+            if (WidgetStore.claimDayRequest(context, System.currentTimeMillis(), gap)) TodayRefreshJob.schedule(context)
         }
 
         private fun scheduleMidnight(context: Context, timeZone: String) {
