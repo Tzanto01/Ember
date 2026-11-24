@@ -1443,7 +1443,7 @@
   "feedback.sends.account": "Ember sends the title, description and any pictures, the app version, the time and whether you use the web or the Android app. Your account goes with it unless you send anonymously. Never your habits or check-ins, and please keep private entries and other people out of pictures.",
   "feedback.sends.plain": "Ember sends the title, description, the app version, the time and whether you use the web or the Android app, plus your account if you're signed in. Never your habits or check-ins.",
   "feedback.privacy": "Privacy notice",
-  "feedback.health": "If your feedback or a picture includes anything about your health, sending it means you explicitly agree that the operator processes it to handle your feedback (GDPR Art. 9(2)(a)). You can withdraw that any time by emailing contact@nicowoellnitz.de.",
+  "feedback.health": "If your feedback or a picture includes anything about your health, sending it means you explicitly agree that the operator processes it to handle your feedback and, if you're signed in, to export and delete it (GDPR Art. 9(2)(a)). You can withdraw that any time by emailing contact@nicowoellnitz.de.",
   "feedback.notSent": "That wasn't sent yet",
   "feedback.sending": "Sending…",
   "diagnostics.intro": "If the app misbehaves, you can send Ember a short technical report. You see all of it before it goes.",

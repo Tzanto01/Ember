@@ -1483,7 +1483,7 @@ Works once, for 30 minutes.</value>
     <value>On {0}. Open Ember to export it or agree again.</value>
   </data>
   <data name="feedback.modal.health" xml:space="preserve">
-    <value>If your feedback or a picture includes anything about your health, sending it means you explicitly agree that the operator processes it to handle your feedback (GDPR Art. 9(2)(a)). You can withdraw that any time by emailing contact@nicowoellnitz.de.</value>
+    <value>If your feedback or a picture includes anything about your health, sending it means you explicitly agree that the operator processes it to handle your feedback and, if you're signed in, to export and delete it (GDPR Art. 9(2)(a)). You can withdraw that any time by emailing contact@nicowoellnitz.de.</value>
   </data>
   <data name="date.full" xml:space="preserve">
     <value>MMMM d, yyyy</value>

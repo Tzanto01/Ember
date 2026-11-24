@@ -1483,7 +1483,7 @@ Gilt einmal, für 30 Minuten.</value>
     <value>Am {0}. Öffne Ember, um sie zu exportieren oder wieder zuzustimmen.</value>
   </data>
   <data name="feedback.modal.health" xml:space="preserve">
-    <value>Wenn dein Feedback oder ein Bild Angaben zu deiner Gesundheit enthält, willigst du mit dem Absenden ausdrücklich ein, dass der Betreiber sie zur Bearbeitung deines Feedbacks verarbeitet (Art. 9 Abs. 2 lit. a DSGVO). Du kannst das jederzeit per E-Mail an contact@nicowoellnitz.de widerrufen.</value>
+    <value>Wenn dein Feedback oder ein Bild Angaben zu deiner Gesundheit enthält, willigst du mit dem Absenden ausdrücklich ein, dass der Betreiber sie zur Bearbeitung deines Feedbacks und, wenn du angemeldet bist, für Export und Löschung verarbeitet (Art. 9 Abs. 2 lit. a DSGVO). Du kannst das jederzeit per E-Mail an contact@nicowoellnitz.de widerrufen.</value>
   </data>
   <data name="date.full" xml:space="preserve">
     <value>dd.MM.yyyy</value>
