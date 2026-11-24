@@ -295,7 +295,7 @@ export class HabitTimer {
     if (!entry) {
       const [day] = await this.deps.api.getDays(habitId, date, date).catch((error: unknown) => {
         if (!unreachable(error)) throw error;
-        unknown ||= timesPerDay === 1 || habit.today.date < date;
+        unknown ||= timesPerDay === 1;
         return [];
       });
       entry = day;

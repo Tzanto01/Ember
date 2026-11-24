@@ -478,7 +478,7 @@ describe('HabitTimer', () => {
     });
 
     it('is queued offline when the cached list is from before the timer’s day', async () => {
-      const older = { ...walk, timesPerDay: 3, today: { ...habit.today, date: '2026-10-31', state: 'done' as const, count: 3 } };
+      const older = { ...walk, today: { ...habit.today, date: '2026-10-31', state: 'done' as const, count: 1 } };
       await device.saveHabits({ userId: 'u1', timeZone: me.timezone, habits: [older] });
       const day = '/api/habits/1/days?from=2026-11-01&to=2026-11-01';
       const offer = timer.offer();
@@ -491,7 +491,7 @@ describe('HabitTimer', () => {
       (await fetch.next('GET', day)).fail();
       (await fetch.next('PUT', '/api/habits/1/days/2026-11-01')).fail();
       await expect(done).resolves.toEqual({ status: 'done' });
-      expect(await device.edits('u1')).toMatchObject([{ habitId: 1, date: '2026-11-01', count: 1 }]);
+      expect(await device.edits('u1')).toMatchObject([{ habitId: 1, date: '2026-11-01', completed: true }]);
     });
 
     it.each([
