@@ -131,6 +131,7 @@ export function TimerControl({ habit, startable, onAnnounce }: TimerControlProps
               <Button
                 variant="ghost"
                 size="icon"
+                data-guide="timer"
                 aria-label={t(phase === 'running' ? 'timer.pause' : 'timer.resume', { name })}
                 onClick={toggle}
               >

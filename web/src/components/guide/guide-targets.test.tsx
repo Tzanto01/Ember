@@ -16,7 +16,7 @@ import TodayPage from '@/pages/today';
 import { renderPage } from '@/test/test-utils';
 
 interface Screen {
-  /** No-account mode with one daily habit checked in today, or an account with nothing loaded beyond `me`. */
+  /** No-account mode with one daily habit with a timer length checked in today, or an account with nothing loaded beyond `me`. */
   mode: 'local' | 'account';
   path: string;
   url: (habitId: number) => string;
@@ -54,7 +54,7 @@ describe('guide "Show me" targets', { timeout: 15_000 }, () => {
     let habitId = 0;
     if (mode === 'local') {
       await localMode.start();
-      habitId = (await api.createHabit({ name: 'Walk', frequency: 'daily' })).id;
+      habitId = (await api.createHabit({ name: 'Walk', frequency: 'daily', timerMinutes: 30 })).id;
       await api.setDay(habitId, auth.me.get()!.localToday, true);
     } else {
       mockFetch();
