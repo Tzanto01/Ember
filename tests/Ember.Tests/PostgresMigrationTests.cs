@@ -334,6 +334,46 @@ public class PostgresMigrationTests(PostgresFixture postgres)
     }
 
     [DockerFact]
+    public async Task DroppingTheFeedbackBoardColumns_KeepsEveryReportItsPicturesAndItsOutboxRow_InEveryDeliveryState()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        await db.GetService<IMigrator>().MigrateAsync("20261121062801_AddCheckInSkipped");
+        await db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO "AspNetUsers" ("Id", "Timezone", "GraceDaysPerWeek", "DmFailureCount", "EmailConfirmed", "PhoneNumberConfirmed",
+                "TwoFactorEnabled", "LockoutEnabled", "AccessFailedCount")
+            VALUES ('00000000-0000-0000-0000-000000000001', 'UTC', 1, 0, FALSE, FALSE, FALSE, FALSE, 0);
+            INSERT INTO "LookoutUserRefs" ("Ref", "UserId", "CreatedAt") VALUES ('synthetic-ref-1', '00000000-0000-0000-0000-000000000001', now());
+            INSERT INTO "Feedback" ("Id", "UserId", "Platform", "Version", "Title", "Text", "CreatedAt", "Status", "ResolvedAt", "DigestedAt") VALUES
+                (1, '00000000-0000-0000-0000-000000000001', 'web', '1.0', 'linked sent', 'a', now() - interval '40 days', 'released', now() - interval '35 days', now()),
+                (2, '00000000-0000-0000-0000-000000000001', 'android', NULL, 'linked unsent', 'b', now() - interval '2 days', 'open', NULL, NULL),
+                (3, NULL, 'discord', NULL, 'anonymous sent', 'c', now() - interval '3 days', 'planned', NULL, now()),
+                (4, NULL, 'web', '1.0', 'anonymous parked', 'd', now() - interval '4 days', 'declined', now(), now()),
+                (5, NULL, 'web', '1.0', 'never queued', 'e', now() - interval '1 hour', 'implemented', NULL, now());
+            INSERT INTO "FeedbackImages" ("Id", "FeedbackId", "ContentType", "Size", "Data")
+                SELECT gen_random_uuid(), id, 'image/png', 3, '\x010203' FROM generate_series(1, 5) id;
+            INSERT INTO "LookoutOutbox" ("Kind", "Key", "FeedbackId", "UserRef", "CreatedAt", "SentAt", "ParkedAt", "ParkedStatus") VALUES
+                ('ticket', 'key-1', 1, 'synthetic-ref-1', now(), now(), NULL, NULL), ('ticket', 'key-2', 2, 'synthetic-ref-1', now(), NULL, NULL, NULL),
+                ('ticket', 'key-3', 3, NULL, now(), now(), NULL, NULL), ('ticket', 'key-4', 4, NULL, now(), NULL, now(), 400),
+                ('user-delete', NULL, NULL, 'synthetic-ref-0', now(), NULL, NULL, NULL);
+            """);
+
+        await db.GetService<IMigrator>().MigrateAsync();
+
+        (await db.Feedback.AsNoTracking().OrderBy(f => f.Id).Select(f => new { f.Title, f.Text, f.Platform, Linked = f.UserId != null, Pictures = f.Images.Count }).ToListAsync())
+            .Select(f => (f.Title, f.Text, f.Platform, f.Linked, f.Pictures)).Should().Equal(
+                ("linked sent", "a", "web", true, 1), ("linked unsent", "b", "android", true, 1), ("anonymous sent", "c", "discord", false, 1),
+                ("anonymous parked", "d", "web", false, 1), ("never queued", "e", "web", false, 1));
+        (await db.LookoutOutbox.AsNoTracking().OrderBy(o => o.Id).ToListAsync())
+            .Select(o => (o.Key, o.FeedbackId, o.UserRef, Sent: o.SentAt != null, o.ParkedStatus)).Should().Equal(
+                ("key-1", 1, "synthetic-ref-1", true, null), ("key-2", 2, "synthetic-ref-1", false, null), ("key-3", 3, null, true, null),
+                ("key-4", 4, null, false, 400), (null, null, "synthetic-ref-0", false, null));
+        (await db.Database.SqlQueryRaw<int>("SELECT count(*)::int AS \"Value\" FROM information_schema.columns " +
+            "WHERE table_name = 'Feedback' AND column_name IN ('Status', 'ResolvedAt', 'DigestedAt')").ToListAsync()).Should().Equal(0);
+    }
+
+    [DockerFact]
     public async Task RoutinePositionMigration_NumbersEachUsersRoutinesOldestFirst()
     {
         var connectionString = await postgres.CreateDatabaseAsync();

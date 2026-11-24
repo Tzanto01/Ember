@@ -299,9 +299,6 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
             entity.Property(f => f.Version).HasMaxLength(32);
             entity.Property(f => f.Title).HasMaxLength(100).IsRequired();
             entity.Property(f => f.Text).HasMaxLength(2000).IsRequired();
-            entity.Property<string>("Status").HasMaxLength(16).HasDefaultValue("open").IsRequired();
-            entity.Property<DateTime?>("ResolvedAt");
-            entity.Property<DateTime?>("DigestedAt");
             entity.HasIndex(f => f.CreatedAt);
             entity.HasOne<User>()
                   .WithMany()
