@@ -31,7 +31,7 @@ public sealed class FeedbackMoveScriptsTests(PostgresFixture postgres) : ApiTest
         await connection.OpenAsync();
         if (before is not null) await new NpgsqlCommand(before, connection).ExecuteNonQueryAsync();
         await using var command = new NpgsqlCommand(await File.ReadAllTextAsync(Script("tools", "feedback-move", "export.sql")), connection);
-        return JsonDocument.Parse((string)(await command.ExecuteScalarAsync())!).RootElement;
+        return JsonElement.Parse((string)(await command.ExecuteScalarAsync())!);
     }
 
     private async Task<int> ReportAsync(Guid? userId, string title, bool queued)
