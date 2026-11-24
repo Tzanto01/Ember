@@ -12,6 +12,7 @@ import {
   HabitFields,
   habitFormValue,
   habitNameError,
+  habitTimerError,
 } from '@/components/habits/habit-fields';
 import { allowDeviceReminders, canAskDevice, DeviceRemindersOff } from '@/components/habits/device-reminders';
 import { ChannelChoices, phoneChoice } from '@/components/habits/habit-edit-sections';
@@ -114,7 +115,7 @@ export default function HabitNewPage() {
     event.preventDefault();
     if (submitting.current) return;
     flushSync(() => setTouched(true));
-    if (habitNameError(form.name) || habitDaysError(form)) {
+    if (habitNameError(form.name) || habitDaysError(form) || habitTimerError(form)) {
       focusFirstInvalid(root.current);
       return;
     }
@@ -123,6 +124,7 @@ export default function HabitNewPage() {
     if (form.kind === 'letGo') body.kind = 'letGo';
     if (value.days !== null) body.days = value.days;
     if (value.frequency !== 'weekly') body.timesPerDay = value.timesPerDay;
+    if (value.timerMinutes !== null) body.timerMinutes = value.timerMinutes;
     if (value.weeklyTarget !== null) body.weeklyTarget = value.weeklyTarget;
     if (reminders) {
       if (localPhone) body.reminderChannels = phoneOn ? ['mobile'] : [];

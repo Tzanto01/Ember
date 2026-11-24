@@ -4,10 +4,12 @@
     "date": "2026-11-23",
     "notes": {
       "en": [
-        "Android: with an account, the “Today in Ember” widget now loads the new day by itself after midnight and keeps up with check-ins you make elsewhere, so you no longer have to open the app for it."
+        "Android: with an account, the “Today in Ember” widget now loads the new day by itself after midnight and keeps up with check-ins you make elsewhere, so you no longer have to open the app for it.",
+        "A habit can have a timer now: give it a length, start it on Today, and Ember tells you when the time is up. Checking in stays up to you."
       ],
       "de": [
-        "Android: Mit einem Konto lädt das Widget „Heute in Ember“ den neuen Tag nach Mitternacht jetzt von selbst und zeigt auch Check-ins, die du woanders machst. Dafür musst du die App nicht mehr öffnen."
+        "Android: Mit einem Konto lädt das Widget „Heute in Ember“ den neuen Tag nach Mitternacht jetzt von selbst und zeigt auch Check-ins, die du woanders machst. Dafür musst du die App nicht mehr öffnen.",
+        "Ein Habit kann jetzt einen Timer haben: Gib ihm eine Länge, starte ihn unter Heute, und Ember sagt dir, wenn die Zeit um ist. Ob du abhakst, entscheidest du."
       ]
     }
   },

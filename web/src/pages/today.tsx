@@ -464,6 +464,7 @@ export default function TodayPage() {
       onUndoOne={() => void toggle(habit, true)}
       onRewardEnd={() => setReward(habit.id, null)}
       menu={extras.menu}
+      onAnnounce={setAnnouncement}
       notToday={extras.notToday}
       checkInPaused={extras.checkInPaused}
       reorderKey={extras.reorderKey}

@@ -11,6 +11,7 @@ import {
   HabitFields,
   habitFormValue,
   habitNameError,
+  habitTimerError,
   habitToForm,
 } from '@/components/habits/habit-fields';
 import { routineTitle } from '@/components/routines/routine-title';
@@ -119,7 +120,7 @@ export function DetailsSection({ habit, onChange, routine = null }: SectionProps
       setDeviceOff(false);
       setTouched(true);
     });
-    if (habitNameError(form.name) || habitDaysError(form)) {
+    if (habitNameError(form.name) || habitDaysError(form) || habitTimerError(form)) {
       focusFirstInvalid(root.current);
       return;
     }
@@ -131,6 +132,8 @@ export function DetailsSection({ habit, onChange, routine = null }: SectionProps
     if (value.days !== null ? value.days.join() !== (habit.days ?? []).join() : habit.days !== null)
       patch.days = value.days;
     if (value.timesPerDay !== habit.timesPerDay) patch.timesPerDay = value.timesPerDay;
+    if (value.timerMinutes === null && habit.timerMinutes) patch.clearTimer = true;
+    else if (value.timerMinutes !== null && value.timerMinutes !== habit.timerMinutes) patch.timerMinutes = value.timerMinutes;
     if (value.reminderTimes.join() !== reminderTimesOf(habit).join()) patch.reminderTimes = value.reminderTimes;
     if (Object.keys(patch).length === 0) {
       setFeedback({ tone: 'info', text: t('habitEdit.unchanged') });

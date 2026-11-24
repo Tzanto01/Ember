@@ -104,6 +104,32 @@ describe('HabitEditPage', () => {
     expect(await screen.findByText(/Notifications are off for Ember in this browser/)).toBeInTheDocument();
   });
 
+  it('sends a changed timer length, clears an emptied one, and leaves it out when unchanged', async () => {
+    const user = userEvent.setup();
+    const fetch = mockFetch();
+    renderPage();
+    await load(fetch, { ...stretch, timerMinutes: 20 });
+    const length = screen.getByLabelText(/^Timer length/);
+    const save = async (shown: number | null) => {
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      const patch = await fetch.next('PATCH', '/api/habits/7');
+      patch.respond(200, { ...stretch, timerMinutes: shown });
+      expect(await screen.findByText('Saved.')).toBeInTheDocument();
+      return patch.body;
+    };
+    expect(length).toHaveValue('20');
+
+    await user.clear(length);
+    await user.type(length, '45');
+    expect(await save(45)).toEqual({ timerMinutes: 45 });
+
+    await user.type(screen.getByLabelText('Name', { exact: true }), ' more');
+    expect(await save(45)).toEqual({ name: 'Stretch more' });
+
+    await user.clear(length);
+    expect(await save(null)).toEqual({ clearTimer: true });
+  });
+
   describe('remind me on', () => {
     it('ticks every destination the habit does not skip, marks this browser, and saves the skipped set', async () => {
       const user = userEvent.setup();

@@ -12,6 +12,7 @@ import { Guide } from '@/components/guide/guide';
 import { LegalLinks } from '@/components/legal-links';
 import { LiveNoticeBanner } from '@/components/live-notice';
 import { NativeConfirmation } from '@/components/native-confirmation';
+import { TimerNotice } from '@/components/timer-notice';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { useArrival } from '@/hooks/use-arrival';
@@ -68,7 +69,7 @@ export function AccountButton({
 
 /**
  * Signed-in shell: sticky header with the brand, the main nav (top pills from `md`, a fixed bottom tab bar below)
- * and "Sign out" from `md` (Settings has it on phones), or "Sign in" in no-account mode, then the screen's guide; the
+ * and "Sign out" from `md` (Settings has it on phones), or "Sign in" in no-account mode, then the screen's guide; the ended-timer,
  * offline-queue and dropped-edit notices above the page; legal footer.
  * Loads "What helps me" into memory once the account's private journal is unlocked.
  */
@@ -169,6 +170,7 @@ export function AppShell() {
         className={cn('mx-auto flex w-full flex-1 flex-col gap-6 py-6 focus:outline-none md:py-10', measure, inline)}
       >
         <LiveNoticeBanner />
+        <TimerNotice />
         {signOutFailed && (
           <Notice tone="notice">
             <p>{t('shell.signOutFailed')}</p>

@@ -87,6 +87,18 @@ export const guides: Record<GuideScreen, Guide> = {
         covers: [policy, plan, rules],
       },
       {
+        id: 'today-timer',
+        questionKey: 'guide.today.timer.q',
+        answerKey: 'guide.today.timer.a',
+        values: { max: limits.timerMinutes },
+        target: 'timer',
+        covers: [
+          'web/src/lib/timer/habit-timer.ts',
+          'web/src/components/today/timer-control.tsx',
+          'web/src/components/timer-notice.tsx',
+        ],
+      },
+      {
         id: 'today-moment',
         questionKey: 'guide.today.moment.q',
         answerKey: 'guide.today.moment.a',
