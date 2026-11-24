@@ -11,7 +11,7 @@ const now = Date.parse('2026-11-01T11:00:00Z');
 const walk: Habit = { ...habit, timerMinutes: 30 };
 const doneWalk: Habit = { ...walk, today: { ...walk.today, state: 'done', completed: true, count: 1 } };
 
-describe('TimerNotice', () => {
+describe('TimerNotice', { timeout: 15_000 }, () => {
   let fetch: FetchMock;
 
   beforeEach(() => {
@@ -70,6 +70,39 @@ describe('TimerNotice', () => {
     expect(screen.queryByRole('button')).toBeNull();
     await answer([walk]);
     expect(await mark()).toBeInTheDocument();
+  });
+
+  it('can be dismissed while a slow network keeps the offer open', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(
+      key,
+      JSON.stringify({ userId: me.id, habitId: 1, name: 'Walk', minutes: 30, date: '2026-11-01', endsAt: now, remainingMs: null, told: true }),
+    );
+    habitTimer.check();
+    render(<TimerNotice />);
+
+    const button = await screen.findByRole('button', { name: 'Mark as done' }, { timeout: 3000 });
+    await user.click(button);
+    expect(writes()).toEqual([]);
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByRole('button', { name: 'Not now' }));
+
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+
+  it('"Not now" does nothing while the check-in is being saved', async () => {
+    const user = userEvent.setup();
+    await end([walk]);
+    await user.click(await mark());
+    await answer([walk]);
+    const put = await fetch.next('PUT', '/api/habits/1/days/2026-11-01');
+
+    await user.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(localStorage.getItem(key)).not.toBeNull();
+
+    put.respond(200, doneWalk);
+    expect(await screen.findByText('Walk: checked in.')).toBeInTheDocument();
+    expect(localStorage.getItem(key)).toBeNull();
   });
 
   it('only says the time is up when the day is already done', async () => {

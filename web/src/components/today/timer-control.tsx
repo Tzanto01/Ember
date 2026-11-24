@@ -3,7 +3,8 @@ import { type FocusEvent, useEffect, useLayoutEffect, useRef, useState } from 'r
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import type { Habit } from '@/lib/models';
-import { habitTimer } from '@/lib/services';
+import { updaterAvailable } from '@/lib/native/updater';
+import { habitTimer, reminders } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import type { TimerView } from '@/lib/timer/habit-timer';
 import { checkButtonId } from './check-button';
@@ -45,8 +46,8 @@ function TimeLeft({ name, running }: { name: string; running: boolean }) {
   }, [running]);
 
   return (
-    <span role="timer" aria-label={t('timer.left', { name })} className="text-[1.125rem] font-semibold tabular-nums">
-      {timeLeftText(left)}
+    <span role="timer" className="text-[1.125rem] font-semibold tabular-nums">
+      <span className="sr-only">{t('timer.left', { name })}</span> {timeLeftText(left)}
     </span>
   );
 }
@@ -66,6 +67,7 @@ export function TimerControl({ habit, startable, onAnnounce }: TimerControlProps
   const { t } = useTranslation();
   const view = useStore(habitTimer.view);
   const notifies = useStore(habitTimer.notifies);
+  const late = useStore(habitTimer.late);
   const root = useRef<HTMLDivElement>(null);
   const focused = useRef(false);
   const [other, setOther] = useState<TimerView | null>(null);
@@ -75,6 +77,7 @@ export function TimerControl({ habit, startable, onAnnounce }: TimerControlProps
   const active = view && view.phase !== 'ended' ? view : null;
   const phase = active?.record.habitId === id ? active.phase : null;
   const going = phase !== null;
+  const maybeLate = phase === 'running' && notifies && late;
 
   const wasGoing = useRef(going);
   useLayoutEffect(() => {
@@ -84,6 +87,20 @@ export function TimerControl({ habit, startable, onAnnounce }: TimerControlProps
     focused.current = false;
     focusControl(root.current, id);
   }, [going, id]);
+
+  const wasLate = useRef(maybeLate);
+  useLayoutEffect(() => {
+    if (wasLate.current && !maybeLate && focused.current && document.activeElement === document.body)
+      focusControl(root.current, id);
+    wasLate.current = maybeLate;
+  }, [maybeLate, id]);
+
+  function allowExact(): void {
+    void reminders
+      ?.allowExact()
+      .catch(() => false)
+      .then(() => habitTimer.check());
+  }
 
   function start(): void {
     habitTimer.start(habit);
@@ -120,7 +137,7 @@ export function TimerControl({ habit, startable, onAnnounce }: TimerControlProps
       onBlur={(event: FocusEvent) => {
         if (event.target.isConnected) focused.current = false;
       }}
-      className="col-span-2 flex min-w-0 flex-col sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:items-end"
+      className="col-span-2 flex min-w-0 flex-col sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:max-w-[16rem] sm:items-end"
     >
       {going ? (
         <>
@@ -143,7 +160,17 @@ export function TimerControl({ habit, startable, onAnnounce }: TimerControlProps
             </span>
           </div>
           {phase === 'running' && !notifies && (
-            <p className="text-[0.875rem] text-muted-foreground">{t('timer.here')}</p>
+            <p className="text-[0.875rem] text-muted-foreground sm:text-end">{t('timer.here')}</p>
+          )}
+          {maybeLate && (
+            <>
+              <p className="text-[0.875rem] text-muted-foreground sm:text-end">{t('timer.late')}</p>
+              {updaterAvailable() && (
+                <Button variant="link" className="self-start px-0 sm:self-end" onClick={allowExact}>
+                  {t('timer.allowExact')}
+                </Button>
+              )}
+            </>
           )}
         </>
       ) : (

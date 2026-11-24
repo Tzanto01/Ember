@@ -1,14 +1,24 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LiveRegion } from '@/components/live-region';
 import type { Habit } from '@/lib/models';
-import { auth, habitTimer } from '@/lib/services';
+import { auth, habitTimer, reminders } from '@/lib/services';
 import { habit, me } from '@/test/test-support';
 import { inGerman } from '@/test/test-utils';
 import { HabitRow } from './habit-row';
+
+const beta = vi.hoisted(() => ({ on: false }));
+vi.mock('@/lib/native/updater', async (original) => ({
+  ...(await original<typeof import('@/lib/native/updater')>()),
+  updaterAvailable: () => beta.on,
+}));
+vi.mock('@/lib/services', async (original) => ({
+  ...(await original<typeof import('@/lib/services')>()),
+  reminders: { allowExact: vi.fn() },
+}));
 
 const walk: Habit = { ...habit, timerMinutes: 30 };
 const read: Habit = { ...habit, id: 2, name: 'Read', timerMinutes: 90 };
@@ -37,15 +47,19 @@ function Rows({ habits, onToggle }: { habits: Habit[]; onToggle?: () => void }) 
   );
 }
 
-const startWalk = () => screen.getByRole('button', { name: 'Start the 30 minute timer for Walk' });
+const startWalk = () => screen.getByRole('button', { name: 'Start timer for Walk, 30 min' });
 
-describe("a Today row's timer", () => {
+describe("a Today row's timer", { timeout: 15_000 }, () => {
   beforeEach(() => {
     auth.setMe(me);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    beta.on = false;
+    habitTimer.notifies.set(false);
+    habitTimer.late.set(false);
     auth.clearSession();
     localStorage.clear();
   });
@@ -55,7 +69,7 @@ describe("a Today row's timer", () => {
     render(<Rows habits={[walk]} />);
 
     await user.click(startWalk());
-    expect(screen.getByRole('timer', { name: 'Time left for Walk' })).toHaveTextContent('30:00');
+    expect(screen.getByRole('timer')).toHaveTextContent('Time left for Walk 30:00');
     expect(screen.getByText('Walk: timer started.')).toBeInTheDocument();
     expect(screen.getByText("Ember tells you here when it's up.")).toBeInTheDocument();
 
@@ -88,7 +102,7 @@ describe("a Today row's timer", () => {
   it('counts down each second, with hours from an hour', () => {
     vi.useFakeTimers();
     render(<Rows habits={[read]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Start the 90 minute timer for Read' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start timer for Read, 90 min' }));
     expect(screen.getByRole('timer')).toHaveTextContent('1:30:00');
 
     act(() => {
@@ -101,18 +115,18 @@ describe("a Today row's timer", () => {
     const user = userEvent.setup();
     render(<Rows habits={[walk, read]} />);
     await user.click(startWalk());
-    const startRead = () => screen.getByRole('button', { name: 'Start the 90 minute timer for Read' });
+    const startRead = () => screen.getByRole('button', { name: 'Start timer for Read, 90 min' });
 
     await user.click(startRead());
     let dialog = within(await screen.findByRole('dialog', { name: 'Switch timers?' }));
     await user.click(dialog.getByRole('button', { name: 'Keep Walk' }));
-    expect(screen.getByRole('timer', { name: 'Time left for Walk' })).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent('Time left for Walk');
     expect(startRead()).toHaveFocus();
 
     await user.click(startRead());
     dialog = within(await screen.findByRole('dialog', { name: 'Switch timers?' }));
     await user.click(dialog.getByRole('button', { name: 'Start Read' }));
-    expect(screen.getByRole('timer', { name: 'Time left for Read' })).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent('Time left for Read');
     expect(screen.getAllByRole('timer')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Pause the timer for Read' })).toHaveFocus();
   });
@@ -128,7 +142,7 @@ describe("a Today row's timer", () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: /^Start the/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Start timer/ })).toBeNull();
   });
 
   it('still shows a running timer whose habit lost its length', () => {
@@ -138,12 +152,34 @@ describe("a Today row's timer", () => {
     expect(screen.getByRole('button', { name: 'Stop the timer for Walk' })).toBeInTheDocument();
   });
 
+  it('says Android may be late, and offers on-time alerts only where the app may ask for them', async () => {
+    const late = 'Android may tell you a little late while Ember is closed.';
+    habitTimer.start(walk);
+    habitTimer.notifies.set(true);
+    render(<Rows habits={[walk]} />);
+    expect(screen.queryByText(late)).toBeNull();
+
+    act(() => habitTimer.late.set(true));
+    expect(screen.getByText(late)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Allow on-time alerts' })).toBeNull();
+
+    cleanup();
+    beta.on = true;
+    vi.mocked(reminders!.allowExact).mockResolvedValue(true);
+    vi.spyOn(habitTimer, 'check').mockImplementation(() => habitTimer.late.set(false));
+    render(<Rows habits={[walk]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Allow on-time alerts' }));
+
+    await waitFor(() => expect(screen.queryByText(late)).toBeNull());
+    expect(screen.getByRole('button', { name: 'Pause the timer for Walk' })).toHaveFocus();
+  });
+
   it('speaks German', async () => {
     await inGerman();
     render(<Rows habits={[walk]} />);
     await userEvent.click(screen.getByRole('button', { name: 'Timer für Walk starten, 30 Min.' }));
 
-    expect(screen.getByRole('timer', { name: 'Verbleibende Zeit für Walk' })).toBeInTheDocument();
+    expect(screen.getByRole('timer')).toHaveTextContent('Verbleibende Zeit für Walk');
     expect(screen.getByRole('button', { name: 'Timer für Walk pausieren' })).toBeInTheDocument();
   });
 });

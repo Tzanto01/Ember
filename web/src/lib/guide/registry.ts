@@ -94,8 +94,8 @@ export const guides: Record<GuideScreen, Guide> = {
         target: 'timer',
         covers: [
           'web/src/lib/timer/habit-timer.ts',
-          'web/src/components/today/timer-control.tsx',
-          'web/src/components/timer-notice.tsx',
+          'web/src/lib/native/timer-notification.ts',
+          'web/src/lib/timer/page-notification.ts',
         ],
       },
       {

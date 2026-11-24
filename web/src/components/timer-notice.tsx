@@ -6,9 +6,12 @@ import { LiveRegion } from '@/components/live-region';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { asApiError, problemToMessage } from '@/lib/problem';
-import { habitTimer } from '@/lib/services';
+import { auth, habitTimer } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import type { TimerOffer, TimerRecord } from '@/lib/timer/habit-timer';
+
+/** How long the offer may take before the notice shows its buttons without it. */
+const slowMs = 1000;
 
 interface NoticeState {
   offer: TimerOffer | null;
@@ -23,6 +26,8 @@ function EndedTimer({ record, onDone }: { record: TimerRecord; onDone: (message:
   const confirming = useRef(false);
   const [{ offer, problem }, setState] = useState<NoticeState>({ offer: null, problem: null });
   const [busy, setBusy] = useState(false);
+  const [slow, setSlow] = useState(false);
+  const today = useStore(auth.me)?.localToday;
   const canCheckIn = offer?.canCheckIn === true;
 
   useEffect(() => onDone(''), [onDone]);
@@ -45,11 +50,20 @@ function EndedTimer({ record, onDone }: { record: TimerRecord; onDone: (message:
     };
   }, [habitId, date]);
 
-  const hadOffer = useRef(false);
   useEffect(() => {
-    if (hadOffer.current && !canCheckIn && document.activeElement === document.body) okay.current?.focus();
-    hadOffer.current = canCheckIn;
-  }, [canCheckIn]);
+    const timer = setTimeout(() => setSlow(true), slowMs);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const waiting = !offer && slow;
+  const primary = canCheckIn || waiting;
+  const label = t((offer ? offer.yesterday : date !== today) ? 'timer.notice.markYesterday' : 'timer.notice.mark');
+
+  const hadPrimary = useRef(false);
+  useEffect(() => {
+    if (hadPrimary.current && !primary && document.activeElement === document.body) okay.current?.focus();
+    hadPrimary.current = primary;
+  }, [primary]);
 
   function leave(): void {
     document.getElementById('main')?.focus({ preventScroll: true });
@@ -76,6 +90,7 @@ function EndedTimer({ record, onDone }: { record: TimerRecord; onDone: (message:
   }
 
   function dismiss(): void {
+    if (confirming.current) return;
     habitTimer.stop();
     leave();
   }
@@ -94,20 +109,28 @@ function EndedTimer({ record, onDone }: { record: TimerRecord; onDone: (message:
             <p>{problem}</p>
           </Notice>
         )}
-        <div className="flex min-h-[44px] flex-wrap gap-2">
-          {canCheckIn && (
-            <>
-              <BusyButton type="button" busy={busy} busyLabel={t('timer.notice.saving')} onClick={() => void confirm()}>
-                {t(offer.yesterday ? 'timer.notice.markYesterday' : 'timer.notice.mark')}
-              </BusyButton>
-              <Button type="button" variant="ghost" aria-disabled={busy || undefined} onClick={dismiss}>
-                {t('timer.notice.notNow')}
-              </Button>
-            </>
+        <div className="grid min-h-[44px] w-full max-w-[28rem] grid-cols-1 gap-2 sm:grid-cols-2">
+          {primary ? (
+            <BusyButton
+              type="button"
+              busy={busy || waiting}
+              busyLabel={busy ? t('timer.notice.saving') : label}
+              onClick={() => void confirm()}
+            >
+              {label}
+            </BusyButton>
+          ) : (
+            offer && slow && <span aria-hidden="true" className="min-h-[44px]" />
           )}
-          {offer && !canCheckIn && (
-            <Button ref={okay} type="button" variant="secondary" onClick={dismiss}>
-              {t('shell.okay')}
+          {(primary || offer) && (
+            <Button
+              ref={okay}
+              type="button"
+              variant={primary ? 'ghost' : 'secondary'}
+              aria-disabled={busy || undefined}
+              onClick={dismiss}
+            >
+              {t(primary ? 'timer.notice.notNow' : 'shell.okay')}
             </Button>
           )}
         </div>
@@ -118,7 +141,8 @@ function EndedTimer({ record, onDone }: { record: TimerRecord; onDone: (message:
 
 /**
  * Says gently that the habit timer is up, once, and offers "Mark as done" only when its day can still be checked in.
- * It checks nothing in without that tap. Buttons wait for the offer, so none changes under a finger.
+ * It checks nothing in without that tap. Buttons wait for the offer; after {@link slowMs} they show
+ * with "Mark as done" still busy, so "Not now" always works and each keeps its place.
  */
 export function TimerNotice() {
   const { t } = useTranslation();

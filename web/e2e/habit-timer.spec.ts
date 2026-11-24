@@ -21,9 +21,9 @@ test('a habit timer survives a reload, says when the time is up and checks in on
   await expect(page).toHaveURL(/\/today$/);
 
   const checkIn = page.getByRole('button', { name: 'Check in Walk for today' });
-  const timeLeft = page.getByRole('timer', { name: 'Time left for Walk' });
-  await page.getByRole('button', { name: 'Start the 1 minute timer for Walk' }).click();
-  await expect(timeLeft).toHaveText(/^0[01]:\d\d$/);
+  const timeLeft = page.getByRole('timer').filter({ hasText: 'Time left for Walk' });
+  await page.getByRole('button', { name: 'Start timer for Walk, 1 min' }).click();
+  await expect(timeLeft).toHaveText(/0[01]:\d\d$/);
   await page.getByRole('button', { name: 'Pause the timer for Walk' }).click();
   await expect(page.getByRole('button', { name: 'Resume the timer for Walk' })).toBeFocused();
 
