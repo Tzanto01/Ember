@@ -19,7 +19,7 @@ namespace Ember.Api;
 /// confirmed linked one are deleted at once. A diagnostics upload never holds up the
 /// outbox: each step first drops uploads unsent for <see cref="LookoutDiagnostic.MaxUnsentAge"/>; an upload Lookout accepted or
 /// refused for good is deleted, and any other answer defers only that upload by its own backoff (<see cref="LookoutDiagnostic.NextAttemptAt"/>).
-/// Logs row id, kind and status or exception type only.
+/// Refuses to start while its database login lacks a right it uses. Logs row id, kind and status or exception type only.
 /// </summary>
 internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http, IConfiguration configuration, TimeProvider time,
     ILogger<LookoutSender> logger, LookoutDeletedRefs deletedRefs) : BackgroundService
@@ -53,12 +53,23 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
             return;
         }
 
+        await RequireRightsAsync(stoppingToken);
         deletedRefs.Start();
         while (!stoppingToken.IsCancellationRequested)
         {
             var wait = await StepAsync(stoppingToken);
             if (wait > TimeSpan.Zero) await Task.Delay(wait, time, stoppingToken);
         }
+    }
+
+    /// <summary>Logs and throws, which stops the host, when the database login lacks any of <see cref="LookoutSenderRights.Required"/>.</summary>
+    internal async Task RequireRightsAsync(CancellationToken cancellationToken)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var missing = await LookoutSenderRights.MissingAsync(scope.ServiceProvider.GetRequiredService<EmberDbContext>(), cancellationToken);
+        if (missing.Count == 0) return;
+        logger.LogCritical("The Lookout sender's database login lacks rights: {Rights}. Run ops/sql/ember_lookout.sql.", string.Join(", ", missing));
+        throw new InvalidOperationException("The Lookout sender's database login lacks rights.");
     }
 
     /// <summary>
@@ -78,7 +89,9 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
             logger.LogInformation("Dropped {Count} diagnostics uploads unsent for 30 days.", expired);
         PruneDeletedRefs(now);
         var row = await db.LookoutOutbox.AsNoTracking().Where(o => o.SentAt == null && o.ParkedAt == null)
-            .OrderBy(o => o.Kind == LookoutOutbox.UserDelete ? 0 : 1).ThenBy(o => o.Id).FirstOrDefaultAsync(cancellationToken);
+            .OrderBy(o => o.Kind == LookoutOutbox.UserDelete ? 0 : 1).ThenBy(o => o.Id)
+            .Select(o => new LookoutOutbox { Id = o.Id, Kind = o.Kind, Key = o.Key, FeedbackId = o.FeedbackId, UserRef = o.UserRef })
+            .FirstOrDefaultAsync(cancellationToken);
         if (row is null) return await StepDiagnosticAsync(db, endpoint, keyFile, now, cancellationToken);
         var rows = db.LookoutOutbox.Where(o => o.Id == row.Id);
 
@@ -92,8 +105,17 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         }
         else
         {
-            var feedback = await db.Feedback.AsNoTracking().Include(f => f.Images.OrderBy(i => i.Id))
-                .FirstOrDefaultAsync(f => f.Id == row.FeedbackId, cancellationToken);
+            var feedback = await db.Feedback.AsNoTracking().Where(f => f.Id == row.FeedbackId)
+                .Select(f => new Core.Models.Feedback
+                {
+                    Platform = f.Platform,
+                    Version = f.Version,
+                    Title = f.Title,
+                    Text = f.Text,
+                    CreatedAt = f.CreatedAt,
+                    Images = f.Images.OrderBy(i => i.Id).Select(i => new FeedbackImage { Id = i.Id, ContentType = i.ContentType, Data = i.Data }).ToList(),
+                })
+                .FirstOrDefaultAsync(cancellationToken);
             if (feedback is null)
             {
                 await rows.ExecuteDeleteAsync(cancellationToken);
@@ -151,7 +173,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
     private async Task<TimeSpan> StepDiagnosticAsync(EmberDbContext db, Uri endpoint, string keyFile, DateTime now, CancellationToken cancellationToken)
     {
         var row = await db.LookoutDiagnostics.AsNoTracking().Where(d => d.NextAttemptAt == null || d.NextAttemptAt <= now)
-            .OrderBy(d => d.Id).FirstOrDefaultAsync(cancellationToken);
+            .OrderBy(d => d.Id).Select(d => new { d.Id, d.Key, d.Body, d.Attempts }).FirstOrDefaultAsync(cancellationToken);
         if (row is null) return PollInterval;
         var rows = db.LookoutDiagnostics.Where(d => d.Id == row.Id);
 

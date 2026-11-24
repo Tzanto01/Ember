@@ -96,7 +96,7 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=emberdb;Username=${DB_USER};Password=${DB_PASSWORD};GSS Encryption Mode=Disable
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=emberdb;Username=${LOOKOUT_DB_USER:-${DB_USER}};Password=${LOOKOUT_DB_PASSWORD:-${DB_PASSWORD}};GSS Encryption Mode=Disable
       Lookout__IngestUrl: ${LOOKOUT_INGEST_URL:-}
       Lookout__KeyFile: /run/secrets/lookout_app_ember
       Lookout__DeletedRefsFile: ${LOOKOUT_DELETED_REFS_FILE:-}

@@ -103,6 +103,7 @@ Back up the database before you deploy a build with a new migration.
 | `EMBER_DELETION_LEDGER_FILE` | `ember` and `api`, optional. The deletion ledger inside the containers, `/ledger/deletions.jsonl` on production. Without it Ember keeps no ledger. See "Restoring a backup" below. |
 | `EMBER_DELETION_LEDGER_DIR` | Optional. Host directory mounted at `/ledger` in `ember` and `api`. Defaults to `./deletion-ledger`. Set it together with `EMBER_DELETION_LEDGER_FILE`: otherwise Docker creates the default directory owned by root and every ledger write fails. |
 | `LOOKOUT_INGEST_URL` | `lookout-sender` only, optional. Lookout's ingest address as an IP literal, `http://172.31.250.18:8081` on the homeserver. Set it only on production; without it the sender sends nothing. |
+| `LOOKOUT_DB_USER`, `LOOKOUT_DB_PASSWORD` | `lookout-sender` only, optional. Its own PostgreSQL login for `emberdb`, `ember_lookout` on production. Set both. Without them the sender uses `DB_USER` and `DB_PASSWORD`. |
 | `LOOKOUT_DELETED_REFS_FILE` | `lookout-sender` only, optional. The deleted refs inside the container, `/deleted-refs/refs.jsonl` on production. Without it no ref is recorded, and the deletions can't be repeated in a restored Lookout store. Never unset it once it is on. See "Restoring Lookout's store" below. |
 | `LOOKOUT_DELETED_REFS_DIR` | Optional. Host directory mounted at `/deleted-refs` in `lookout-sender`. Defaults to `./lookout-deleted-refs`. Set it together with `LOOKOUT_DELETED_REFS_FILE` to a directory owned by uid 1000 with mode 700, outside Lookout's own folder and never under `~/backups`. |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | `api` only. Discord OAuth application for signing in with Discord and linking it, on the web and in the Android app. |
@@ -132,6 +133,8 @@ setfacl -m u:1654:rwx ~/backups/ember-ledger
 ```
 
 Then set `EMBER_DELETION_LEDGER_DIR=/home/nico/backups/ember-ledger` and `EMBER_DELETION_LEDGER_FILE=/ledger/deletions.jsonl` in `.env` and recreate the containers (`docker compose --profile api up -d`). A deletion whose ledger line can't be written still happens; the container logs a warning.
+
+**The sender's own login (maintainer).** `ops/sql/ember_lookout.sql` creates or updates the role `ember_lookout`, which reaches only the columns the sender uses: the outbox, the reports and pictures in it without the account they belong to, and the diagnostics uploads. Its header says how to run it with a password from `~/.config/ember-ops/ember_lookout` (mode 600, at least 24 letters and digits). Run it after the migrations and before you set `LOOKOUT_DB_USER=ember_lookout` and `LOOKOUT_DB_PASSWORD` in `.env` and recreate the sender. Run it again after a migration that changes a column the sender uses. The sender refuses to start and logs the missing rights while any is missing, and a test fails while the script and the sender differ.
 
 **Restoring Lookout's store (maintainer).** A copy of Lookout's `lookout.db` brings back feedback of accounts deleted since. The `lookout-sender` therefore records the random ref of every deletion Lookout confirmed, with the time and never with the account id, in `LOOKOUT_DELETED_REFS_FILE`, and keeps it 30 days. Deletions Lookout hasn't confirmed yet still wait in the outbox. Set it up once:
 

@@ -36,6 +36,17 @@ public sealed class PostgresFixture : IAsyncLifetime
         return await CreateAsync(TemplateName);
     }
 
+    /// <summary>Runs one of the <c>ops/sql</c> scripts with psql as superuser on the database of <paramref name="connectionString"/>, with <paramref name="variable"/> in its environment, as an operator does.</summary>
+    public async Task RunScriptAsync(string connectionString, string script, string variable, string password)
+    {
+        var container = _container ?? throw new InvalidOperationException("Postgres container is not running.");
+        var database = new NpgsqlConnectionStringBuilder(connectionString).Database;
+        var target = $"/tmp/{Path.GetFileName(script)}";
+        await container.CopyAsync(await File.ReadAllBytesAsync(script), target);
+        var result = await container.ExecAsync(["sh", "-c", $"{variable}='{password}' psql -U postgres -d {database} -f - < {target}"]);
+        if (result.ExitCode != 0) throw new InvalidOperationException($"{Path.GetFileName(script)} failed ({result.ExitCode}): {result.Stderr}");
+    }
+
     public Task DisposeAsync() => Task.CompletedTask;
 
     private async Task<string> CreateAsync(string? template)
