@@ -9,4 +9,5 @@ Each record is one decision that would be expensive to reverse or that a new dev
 | # | Decision |
 |---|---|
 | [0001](0001-scheduler-in-the-bot-single-instance.md) | The Quartz scheduler stays in the bot process; Ember runs as a single instance |
-| [0002](0002-fluentassertions-licence.md) | FluentAssertions 8 stays until the first paid tier |
+| [0002](0002-fluentassertions-licence.md) | FluentAssertions 8 stays until the first paid tier (superseded by 0003) |
+| [0003](0003-awesomeassertions.md) | The .NET tests use AwesomeAssertions 8 |
