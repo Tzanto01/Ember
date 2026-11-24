@@ -30,7 +30,7 @@ import { forgetUnreachable } from '@/lib/guards';
 import { type DiscordCode, listenForDiscord, startDiscordSignIn } from '@/lib/native/discord';
 import { queryString } from '@/lib/navigation';
 import { asApiError, type FriendlyProblem, problemToMessage, requiresTwoFactor } from '@/lib/problem';
-import { safeReturnUrl } from '@/lib/return-url';
+import { safeReturnUrl, skipsConsent } from '@/lib/return-url';
 import { api, auth } from '@/lib/services';
 
 interface Credentials {
@@ -214,7 +214,9 @@ export default function LoginPage() {
   }
 
   function signedIn(): void {
-    void navigate(auth.needsConsent() ? `/consent?${queryString({ returnUrl })}` : returnUrl);
+    const skip = skipsConsent(returnUrl);
+    if (skip) auth.offerConsentLater();
+    void navigate(auth.needsConsent() && !skip ? `/consent?${queryString({ returnUrl })}` : returnUrl);
   }
 
   const login = useMutation({

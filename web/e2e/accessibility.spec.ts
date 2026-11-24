@@ -67,6 +67,7 @@ for (const { code, locale, strings } of languages) {
           await visitPage(page, '/local', tr('local.start.title'), found);
           await expect(page.getByText(tr('about.intro'))).toBeVisible();
           await visitPage(page, '/about', tr('title.about'), found);
+          await visitPage(page, '/delete-account', tr('title.deleteAccount'), found);
           await visitPage(page, '/feedback', tr('title.feedback'), found);
           await visitPage(page, '/download', /./, found);
           await visitPage(page, '/legal/privacy', /./, found);

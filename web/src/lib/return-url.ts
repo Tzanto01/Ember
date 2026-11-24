@@ -14,3 +14,9 @@ export function safeReturnUrl(value: string | null | undefined, fallback = '/tod
   }
   return value;
 }
+
+/** The public account-deletion page. */
+export const deleteAccountPath = '/delete-account';
+
+/** Whether a sign-in that returns to `returnUrl` skips the consent step: nobody is asked to agree on the way to deleting. */
+export const skipsConsent = (returnUrl: string): boolean => returnUrl.split(/[?#]/)[0] === deleteAccountPath;

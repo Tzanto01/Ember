@@ -260,6 +260,11 @@ export class AuthService {
     resetTheme();
   }
 
+  /** Lets the signed-in guard offer the consent step again, after a sign-in that skipped it. */
+  offerConsentLater(): void {
+    this.consentPrompted = false;
+  }
+
   /** True once per app session when the consent step should be offered (used by the signed-in guard). */
   takeConsentPrompt(): boolean {
     if (this.consentPrompted) return false;

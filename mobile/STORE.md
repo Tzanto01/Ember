@@ -21,8 +21,8 @@ A calm companion for hard moments and gentle days. And on the other days: gentle
 
 ## 0. Blockers before anything is published
 
-1. **Public URLs.** Play needs a privacy policy URL and an account-deletion URL that open without the app. The policy text is rewritten for v2 (`web/public/legal/datenschutzerklaerung.md`) and still has open points (the questions in `docs/legal/README.md`). TODO (Nico): confirm the public URL on the final domain.
-2. **No public account-deletion page** (section 2.4).
+1. **Public URLs.** Play needs a privacy policy URL (`{WebOrigin}/legal/privacy`) and an account-deletion URL (`{WebOrigin}/delete-account`, section 2.4) that open without the app. The policy text is rewritten for v2 (`web/public/legal/datenschutzerklaerung.md`) and still has open points (the questions in `docs/legal/README.md`). TODO (Nico): confirm the public URL on the final domain.
+2. **Public account-deletion page:** done, `{WebOrigin}/delete-account` (section 2.4).
 
 ## 1. Summary: what Nico must do, pay or decide
 
@@ -95,7 +95,7 @@ From the merged manifest of the `play` build (the `beta` sideload build adds `RE
 Play requires two things for apps where users create accounts:
 
 1. **In-app deletion.** Settings, "Delete your account", button "Delete my account" (`POST /api/me/delete`). It needs the password, or the typed word DELETE when the account has no password. Deleting signs the phone out, which cancels reminders and clears the widget and device data.
-2. **A web link** for someone who no longer has the app. There is no public deletion page yet; `/settings` needs sign-in. Recommendation: a public page with the deletion steps, for example `{WebOrigin}/delete-account`.
+2. **A web link** for someone who no longer has the app: `{WebOrigin}/delete-account` (`web/src/pages/delete-account.tsx`), English and German, open without signing in. Signed out it gives the steps, a sign-in that returns to the page, what to do with a lost password, a Discord-only account or no account, and the support contact. Signed in it shows the same delete card as Settings (same step-up, same `POST /api/me/delete`). It names Ember and says what is deleted at once and what stays, as Play's [account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111) ask. The app links it from Settings ("Delete your account"), About Ember and the privacy policy.
 
 Deletion form answers. **Deleted:** everything in section 2.1, including the consent record and the Discord link. **Kept:** server logs (rotated by size) and database backups (up to about 6 weeks), as the policy says in sections 3.7 and 7.
 
@@ -148,7 +148,7 @@ Do not submit. Kept for when iOS starts.
 
 ## 4. Open items
 
-- Public URLs for the policy and the deletion page (section 0).
+- The final domain for the policy and deletion URLs (section 0).
 - The open points in `docs/legal/README.md`, including that no Google push is active (the build does not apply the Google Services plugin and has no Firebase dependency).
 - Play account type, identity checks, trader status, support email, listing language. TODO (Nico).
 - Health apps category and the Discord sharing answer (sections 2.1 and 2.2). TODO (Nico).
@@ -164,7 +164,9 @@ Two product flavors, both with the application ID `app.ember.habits`:
 | Flavor | For | Label | Differs |
 |---|---|---|---|
 | `beta` | Sideloaded beta APK | Ember Beta | Adds the `EmberUpdater` plugin (`src/beta/`), `REQUEST_INSTALL_PACKAGES` and an updates path for the FileProvider. On launch and on return (at most once an hour) it reads `{API base}/download/latest.json` and offers a newer `versionCode`; Android's installer always asks before installing. |
-| `play` | Google Play | Ember | None of that: Play forbids self-updating apps. |
+| `play` | Google Play | Ember | None of that: Play forbids self-updating apps. It also hides the Ko-fi link (below). |
+
+The web bundle is the same in both flavors. It shows the Ko-fi tip link only on the web and where the `EmberUpdater` plugin exists, so never in a `play` build (`web/src/lib/tip-jar.ts`). Play's [Payments policy](https://support.google.com/googleplay/android-developer/answer/9858738) says apps "may not lead users to a payment method other than Google Play's billing system", including through buttons and links. Its [FAQ](https://support.google.com/googleplay/android-developer/answer/10281818) exempts tips only when all of the money reaches the creator and nothing digital is unlocked, which leaves room for argument, so the Play build has no link.
 
 - Sideload: `./gradlew assembleBetaRelease`, APK in `app/build/outputs/apk/beta/release/`.
 - Play: `./gradlew bundlePlayRelease`, AAB in `app/build/outputs/bundle/playRelease/`.

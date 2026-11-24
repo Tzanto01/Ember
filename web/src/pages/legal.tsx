@@ -37,7 +37,7 @@ async function loadDocument(file: string, hideEnglishSummary: boolean) {
 
 /**
  * `/legal/privacy`, `/legal/terms`, `/legal/imprint`: the German legal text from `/legal/*.md`, its `#` heading as the
- * `h1`, and the English summary quote only on an English UI.
+ * `h1`, and the English summary quote only on an English UI. The privacy policy ends with a link to account deletion.
  */
 export default function LegalPage({ doc }: { doc: LegalDoc }) {
   const { t, i18n } = useTranslation();
@@ -71,6 +71,11 @@ export default function LegalPage({ doc }: { doc: LegalDoc }) {
           <Skeleton className="h-5" />
           <Skeleton className="h-5 w-3/5" />
         </div>
+      )}
+      {doc === 'privacy' && (
+        <p lang={i18n.language}>
+          <TapLink to="/delete-account">{t('deleteAccount.link')}</TapLink>
+        </p>
       )}
       <p lang={i18n.language}>
         <TapLink to="/" className="gap-2">

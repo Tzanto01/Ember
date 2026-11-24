@@ -455,7 +455,20 @@ export default function SettingsPage() {
 
               {shown('export') && <ExportCard title={title('export')} />}
 
-              {shown('delete') && <DeleteCard title={title('delete')} me={me} local={local} />}
+              {shown('delete') && (
+                <DeleteCard
+                  title={title('delete')}
+                  me={me}
+                  local={local}
+                  more={
+                    !local && (
+                      <p>
+                        <TapLink to="/delete-account">{t('deleteAccount.settingsLink')}</TapLink>
+                      </p>
+                    )
+                  }
+                />
+              )}
 
               {shown('feedback') && (
                 <SettingsCard id="feedback" title={title('feedback')}>

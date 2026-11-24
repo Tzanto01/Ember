@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,6 +49,30 @@ describe('router guards', () => {
 
     expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument();
     expect(url(router)).toBe('/today');
+  });
+
+  it('sends a signed-in visit to /login on to a local return URL, and to /today for one off the site', async () => {
+    const router = await visit('/login?returnUrl=%2Fdelete-account');
+    (await mock.next('GET', '/api/me')).respond(200, me);
+    expect(await screen.findByRole('button', { name: 'Delete my account' })).toBeInTheDocument();
+    expect(url(router)).toBe('/delete-account');
+
+    await router.navigate('/login?returnUrl=%2F%2Fevil.example');
+    expect(url(router)).toBe('/today');
+    await router.navigate('/login?returnUrl=https%3A%2F%2Fevil.example');
+    expect(url(router)).toBe('/today');
+  });
+
+  it('opens /delete-account signed out without asking to sign in, and links it from the privacy policy', async () => {
+    const router = await visit('/delete-account');
+    (await mock.next('GET', '/api/me')).respond(401);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Delete your Ember account' })).toBeInTheDocument();
+    expect(url(router)).toBe('/delete-account');
+
+    await router.navigate('/legal/privacy');
+    expect(await screen.findByRole('link', { name: 'Delete your account' })).toHaveAttribute('href', '/delete-account');
+    await router.navigate('/legal/terms');
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Delete your account' })).toBeNull());
   });
 
   it('sends an unreachable /today to the offline login with a single wait for the API', async () => {

@@ -17,6 +17,7 @@ import { env } from '@/lib/env';
 import { guest, signedIn } from '@/lib/guards';
 import type { en } from '@/lib/i18n';
 import { setNavigator } from '@/lib/navigation';
+import { safeReturnUrl } from '@/lib/return-url';
 import { auth } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import { useTranslation } from 'react-i18next';
@@ -59,6 +60,11 @@ async function requireGuest({ request }: LoaderFunctionArgs) {
   if (new URL(request.url).searchParams.get('reason') === 'offline') return null;
   const target = await guest();
   return target ? redirect(target) : null;
+}
+
+async function requireGuestAtLogin(args: LoaderFunctionArgs) {
+  const answer = await requireGuest(args);
+  return answer && redirect(safeReturnUrl(new URL(args.request.url).searchParams.get('returnUrl')));
 }
 
 async function loadSession() {
@@ -163,7 +169,7 @@ export const routes: RouteObject[] = [
         element: <CenteredShell variant="auth" />,
         children: [
           { path: 'signup', loader: requireGuest, ...page('title.signup', () => import('./pages/signup')) },
-          { path: 'login', loader: requireGuest, ...page('title.login', () => import('./pages/login')) },
+          { path: 'login', loader: requireGuestAtLogin, ...page('title.login', () => import('./pages/login')) },
           {
             path: 'forgot-password',
             loader: requireGuest,
@@ -189,6 +195,11 @@ export const routes: RouteObject[] = [
           { path: 'download', ...page('title.download', () => import('./pages/download')) },
           { path: 'moment', ...page('title.moment', () => import('./pages/moment')) },
           { path: 'about', ...page('title.about', () => import('./pages/about')) },
+          {
+            path: 'delete-account',
+            loader: loadSession,
+            ...page('title.deleteAccount', () => import('./pages/delete-account')),
+          },
         ],
       },
       {
