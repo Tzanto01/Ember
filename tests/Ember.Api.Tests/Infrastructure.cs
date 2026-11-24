@@ -101,7 +101,7 @@ public sealed class ApiHost : WebApplicationFactory<Program>
             ["Ember:RateLimits:DiagnosticsPerIpPerDay"] = "1000",
             ["Ember:RateLimits:DiagnosticsPerInstallationPerDay"] = "1000",
             ["Ember:RateLimits:DiagnosticsPerHour"] = "1000",
-            ["Feedback:DigestEnabled"] = "false",
+            ["Feedback:RetentionEnabled"] = "false",
         };
         foreach (var (key, value) in extraSettings ?? [])
             _settings[key] = value;

@@ -62,11 +62,11 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
         all.Select(f => f.Text).Should().BeEquivalentTo("from the bot", "from the app");
     }
 
-    private Task SeedRows(int count, TimeSpan age)
+    private Task SeedAccepted(int count, TimeSpan age)
         => Host.Db(async db =>
         {
             var created = Host.Time.GetUtcNow().UtcDateTime - age;
-            db.Feedback.AddRange(Enumerable.Range(0, count).Select(i => new Ember.Core.Models.Feedback { Platform = "web", Text = $"seed {i}", CreatedAt = created }));
+            db.FeedbackIntake.AddRange(Enumerable.Range(0, count).Select(_ => new Ember.Core.Models.FeedbackIntake { CreatedAt = created }));
             await db.SaveChangesAsync();
             return 0;
         });
@@ -74,31 +74,31 @@ public class FeedbackStorageTests(PostgresFixture postgres) : ApiTestBase(postgr
     [DockerFact]
     public async Task At_300_feedback_in_the_last_24_hours_saving_refuses_and_the_api_answers_429_without_storing()
     {
-        await SeedRows(300, TimeSpan.FromHours(2));
+        await SeedAccepted(300, TimeSpan.FromHours(2));
 
         var saved = await Host.Service<FeedbackService, bool>(s => s.SaveFeedbackAsync(null, "discord", null, "one too many"));
         var response = await Host.NewClient().Post("/api/feedback", new { text = "one too many", platform = "web" });
 
         saved.Should().BeFalse();
         await response.ExpectProblem((HttpStatusCode)429, "rate_limited");
-        (await Stored()).Should().HaveCount(300).And.NotContain(f => f.Text == "one too many");
+        (await Stored()).Should().BeEmpty();
     }
 
     [DockerFact]
     public async Task Feedback_older_than_24_hours_does_not_count_toward_the_cap()
     {
-        await SeedRows(300, TimeSpan.FromHours(25));
+        await SeedAccepted(300, TimeSpan.FromHours(25));
 
         var saved = await Host.Service<FeedbackService, bool>(s => s.SaveFeedbackAsync(null, "discord", null, "fine"));
 
         saved.Should().BeTrue();
-        (await Stored()).Should().HaveCount(301);
+        (await Stored()).Should().ContainSingle();
     }
 
     [DockerFact]
     public async Task Just_under_the_cap_saving_still_works()
     {
-        await SeedRows(299, TimeSpan.FromHours(2));
+        await SeedAccepted(299, TimeSpan.FromHours(2));
 
         (await Host.Service<FeedbackService, bool>(s => s.SaveFeedbackAsync(null, "discord", null, "last one"))).Should().BeTrue();
     }

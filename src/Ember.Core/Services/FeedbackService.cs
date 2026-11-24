@@ -22,13 +22,16 @@ public class FeedbackService
     /// <summary>Most characters (UTF-16 code units) a feedback title can have after trimming.</summary>
     public const int MaxFeedbackTitleLength = 100;
 
-    /// <summary>Most feedback stored in any 24 hours, across every platform; also the most one digest email carries.</summary>
+    /// <summary>The window of <see cref="MaxFeedbackPerDay"/> and <see cref="MaxFeedbackImageBytesPerDay"/>.</summary>
+    public static readonly TimeSpan LimitWindow = TimeSpan.FromHours(24);
+
+    /// <summary>Most feedback accepted in any <see cref="LimitWindow"/>, across every platform.</summary>
     public const int MaxFeedbackPerDay = 300;
 
     /// <summary>Most picture bytes one sender (account or Discord user) can send in any 24 hours, enforced by the caller in memory.</summary>
     public const long MaxFeedbackImageBytesPerUserPerDay = 30L * 1024 * 1024;
 
-    /// <summary>Most stored picture bytes (<see cref="FeedbackImage.Size"/>) all feedback can carry in any 24 hours.</summary>
+    /// <summary>Most picture bytes (after stripping) all feedback accepted in any <see cref="LimitWindow"/> can carry.</summary>
     public const long MaxFeedbackImageBytesPerDay = 100L * 1024 * 1024;
 
     /// <summary>
@@ -65,8 +68,8 @@ public class FeedbackService
 
     /// <summary>
     /// Stores one feedback, submitted now, and returns true; returns false and stores nothing when <see cref="MaxFeedbackPerDay"/>
-    /// were already submitted in the last 24 hours, or when <paramref name="images"/> would take the pictures stored in the last 24
-    /// hours over <see cref="MaxFeedbackImageBytesPerDay"/> (checked before the insert, not atomically, so parallel requests can
+    /// were already accepted in the last 24 hours, or when <paramref name="images"/> would take the pictures accepted in the last 24
+    /// hours over <see cref="MaxFeedbackImageBytesPerDay"/> (both counted in <see cref="FeedbackIntake"/>, so a report deleted since still counts; checked before the insert, not atomically, so parallel requests can
     /// overshoot it by what they carry). The per-sender byte budget (<see cref="MaxFeedbackImageBytesPerUserPerDay"/>) is the
     /// caller's. <paramref name="userId"/> is kept only while that user exists; when the user is deleted or merged away in the
     /// meantime the feedback is stored without one and without its pictures, so they never outlive the account. The caller validates the input (<see cref="FeedbackTextError"/>,
@@ -84,8 +87,8 @@ public class FeedbackService
         string? title = null, IReadOnlyList<FeedbackImage>? images = null)
     {
         var now = _time.GetUtcNow().UtcDateTime;
-        var since = now.AddHours(-24);
-        if (await _db.Feedback.CountAsync(f => f.CreatedAt > since, cancellationToken) >= MaxFeedbackPerDay) return false;
+        var since = now - LimitWindow;
+        if (await _db.FeedbackIntake.CountAsync(i => i.CreatedAt > since, cancellationToken) >= MaxFeedbackPerDay) return false;
 
         if (images is { Count: > 0 })
         {
@@ -94,8 +97,8 @@ public class FeedbackService
                 images[i].Id = Guid.CreateVersion7(_time.GetUtcNow().AddMilliseconds(i));
                 images[i].Size = images[i].Data.Length;
             }
-            var stored = await _db.Feedback.Where(f => f.CreatedAt > since).SelectMany(f => f.Images).SumAsync(i => (long)i.Size, cancellationToken);
-            if (stored + images.Sum(i => (long)i.Size) > MaxFeedbackImageBytesPerDay) return false;
+            var accepted = await _db.FeedbackIntake.Where(i => i.CreatedAt > since).SumAsync(i => i.ImageBytes, cancellationToken);
+            if (accepted + images.Sum(i => (long)i.Size) > MaxFeedbackImageBytesPerDay) return false;
         }
 
         if (userId is { } id && !await _db.Users.AnyAsync(u => u.Id == id, cancellationToken))
@@ -115,6 +118,8 @@ public class FeedbackService
             Images = images is null ? [] : [.. images],
         };
         _db.Feedback.Add(feedback);
+        var intake = new FeedbackIntake { CreatedAt = now, ImageBytes = feedback.Images.Sum(i => (long)i.Size) };
+        _db.FeedbackIntake.Add(intake);
         LookoutUserRef? newRef = null;
         string? userRef = null;
         if (userId is { } owner)
@@ -150,6 +155,7 @@ public class FeedbackService
             feedback.Images.Clear();
             if (newRef is not null) _db.Entry(newRef).State = EntityState.Detached;
             outbox.UserRef = null;
+            intake.ImageBytes = 0;
             await _db.SaveChangesAsync(cancellationToken);
         }
 

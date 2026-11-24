@@ -189,65 +189,6 @@ public class FeedbackImageApiTests(PostgresFixture postgres) : ApiTestBase(postg
     }
 }
 
-public class FeedbackImageDigestTests(PostgresFixture postgres) : FeedbackDigestTestBase(postgres)
-{
-    protected override Dictionary<string, string?>? Settings => new() { ["Feedback:DigestTo"] = Recipient };
-
-    private Task Report(string title, int pictures, Guid? userId = null)
-        => Host.Run<FeedbackService>(s => s.SaveFeedbackAsync(userId, "web", "1.0", "body of " + title, default, title,
-            Enumerable.Range(0, pictures).Select(_ => new FeedbackImage { ContentType = "image/jpeg", Data = SyntheticImages.Jpeg() }).ToList()));
-
-    private Task<List<FeedbackImage>> Pictures() => Host.Db(db => db.FeedbackImages.AsNoTracking().OrderBy(i => i.Id).ToListAsync());
-
-    [DockerFact]
-    public async Task The_digest_names_no_picture_id_or_title_and_never_attaches_or_names_a_command()
-    {
-        await Report("With pictures", 2);
-        await Report("Without", 0);
-
-        await RunDigest();
-
-        var mail = Transport.Sent.Should().ContainSingle().Subject;
-        var ids = (await Pictures()).Select(i => i.Id.ToString()).ToList();
-        ids.Should().HaveCount(2);
-        mail.Body.Should().Contain("New feedback: 2").And.NotContain(ids[0]).And.NotContain(ids[1]).And.NotContain("Pictures")
-            .And.NotContain("With pictures").And.NotContain("Without");
-        mail.Body.Should().NotContain("docker").And.NotContain("Ember.Api.dll");
-    }
-
-    [DockerFact]
-    public async Task Pictures_are_deleted_30_days_after_the_report_was_resolved_and_not_before_or_when_unresolved()
-    {
-        await Report("old", 1);
-        await Report("recent", 1);
-        await Report("open", 1);
-        var now = Host.Time.GetUtcNow().UtcDateTime;
-        await Host.Db(db => db.Feedback.Where(f => f.Title == "old").ExecuteUpdateAsync(s => s.SetProperty(f => f.ResolvedAt, now.AddDays(-31))));
-        await Host.Db(db => db.Feedback.Where(f => f.Title == "recent").ExecuteUpdateAsync(s => s.SetProperty(f => f.ResolvedAt, now.AddDays(-10))));
-
-        await RunDigest();
-
-        var left = await Host.Db(db => db.Feedback.Where(f => f.Images.Any()).Select(f => f.Title).OrderBy(t => t).ToListAsync());
-        left.Should().Equal("open", "recent");
-        (await Stored()).Should().HaveCount(3, "the reports themselves stay");
-    }
-
-    [DockerFact]
-    public async Task Pictures_of_an_open_report_within_a_day_of_the_12_month_retention_are_deleted_so_they_never_outlive_it()
-    {
-        await Report("nearly a year", 1);
-        await Report("half a year", 1);
-        var now = Host.Time.GetUtcNow().UtcDateTime;
-        await Host.Db(db => db.Feedback.Where(f => f.Title == "nearly a year").ExecuteUpdateAsync(s => s.SetProperty(f => f.CreatedAt, now.AddMonths(-12).AddHours(12))));
-        await Host.Db(db => db.Feedback.Where(f => f.Title == "half a year").ExecuteUpdateAsync(s => s.SetProperty(f => f.CreatedAt, now.AddMonths(-6))));
-
-        await RunDigest();
-
-        (await Host.Db(db => db.Feedback.Where(f => f.Images.Any()).Select(f => f.Title).ToListAsync())).Should().Equal("half a year");
-        (await Stored()).Should().HaveCount(2);
-    }
-}
-
 public class FeedbackBigBodyRateLimitTests(PostgresFixture postgres) : ApiTestBase(postgres)
 {
     protected override Dictionary<string, string?>? Settings => new() { ["Ember:RateLimits:FeedbackPerHour"] = "2" };

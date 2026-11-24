@@ -55,7 +55,8 @@ services:
       Smtp__Password: ${SMTP_PASSWORD}
       Smtp__From: ${SMTP_FROM}
       Smtp__ReplyTo: ${SMTP_REPLY_TO:-}
-      Feedback__DigestTo: ${FEEDBACK_DIGEST_TO:-}
+      Feedback__DeleteSentCopies: ${FEEDBACK_DELETE_SENT_COPIES:-false}
+      Feedback__RetentionEnabled: ${FEEDBACK_RETENTION_ENABLED:-true}
       Discord__ClientId: ${DISCORD_CLIENT_ID}
       Discord__ClientSecret: ${DISCORD_CLIENT_SECRET}
       WebPush__PublicKey: ${VAPID_PUBLIC_KEY:-}
@@ -98,6 +99,7 @@ services:
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=emberdb;Username=${DB_USER};Password=${DB_PASSWORD};GSS Encryption Mode=Disable
       Lookout__IngestUrl: ${LOOKOUT_INGEST_URL:-}
       Lookout__KeyFile: /run/secrets/lookout_app_ember
+      Feedback__DeleteSentCopies: ${FEEDBACK_DELETE_SENT_COPIES:-false}
       Logging__LogLevel__Default: Information
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
     secrets:

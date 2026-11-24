@@ -31,7 +31,7 @@ public class LookoutOutbox
 
     public DateTime CreatedAt { get; set; }
 
-    /// <summary>Tickets: when Lookout accepted it; the row is kept so the import skips reports the outbox owns. User deletions are deleted once sent.</summary>
+    /// <summary>Tickets: when Lookout confirmed receipt; the row stays with the report as that confirmation. User deletions are deleted once sent.</summary>
     public DateTime? SentAt { get; set; }
 
     /// <summary>When Lookout refused the row for good; parked rows are never sent again.</summary>

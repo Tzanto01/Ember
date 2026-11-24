@@ -23,8 +23,8 @@ internal static class FeedbackEndpoints
     /// text with the platform, version and the signed-in user unless <c>anonymous</c> is true. <c>images</c> (base64, signed-in
     /// callers only, anonymous or not) are checked cheaply before the rate limit, then decoded and stripped by
     /// <see cref="FeedbackImages.Sanitize"/> and counted against <see cref="RateLimits.FeedbackBytesKey"/>. Unknown body members
-    /// are ignored. A missing <c>title</c> (app versions before v1.15) is taken from the text's first line. 429 also when <see cref="FeedbackService.MaxFeedbackPerDay"/> were submitted or
-    /// <see cref="FeedbackService.MaxFeedbackImageBytesPerDay"/> stored in the last 24 hours on any platform.
+    /// are ignored. A missing <c>title</c> (app versions before v1.15) is taken from the text's first line. 429 also when <see cref="FeedbackService.MaxFeedbackPerDay"/> were accepted or
+    /// <see cref="FeedbackService.MaxFeedbackImageBytesPerDay"/> would be passed in the last 24 hours on any platform.
     /// </summary>
     public static RouteGroupBuilder MapFeedback(this RouteGroupBuilder api)
     {

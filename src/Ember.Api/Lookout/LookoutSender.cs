@@ -1,3 +1,4 @@
+using Ember.Api.Feedback;
 using Ember.Api.Lookout;
 using Ember.Core;
 using Ember.Core.Data;
@@ -12,7 +13,8 @@ namespace Ember.Api;
 /// order. Deleting an account cascades away that user's unsent tickets, so a deletion still follows every ticket of that user, and a
 /// ticket stuck on a quota can't hold up an erasure. Sends nothing unless <see cref="LookoutIngest.TryGetEndpoint"/> accepts the
 /// configuration. A transient failure keeps an outbox row at the head and waits <see cref="LookoutIngest.Backoff"/>; a permanent
-/// refusal parks a ticket and moves on, while a deletion is never parked, only retried. A diagnostics upload never holds up the
+/// refusal parks a ticket and moves on, while a deletion is never parked, only retried. With
+/// <see cref="FeedbackRetention.DeleteSentCopiesSetting"/> a confirmed anonymous report is deleted at once. A diagnostics upload never holds up the
 /// outbox: each step first drops uploads unsent for <see cref="LookoutDiagnostic.MaxUnsentAge"/>; an upload Lookout accepted or
 /// refused for good is deleted, and any other answer defers only that upload by its own backoff (<see cref="LookoutDiagnostic.NextAttemptAt"/>).
 /// Logs row id, kind and status or exception type only.
@@ -104,9 +106,11 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         }
 
         now = time.GetUtcNow().UtcDateTime;
-        if (status is >= 200 and < 300)
+        if (LookoutIngest.IsConfirmed(row.Kind, status))
         {
             if (row.Kind == LookoutOutbox.UserDelete) await rows.ExecuteDeleteAsync(cancellationToken);
+            else if (row.UserRef is null && configuration.GetValue(FeedbackRetention.DeleteSentCopiesSetting, false))
+                await db.Feedback.Where(f => f.Id == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
             else await rows.ExecuteUpdateAsync(s => s.SetProperty(o => o.SentAt, now), cancellationToken);
             _failures = 0;
             return TimeSpan.Zero;

@@ -1,4 +1,6 @@
-# Ember API contract v1.27
+# Ember API contract v1.29
+
+v1.29 (2026-11-24, Nico on Ember's copy of feedback in Lookout: "Ember keeps a copy (Recommended)"): Lookout owns feedback's board, status, comments and email. Ember keeps what a signed-in user sent only for the export and the deletion, so the export's reports no longer have `status` and `resolved_at`, and the daily digest, `--feedback-status` and the ops board are gone. See "Feedback copy v1.29".
 
 v1.27 (2026-11-21, the server and the phone couldn't tell a skip from a count of 0): a check-in log stores whether it was written by a skip. Day objects gain `skipped`, a skip of today ends that day's reminders on every channel and leaves the habit out of its routine's reminder, a routine whose members left are skipped closes like a done one, and the missed-day message leaves out a skipped day. A Discord skip keeps the day's check-ins; the web's "Not done" writes count 0. See "Skip marker v1.27".
 
@@ -366,7 +368,7 @@ snake_case like today, plus `"format_version": 2` at the top level (an export wi
 - `journal_key`: `{ passphrase: { salt, iterations, iv, wrapped }, recovery: { salt, iv, wrapped } }` or null.
 - Ids in a file are only references inside that file; import assigns new ids and remaps `routine_id`, log `habit_id`, `custom:<id>` moods inside plaintext notes and the `h:<id>`/`r:<id>` keys of `settings.today_order` (more than 500 entries → 400 on `settings.today_order`). `account`, push subscriptions, DM state and consent fields are ignored on import.
 - The CSV export gets the matching columns and record types; import is JSON only.
-- `feedback` (v1.25, web export only, decision D7): the reports linked to the account, oldest first: `[{ id, platform, version, title, text, created_at, status, resolved_at, images: [{ id, content_type, size, data }] }]`. `version` is the app version, `status` lowercase as stored, times UTC (`resolved_at` null while open, planned or implemented), image `id` a GUID and `data` the picture as base64, or null when the picture was deleted while the export ran. Anonymous reports are never included, nor the digest time. CSV: one `feedback` row per report (`feedback_id`, `platform`, `app_version`, `title`, `text`, `created_at`, `status`, `resolved_at`) and one `feedback_image` row per picture (`feedback_id`, `image_id`, `content_type`, `size`, never the bytes).
+- `feedback` (v1.25, web export only, decision D7): the reports linked to the account, oldest first: `[{ id, platform, version, title, text, created_at, images: [{ id, content_type, size, data }] }]`. `version` is the app version, times UTC, image `id` a GUID and `data` the picture as base64, or null when the picture was deleted while the export ran. Anonymous reports are never included. v1.29: no `status` and `resolved_at`. CSV: one `feedback` row per report (`feedback_id`, `platform`, `app_version`, `title`, `text`, `created_at`) and one `feedback_image` row per picture (`feedback_id`, `image_id`, `content_type`, `size`, never the bytes).
 - `sessions` (v1.25, web export only, decision D7): the account's sign-in sessions, oldest first: `[{ created_at, expires_at, last_seen_at, platform, app_version, widget_key_set }]` (times UTC, `last_seen_at`, `platform` and `app_version` may be null). The session id (a credential) and the widget key hash are never exported. CSV: one `session` row per session (`created_at`, `expires_at`, `last_seen_at`, `platform`, `app_version`, `widget_key_set`).
 - Import ignores `feedback` and `sessions`. An export with pictures can exceed the import's 5 MiB body limit (413).
 - Rate limit (v1.25): `GET /api/me/export` (JSON or CSV) runs at most once at a time per account and at most `ExportPerHour` (`Ember:RateLimits`, default 10) times per account per hour, in memory (a restart resets it). An export while another one is still running, or past the hourly limit, → 429 `rate_limited` with `Retry-After`; a rejected concurrent export doesn't count against the hour.
@@ -558,7 +560,7 @@ Exactly like push subscriptions (v1.10): ending a session deletes the phones it 
 - `text`: trimmed, then 1 to 2000 UTF-16 code units, without control characters other than tab, line feed and carriage return, without bidi controls (U+202A to U+202E, U+2066 to U+2069) and without unpaired surrogates. `platform`: exactly `web` or `android` (`discord` is the bot's only). `version`: when present, 1 to 32 characters of `0-9 A-Z a-z . + _ -`.
 - 204 on success. 400 `validation` with errors on `text`, `platform` or `version`. 429 `rate_limited` with `Retry-After`.
 - Rate limits (`Ember:RateLimits`): `FeedbackPerHour` (default 5) per signed-in account; an anonymous sender per client IP (an IPv6 caller by its /64) and `FeedbackPerDay` (default 200) across all anonymous senders. Signed-in senders don't count toward and aren't stopped by that anonymous daily limit. The per-sender limit is taken first, so a sender over it doesn't use up the daily allowance. These limits are separate from the mail limits.
-- Global cap: at most 300 feedback stored in any 24 hours across every platform (web, Android, Discord; the most one digest carries). Beyond it the API answers 429 `rate_limited` with `Retry-After: 3600` and stores nothing; the bot answers "Ember has had a lot of feedback today. 💙 Try again tomorrow."
+- Global cap: at most 300 feedback accepted in any 24 hours across every platform (web, Android, Discord), also counting reports deleted since (v1.29). Beyond it the API answers 429 `rate_limited` with `Retry-After: 3600` and stores nothing; the bot answers "Ember has had a lot of feedback today. 💙 Try again tomorrow."
 
 ### Discord `/feedback`
 
@@ -567,15 +569,8 @@ Exactly like push subscriptions (v1.10): ending a session deletes the phones it 
 
 ### Storage and retention
 
-- Table `Feedback`: id, account (nullable), platform (`web`, `android`, `discord`), version, text, created and digested times. Deleted with the account; an account merge moves it to the target. Linked reports are in the web export (v1.25, see "Export format v2").
-- Feedback is deleted 12 months after it was submitted (on each digest run).
-
-### Daily digest
-
-- The API runs it every day at 08:00 Europe/Berlin (daylight saving included). A run missed while the API was down is caught up at the next 08:00. `Feedback:DigestEnabled=false` turns the schedule off (tests).
-- Mails every pending feedback, oldest first, at most 300 per email, in one email to `Feedback:DigestTo` over the account-email SMTP settings (written as plain text; the transport also adds an HTML copy, in which links are clickable); nothing when none is pending. Without `Feedback:DigestTo` nothing is sent (logged once per process) and feedback stays pending.
-- Subject `Ember feedback: {n} new`. The body opens with a line saying the feedback is written by users and links in it are untrusted, then per feedback, separated by `---`: `#{id} · {yyyy-MM-dd HH:mm Europe/Berlin} · {platform} {version or "unknown version"} · {signed in | no account}` and the text, every line prefixed with `> ` so it can't pose as a header or separator. With more than 300 pending it ends with `{N} more pending, they come with the next digest.` No account IDs or email addresses are in the mail.
-- Only the feedback in a sent email is marked digested, after the send returns. A failed send is logged (without the content), then one alert email goes to the same recipient, subject `Ember feedback digest failed`, with only the pending count, the oldest item's age in hours and the error type (a failure of that is logged too); the feedback stays pending for the next day. Delivery is at least once: if marking fails after a successful send, those items come again.
+- Table `Feedback`: id, account (nullable), platform (`web`, `android`, `discord`), version, text, created time. Deleted with the account; an account merge moves it to the target. Linked reports are in the web export (v1.25, see "Export format v2").
+- Feedback is deleted 12 months after it was submitted.
 
 ## Feedback pictures v1.15
 
@@ -589,7 +584,7 @@ Replaces the parts of "Feedback v1.13" it names; the rest stays.
 - `images`: signed-in callers only (anonymous or not), each a standard base64 string of one picture file, no `data:` prefix. At most 5, at most 10 MiB decoded together. The server decides the type by magic bytes, not by any declared type: JPEG, PNG or WebP only, still (no animated WebP), at most 4096 px per side. It removes metadata without decoding pixels: JPEG keeps only the segments needed to decode (APP14, DQT, DHT, DRI, SOF, SOS scans, at most 64), PNG keeps IHDR, PLTE, IDAT, IEND, tRNS, gAMA, cHRM, sRGB, sBIT, bKGD, pHYs (CRCs checked), WebP keeps VP8X (only the alpha flag), ALPH and VP8/VP8L. EXIF (also GPS), XMP, ICC, text chunks, the JFIF thumbnail and anything after the image end are gone. Pictures are stored in upload order.
 - 400 `validation` on `images`: "Sign in to add pictures." (signed out), "Up to 5 pictures.", "One of the pictures is empty.", "Pictures can be up to 10 MB together.", "One of the pictures couldn't be read. Try another one.", "Ember can take JPEG, PNG or WebP pictures.", "That picture is too large, up to 4096 pixels per side.", "Ember can take still pictures only, no animations.". 400 on `title` as above.
 - Body size: signed-in callers up to 14 MiB, everyone else 64 KiB (413 beyond). A signed-in body over 64 KiB first takes one of 2 server-wide upload slots and then a per-account permit (`FeedbackPerHour` per hour); without either → 429 `rate_limited` before the body is read. Such an upload must keep at least 50 KiB/s after 10 s, else the server drops it.
-- Rate limits: a report with pictures counts as one feedback (`FeedbackPerHour` per account, 300 per 24 h across platforms). The per-account hourly permit is taken before pictures are decoded. Plus 30 MiB of pictures per account per 24 h (in memory, also for anonymous reports; a restart resets it) and 100 MiB of stored pictures across everyone per 24 h (database). Over a limit → 429 `rate_limited` with `Retry-After`, nothing stored.
+- Rate limits: a report with pictures counts as one feedback (`FeedbackPerHour` per account, 300 per 24 h across platforms). The per-account hourly permit is taken before pictures are decoded. Plus 30 MiB of pictures per account per 24 h (in memory, also for anonymous reports; a restart resets it) and 100 MiB of accepted pictures across everyone per 24 h (database, also counting pictures deleted since, v1.29). Over a limit → 429 `rate_limited` with `Retry-After`, nothing stored.
 - When the account no longer exists by the time the report is saved, it is stored without account and without its pictures.
 - Clients: the web app and the Android app shrink each picture on the device first (longest side 1920 px, WebP, else JPEG on white), show the picker only with an account, and before sending pictures make sure the session is fresh; on 413 or "Sign in to add pictures." they refresh once and retry. A send with pictures waits up to 120 s.
 
@@ -601,21 +596,25 @@ Replaces the parts of "Feedback v1.13" it names; the rest stays.
 
 ### Storage and retention
 
-- `Feedback` gains `Title` (existing reports got the first line of their text) and `ResolvedAt` (null until handled). New table `FeedbackImages`: id (opaque UUID), report (cascade), content type, size, bytes (Postgres `bytea`).
-- `Feedback` gains `Status` (text: `open`, `planned`, `implemented`, `released` or `declined`; default `open`, reports already handled became `released`). `ResolvedAt` is the closed time: set when the status becomes released or declined, cleared when it goes back. Operator-only (`--feedback-status`), no HTTP or UI change.
-- Pictures are deleted 30 days after their report is closed (released or declined), and never kept past 12 months after the report (the daily digest run deletes them; a report is deleted after 12 months as before). Deleted with the account through the report, unless the report was anonymous (it has no link to the account). An account merge moves reports with their pictures. The web export carries the pictures of linked reports (v1.25, see "Export format v2"); no other HTTP endpoint serves pictures.
+- `Feedback` gains `Title` (existing reports got the first line of their text). New table `FeedbackImages`: id (opaque UUID), report (cascade), content type, size, bytes (Postgres `bytea`).
+- Pictures are never kept past 12 months after the report. Deleted with the account through the report, unless the report was anonymous (it has no link to the account). An account merge moves reports with their pictures. The web export carries the pictures of linked reports (v1.25, see "Export format v2"); no other HTTP endpoint serves pictures.
 
-### Daily digest
+## Feedback copy v1.29
 
-- No attachments. The header line ends with `signed in` or `anonymous` (was `no account`); the title follows as the first quoted line, then a lone `>` and the quoted text. A report with pictures ends with `Pictures: {id}, {id}`. No commands, paths or hostnames.
+Replaces the digest, status and retention parts of "Feedback v1.13" and "Feedback pictures v1.15". No client change.
 
-### Homeserver command (not HTTP)
+- Every report goes to Lookout through `LookoutOutbox`. Lookout owns its status, comments, board and email. `Feedback` loses `Status`, `ResolvedAt` and `DigestedAt`.
+- Kept: the report as sent (title, text, platform, version, time) for 12 months after it was submitted, for the web export and the account deletion. After 12 months it goes in any case, also when Lookout never got it.
+- With `Feedback:DeleteSentCopies` (off by default) an anonymous report is deleted as soon as Lookout confirmed receipt (200 or 201). A report Lookout hasn't answered for, or refused (parked), stays until then.
+- New table `FeedbackIntake` (`Id`, `CreatedAt`, `ImageBytes`): one row per accepted report for the 24-hour limits, no content and no sender, deleted once it is older than 24 hours.
+- `FeedbackRetention` runs daily at 08:00 Europe/Berlin in the API. `Feedback:RetentionEnabled=false` holds it back.
 
-Run from the Ember compose directory on the homeserver; documented in the README:
+### Homeserver commands (not HTTP)
 
-- `docker compose exec -T api dotnet Ember.Api.dll --list-feedback [--all]`: open, planned and implemented reports (all with `--all`), oldest first, as text: id, status, created and closed time (UTC), platform, version, `user {id}` or `anonymous`, quoted title and text, picture ids. Read-only.
+Run from the Ember compose directory. They reach only reports Lookout hasn't confirmed, because those can be read nowhere else:
+
+- `docker compose exec -T api dotnet Ember.Api.dll --list-feedback`: oldest first, as text: id, `waiting`, `parked {status}` or `not queued`, created time (UTC), platform, version, `linked` or `anonymous`, quoted title and text, picture ids. Read-only.
 - `tools/feedback-images.sh <out-dir> <id>...` (wraps `--feedback-images <id>...`): each id is a report id or a picture id; writes `{out-dir}/{reportId}/{pictureId}.{jpg|png|webp}`. Unknown ids are named on stderr; exit 1 when nothing was found.
-- `docker compose exec -T api dotnet Ember.Api.dll --feedback-status <open|planned|implemented|released|declined> <reportId>...`: sets each report's status and prints the change. Released or declined closes the report (closed time set now, kept on a later released or declined); open, planned or implemented clears it. An invalid status or unknown ids → exit 1.
 
 ## Companion v1.16
 

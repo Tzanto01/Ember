@@ -198,7 +198,6 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var root = JsonNode.Parse(body)!;
         var report = root["feedback"]!.AsArray().Should().ContainSingle().Subject!;
         ((string?)report["title"]).Should().Be("Crash on start");
-        ((string?)report["status"]).Should().Be("open");
         var picture = report["images"]!.AsArray().Should().ContainSingle().Subject!;
         ((Guid)picture["id"]!).Should().Be(stored.Images.Single().Id);
         Convert.FromBase64String((string)picture["data"]!).Should().Equal(stored.Images.Single().Data);

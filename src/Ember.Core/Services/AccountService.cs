@@ -161,7 +161,7 @@ public partial class AccountService
             .OrderBy(f => f.CreatedAt).ThenBy(f => f.Id)
             .Select(f => new
             {
-                f.Id, f.Platform, f.Version, f.Title, f.Text, f.CreatedAt, f.Status, f.ResolvedAt,
+                f.Id, f.Platform, f.Version, f.Title, f.Text, f.CreatedAt,
                 Images = f.Images.OrderBy(i => i.Id).Select(i => new { i.Id, i.ContentType, i.Size }).ToList(),
             })
             .AsSplitQuery()
@@ -174,8 +174,7 @@ public partial class AccountService
 
         return new(
             feedback.Select(f => new ExportBuilder.FeedbackRecord(f.Id, f.Platform, f.Version, f.Title, f.Text,
-                DateTime.SpecifyKind(f.CreatedAt, DateTimeKind.Utc), f.Status.ToString().ToLowerInvariant(),
-                f.ResolvedAt is { } resolved ? DateTime.SpecifyKind(resolved, DateTimeKind.Utc) : null,
+                DateTime.SpecifyKind(f.CreatedAt, DateTimeKind.Utc),
                 f.Images.Select(i => new ExportBuilder.FeedbackImageRecord(i.Id, i.ContentType, i.Size, null)).ToList())).ToList(),
             sessions.Select(s => new ExportBuilder.SessionRecord(s.CreatedUtc.UtcDateTime, s.ExpiresUtc.UtcDateTime, s.LastSeenUtc?.UtcDateTime,
                 s.Platform, s.AppVersion, s.WidgetKeySet)).ToList());

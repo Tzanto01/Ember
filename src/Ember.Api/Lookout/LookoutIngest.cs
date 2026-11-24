@@ -1,15 +1,15 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Ember.Core.Data;
+using Ember.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ember.Api.Lookout;
 
 /// <summary>
-/// The client side of Lookout's ingest API (<c>PUT tickets/{key}</c>, <c>DELETE users/{userRef}</c>, <c>PUT diagnostics/{key}</c>), shared by
-/// <see cref="LookoutSender"/> and <see cref="LookoutImportCli"/>. Never logs or throws the key, a body or a user ref.
+/// The client side of Lookout's ingest API (<c>PUT tickets/{key}</c>, <c>DELETE users/{userRef}</c>, <c>PUT diagnostics/{key}</c>), used by
+/// <see cref="LookoutSender"/>. Never logs or throws the key, a body or a user ref.
 /// </summary>
 internal static class LookoutIngest
 {
@@ -17,8 +17,8 @@ internal static class LookoutIngest
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
 
     /// <summary>
-    /// Key of the PostgreSQL session advisory lock <see cref="SendAsync"/> holds around each request, so the sender and the import
-    /// never have more than one request open at Lookout.
+    /// Key of the PostgreSQL session advisory lock <see cref="SendAsync"/> holds around each request, so two senders
+    /// (a deploy replacing one) never have more than one request open at Lookout.
     /// </summary>
     internal const long SendLockKey = 0x4C6F6F6B6F7574;
 
@@ -109,7 +109,10 @@ internal static class LookoutIngest
     /// <summary>The path of <c>DELETE users/{userRef}</c>.</summary>
     public static string UserPath(string userRef) => "users/" + Uri.EscapeDataString(userRef);
 
-    /// <summary>Whether a non-2xx status is one of the contract's permanent refusals: 400, 409, 413 or 415. Everything else is retried.</summary>
+    /// <summary>Whether <paramref name="status"/> confirms an outbox row of <paramref name="kind"/>: 200 a user deletion, 200 or 201 a ticket.</summary>
+    public static bool IsConfirmed(string kind, int status) => status is 200 || (status is 201 && kind == LookoutOutbox.Ticket);
+
+    /// <summary>Whether a status is one of the contract's permanent refusals: 400, 409, 413 or 415. Everything else is retried.</summary>
     public static bool IsRefused(int status) => status is 400 or 409 or 413 or 415;
 
     /// <summary>Whether <paramref name="e"/> is a failure worth retrying: network, timeout, key file or the database around the send lock.</summary>
@@ -129,18 +132,12 @@ internal static class LookoutIngest
     /// The UTF-8 JSON <c>TicketInput</c> of <paramref name="feedback"/> (with its <see cref="Feedback.Images"/> in id order); the
     /// same input gives the same bytes.
     /// </summary>
-    public static byte[] TicketBody(Ember.Core.Models.Feedback feedback, string? userRef, TicketImport? import = null)
+    public static byte[] TicketBody(Ember.Core.Models.Feedback feedback, string? userRef)
         => JsonSerializer.SerializeToUtf8Bytes(new TicketInput("feedback", feedback.Title, feedback.Text, feedback.Platform, feedback.Version,
-            Utc(feedback.CreatedAt), userRef, [.. feedback.Images.OrderBy(i => i.Id).Select(i => new TicketImage(i.ContentType, i.Data))], import), Json);
+            Utc(feedback.CreatedAt), userRef, [.. feedback.Images.OrderBy(i => i.Id).Select(i => new TicketImage(i.ContentType, i.Data))]), Json);
 
     private sealed record TicketInput(string Kind, string Title, string Text, string Platform, string? Version, string CreatedAt, string? UserRef,
-        IReadOnlyList<TicketImage> Images, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] TicketImport? Import);
+        IReadOnlyList<TicketImage> Images);
 
     private sealed record TicketImage(string ContentType, byte[] Data);
-
-    /// <summary>The <c>import</c> part of a ticket for the one-time import.</summary>
-    public sealed record TicketImport(string Status, string? ResolvedAt, int? Position, IReadOnlyList<TicketComment> Comments);
-
-    /// <summary>One imported comment.</summary>
-    public sealed record TicketComment(string Author, string Body, string CreatedAt);
 }

@@ -51,7 +51,7 @@ public class ImportEmptinessPerTableTests(PostgresFixture postgres)
     private static readonly Type[] NotSeedableAlone =
     [
         typeof(HabitLog), typeof(HabitSlip), typeof(MadeItDay), typeof(HabitNote), typeof(FeedbackImage), typeof(ReminderActionToken), typeof(LookoutOutbox),
-        typeof(LookoutDiagnostic),
+        typeof(LookoutDiagnostic), typeof(FeedbackIntake),
     ];
 
     [Fact]

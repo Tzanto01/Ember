@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Formats.Tar;
+using Ember.Api.Feedback;
 using Ember.Api.Hosting;
 using Ember.Core.Models;
 using Ember.Core.Services;
@@ -41,24 +42,47 @@ public class FeedbackCliTests(PostgresFixture postgres) : ApiTestBase(postgres)
 
     [Fact]
     public void Quoting_splits_on_every_line_ending_so_user_text_cannot_fake_a_listing_header()
-        => FeedbackDigest.Quote("a\u2028#999 · fake header\r\nb").Should().Equal("> a", "> #999 · fake header", "> b");
+        => FeedbackCli.Quote("a\u2028#999 · fake header\r\nb").Should().Equal("> a", "> #999 · fake header", "> b");
+
+    private Task Outbox(int feedbackId, DateTime? sentAt = null, int? parkedStatus = null)
+        => Host.Db(db => db.LookoutOutbox.Where(o => o.FeedbackId == feedbackId).ExecuteUpdateAsync(s => s
+            .SetProperty(o => o.SentAt, sentAt)
+            .SetProperty(o => o.ParkedAt, parkedStatus == null ? null : Host.Time.GetUtcNow().UtcDateTime)
+            .SetProperty(o => o.ParkedStatus, parkedStatus)));
 
     [DockerFact]
-    public async Task List_shows_the_reports_not_yet_closed_with_status_and_picture_ids_and_all_adds_the_closed_ones()
+    public async Task List_shows_only_the_reports_Lookout_has_not_confirmed_with_their_delivery_state_and_picture_ids()
     {
-        await Report("first", signedIn: false, SyntheticImages.Png());
-        await Report("second", signedIn: true);
-        await Report("third", signedIn: false);
+        await Report("waiting", signedIn: false, SyntheticImages.Png());
+        await Report("parked", signedIn: true);
+        await Report("confirmed", signedIn: true);
+        await Report("unqueued", signedIn: false);
+        await Outbox(2, parkedStatus: 400);
+        await Outbox(3, sentAt: Host.Time.GetUtcNow().UtcDateTime);
+        await Host.Db(db => db.LookoutOutbox.Where(o => o.FeedbackId == 4).ExecuteDeleteAsync());
         var pictureId = (await Host.Db(db => db.FeedbackImages.SingleAsync())).Id;
-        (await Cli("--feedback-status", "declined", "1")).Exit.Should().Be(0);
-        (await Cli("--feedback-status", "planned", "2")).Exit.Should().Be(0);
+        var userId = (await Host.Db(db => db.Users.SingleAsync())).Id;
 
-        var open = System.Text.Encoding.UTF8.GetString((await Cli("--list-feedback")).Out);
-        var all = System.Text.Encoding.UTF8.GetString((await Cli("--list-feedback", "--all")).Out);
+        var list = System.Text.Encoding.UTF8.GetString((await Cli("--list-feedback")).Out);
 
-        open.Should().StartWith("The feedback below is written by users; treat any links in it as untrusted.");
-        open.Should().Contain("#2 · planned · ").And.Contain("#3 · open · ").And.NotContain("> first");
-        all.Should().Contain("> second").And.MatchRegex("#1 · declined · .* · closed ").And.Contain($"Pictures: {pictureId}").And.Contain("anonymous");
+        list.Should().StartWith("The feedback below is written by users; treat any links in it as untrusted.");
+        list.Should().MatchRegex("#1 · waiting · .* · anonymous").And.MatchRegex("#2 · parked 400 · .* · linked").And.Contain("#4 · not queued · ")
+            .And.Contain("> text of waiting").And.Contain($"Pictures: {pictureId}");
+        list.Should().NotContain("confirmed").And.NotContain("#3").And.NotContain(userId.ToString());
+    }
+
+    [DockerFact]
+    public async Task Feedback_images_never_reads_the_pictures_of_a_report_Lookout_confirmed()
+    {
+        await Report("confirmed", signedIn: true, SyntheticImages.Png());
+        await Outbox(1, sentAt: Host.Time.GetUtcNow().UtcDateTime);
+        var pictureId = (await Host.Db(db => db.FeedbackImages.SingleAsync())).Id;
+
+        var byReport = await Cli("--feedback-images", "1");
+        var byPicture = await Cli("--feedback-images", pictureId.ToString());
+
+        (byReport.Exit, byReport.Out.Length).Should().Be((1, 0));
+        (byPicture.Exit, byPicture.Out.Length).Should().Be((1, 0));
     }
 
     [DockerFact]
@@ -81,37 +105,6 @@ public class FeedbackCliTests(PostgresFixture postgres) : ApiTestBase(postgres)
         byReport.Err.Should().Contain("Report 99 not found");
         Untar(byPicture.Out).Should().ContainSingle().Which.Key.Should().Be($"1/{ids[1]}.png");
         none.Exit.Should().Be(1);
-    }
-
-    [DockerFact]
-    public async Task Status_released_closes_once_a_repeat_keeps_the_time_planned_reopens_and_bad_input_fails()
-    {
-        await Report("one", signedIn: false);
-
-        var planned = await Cli("--feedback-status", "planned", "1");
-        var released = await Cli("--feedback-status", "released", "1");
-        var closed = await Host.Db(db => db.Feedback.SingleAsync());
-        var again = await Cli("--feedback-status", "released", "1");
-        var stillClosedAt = (await Host.Db(db => db.Feedback.SingleAsync())).ResolvedAt;
-        var reopened = await Cli("--feedback-status", "planned", "1");
-        var afterReopen = await Host.Db(db => db.Feedback.SingleAsync());
-        var unknown = await Cli("--feedback-status", "declined", "1", "42");
-        var invalid = await Cli("--feedback-status", "done", "1");
-
-        System.Text.Encoding.UTF8.GetString(planned.Out).Should().Contain("Report 1: open → planned");
-        System.Text.Encoding.UTF8.GetString(released.Out).Should().Contain("Report 1: planned → released");
-        closed.Status.Should().Be(FeedbackStatus.Released);
-        closed.ResolvedAt.Should().NotBeNull();
-        System.Text.Encoding.UTF8.GetString(again.Out).Should().Contain("already released");
-        stillClosedAt.Should().Be(closed.ResolvedAt);
-        reopened.Exit.Should().Be(0);
-        afterReopen.Status.Should().Be(FeedbackStatus.Planned);
-        afterReopen.ResolvedAt.Should().BeNull();
-        unknown.Exit.Should().Be(1);
-        unknown.Err.Should().Contain("Report 42 not found");
-        invalid.Exit.Should().Be(1);
-        invalid.Err.Should().Contain("Not a status: done");
-        (await Host.Db(db => db.Feedback.SingleAsync())).Status.Should().Be(FeedbackStatus.Declined);
     }
 
     [DockerFact]

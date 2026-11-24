@@ -206,7 +206,6 @@ public class PostgresMigrationTests(PostgresFixture postgres)
         var stored = await db.Feedback.AsNoTracking().OrderBy(f => f.Id).ToListAsync();
         stored.Select(f => f.Title).Should().Equal("Dark mode please", "one line", new string('x', 100));
         stored.Select(f => f.Text).Should().Equal("Dark mode please\r\nIt hurts my eyes at night", "one line", new string('x', 150));
-        stored.Should().OnlyContain(f => f.ResolvedAt == null);
     }
 
     [DockerFact]
@@ -307,10 +306,31 @@ public class PostgresMigrationTests(PostgresFixture postgres)
             "INSERT INTO \"Feedback\" (\"Platform\", \"Title\", \"Text\", \"CreatedAt\", \"ResolvedAt\") VALUES " +
             "('web', 'handled', 'handled', now(), now()), ('web', 'pending', 'pending', now(), NULL)");
 
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync("20261114234929_AddFeedbackStatus");
 
-        (await db.Feedback.AsNoTracking().OrderBy(f => f.Id).Select(f => f.Status).ToListAsync())
-            .Should().Equal(FeedbackStatus.Released, FeedbackStatus.Open);
+        (await db.Database.SqlQueryRaw<string>("SELECT \"Status\" AS \"Value\" FROM \"Feedback\" ORDER BY \"Id\"").ToListAsync())
+            .Should().Equal("released", "open");
+    }
+
+    [DockerFact]
+    public async Task FeedbackIntakeMigration_CountsTheReportsOfTheLast24HoursWithTheirPictureBytes()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        await db.GetService<IMigrator>().MigrateAsync("20261121062801_AddCheckInSkipped");
+        await db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO "Feedback" ("Id", "Platform", "Title", "Text", "CreatedAt") VALUES
+                (1, 'web', 'today', 'today', now() - interval '2 hours'), (2, 'web', 'plain', 'plain', now() - interval '3 hours'),
+                (3, 'web', 'older', 'older', now() - interval '25 hours');
+            INSERT INTO "FeedbackImages" ("Id", "FeedbackId", "ContentType", "Size", "Data") VALUES
+                (gen_random_uuid(), 1, 'image/png', 3, '\x010203'), (gen_random_uuid(), 1, 'image/png', 2, '\x0102'),
+                (gen_random_uuid(), 3, 'image/png', 1, '\x01');
+            """);
+
+        await db.GetService<IMigrator>().MigrateAsync();
+
+        (await db.FeedbackIntake.AsNoTracking().OrderByDescending(i => i.CreatedAt).Select(i => i.ImageBytes).ToListAsync()).Should().Equal(5, 0);
     }
 
     [DockerFact]

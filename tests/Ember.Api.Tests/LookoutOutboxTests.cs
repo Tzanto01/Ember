@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
-using Ember.Api.Hosting;
 using Ember.Api.Lookout;
 using Ember.Core.Data;
 using Ember.Core.Models;
@@ -125,13 +124,14 @@ internal sealed class SenderRig : IAsyncDisposable
 
     public HttpClient Http => _http;
 
-    public static async Task<SenderRig> StartAsync(ApiHost host, Func<string, string?>? ingestUrl = null, bool withKeyFile = true)
+    public static async Task<SenderRig> StartAsync(ApiHost host, Func<string, string?>? ingestUrl = null, bool withKeyFile = true,
+        Dictionary<string, string?>? extraSettings = null)
     {
         var fake = await FakeLookout.StartAsync();
         var key = "test-key-" + Guid.NewGuid().ToString("N");
         var keyFile = Path.Combine(Path.GetTempPath(), $"lookout-{Guid.NewGuid():N}.key");
         await File.WriteAllTextAsync(keyFile, key + "\n");
-        var settings = new Dictionary<string, string?>();
+        var settings = new Dictionary<string, string?>(extraSettings ?? []);
         if ((ingestUrl?.Invoke(fake.Url) ?? (ingestUrl is null ? fake.Url : null)) is { } url) settings["Lookout:IngestUrl"] = url;
         if (withKeyFile) settings["Lookout:KeyFile"] = keyFile;
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
@@ -538,222 +538,23 @@ public class LookoutOutboxTests(PostgresFixture postgres) : ApiTestBase(postgres
     public Task Nothing_is_sent_to_a_host_name_even_when_it_would_reach_the_ingest()
         => Unconfigured(url => url.Replace("127.0.0.1", "localhost"), withKeyFile: true);
 
-    private static readonly DateTime Oct = new(2026, 10, 1, 10, 0, 0, DateTimeKind.Utc);
-
-    private Task<int> Seed(string title, FeedbackStatus status, DateTime createdAt, DateTime? resolvedAt = null, Guid? userId = null, byte[]? picture = null)
-        => Host.Db(async db =>
-        {
-            var feedback = new Ember.Core.Models.Feedback
-            {
-                UserId = userId,
-                Platform = "web",
-                Version = "1.0",
-                Title = title,
-                Text = "text of " + title,
-                CreatedAt = createdAt,
-                Status = status,
-                ResolvedAt = resolvedAt,
-                Images = picture is null ? [] : [new FeedbackImage { Id = Guid.CreateVersion7(), ContentType = "image/png", Data = picture, Size = picture.Length }],
-            };
-            db.Feedback.Add(feedback);
-            await db.SaveChangesAsync();
-            return feedback.Id;
-        });
-
-    private async Task<(int Exit, string Output, List<TimeSpan> Delays)> Import(SenderRig rig, LookoutImportCli.Board board)
-    {
-        await using var db = new EmberDbContext(new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(ConnectionString).Options);
-        var output = new StringWriter();
-        var delays = new List<TimeSpan>();
-        var exit = await LookoutImportCli.ImportAsync(db, rig.Http, rig.Endpoint, rig.KeyFile, board,
-            (wait, _) =>
-            {
-                delays.Add(wait);
-                return Task.CompletedTask;
-            }, output, Host.Time);
-        return (exit, output.ToString(), delays);
-    }
-
-    private static string Key(int id) => $"/ingest/v1/tickets/import-feedback-{id}";
-
     [DockerFact]
-    public async Task A_lock_held_longer_than_the_waiters_command_timeout_only_delays_the_import()
+    public async Task While_another_sender_holds_the_send_lock_nothing_is_sent_until_it_lets_go()
     {
         await using var rig = await SenderRig.StartAsync(Host);
-        var id = await Seed("Imp-Long-Wait", FeedbackStatus.Open, Oct);
+        await Report(null, "web", "Waiting report");
         await using var holder = new Npgsql.NpgsqlConnection(ConnectionString);
         await holder.OpenAsync();
         await using (var take = new Npgsql.NpgsqlCommand($"SELECT pg_advisory_lock({LookoutIngest.SendLockKey})", holder))
             await take.ExecuteNonQueryAsync();
-        var timeout = new Npgsql.NpgsqlConnectionStringBuilder(ConnectionString) { CommandTimeout = 1 }.ConnectionString;
-        await using var db = new EmberDbContext(new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(timeout).Options);
+        var step = rig.Step();
 
-        var retries = 0;
-        var import = LookoutImportCli.ImportAsync(db, rig.Http, rig.Endpoint, rig.KeyFile, new LookoutImportCli.Board([], []),
-            (_, _) =>
-            {
-                retries++;
-                return Task.CompletedTask;
-            }, new StringWriter(), Host.Time);
-        await Task.Delay(TimeSpan.FromSeconds(3));
-        var early = rig.Fake.Requests.Count;
+        var early = await rig.Fake.Arrived.WaitAsync(TimeSpan.FromSeconds(1));
         await using (var release = new Npgsql.NpgsqlCommand($"SELECT pg_advisory_unlock({LookoutIngest.SendLockKey})", holder))
             await release.ExecuteNonQueryAsync();
 
-        early.Should().Be(0);
-        (await import).Should().Be(0);
-        retries.Should().Be(0, "the wait for the lock never times out");
-        rig.Fake.Requests.Select(r => r.Path).Should().Equal(Key(id));
-    }
-
-    [DockerFact]
-    public async Task The_import_waits_until_the_senders_open_request_has_its_answer()
-    {
-        await using var rig = await SenderRig.StartAsync(Host);
-        await Report(null, "web", "Queued report");
-        var row = (await Outbox()).Single();
-        var id = await Seed("Imp-Waits", FeedbackStatus.Open, Oct);
-        var hold = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        rig.Fake.Hold = hold;
-
-        var step = rig.Step();
-        (await rig.Fake.Arrived.WaitAsync(TimeSpan.FromSeconds(10))).Should().BeTrue();
-        var import = Import(rig, new LookoutImportCli.Board([], []));
-        var early = await rig.Fake.Arrived.WaitAsync(TimeSpan.FromSeconds(2));
-        var pending = import.IsCompleted;
-        hold.SetResult();
-
         early.Should().BeFalse();
-        pending.Should().BeFalse();
         (await step).Should().Be(Zero);
-        (await import).Exit.Should().Be(0);
-        rig.Fake.Requests.Select(r => r.Path).Should().Equal(Path(row), Key(id));
-    }
-
-    [DockerFact]
-    public async Task The_import_sends_every_report_without_an_outbox_row_column_by_column_with_status_comments_and_board_order()
-    {
-        await using var rig = await SenderRig.StartAsync(Host);
-        var user = await NewUser();
-        var oldest = await Seed("Imp-Oldest", FeedbackStatus.Open, Oct.AddDays(-5));
-        var pinned = await Seed("Imp-Pinned", FeedbackStatus.Open, Oct.AddDays(-2));
-        var newest = await Seed("Imp-Newest", FeedbackStatus.Open, Oct.AddDays(3));
-        var picture = SyntheticImages.Png(8, 8);
-        var planned = await Seed("Imp-Planned", FeedbackStatus.Planned, Oct, userId: user, picture: picture);
-        var resolvedAt = new DateTime(2026, 10, 20, 8, 30, 15, 123, DateTimeKind.Utc);
-        var released = await Seed("Imp-Released", FeedbackStatus.Released, Oct.AddDays(1), resolvedAt);
-        await Report(null, "web", "Imp-Outbox");
-        var withRow = (await Outbox()).Single().FeedbackId!.Value;
-        var board = new LookoutImportCli.Board(
-            [
-                new(2, planned, "Operator", "Later comment", new DateTimeOffset(2026, 10, 3, 9, 0, 0, TimeSpan.FromHours(2))),
-                new(1, planned, "Operator", "Earlier comment", new DateTimeOffset(2026, 10, 2, 12, 0, 0, TimeSpan.Zero)),
-                new(3, withRow, "Operator", "Never sent", new DateTimeOffset(2026, 10, 2, 12, 0, 0, TimeSpan.Zero)),
-            ],
-            [new(pinned, -9_999_999_999d)]);
-
-        var (exit, output, delays) = await Import(rig, board);
-
-        exit.Should().Be(0);
-        delays.Should().BeEmpty();
-        var requests = rig.Fake.Requests;
-        requests.Select(r => r.Path).Should().Equal(Key(pinned), Key(newest), Key(oldest), Key(planned), Key(released));
-        requests.Should().OnlyContain(r => r.Method == "PUT" && r.Authorization == "Bearer " + rig.Key);
-        requests.Select(r => r.Json().GetProperty("import").GetProperty("position").GetInt32())
-            .Should().Equal(100_000, 100_001, 100_002, 100_000, 100_000);
-        requests.Select(r => r.Json().GetProperty("import").GetProperty("status").GetString())
-            .Should().Equal("open", "open", "open", "planned", "released");
-        requests.Select(r => r.Json().GetProperty("import").GetProperty("resolvedAt").ValueKind)
-            .Should().Equal(JsonValueKind.Null, JsonValueKind.Null, JsonValueKind.Null, JsonValueKind.Null, JsonValueKind.String);
-        requests[4].Json().GetProperty("import").GetProperty("resolvedAt").GetString().Should().Be("2026-10-20T08:30:15.123Z");
-
-        var plannedBody = requests[3].Json();
-        plannedBody.GetProperty("import").GetProperty("comments").EnumerateArray()
-            .Select(c => (c.GetProperty("author").GetString(), c.GetProperty("body").GetString(), c.GetProperty("createdAt").GetString()))
-            .Should().Equal(("Operator", "Earlier comment", "2026-10-02T12:00:00.000Z"), ("Operator", "Later comment", "2026-10-03T07:00:00.000Z"));
-        plannedBody.GetProperty("images").EnumerateArray().Single().GetProperty("data").GetString().Should().Be(Convert.ToBase64String(picture));
-        var plannedRef = plannedBody.GetProperty("userRef").GetString();
-        plannedRef.Should().Be(await RefOf(user)).And.MatchRegex("^[A-Za-z0-9_-]{8,64}$");
-        requests[0].Json().GetProperty("userRef").ValueKind.Should().Be(JsonValueKind.Null);
-
-        output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).Should().Equal(
-            $"Report {pinned}: imported", $"Report {newest}: imported", $"Report {oldest}: imported", $"Report {planned}: imported", $"Report {released}: imported");
-        output.Should().NotContain("Imp-").And.NotContain("Operator").And.NotContain("comment").And.NotContain(plannedRef!);
-        (await Outbox()).Should().ContainSingle("the import leaves the outbox alone");
-    }
-
-    [DockerFact]
-    public async Task Running_the_import_again_sends_the_same_bytes_and_reports_already_imported()
-    {
-        await using var rig = await SenderRig.StartAsync(Host);
-        var user = await NewUser();
-        var first = await Seed("Again-One", FeedbackStatus.Open, Oct, userId: user, picture: SyntheticImages.Png(8, 8));
-        var second = await Seed("Again-Two", FeedbackStatus.Declined, Oct.AddDays(1), Oct.AddDays(2));
-        var board = new LookoutImportCli.Board([new(1, first, "Operator", "Note", new DateTimeOffset(Oct))], []);
-        await Import(rig, board);
-        var firstRun = rig.Fake.Requests;
-        rig.Fake.DefaultPut = 200;
-
-        var (exit, output, _) = await Import(rig, board);
-
-        exit.Should().Be(0);
-        var secondRun = rig.Fake.Requests.Skip(firstRun.Count).ToList();
-        secondRun.Select(r => r.Path).Should().Equal(firstRun.Select(r => r.Path));
-        secondRun.Select(r => Convert.ToBase64String(r.Body)).Should().Equal(firstRun.Select(r => Convert.ToBase64String(r.Body)));
-        output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim())
-            .Should().Equal($"Report {first}: already imported", $"Report {second}: already imported");
-    }
-
-    [DockerFact]
-    public async Task A_refused_report_is_named_and_makes_the_import_exit_1()
-    {
-        await using var rig = await SenderRig.StartAsync(Host);
-        var first = await Seed("Refused-One", FeedbackStatus.Open, Oct);
-        var second = await Seed("Refused-Two", FeedbackStatus.Open, Oct.AddDays(-1));
-        rig.Fake.Script(409);
-
-        var (exit, output, delays) = await Import(rig, new LookoutImportCli.Board([], []));
-
-        exit.Should().Be(1);
-        delays.Should().BeEmpty();
-        output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim())
-            .Should().Equal($"Report {first}: refused 409", $"Report {second}: imported");
-    }
-
-    [DockerFact]
-    public async Task A_busy_Lookout_is_retried_with_the_backoff_and_the_report_still_imports()
-    {
-        await using var rig = await SenderRig.StartAsync(Host);
-        var id = await Seed("Busy-One", FeedbackStatus.Open, Oct);
-        rig.Fake.Script(503, 503, 201);
-
-        var (exit, output, delays) = await Import(rig, new LookoutImportCli.Board([], []));
-
-        exit.Should().Be(0);
-        delays.Should().Equal(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10));
-        rig.Fake.Requests.Should().HaveCount(3).And.OnlyContain(r => r.Path == Key(id));
-        output.Trim().Should().Be($"Report {id}: imported");
-    }
-
-    [Fact]
-    public async Task The_import_command_fails_closed_without_the_Lookout_settings()
-    {
-        var dll = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(typeof(ApiApp).Assembly.Location)!, "Ember.Api.dll");
-        var info = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true, RedirectStandardInput = true };
-        info.ArgumentList.Add(dll);
-        info.ArgumentList.Add("--lookout-import");
-        info.ArgumentList.Add("-");
-        info.Environment["ConnectionStrings__DefaultConnection"] = "Host=127.0.0.1;Port=1;Database=none;Username=none;Password=none;Timeout=2";
-        info.Environment.Remove("Lookout__IngestUrl");
-        info.Environment.Remove("Lookout__KeyFile");
-        using var process = Process.Start(info)!;
-        process.StandardInput.Close();
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var err = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
-
-        process.ExitCode.Should().Be(1);
-        err.Should().Contain("Lookout ingest is not configured");
-        (await stdout).Should().BeEmpty();
+        rig.Fake.Requests.Should().ContainSingle();
     }
 }

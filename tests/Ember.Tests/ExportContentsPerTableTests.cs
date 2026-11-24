@@ -14,7 +14,7 @@ namespace Ember.Tests;
 /// <summary>
 /// Pins, on Postgres, which part of the export holds each registry entity through the real web and Discord loaders (feedback and session
 /// metadata among them, web only, decision D7), and that the entities registered as never exported, the session id and widget key hash,
-/// the feedback digest time and other people's or anonymous feedback leave no trace in the JSON or CSV.
+/// other people's or anonymous feedback leave no trace in the JSON or CSV.
 /// </summary>
 [Collection("Postgres")]
 public class ExportContentsPerTableTests(PostgresFixture postgres)
@@ -58,18 +58,18 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
         [typeof(LookoutUserRef)] = ["zz-marker-lookout-ref"],
         [typeof(LookoutOutbox)] = ["zz-marker-outbox-key"],
         [typeof(LookoutDiagnostic)] = ["zz-marker-diag-key", "zz-marker-diag-body"],
+        [typeof(FeedbackIntake)] = ["987654321012"],
     };
 
     private static readonly Guid SessionId = new("0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b");
     private static readonly byte[] WidgetKeyHash = [.. Enumerable.Range(0, 32).Select(i => (byte)(0xA0 + i))];
-    private static readonly DateTime DigestedAt = new(2026, 3, 4, 5, 6, 7, DateTimeKind.Utc);
     private static readonly Guid FriendImageId = new("0190a1b2-c3d4-7e5f-8a9b-00000000f00d");
 
     private static readonly string[] SecretMarkers =
     [
         "zz-marker-password-hash", "zz-marker-email-code-hash",
         SessionId.ToString(), SessionId.ToString("N"), Convert.ToBase64String(WidgetKeyHash), Convert.ToHexString(WidgetKeyHash),
-        Convert.ToHexString(WidgetKeyHash).ToLowerInvariant(), "2026-03-04T05:06:07",
+        Convert.ToHexString(WidgetKeyHash).ToLowerInvariant(),
         "zz-marker-friend-feedback", "zz-friend-img", "zz-marker-anonymous-feedback", "zz-anon-img",
     ];
 
@@ -119,7 +119,6 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
                 Title = "zz-marker-feedback-title",
                 Text = "zz-marker-feedback-text",
                 CreatedAt = Now.UtcDateTime,
-                DigestedAt = DigestedAt,
             };
             feedback.Images.Add(new FeedbackImage { Id = Guid.CreateVersion7(), ContentType = "zz-img-type", Size = 3, Data = [1, 2, 3] });
             db.Feedback.Add(feedback);
@@ -153,6 +152,7 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
             db.LookoutOutbox.Add(new LookoutOutbox { Kind = LookoutOutbox.Ticket, Key = "zz-marker-outbox-key", Feedback = feedback, CreatedAt = Now.UtcDateTime });
             db.LookoutDiagnostics.Add(new LookoutDiagnostic
             { Key = "zz-marker-diag-key", Ref = "EMB-ZZ000000", Body = "zz-marker-diag-body"u8.ToArray(), CreatedAt = Now.UtcDateTime });
+            db.FeedbackIntake.Add(new FeedbackIntake { CreatedAt = Now.UtcDateTime, ImageBytes = 987654321012 });
             db.Set<IdentityUserClaim<Guid>>().Add(new IdentityUserClaim<Guid>
             { UserId = UserId, ClaimType = "zz-marker-claim-type", ClaimValue = "zz-marker-claim-value" });
             db.Set<IdentityUserToken<Guid>>().Add(new IdentityUserToken<Guid>

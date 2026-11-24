@@ -35,7 +35,6 @@ public class FeedbackApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var item = (await Stored()).Should().ContainSingle().Subject;
         item.UserId.Should().BeNull();
         (item.Text, item.Platform, item.Version).Should().Be(("Great app", "android", "1.2.3"));
-        item.DigestedAt.Should().BeNull();
         item.CreatedAt.Should().Be(Host.Time.GetUtcNow().UtcDateTime);
     }
 
@@ -101,12 +100,12 @@ public class FeedbackApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
     [DockerFact]
     public async Task Members_other_than_text_platform_and_version_are_ignored_and_not_stored()
     {
-        var body = new { text = "hi", platform = "web", version = "1.0", habits = new[] { new { name = "Water" } }, userId = Guid.NewGuid(), digestedAt = "2020-01-01T00:00:00Z", id = 99 };
+        var body = new { text = "hi", platform = "web", version = "1.0", habits = new[] { new { name = "Water" } }, userId = Guid.NewGuid(), createdAt = "2020-01-01T00:00:00Z", id = 99 };
 
         await (await Host.NewClient().Post(Url, body)).Expect(HttpStatusCode.NoContent);
 
         var item = (await Stored()).Should().ContainSingle().Subject;
-        (item.Id, item.UserId, item.DigestedAt, item.Text, item.Platform, item.Version).Should().Be((item.Id, (Guid?)null, (DateTime?)null, "hi", "web", "1.0"));
+        (item.UserId, item.CreatedAt, item.Text, item.Platform, item.Version).Should().Be(((Guid?)null, Host.Time.GetUtcNow().UtcDateTime, "hi", "web", "1.0"));
         item.Id.Should().NotBe(99);
         (await Host.Db(db => db.Habits.CountAsync())).Should().Be(0);
     }

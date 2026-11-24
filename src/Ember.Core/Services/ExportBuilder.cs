@@ -32,7 +32,7 @@ public static class ExportBuilder
     /// <c>date</c>, <c>text</c> and the cipher columns. <c>reminder_exclusions</c> joins a habit's or routine's excluded reminder destination ids with <c>;</c>. <c>kind</c> is
     /// <c>build</c> or <c>let_go</c> for a habit, the mark's kind for a day_mark; a slip uses <c>habit_id</c>, <c>date</c> and <c>count</c>;
     /// a made_it uses <c>habit_id</c> and <c>date</c>. A feedback row uses <c>feedback_id</c>, <c>platform</c>, <c>app_version</c>, <c>title</c>,
-    /// <c>text</c>, <c>created_at</c>, <c>status</c> and <c>resolved_at</c>; a feedback_image row <c>feedback_id</c>, <c>image_id</c>,
+    /// <c>text</c> and <c>created_at</c>; a feedback_image row <c>feedback_id</c>, <c>image_id</c>,
     /// <c>content_type</c> and <c>size</c> (never the bytes); a session row <c>created_at</c>, <c>expires_at</c>, <c>last_seen_at</c>,
     /// <c>platform</c>, <c>app_version</c> and <c>widget_key_set</c>. <c>skipped</c> (log) is true for a day written by a skip.
     /// </summary>
@@ -47,7 +47,7 @@ public static class ExportBuilder
         "passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped," +
         "second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen," +
         "fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order," +
-        "feedback_id,platform,app_version,title,status,resolved_at,image_id,content_type,size,expires_at,last_seen_at,widget_key_set," +
+        "feedback_id,platform,app_version,title,image_id,content_type,size,expires_at,last_seen_at,widget_key_set," +
         "skipped";
 
     private static readonly string[] CsvColumns = CsvHeader.Split(',');
@@ -151,11 +151,10 @@ public static class ExportBuilder
     public sealed record FeedbackImageRecord(Guid Id, string ContentType, int Size, byte[]? Data);
 
     /// <summary>
-    /// One feedback report linked to the account. <c>Version</c> is the app version the client reported; <c>Status</c> is lowercase as stored.
-    /// Timestamps are UTC; <c>ResolvedAt</c> is null while the report is open, planned or implemented.
+    /// One feedback report linked to the account. <c>Version</c> is the app version the client reported; <c>CreatedAt</c> is UTC.
     /// </summary>
-    public sealed record FeedbackRecord(int Id, string Platform, string? Version, string Title, string Text, DateTime CreatedAt, string Status,
-        DateTime? ResolvedAt, List<FeedbackImageRecord> Images);
+    public sealed record FeedbackRecord(int Id, string Platform, string? Version, string Title, string Text, DateTime CreatedAt,
+        List<FeedbackImageRecord> Images);
 
     /// <summary>
     /// One sign-in session: when (UTC) it was created, expires and was last used, the client's platform and app version and whether a widget
@@ -435,7 +434,7 @@ public static class ExportBuilder
         foreach (var f in doc.Feedback ?? [])
         {
             AppendRow(csv, "feedback", ("feedback_id", Num(f.Id)), ("platform", f.Platform), ("app_version", f.Version ?? ""), ("title", f.Title),
-                ("text", f.Text), ("created_at", Utc(f.CreatedAt)), ("status", f.Status), ("resolved_at", Utc(f.ResolvedAt)));
+                ("text", f.Text), ("created_at", Utc(f.CreatedAt)));
             foreach (var i in f.Images)
                 AppendRow(csv, "feedback_image", ("feedback_id", Num(f.Id)), ("image_id", i.Id.ToString()), ("content_type", i.ContentType),
                     ("size", Num(i.Size)));

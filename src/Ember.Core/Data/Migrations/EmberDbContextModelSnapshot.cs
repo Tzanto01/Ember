@@ -212,6 +212,25 @@ namespace Ember.Core.Data.Migrations
                     b.ToTable("FeedbackImages");
                 });
 
+            modelBuilder.Entity("Ember.Core.Models.FeedbackIntake", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ImageBytes")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FeedbackIntake");
+                });
+
             modelBuilder.Entity("Ember.Core.Models.FiresideCode", b =>
                 {
                     b.Property<Guid>("UserId")

@@ -415,17 +415,17 @@ public class ExportBuilderTests
         [Picture3] = [0x52, 0x49, 0x46, 0x46],
     };
 
-    /// <summary>Two linked reports (one with a formula-like title, one resolved) with pictures, and two sessions; <c>Data</c> only with <paramref name="withData"/>.</summary>
+    /// <summary>Two linked reports (one with a formula-like title) with pictures, and two sessions; <c>Data</c> only with <paramref name="withData"/>.</summary>
     internal static ExportBuilder.FeedbackAndSessions SampleFeedbackAndSessions(bool withData = false)
     {
         ExportBuilder.FeedbackImageRecord Image(Guid id, string type)
             => new(id, type, PictureBytes[id].Length, withData ? PictureBytes[id] : null);
         return new(
             [
-                new(3, "web", "1.4.0", "=1+1", "Der \"Speichern\"-Knopf fehlt seit gestern", new DateTime(2025, 6, 3, 10, 0, 0, DateTimeKind.Utc), "open", null,
+                new(3, "web", "1.4.0", "=1+1", "Der \"Speichern\"-Knopf fehlt seit gestern", new DateTime(2025, 6, 3, 10, 0, 0, DateTimeKind.Utc),
                     [Image(Picture1, "image/webp"), Image(Picture2, "image/jpeg")]),
-                new(5, "android", null, "Dark mode", "Please", new DateTime(2025, 6, 5, 10, 0, 0, DateTimeKind.Utc), "released",
-                    new DateTime(2025, 6, 9, 12, 30, 0, DateTimeKind.Utc), [Image(Picture3, "image/png")]),
+                new(5, "android", null, "Dark mode", "Please", new DateTime(2025, 6, 5, 10, 0, 0, DateTimeKind.Utc),
+                    [Image(Picture3, "image/png")]),
             ],
             [
                 new(new DateTime(2025, 6, 1, 8, 0, 0, DateTimeKind.Utc), new DateTime(2025, 6, 15, 8, 0, 0, DateTimeKind.Utc),
@@ -461,7 +461,7 @@ public class ExportBuilderTests
         var user = SampleUser();
         var at = new DateTime(2025, 6, 3, 10, 0, 0, DateTimeKind.Utc);
         ExportBuilder.FeedbackRecord Report(string title, params ExportBuilder.FeedbackImageRecord[] images)
-            => new(7, "web", "1.4.0", title, "Text", at, "open", null, [.. images]);
+            => new(7, "web", "1.4.0", title, "Text", at, [.. images]);
         ExportBuilder.FeedbackImageRecord Image(byte[]? data) => new(Picture1, "image/webp", data?.Length ?? 3, data);
         List<ExportBuilder.FeedbackRecord> feedback = edgeCase switch
         {
@@ -504,12 +504,10 @@ public class ExportBuilderTests
         using var web = JsonDocument.Parse(ExportBuilder.BuildJson(user, feedbackAndSessions: SampleFeedbackAndSessions(withData: true)));
         using var discord = JsonDocument.Parse(ExportBuilder.BuildJson(user, forDiscord: true, SampleFeedbackAndSessions(withData: true)));
 
-        var resolved = web.RootElement.GetProperty("feedback")[1];
-        resolved.EnumerateObject().Select(p => p.Name).Should()
-            .Equal("id", "platform", "version", "title", "text", "created_at", "status", "resolved_at", "images");
-        resolved.GetProperty("status").GetString().Should().Be("released");
-        resolved.GetProperty("resolved_at").GetString().Should().Be("2025-06-09T12:30:00Z");
-        var picture = resolved.GetProperty("images")[0];
+        var report = web.RootElement.GetProperty("feedback")[1];
+        report.EnumerateObject().Select(p => p.Name).Should()
+            .Equal("id", "platform", "version", "title", "text", "created_at", "images");
+        var picture = report.GetProperty("images")[0];
         picture.EnumerateObject().Select(p => p.Name).Should().Equal("id", "content_type", "size", "data");
         picture.GetProperty("id").GetGuid().Should().Be(Picture3);
         picture.GetProperty("data").GetBytesFromBase64().Should().Equal(PictureBytes[Picture3]);
@@ -526,9 +524,9 @@ public class ExportBuilderTests
         var rows = Rows(csv);
 
         rows.Where(r => r["record_type"] == "feedback").Select(r => (r["feedback_id"], r["platform"], r["app_version"], r["title"], r["text"],
-                r["created_at"], r["status"], r["resolved_at"]))
-            .Should().Equal(("3", "web", "1.4.0", "'=1+1", "\"Der \"\"Speichern\"\"-Knopf fehlt seit gestern\"", "2025-06-03T10:00:00Z", "open", ""),
-                ("5", "android", "", "Dark mode", "Please", "2025-06-05T10:00:00Z", "released", "2025-06-09T12:30:00Z"));
+                r["created_at"]))
+            .Should().Equal(("3", "web", "1.4.0", "'=1+1", "\"Der \"\"Speichern\"\"-Knopf fehlt seit gestern\"", "2025-06-03T10:00:00Z"),
+                ("5", "android", "", "Dark mode", "Please", "2025-06-05T10:00:00Z"));
         rows.Where(r => r["record_type"] == "feedback_image").Select(r => (r["feedback_id"], r["image_id"], r["content_type"], r["size"]))
             .Should().Equal(("3", Picture1.ToString(), "image/webp", "40000"), ("3", Picture2.ToString(), "image/jpeg", "6"),
                 ("5", Picture3.ToString(), "image/png", "4"));
