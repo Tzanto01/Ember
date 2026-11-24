@@ -82,7 +82,10 @@ export class ApiClient {
 
   /** Called with every habit list loaded; set by the composition root. */
   onHabits: ((habits: AnyHabit[]) => void) | null = null;
-  /** Called after a day edit that added to a day's check-ins was sent or queued; set by the composition root. */
+  /**
+   * Called after a day edit that added to a day's check-ins was sent or queued (on a day whose count isn't known, one
+   * that reaches `timesPerDay`); set by the composition root.
+   */
   onCheckIn: ((habitId: number, date: LocalDateString) => void) | null = null;
 
   constructor(
@@ -386,8 +389,9 @@ export class ApiClient {
   private async dayEdit(edit: DayEdit): Promise<Habit> {
     const before = this.known.get(edit.habitId)?.today;
     const habit = await this.sendOrQueue(edit);
-    const had = before?.date === edit.date ? before.count : 0;
-    if (edit.completed || (edit.count ?? 0) > had) this.onCheckIn?.(edit.habitId, edit.date);
+    const count = edit.count ?? 0;
+    const added = before?.date === edit.date ? count > before.count : count >= (habit.timesPerDay ?? 1);
+    if (edit.completed || added) this.onCheckIn?.(edit.habitId, edit.date);
     return habit;
   }
 

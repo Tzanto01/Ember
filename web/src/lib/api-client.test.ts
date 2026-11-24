@@ -26,6 +26,24 @@ describe('ApiClient offline day edits', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
+  it.each([
+    ['a lowered count of a past day', 1, 0],
+    ['a past day’s count that reaches the target', 3, 1],
+    ['a past day marked done', null, 1],
+  ])('%s is told as a check-in only when it adds', async (_case, count, told) => {
+    const onCheckIn = vi.fn();
+    api.onCheckIn = onCheckIn;
+    const several = { ...habit, timesPerDay: 3 };
+    const listed = api.listHabits();
+    (await mock.next('GET', '/api/habits')).respond(200, [several]);
+    await listed;
+
+    const edit = count ? api.setDayCount(1, '2026-10-31', count) : api.setDay(1, '2026-10-31', true);
+    (await mock.next('PUT', '/api/habits/1/days/2026-10-31')).respond(200, several);
+    await edit;
+    expect(onCheckIn).toHaveBeenCalledTimes(told);
+  });
+
   async function remember(via: 'getHabit' | 'listHabits') {
     const loaded = via === 'getHabit' ? api.getHabit(1) : api.listHabits();
     (await mock.next('GET', via === 'getHabit' ? '/api/habits/1' : '/api/habits')).respond(
