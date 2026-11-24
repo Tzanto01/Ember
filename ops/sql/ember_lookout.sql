@@ -1,6 +1,6 @@
 -- Creates or updates the role ember_lookout, the Lookout sender's own login on emberdb: the columns of the outbox, the reports waiting
 -- in it, their pictures and the diagnostics uploads that the sender reads, the delivery state it writes, and the rows it deletes once
--- Lookout answered. Nothing of accounts, habits or the link between a report and its account ("Feedback"."UserId"), and no DDL.
+-- Lookout answered. Nothing of accounts, habits or the link between a report and its account ("Feedback"."UserId"), and no permanent objects of its own.
 -- Idempotent. Re-run it after a migration that changes a column the sender uses: the sender refuses to start while a right is missing.
 -- Run as superuser from the repo root, with a password of letters and digits (it goes into a connection string; it never appears on a
 -- command line or in output):
@@ -28,6 +28,8 @@ ALTER ROLE ember_lookout WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERI
 ALTER ROLE ember_lookout SET statement_timeout = '30s';
 ALTER ROLE ember_lookout SET lock_timeout = '10s';
 ALTER ROLE ember_lookout SET idle_in_transaction_session_timeout = '30s';
+
+SELECT format('REVOKE %s FROM ember_lookout', roleid::regrole) FROM pg_auth_members WHERE member = 'ember_lookout'::regrole \gexec
 
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ember_lookout;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ember_lookout;

@@ -126,7 +126,7 @@ public sealed class LookoutSenderRightsTests(PostgresFixture postgres) : ApiTest
     public async Task The_sender_and_the_verb_work_under_the_role_and_it_reaches_nothing_else_also_after_a_rerun_over_other_grants()
     {
         await RunScript();
-        await Execute("GRANT SELECT ON \"AspNetUsers\" TO ember_lookout; GRANT CREATE ON SCHEMA public TO ember_lookout");
+        await Execute("GRANT SELECT ON \"AspNetUsers\" TO ember_lookout; GRANT CREATE ON SCHEMA public TO ember_lookout; GRANT pg_read_all_data TO ember_lookout");
         await RunScript();
 
         await RunEveryPathAsync();
