@@ -151,20 +151,14 @@ public partial class AccountService
             .FirstOrDefaultAsync(u => u.Id == userId);
 
     /// <summary>
-    /// The web export's feedback reports linked to the user (oldest first) with their pictures' metadata but not their bytes (fetch those one
-    /// at a time with <see cref="GetFeedbackImageDataForExportAsync"/>), and the user's sign-in sessions (oldest first).
+    /// The web export's feedback reports linked to the user (oldest first), without their pictures, and the user's sign-in sessions (oldest first).
     /// </summary>
     public async Task<ExportBuilder.FeedbackAndSessions> GetFeedbackAndSessionsForExportAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var feedback = await _db.Feedback.AsNoTracking()
             .Where(f => f.UserId == userId)
             .OrderBy(f => f.CreatedAt).ThenBy(f => f.Id)
-            .Select(f => new
-            {
-                f.Id, f.Platform, f.Version, f.Title, f.Text, f.CreatedAt,
-                Images = f.Images.OrderBy(i => i.Id).Select(i => new { i.Id, i.ContentType, i.Size }).ToList(),
-            })
-            .AsSplitQuery()
+            .Select(f => new { f.Id, f.Platform, f.Version, f.Title, f.Text, f.CreatedAt })
             .ToListAsync(cancellationToken);
         var sessions = await _db.AuthSessions.AsNoTracking()
             .Where(s => s.UserId == userId)
@@ -174,20 +168,10 @@ public partial class AccountService
 
         return new(
             feedback.Select(f => new ExportBuilder.FeedbackRecord(f.Id, f.Platform, f.Version, f.Title, f.Text,
-                DateTime.SpecifyKind(f.CreatedAt, DateTimeKind.Utc),
-                f.Images.Select(i => new ExportBuilder.FeedbackImageRecord(i.Id, i.ContentType, i.Size, null)).ToList())).ToList(),
+                DateTime.SpecifyKind(f.CreatedAt, DateTimeKind.Utc))).ToList(),
             sessions.Select(s => new ExportBuilder.SessionRecord(s.CreatedUtc.UtcDateTime, s.ExpiresUtc.UtcDateTime, s.LastSeenUtc?.UtcDateTime,
                 s.Platform, s.AppVersion, s.WidgetKeySet)).ToList());
     }
-
-    /// <summary>The bytes of one picture of a feedback report linked to the user, or null when there is no such picture (any more).</summary>
-    public Task<byte[]?> GetFeedbackImageDataForExportAsync(Guid userId, Guid imageId, CancellationToken cancellationToken = default)
-        => _db.Feedback.AsNoTracking()
-            .Where(f => f.UserId == userId)
-            .SelectMany(f => f.Images)
-            .Where(i => i.Id == imageId)
-            .Select(i => (byte[]?)i.Data)
-            .FirstOrDefaultAsync(cancellationToken);
 
     public Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)
         => _db.Users.AnyAsync(u => u.Id == userId, cancellationToken);

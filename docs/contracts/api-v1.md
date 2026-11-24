@@ -1,6 +1,6 @@
 # Ember API contract v1.29
 
-v1.29 (2026-11-24, Nico on Ember's copy of feedback in Lookout: "Ember keeps a copy (Recommended)"): Lookout owns feedback's board, status, comments and email. Ember keeps what a signed-in user sent only for the export and the deletion, so the export's reports no longer have `status` and `resolved_at`, and the daily digest, `--feedback-status` and the ops board are gone. See "Feedback copy v1.29".
+v1.29 (2026-11-24, Nico on Ember's copy of feedback in Lookout: "Ember keeps a copy (Recommended)"): Lookout owns feedback's board, status, comments and email. Ember keeps what a signed-in user sent only for the export and the deletion, so the export's reports no longer have `status`, `resolved_at` and pictures, and the daily digest, `--feedback-status` and the ops board are gone. See "Feedback copy v1.29".
 
 v1.27 (2026-11-21, the server and the phone couldn't tell a skip from a count of 0): a check-in log stores whether it was written by a skip. Day objects gain `skipped`, a skip of today ends that day's reminders on every channel and leaves the habit out of its routine's reminder, a routine whose members left are skipped closes like a done one, and the missed-day message leaves out a skipped day. A Discord skip keeps the day's check-ins; the web's "Not done" writes count 0. See "Skip marker v1.27".
 
@@ -368,9 +368,9 @@ snake_case like today, plus `"format_version": 2` at the top level (an export wi
 - `journal_key`: `{ passphrase: { salt, iterations, iv, wrapped }, recovery: { salt, iv, wrapped } }` or null.
 - Ids in a file are only references inside that file; import assigns new ids and remaps `routine_id`, log `habit_id`, `custom:<id>` moods inside plaintext notes and the `h:<id>`/`r:<id>` keys of `settings.today_order` (more than 500 entries → 400 on `settings.today_order`). `account`, push subscriptions, DM state and consent fields are ignored on import.
 - The CSV export gets the matching columns and record types; import is JSON only.
-- `feedback` (v1.25, web export only, decision D7): the reports linked to the account, oldest first: `[{ id, platform, version, title, text, created_at, images: [{ id, content_type, size, data }] }]`. `version` is the app version, times UTC, image `id` a GUID and `data` the picture as base64, or null when the picture was deleted while the export ran. Anonymous reports are never included. v1.29: no `status` and `resolved_at`. CSV: one `feedback` row per report (`feedback_id`, `platform`, `app_version`, `title`, `text`, `created_at`) and one `feedback_image` row per picture (`feedback_id`, `image_id`, `content_type`, `size`, never the bytes).
+- `feedback` (v1.25, web export only, decision D7): the reports linked to the account, oldest first: `[{ id, platform, version, title, text, created_at }]`. `version` is the app version, times UTC. Anonymous reports are never included. v1.29: no `status`, `resolved_at` and `images`. CSV: one `feedback` row per report (`feedback_id`, `platform`, `app_version`, `title`, `text`, `created_at`).
 - `sessions` (v1.25, web export only, decision D7): the account's sign-in sessions, oldest first: `[{ created_at, expires_at, last_seen_at, platform, app_version, widget_key_set }]` (times UTC, `last_seen_at`, `platform` and `app_version` may be null). The session id (a credential) and the widget key hash are never exported. CSV: one `session` row per session (`created_at`, `expires_at`, `last_seen_at`, `platform`, `app_version`, `widget_key_set`).
-- Import ignores `feedback` and `sessions`. An export with pictures can exceed the import's 5 MiB body limit (413).
+- Import ignores `feedback` and `sessions`.
 - Rate limit (v1.25): `GET /api/me/export` (JSON or CSV) runs at most once at a time per account and at most `ExportPerHour` (`Ember:RateLimits`, default 10) times per account per hour, in memory (a restart resets it). An export while another one is still running, or past the hourly limit, → 429 `rate_limited` with `Retry-After`; a rejected concurrent export doesn't count against the hour.
 - A `journal_key` in an import needs the login password inside it (`journal_key.password`) on accounts that have one, like `PUT /api/me/journal-key` (wrong or missing → 400 on `password`).
 - Before importing, the client sends `PATCH /api/me { timezone }` with the device's zone (as for any new account); otherwise a first-day log can fall before a habit's start and the whole import is refused.
@@ -597,7 +597,7 @@ Replaces the parts of "Feedback v1.13" it names; the rest stays.
 ### Storage and retention
 
 - `Feedback` gains `Title` (existing reports got the first line of their text). New table `FeedbackImages`: id (opaque UUID), report (cascade), content type, size, bytes (Postgres `bytea`).
-- Pictures are never kept past 12 months after the report. Deleted with the account through the report, unless the report was anonymous (it has no link to the account). An account merge moves reports with their pictures. The web export carries the pictures of linked reports (v1.25, see "Export format v2"); no other HTTP endpoint serves pictures.
+- Pictures are never kept past 12 months after the report. Deleted with the account through the report, unless the report was anonymous (it has no link to the account). An account merge moves reports with their pictures. No HTTP endpoint serves pictures.
 
 ## Feedback copy v1.29
 
@@ -606,6 +606,7 @@ Replaces the digest, status and retention parts of "Feedback v1.13" and "Feedbac
 - Every report goes to Lookout through `LookoutOutbox`. Lookout owns its status, comments, board and email. `Feedback` loses `Status`, `ResolvedAt` and `DigestedAt`.
 - Kept: the report as sent (title, text, platform, version, time) for 12 months after it was submitted, for the web export and the account deletion. After 12 months it goes in any case, also when Lookout never got it.
 - With `Feedback:DeleteSentCopies` (off by default) an anonymous report is deleted as soon as Lookout confirmed receipt (200 or 201). A report Lookout hasn't answered for, or refused (parked), stays until then.
+- Pictures are not exported. Those of a confirmed report are deleted 30 days after it was submitted (with `Feedback:DeleteSentCopies` as soon as Lookout confirmed), those of a report Lookout hasn't confirmed after 12 months. Lookout keeps the pictures while a report is open and 30 days after it is resolved or declined.
 - New table `FeedbackIntake` (`Id`, `CreatedAt`, `ImageBytes`): one row per accepted report for the 24-hour limits, no content and no sender, deleted once it is older than 24 hours.
 - `FeedbackRetention` runs daily at 08:00 Europe/Berlin in the API. `Feedback:RetentionEnabled=false` holds it back.
 

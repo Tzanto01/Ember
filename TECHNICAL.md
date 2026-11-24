@@ -98,7 +98,7 @@ Back up the database before you deploy a build with a new migration.
 | `API_KNOWN_PROXY`, `API_KNOWN_NETWORK` | `api` only. Set at least one. The reverse proxy address, or the network it sits in (CIDR), whose forwarded client IP the API trusts. See below. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | `api` only. Mail server for account emails. `SMTP_HOST` and `SMTP_FROM` are required. The port defaults to 587. |
 | `SMTP_REPLY_TO` | `api` only, optional. `Reply-To` address for account emails. Without it, replies go to `SMTP_FROM`. |
-| `FEEDBACK_DELETE_SENT_COPIES` | `api` and `lookout-sender`, optional. `true` deletes Ember's copy of an anonymous report as soon as Lookout confirmed it. Off by default. Turn it on only while Lookout's store is backed up. |
+| `FEEDBACK_DELETE_SENT_COPIES` | `api` and `lookout-sender`, optional. `true` deletes Ember's copy of an anonymous report, and of every report's pictures, as soon as Lookout confirmed it. Off by default. Turn it on only while Lookout's store is backed up. |
 | `FEEDBACK_RETENTION_ENABLED` | `api` only, optional. `false` holds back the daily deletion of feedback Ember no longer keeps; the API logs a warning at startup. On by default. |
 | `EMBER_DELETION_LEDGER_FILE` | `ember` and `api`, optional. The deletion ledger inside the containers, `/ledger/deletions.jsonl` on production. Without it Ember keeps no ledger. See "Restoring a backup" below. |
 | `EMBER_DELETION_LEDGER_DIR` | Optional. Host directory mounted at `/ledger` in `ember` and `api`. Defaults to `./deletion-ledger`. Set it together with `EMBER_DELETION_LEDGER_FILE`: otherwise Docker creates the default directory owned by root and every ledger write fails. |
@@ -140,7 +140,7 @@ docker compose exec -T api dotnet Ember.Api.dll --list-feedback
 tools/feedback-images.sh ./feedback 42 0193a6f2-...
 ```
 
-Feedback and pictures are never kept past 12 months after the report. There is no HTTP endpoint for any of this.
+Feedback is never kept past 12 months after the report. Pictures are deleted 30 days after the report once Lookout confirmed it. There is no HTTP endpoint for any of this.
 
 **Sending feedback to Lookout (maintainer).** Every new report, and every account deletion of a user who sent feedback, goes into an outbox in `emberdb`. The `lookout-sender` container (profile `lookout`; enable it with `--profile lookout` or `COMPOSE_PROFILES`) delivers the outbox to Lookout's ingest at `LOOKOUT_INGEST_URL` from the pinned address `172.31.250.20`, with the key from `~/.config/lookout/apps/ember.key`: account deletions first, then reports, each in order. Without that profile and `LOOKOUT_INGEST_URL` nothing is sent. The container runs the `api` service's image, so build or start it together with `--profile api`. Reports Lookout refuses are parked (`ParkedAt`, `ParkedStatus` in `LookoutOutbox`) and logged without content. Anonymous "Send diagnostics" uploads from the Android app wait in their own table `LookoutDiagnostics` and go out after the outbox; one Lookout refuses is dropped, and one still unsent after 30 days is deleted.
 

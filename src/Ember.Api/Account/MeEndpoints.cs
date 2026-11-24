@@ -138,10 +138,8 @@ internal static class MeEndpoints
                 return Results.File(Encoding.UTF8.GetBytes(ExportBuilder.BuildCsv(user, feedbackAndSessions: feedbackAndSessions)), "text/csv",
                     $"{fileName}.csv");
 
-            var document = ExportBuilder.BuildDocument(user, feedbackAndSessions: feedbackAndSessions);
-            return Results.Stream(stream => ExportBuilder.WriteJsonAsync(stream, document,
-                    (imageId, ct) => accounts.GetFeedbackImageDataForExportAsync(userId, imageId, ct), cancellationToken),
-                "application/json", $"{fileName}.json");
+            return Results.File(Encoding.UTF8.GetBytes(ExportBuilder.BuildJson(user, feedbackAndSessions: feedbackAndSessions)), "application/json",
+                $"{fileName}.json");
         });
 
         api.MapPost("/me/widget-key", async (HttpContext http, AuthSessions sessions) =>

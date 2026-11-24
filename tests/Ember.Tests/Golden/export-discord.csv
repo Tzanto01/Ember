@@ -1,12 +1,12 @@
-record_type,timezone,grace_days_per_week,theme,dm_failure_count,dm_reminders_paused_at,dm_pause_notice_sent_at,health_data_consent_at,consent_policy_version,consent_prompted_on,consent_withdrawn_at,habit_id,name,frequency,weekly_target,reminder_time,paused_until,paused_from,created_at,next_reminder_utc,date,completed,guild_id,kind,reminder_exclusions,endpoint,email,discord_id,account_created_at,two_factor_enabled,days,times_per_day,routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived,cipher_version,cipher_iv,cipher_text,version,turning_off,passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped,second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen,fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order,feedback_id,platform,app_version,title,image_id,content_type,size,expires_at,last_seen_at,widget_key_set,skipped
-settings,Europe/Berlin,2,tidepool,3,2027-01-17T09:00:00Z,,2027-01-01T12:00:00Z,2026-10,2027-01-01,,,,,,,,,,,,,,,,,,,,true,,,,,,,,,,,,,,,,,,,,,,,,30,,true,de,true,,streaks;routines,true,Sam,true,,true,,,,,,,,,,,,
-habit,,,,,,,,,,,10,Read,weekdays,,08:30;20:00,2027-01-20,2027-01-17,2027-01-02T08:00:00Z,2027-01-19T07:30:00Z,,,,build,discord,,,,,,mon;wed;sun,2,7,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-habit,,,,,,,,,,,11,"Run, slowly",weekly,3,,,,2027-01-03T08:00:00Z,,,,,build,,,,,,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-habit,,,,,,,,,,,12,Coffee,daily,,,,,2027-01-04T08:00:00Z,,,,,let_go,,,,,,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-log,,,,,,,,,,,10,,,,,,,,,2027-01-14,true,123456789012345678,,,,,,,,,,,2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,false
-log,,,,,,,,,,,10,,,,,,,,,2027-01-15,false,,,,,,,,,,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,false
-log,,,,,,,,,,,10,,,,,,,,,2027-01-16,false,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,true
-slip,,,,,,,,,,,12,,,,,,,,,2027-01-10,,,,,,,,,,,,,2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,stress;habit,,,,,,,,,,,,,
-slip,,,,,,,,,,,12,,,,,,,,,2027-01-12,,,,,,,,,,,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-day_mark,,,,,,,,,,,,,,,,,,,,2027-01-13,,,low_day,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-routine,,,,,,,,,,,,Morning,,,07:30,,,2027-01-02T08:00:00Z,2027-01-19T06:30:00Z,,,,,phone-4,,,,,,,,7,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+record_type,timezone,grace_days_per_week,theme,dm_failure_count,dm_reminders_paused_at,dm_pause_notice_sent_at,health_data_consent_at,consent_policy_version,consent_prompted_on,consent_withdrawn_at,habit_id,name,frequency,weekly_target,reminder_time,paused_until,paused_from,created_at,next_reminder_utc,date,completed,guild_id,kind,reminder_exclusions,endpoint,email,discord_id,account_created_at,two_factor_enabled,days,times_per_day,routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived,cipher_version,cipher_iv,cipher_text,version,turning_off,passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped,second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen,fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order,feedback_id,platform,app_version,title,expires_at,last_seen_at,widget_key_set,skipped
+settings,Europe/Berlin,2,tidepool,3,2027-01-17T09:00:00Z,,2027-01-01T12:00:00Z,2026-10,2027-01-01,,,,,,,,,,,,,,,,,,,,true,,,,,,,,,,,,,,,,,,,,,,,,30,,true,de,true,,streaks;routines,true,Sam,true,,true,,,,,,,,,
+habit,,,,,,,,,,,10,Read,weekdays,,08:30;20:00,2027-01-20,2027-01-17,2027-01-02T08:00:00Z,2027-01-19T07:30:00Z,,,,build,discord,,,,,,mon;wed;sun,2,7,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+habit,,,,,,,,,,,11,"Run, slowly",weekly,3,,,,2027-01-03T08:00:00Z,,,,,build,,,,,,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+habit,,,,,,,,,,,12,Coffee,daily,,,,,2027-01-04T08:00:00Z,,,,,let_go,,,,,,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+log,,,,,,,,,,,10,,,,,,,,,2027-01-14,true,123456789012345678,,,,,,,,,,,2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,false
+log,,,,,,,,,,,10,,,,,,,,,2027-01-15,false,,,,,,,,,,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,false
+log,,,,,,,,,,,10,,,,,,,,,2027-01-16,false,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,true
+slip,,,,,,,,,,,12,,,,,,,,,2027-01-10,,,,,,,,,,,,,2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,stress;habit,,,,,,,,,,
+slip,,,,,,,,,,,12,,,,,,,,,2027-01-12,,,,,,,,,,,,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+day_mark,,,,,,,,,,,,,,,,,,,,2027-01-13,,,low_day,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+routine,,,,,,,,,,,,Morning,,,07:30,,,2027-01-02T08:00:00Z,2027-01-19T06:30:00Z,,,,,phone-4,,,,,,,,7,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

@@ -109,10 +109,10 @@ public class ExportCsvGoldenTests
     [Fact]
     public void FullCsv_KeepsEveryColumnInOrderAndEveryRowValue_ButMayGrow()
         => GoldenFile.AssertCsvKeeps("export-full.csv",
-            WithCrlfRows(ExportBuilder.BuildCsv(FullUser(), feedbackAndSessions: ExportBuilderTests.SampleFeedbackAndSessions(withData: true))));
+            WithCrlfRows(ExportBuilder.BuildCsv(FullUser(), feedbackAndSessions: ExportBuilderTests.SampleFeedbackAndSessions())));
 
     [Fact]
     public void DiscordCsv_KeepsEveryColumnInOrderAndEveryRowValue_ButMayGrow()
         => GoldenFile.AssertCsvKeeps("export-discord.csv",
-            WithCrlfRows(ExportBuilder.BuildCsv(FullUser(), forDiscord: true, ExportBuilderTests.SampleFeedbackAndSessions(withData: true))));
+            WithCrlfRows(ExportBuilder.BuildCsv(FullUser(), forDiscord: true, ExportBuilderTests.SampleFeedbackAndSessions())));
 }

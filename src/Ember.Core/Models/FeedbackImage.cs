@@ -1,8 +1,8 @@
 namespace Ember.Core.Models;
 
 /// <summary>
-/// One picture attached to a <see cref="Models.Feedback"/>, stored with its metadata already stripped. Deleted with the feedback.
-/// In the web export with its feedback: base64 in the JSON, listed without the bytes in the CSV.
+/// One picture attached to a <see cref="Models.Feedback"/>, stored with its metadata already stripped, until Lookout has it and 30
+/// days have passed since the report. Deleted with the feedback. Never exported.
 /// </summary>
 public class FeedbackImage
 {

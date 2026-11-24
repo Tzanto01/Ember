@@ -14,7 +14,8 @@ namespace Ember.Api;
 /// ticket stuck on a quota can't hold up an erasure. Sends nothing unless <see cref="LookoutIngest.TryGetEndpoint"/> accepts the
 /// configuration. A transient failure keeps an outbox row at the head and waits <see cref="LookoutIngest.Backoff"/>; a permanent
 /// refusal parks a ticket and moves on, while a deletion is never parked, only retried. With
-/// <see cref="FeedbackRetention.DeleteSentCopiesSetting"/> a confirmed anonymous report is deleted at once. A diagnostics upload never holds up the
+/// <see cref="FeedbackRetention.DeleteSentCopiesSetting"/> a confirmed anonymous report and the pictures of a
+/// confirmed linked one are deleted at once. A diagnostics upload never holds up the
 /// outbox: each step first drops uploads unsent for <see cref="LookoutDiagnostic.MaxUnsentAge"/>; an upload Lookout accepted or
 /// refused for good is deleted, and any other answer defers only that upload by its own backoff (<see cref="LookoutDiagnostic.NextAttemptAt"/>).
 /// Logs row id, kind and status or exception type only.
@@ -108,10 +109,14 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         now = time.GetUtcNow().UtcDateTime;
         if (LookoutIngest.IsConfirmed(row.Kind, status))
         {
+            var deleteCopy = configuration.GetValue(FeedbackRetention.DeleteSentCopiesSetting, false);
             if (row.Kind == LookoutOutbox.UserDelete) await rows.ExecuteDeleteAsync(cancellationToken);
-            else if (row.UserRef is null && configuration.GetValue(FeedbackRetention.DeleteSentCopiesSetting, false))
-                await db.Feedback.Where(f => f.Id == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
-            else await rows.ExecuteUpdateAsync(s => s.SetProperty(o => o.SentAt, now), cancellationToken);
+            else if (deleteCopy && row.UserRef is null) await db.Feedback.Where(f => f.Id == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
+            else
+            {
+                await rows.ExecuteUpdateAsync(s => s.SetProperty(o => o.SentAt, now), cancellationToken);
+                if (deleteCopy) await db.FeedbackImages.Where(i => i.FeedbackId == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
+            }
             _failures = 0;
             return TimeSpan.Zero;
         }

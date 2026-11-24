@@ -105,6 +105,25 @@ public class FeedbackRetentionTests(PostgresFixture postgres) : FeedbackRetentio
     }
 
     [DockerFact]
+    public async Task Pictures_go_30_days_after_the_report_only_once_Lookout_confirmed_it_and_the_text_stays()
+    {
+        var user = await NewUser();
+        foreach (var (name, age) in new[] { ("month", TimeSpan.FromDays(29.1)), ("fresh", TimeSpan.FromDays(28.9)) })
+        {
+            await Sent(await Report($"{name} sent", user, age, pictures: 2));
+            await Report($"{name} unsent", user, age, pictures: 1);
+            await Parked(await Report($"{name} parked", user, age, pictures: 1));
+            var unqueued = await Report($"{name} never queued", user, age, pictures: 1);
+            await Host.Db(db => db.LookoutOutbox.Where(o => o.FeedbackId == unqueued).ExecuteDeleteAsync());
+        }
+
+        await RunRetention();
+
+        (await TitlesWithPictures()).Should().Equal("fresh never queued", "fresh parked", "fresh sent", "fresh unsent", "month never queued", "month parked", "month unsent");
+        (await Titles()).Should().HaveCount(8);
+    }
+
+    [DockerFact]
     public async Task Confirmed_anonymous_reports_stay_while_the_setting_is_off()
     {
         await Sent(await Report("anonymous sent"));
@@ -152,18 +171,34 @@ public class FeedbackEarlyDeletionTests(PostgresFixture postgres) : FeedbackRete
     }
 
     [DockerFact]
-    public async Task The_sender_deletes_an_anonymous_report_with_its_outbox_row_once_Lookout_confirms_and_keeps_a_linked_one()
+    public async Task The_sender_deletes_an_anonymous_report_with_its_outbox_row_once_Lookout_confirms_and_only_the_pictures_of_a_linked_one()
     {
         await using var rig = await Rig();
         await Report("anonymous", pictures: 1);
-        await Report("linked", await NewUser());
+        await Report("linked", await NewUser(), pictures: 1);
 
         await rig.Step();
         await rig.Step();
 
         rig.Fake.Requests.Select(r => r.Json().GetProperty("title").GetString()).Should().Equal("anonymous", "linked");
+        rig.Fake.Requests.Should().OnlyContain(r => r.Json().GetProperty("images").GetArrayLength() == 1);
         (await Titles()).Should().Equal("linked");
+        (await Host.Db(db => db.FeedbackImages.CountAsync())).Should().Be(0);
         (await Host.Db(db => db.LookoutOutbox.AsNoTracking().ToListAsync())).Should().ContainSingle().Which.SentAt.Should().NotBeNull();
+    }
+
+    [DockerFact]
+    public async Task The_job_deletes_every_confirmed_picture_at_once_and_no_other()
+    {
+        var user = await NewUser();
+        await Sent(await Report("sent", user, pictures: 1));
+        await Report("unsent", user, pictures: 1);
+        await Parked(await Report("parked", user, pictures: 1));
+
+        await RunRetention();
+
+        (await TitlesWithPictures()).Should().Equal("parked", "unsent");
+        (await Titles()).Should().HaveCount(3);
     }
 
     [DockerFact]

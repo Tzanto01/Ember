@@ -180,7 +180,7 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         => user.Post("/api/feedback", new { title, text = "It closes right away", platform = "web", version = "1.2.3", images = new[] { SyntheticImages.Base64(SyntheticImages.Png()) } });
 
     [DockerFact]
-    public async Task The_json_export_streams_the_callers_feedback_with_the_stored_picture_bytes_and_their_sessions_without_ids()
+    public async Task The_json_export_holds_the_callers_feedback_without_pictures_and_their_sessions_without_ids()
     {
         var user = await Host.SignedInAsync(consent: false);
         var userId = await user.IdAsync();
@@ -198,9 +198,7 @@ public class ImportApiTests(PostgresFixture postgres) : ApiTestBase(postgres)
         var root = JsonNode.Parse(body)!;
         var report = root["feedback"]!.AsArray().Should().ContainSingle().Subject!;
         ((string?)report["title"]).Should().Be("Crash on start");
-        var picture = report["images"]!.AsArray().Should().ContainSingle().Subject!;
-        ((Guid)picture["id"]!).Should().Be(stored.Images.Single().Id);
-        Convert.FromBase64String((string)picture["data"]!).Should().Equal(stored.Images.Single().Data);
+        body.Should().NotContain(stored.Images.Single().Id.ToString()).And.NotContain(Convert.ToBase64String(stored.Images.Single().Data));
         root["sessions"]!.AsArray().Should().HaveCount(sessionIds.Count).And.OnlyContain(s => !s!.AsObject().ContainsKey("id"));
         sessionIds.Should().NotBeEmpty().And.OnlyContain(id => !body.Contains(id.ToString()) && !body.Contains(id.ToString("N")));
         body.Should().NotContain("Someone else's report");

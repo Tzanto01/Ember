@@ -42,7 +42,6 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
         [typeof(ReminderPhone)] = d => d.Phones,
         [typeof(AuthSession)] = d => d.Sessions,
         [typeof(Feedback)] = d => d.Feedback,
-        [typeof(FeedbackImage)] = d => d.Feedback?.SelectMany(f => f.Images).ToList(),
     };
 
     private static readonly Dictionary<Type, string[]> NeverExportedMarkers = new()
@@ -59,11 +58,11 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
         [typeof(LookoutOutbox)] = ["zz-marker-outbox-key"],
         [typeof(LookoutDiagnostic)] = ["zz-marker-diag-key", "zz-marker-diag-body"],
         [typeof(FeedbackIntake)] = ["987654321012"],
+        [typeof(FeedbackImage)] = ["zz-img-type", "zz-img-data", Convert.ToBase64String("zz-img-data"u8)],
     };
 
     private static readonly Guid SessionId = new("0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b");
     private static readonly byte[] WidgetKeyHash = [.. Enumerable.Range(0, 32).Select(i => (byte)(0xA0 + i))];
-    private static readonly Guid FriendImageId = new("0190a1b2-c3d4-7e5f-8a9b-00000000f00d");
 
     private static readonly string[] SecretMarkers =
     [
@@ -120,11 +119,11 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
                 Text = "zz-marker-feedback-text",
                 CreatedAt = Now.UtcDateTime,
             };
-            feedback.Images.Add(new FeedbackImage { Id = Guid.CreateVersion7(), ContentType = "zz-img-type", Size = 3, Data = [1, 2, 3] });
+            feedback.Images.Add(new FeedbackImage { Id = Guid.CreateVersion7(), ContentType = "zz-img-type", Size = 11, Data = "zz-img-data"u8.ToArray() });
             db.Feedback.Add(feedback);
             var friendFeedback = new Feedback
             { UserId = FriendId, Platform = "web", Title = "zz-marker-friend-feedback", Text = "zz-marker-friend-feedback", CreatedAt = Now.UtcDateTime };
-            friendFeedback.Images.Add(new FeedbackImage { Id = FriendImageId, ContentType = "zz-friend-img", Size = 1, Data = [9] });
+            friendFeedback.Images.Add(new FeedbackImage { Id = Guid.CreateVersion7(), ContentType = "zz-friend-img", Size = 1, Data = [9] });
             db.Feedback.Add(friendFeedback);
             var anonymous = new Feedback
             { Platform = "web", Title = "zz-marker-anonymous-feedback", Text = "zz-marker-anonymous-feedback", CreatedAt = Now.UtcDateTime };
@@ -239,7 +238,7 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
     }
 
     [DockerFact]
-    public async Task NeverExportedEntitiesAndSecrets_AreInNeitherTheJsonNorTheCsvOfEitherExport_AndAnotherUsersPictureIsNotFetched()
+    public async Task NeverExportedEntitiesAndSecrets_AreInNeitherTheJsonNorTheCsvOfEitherExport()
     {
         await using var host = await SeededHostAsync();
 
@@ -248,16 +247,10 @@ public class ExportContentsPerTableTests(PostgresFixture postgres)
             var accounts = sp.GetRequiredService<AccountService>();
             var web = (await accounts.GetUserForExportAsync(UserId, withHabitNotes: true))!;
             var linked = await accounts.GetFeedbackAndSessionsForExportAsync(UserId);
-            using var stream = new MemoryStream();
-            await WriteJsonAsync(stream, BuildDocument(web, feedbackAndSessions: linked),
-                (id, ct) => accounts.GetFeedbackImageDataForExportAsync(UserId, id, ct));
-            (await accounts.GetFeedbackImageDataForExportAsync(UserId, FriendImageId)).Should().BeNull();
 
             var discord = (await accounts.GetUserForExportAsync(
                 await sp.GetRequiredService<HabitService>().FindDiscordUserAsync((ulong)TestUsers.DiscordIdOf(UserId))))!;
-            var json = System.Text.Encoding.UTF8.GetString(stream.ToArray());
-            json.Should().Contain(Convert.ToBase64String([1, 2, 3]));
-            return new[] { json, BuildCsv(web, feedbackAndSessions: linked), BuildJson(discord, forDiscord: true), BuildCsv(discord, forDiscord: true) };
+            return new[] { BuildJson(web, feedbackAndSessions: linked), BuildCsv(web, feedbackAndSessions: linked), BuildJson(discord, forDiscord: true), BuildCsv(discord, forDiscord: true) };
         });
 
         foreach (var marker in NeverExportedMarkers.Values.SelectMany(m => m).Concat(SecretMarkers))
