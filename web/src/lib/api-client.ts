@@ -80,6 +80,11 @@ function range(from?: LocalDateString, to?: LocalDateString): Record<string, str
 export class ApiClient {
   private readonly known = new Map<number, Habit>();
 
+  /** Called with every habit list loaded; set by the composition root. */
+  onHabits: ((habits: AnyHabit[]) => void) | null = null;
+  /** Called after a day edit that added to a day's check-ins was sent or queued; set by the composition root. */
+  onCheckIn: ((habitId: number, date: LocalDateString) => void) | null = null;
+
   constructor(
     private readonly http: Http,
     private readonly offline: OfflineQueue,
@@ -275,7 +280,14 @@ export class ApiClient {
   /** `GET /api/habits`. */
   async listHabits(): Promise<AnyHabit[]> {
     const habits = await this.http.request<AnyHabit[]>('GET', '/api/habits');
-    return habits.map((habit) => this.remember(habit));
+    const seen = habits.map((habit) => this.remember(habit));
+    this.onHabits?.(seen);
+    return seen;
+  }
+
+  /** The build habit `id` as the app last saw it, queued edits included; null when it didn't yet. */
+  seen(id: number): Habit | null {
+    return this.known.get(id) ?? null;
   }
 
   /** `GET /api/habits/{id}`. */
@@ -372,6 +384,14 @@ export class ApiClient {
   }
 
   private async dayEdit(edit: DayEdit): Promise<Habit> {
+    const before = this.known.get(edit.habitId)?.today;
+    const habit = await this.sendOrQueue(edit);
+    const had = before?.date === edit.date ? before.count : 0;
+    if (edit.completed || (edit.count ?? 0) > had) this.onCheckIn?.(edit.habitId, edit.date);
+    return habit;
+  }
+
+  private async sendOrQueue(edit: DayEdit): Promise<Habit> {
     const known = this.known.get(edit.habitId);
     if (known && this.offline.pending.get() > 0 && (await this.offline.add(edit))) {
       return this.remember(withDayEdit(known, edit));

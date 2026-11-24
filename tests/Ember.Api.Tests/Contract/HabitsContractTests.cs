@@ -58,6 +58,7 @@ public class HabitsContractTests(PostgresFixture postgres) : ContractTestBase(po
             name = "Pills",
             frequency = "daily",
             kind = "build",
+            timerMinutes = 30,
             timesPerDay = 3,
             reminderTimes = new[] { "08:00", "13:00", "20:00" },
         })));

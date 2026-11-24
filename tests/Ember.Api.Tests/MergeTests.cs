@@ -164,11 +164,14 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         await (await user.Put($"/api/habits/{ownHabit}/days/{today}", new { completed = true })).ExpectJson();
         await (await user.Put($"/api/low-days/{today}")).Expect(HttpStatusCode.NoContent);
         var bot = await BotOnlyAsync(["Water", "Read"], 0, -1);
+        await Host.Db(db => db.Habits.Where(h => h.UserId == bot.UserId && h.Name == "Read")
+            .ExecuteUpdateAsync(s => s.SetProperty(h => h.TimerMinutes, 20)));
         await StartMergeAsync(user, bot.DiscordId);
 
         await (await user.Post(MergeUrl)).Expect(HttpStatusCode.NoContent);
 
         var habits = await (await user.Get("/api/habits")).ExpectJson();
+        habits.EnumerateArray().Single(h => h.GetProperty("name").GetString() == "Read").GetProperty("timerMinutes").GetInt32().Should().Be(20);
         habits.EnumerateArray().Select(h => h.GetProperty("name").GetString()).Should().BeEquivalentTo("Water", "Water", "Read");
         (await UserExists(bot.UserId)).Should().BeFalse();
         (await Host.Service(s => s.FindDiscordUserAsync(bot.DiscordId))).Should().Be(userId);

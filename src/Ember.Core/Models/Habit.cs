@@ -78,6 +78,12 @@ public class Habit
     /// <summary>Check-ins needed for a day to be done (always 1 for weekly habits).</summary>
     public int TimesPerDay { get; set; } = 1;
 
+    /// <summary>
+    /// Length of the habit's timer in minutes, 1 to <see cref="Rules.Limits.TimerMinutes"/>; null without one, always for a
+    /// <see cref="HabitKind.LetGo"/> habit. The running timer lives on the device only.
+    /// </summary>
+    public int? TimerMinutes { get; set; }
+
     /// <summary>The routine this habit belongs to, if any.</summary>
     public int? RoutineId { get; set; }
 

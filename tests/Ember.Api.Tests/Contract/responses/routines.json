@@ -388,6 +388,7 @@
         "streak": "integer",
         "week": "null"
       },
+      "timerMinutes": "null",
       "timesPerDay": "integer",
       "today": {
         "completed": "null",
@@ -449,6 +450,7 @@
           "target": "integer"
         }
       },
+      "timerMinutes": "null",
       "timesPerDay": "integer",
       "today": {
         "completed": "null",

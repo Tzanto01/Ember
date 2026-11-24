@@ -13,9 +13,12 @@ import { LocalMode } from './local/mode';
 import { LocalStore } from './local/store';
 import { UpgradeService } from './local/upgrade';
 import { Reminders } from './native/reminders';
+import { TimerNotification } from './native/timer-notification';
 import { capacitorSecureStore, TokenStore } from './native/token-store';
 import { OfflineQueue } from './offline-queue';
 import { PushService, serviceWorkerRegistration } from './push';
+import { HabitTimer } from './timer/habit-timer';
+import { PageNotification } from './timer/page-notification';
 
 /** The app's single instances. Tests build their own with fakes instead of importing these. */
 export const http = new Http({ native: env.native, apiBase: env.apiBase });
@@ -47,6 +50,21 @@ journal.onDroppedNote = (note) => offlineQueue.droppedNotes.update((notes) => [.
 /** "What helps me", end-to-end encrypted, in memory only; the signed-in shell loads it. */
 export const helps = new HelpsService(api, journal, auth);
 export const deviceSync = new DeviceSync(auth, api, offlineQueue, reminders);
+
+/** The device's one habit timer. */
+export const habitTimer = new HabitTimer({
+  api,
+  device: deviceStore,
+  queue: offlineQueue,
+  me: auth.me,
+  notifier: env.native ? new TimerNotification() : new PageNotification(serviceWorkerRegistration, push.showNames),
+  onConfirmed: () => deviceSync.synced.update((count) => count + 1),
+});
+auth.timer = habitTimer;
+deviceSync.timer = habitTimer;
+api.onHabits = (habits) => habitTimer.reconcile(habits);
+api.onCheckIn = (habitId, date) => habitTimer.checkedIn(habitId, date);
+if (reminders) reminders.onCheckIn = api.onCheckIn;
 
 http.session = auth;
 http.bearer = tokens;

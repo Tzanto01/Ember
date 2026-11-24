@@ -9,6 +9,7 @@ import { navigate } from './navigation';
 import type { OfflineQueue } from './offline-queue';
 import { Store } from './store';
 import { themeApplied } from './theme';
+import type { HabitTimer } from './timer/habit-timer';
 
 /**
  * Keeps the device in step with the account: replays queued offline day edits when the user is known, when an
@@ -27,6 +28,9 @@ export class DeviceSync {
   private secondMinutes: number | null = null;
   private withdrawn = false;
   private todayOrder = 'null';
+
+  /** The device's habit timer, re-read when the app resumes; set by the composition root. */
+  timer: Pick<HabitTimer, 'check'> | null = null;
 
   /** Bumps after a replay sent or dropped something, so screens can reload. */
   readonly synced = new Store(0);
@@ -120,6 +124,7 @@ export class DeviceSync {
   private async listenNative(): Promise<void> {
     const { App } = await import('@capacitor/app');
     await App.addListener('resume', () => {
+      this.timer?.check();
       void (async () => {
         await this.auth.loadMe(true).catch(() => null);
         await this.sync();

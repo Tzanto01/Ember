@@ -467,6 +467,30 @@ public class PostgresMigrationTests(PostgresFixture postgres)
         (await OrdersAsync()).Should().BeEquivalentTo(orders, o => o.WithStrictOrdering());
     }
 
+    [DockerFact]
+    public async Task HabitTimerMigration_GivesExistingHabitsNoTimer_AndGoesBackDown()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        var migrator = db.GetService<IMigrator>();
+        const string previous = "20261121062801_AddCheckInSkipped";
+        var userId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+        await migrator.MigrateAsync();
+        db.Users.Add(new User { Id = userId });
+        db.Habits.Add(new Habit { UserId = userId, Name = "Walk", TimerMinutes = 30 });
+        await db.SaveChangesAsync();
+        await migrator.MigrateAsync(previous);
+        (await db.Database.SqlQueryRaw<int>("SELECT count(*)::int AS \"Value\" FROM information_schema.columns " +
+            "WHERE table_name = 'Habits' AND column_name = 'TimerMinutes'").ToListAsync()).Should().Equal(0);
+
+        await migrator.MigrateAsync();
+
+        var habit = await db.Habits.AsNoTracking().SingleAsync();
+        (habit.Name, habit.TimerMinutes).Should().Be(("Walk", null));
+    }
+
     private static async Task<DateOnly> CurrentDateAsync(EmberDbContext db)
         => (await db.Database.SqlQueryRaw<DateOnly>("SELECT CURRENT_DATE AS \"Value\"").ToListAsync()).Single();
 
