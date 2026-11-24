@@ -126,7 +126,7 @@ public static class DataLifecycle
         new(typeof(Feedback), "UserId", WithdrawalRule.Kept, false, ExportRule.WebOnly,
             "Linked reports only (decision D7).", MergeRule.Moves, ""),
         new(typeof(FeedbackImage), "Feedback.UserId", WithdrawalRule.Kept, false, ExportRule.Never,
-            "Kept only to send it to Lookout and for at most 30 days after; the operator sends pictures on request.", MergeRule.MovesWithParent, "With its feedback."),
+            "Kept until Lookout confirmed the report and it is 30 days old, at most 12 months; the operator sends pictures on request.", MergeRule.MovesWithParent, "With its feedback."),
         new(typeof(FeedbackIntake), "None (counts only)", WithdrawalRule.Kept, false, ExportRule.Never,
             "Times and byte counts for the 24-hour limits, not tied to a user.", MergeRule.Untouched, ""),
         new(typeof(FiresideCode), "UserId", WithdrawalRule.Kept, false, ExportRule.Never,

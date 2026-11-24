@@ -1,8 +1,8 @@
 namespace Ember.Core.Models;
 
 /// <summary>
-/// One picture attached to a <see cref="Models.Feedback"/>, stored with its metadata already stripped, until Lookout has it and 30
-/// days have passed since the report. Deleted with the feedback. Never exported.
+/// One picture attached to a <see cref="Models.Feedback"/>, stored with its metadata already stripped, until Lookout confirmed the
+/// report and it is 30 days old, at most 12 months. Deleted with the feedback. Never exported.
 /// </summary>
 public class FeedbackImage
 {
