@@ -60,6 +60,9 @@ export class AuthService {
     private readonly native: NativeSession | null,
   ) {}
 
+  /** True from {@link wipeDevice} to {@link clearSession}: the user is still set, but nothing may be stored for them again. */
+  leaving = false;
+
   /** True while a user is signed in. */
   signedIn(): boolean {
     return this.me.get() !== null;
@@ -82,7 +85,8 @@ export class AuthService {
   }
 
   /**
-   * Loads `me` once and caches it (`force` reloads) and adopts the account's theme. Resolves null when signed out (401);
+   * Loads `me` once and caches it (`force` reloads), adopts the account's theme and forgets the habit lists cached for other
+   * users. Resolves null when signed out (401);
    * rejects with `ApiError` on other failures, for example when offline.
    */
   loadMe(force = false): Promise<Me | null> {
@@ -102,6 +106,7 @@ export class AuthService {
       .then((me) => {
         if (session !== this.session) return null;
         if (!me) void this.timer?.endSession();
+        void this.queue.keepHabitsOf(me?.id ?? null);
         this.me.set(me);
         this.loaded = true;
         const unsaved = me && adoptAccountTheme(me.theme, picks);
@@ -140,6 +145,7 @@ export class AuthService {
     this.session++;
     this.inFlight = null;
     this.me.set(null);
+    this.leaving = false;
     this.loaded = true;
     this.setStaySignedIn(null);
   }
@@ -247,6 +253,7 @@ export class AuthService {
    */
   async wipeDevice(): Promise<void> {
     const userId = this.me.get()?.id;
+    this.leaving = true;
     await this.timer?.endSession();
     await this.journal?.forget();
     if (this.native) {
@@ -258,6 +265,11 @@ export class AuthService {
       .filter((key) => key.startsWith('ember.channelsBeforePhone.') || key === 'ember.signupEmail')
       .forEach((key) => localStorage.removeItem(key));
     resetTheme();
+  }
+
+  /** Forgets every habit list cached on this device, whoever it belongs to. Never throws. */
+  forgetHabits(): Promise<void> {
+    return this.queue.keepHabitsOf(null);
   }
 
   /** Lets the signed-in guard offer the consent step again, after a sign-in that skipped it. */

@@ -4,9 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClient } from '../api-client';
 import { AuthService } from '../auth';
 import { DeviceStore } from '../device-store';
+import { DeviceSync } from '../device-sync';
 import { Http } from '../http';
+import type { EmberWidgetPlugin } from '../native/widget';
+import { Reminders } from '../native/reminders';
+import { TokenStore } from '../native/token-store';
+import type { LocalNotificationsPlugin } from '@capacitor/local-notifications';
 import { OfflineQueue } from '../offline-queue';
-import { type FetchMock, me, mockFetch } from '@/test/test-support';
+import { type FetchMock, habit, me, memorySecureStore, mockFetch } from '@/test/test-support';
 import { LocalBackend, newLocalData } from './backend';
 import { LocalMode } from './mode';
 import { LocalStore } from './store';
@@ -138,5 +143,57 @@ describe('LocalMode', () => {
     expect(http.local).toBeNull();
     expect(auth.me.get()).toBeNull();
     expect(mode.mode.get()).toBe('account');
+  });
+
+  it('leaves no habit list behind in the Android app, not even one cached for an earlier profile', async () => {
+    const device = new DeviceStore();
+    const nativeHttp = new Http({ native: true, apiBase: '' });
+    const queue = new OfflineQueue(device);
+    const api = new ApiClient(nativeHttp, queue);
+    const plugin = {
+      getPending: async () => ({ notifications: [] }),
+      getDeliveredNotifications: async () => ({ notifications: [] }),
+      cancel: async () => undefined,
+      createChannel: async () => undefined,
+      registerActionTypes: async () => undefined,
+      removeAllDeliveredNotifications: async () => undefined,
+      removeDeliveredNotifications: async () => undefined,
+      checkPermissions: async () => ({ display: 'denied' }),
+      checkExactNotificationSetting: async () => ({ exact_alarm: 'denied' }),
+    } as unknown as LocalNotificationsPlugin;
+    const shown: string[] = [];
+    const widget = {
+      update: async () => void shown.push('habits'),
+      clear: async () => void shown.push('nothing'),
+    } as unknown as EmberWidgetPlugin;
+    const reminders = new Reminders(
+      api,
+      device,
+      async () => ({ LocalNotifications: plugin }),
+      async () => ({ EmberWidget: widget }),
+    );
+    const tokens = new TokenStore(nativeHttp, memorySecureStore().store);
+    const nativeAuth = new AuthService(api, queue, null, { tokens, reminders });
+    nativeHttp.session = nativeAuth;
+    const local = new LocalMode(store, new LocalBackend(store, { native: true }), nativeHttp, api, nativeAuth, { native: true });
+    new DeviceSync(nativeAuth, api, queue, reminders);
+    await local.start();
+    await api.createHabit({ name: 'Synthetic walk', frequency: 'daily' } as Parameters<ApiClient['createHabit']>[0]);
+    const userId = nativeAuth.me.get()!.id;
+    await reminders.rebuild(userId, 'Europe/Berlin');
+    await device.saveHabits({ userId: 'earlier-profile', timeZone: 'Europe/Berlin', habits: [habit] });
+    expect((await device.habits(userId))?.habits).toHaveLength(1);
+
+    const clear = store.clear.bind(store);
+    vi.spyOn(store, 'clear').mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await clear();
+    });
+
+    await local.wipe();
+    await vi.waitFor(() => expect(shown.at(-1)).toBe('nothing'));
+
+    expect(await device.habits(userId)).toBeNull();
+    expect(await device.habits('earlier-profile')).toBeNull();
   });
 });

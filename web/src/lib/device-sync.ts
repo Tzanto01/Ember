@@ -62,11 +62,11 @@ export class DeviceSync {
 
   /**
    * Replays the signed-in user's queue, then (native) the widget's pending check-ins ({@link Reminders.replayWidget}, after
-   * the queue so a queued count can't lower one) and rebuilds the reminders. Never throws.
+   * the queue so a queued count can't lower one) and rebuilds the reminders, unless the user left meanwhile. Never throws.
    */
   async sync(): Promise<void> {
     const me = this.auth.me.get();
-    if (!me) return;
+    if (!me || this.auth.leaving) return;
     const result = await this.queue
       .replay(me.id, (edit) =>
         isDayEdit(edit) ? this.api.sendDayEdit(edit, true) : this.api.sendNoteEdit(edit, true),
@@ -74,14 +74,18 @@ export class DeviceSync {
       .catch(() => null);
     if (result?.dropped) this.dropped.update((count) => count + result.dropped);
     if (result && (result.sent || result.dropped)) this.synced.update((count) => count + 1);
+    if (this.auth.leaving || this.auth.me.get()?.id !== me.id) return;
     await this.reminders?.replayWidget(me.id, me.timezone, this.queue);
     this.rebuildReminders();
   }
 
-  /** Native build only: rebuilds the local reminders for the signed-in user, or pauses them while the consent is withdrawn. */
+  /**
+   * Native build only: rebuilds the local reminders for the signed-in user, or pauses them while the consent is withdrawn;
+   * does nothing while the device is being wiped ({@link AuthService.leaving}).
+   */
   rebuildReminders(): void {
     const me = this.auth.me.get();
-    if (!this.reminders || !me) return;
+    if (!this.reminders || !me || this.auth.leaving) return;
     void (me.consent?.withdrawnAt
       ? this.reminders.pause()
       : this.reminders.rebuild(me.id, me.timezone, me.secondReminderMinutes, me.todayOrder ?? null));

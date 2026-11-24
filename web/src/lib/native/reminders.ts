@@ -97,6 +97,7 @@ export class Reminders {
   private chain: Promise<void> = Promise.resolve();
   private channelLanguage: string | null = null;
   private keyHandedOff = false;
+  private cleared = 0;
 
   /** Called when a check-in was queued here without going through {@link ApiClient}; set by the composition root. */
   onCheckIn: ((habitId: number, date: LocalDateString) => void) | null = null;
@@ -114,10 +115,13 @@ export class Reminders {
    * day edits applied, so an offline check-in still cancels today's reminder), in `timeZone`, with a second
    * reminder `secondMinutes` after each one when above 0, pushes the widget's snapshot in the account's Today
    * `order` (marking the rows with queued day edits as held), and removes the delivered reminders that have
-   * nothing left to remind of. Rebuilds run one after another. Never throws.
+   * nothing left to remind of. Rebuilds run one after another; one still waiting when {@link clearAll} comes is dropped. Never throws.
    */
   rebuild(userId: string, timeZone: string, secondMinutes = 0, order: string[] | null = null): Promise<void> {
-    this.chain = this.chain.then(() => this.run(userId, timeZone, secondMinutes, order)).catch(() => undefined);
+    const cleared = this.cleared;
+    this.chain = this.chain
+      .then(() => (cleared === this.cleared ? this.run(userId, timeZone, secondMinutes, order) : undefined))
+      .catch(() => undefined);
     return this.chain;
   }
 
@@ -168,6 +172,7 @@ export class Reminders {
    * and resets "Show habit names in reminders" (sign-out, session end, account deletion).
    */
   async clearAll(): Promise<void> {
+    this.cleared++;
     reminderNames.set(false);
     this.keyHandedOff = false;
     forgetPhone();
@@ -234,6 +239,7 @@ export class Reminders {
    * answers 401 they are dropped, as are unknown and let-go habits. Never throws.
    */
   async replayWidget(userId: string, timeZone: string, queue: OfflineQueue): Promise<void> {
+    const cleared = this.cleared;
     try {
       const { EmberWidget } = await this.widget();
       if (typeof EmberWidget.takePending !== 'function') return;
@@ -243,7 +249,7 @@ export class Reminders {
         return target && Number.isSafeInteger(entry.count) && entry.count >= 1 ? [{ target, count: entry.count }] : [];
       });
       if (!pending.length) return;
-      const loaded = await this.load(userId, timeZone);
+      const loaded = await this.load(userId, timeZone, cleared);
       if (loaded === 'signedOut') return;
       for (const { target, count } of pending) {
         try {
@@ -286,12 +292,13 @@ export class Reminders {
   }
 
   /**
-   * The habit list: live (and cached), or when the API can't answer the cached one with queued day edits applied;
+   * The habit list: live (and cached, unless {@link clearAll} came since `cleared` was read), or when the API can't answer the cached one with queued day edits applied;
    * `signedOut` on a 401, null when nothing is cached.
    */
   private async load(
     userId: string,
     timeZone: string,
+    cleared = this.cleared,
   ): Promise<{ habits: AnyHabit[]; routines: Routine[]; live: boolean } | 'signedOut' | null> {
     try {
       const habits = await this.api.listHabits();
@@ -299,6 +306,7 @@ export class Reminders {
         .listRoutines()
         .catch(async () => (await this.store.habits(userId).catch(() => null))?.routines);
       await this.store.saveHabits({ userId, timeZone, habits, routines }).catch(() => undefined);
+      if (cleared !== this.cleared) await this.store.deleteHabits(userId).catch(() => undefined);
       return { habits, routines: routines ?? [], live: true };
     } catch (error) {
       if (asApiError(error).status === 401) return 'signedOut';

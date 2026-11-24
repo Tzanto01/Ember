@@ -159,6 +159,13 @@ export class DeviceStore {
     await done((await this.store(cache, 'readwrite')).delete(userId));
   }
 
+  /** Removes every cached habit list but `userId`'s (null: all of them) and keeps the queued edits. */
+  async keepHabitsOf(userId: string | null): Promise<void> {
+    const habits = await this.store(cache, 'readwrite');
+    const others = (await done(habits.getAllKeys())).filter((key) => key !== userId);
+    await Promise.all(others.map((key) => done(habits.delete(key))));
+  }
+
   /** Removes the user's queued edits and cached habits. */
   async clearUser(userId: string): Promise<void> {
     const queue = await this.store(edits, 'readwrite');
