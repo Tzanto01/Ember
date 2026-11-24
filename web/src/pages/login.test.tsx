@@ -156,6 +156,45 @@ describe('LoginPage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/today'));
   });
 
+  it('asks for consent before going on, but not on the way to deleting the account', async () => {
+    const undecided = { ...me, consent: { ...me.consent, given: false } };
+    const first = renderPage('/login', LoginPage, '/login?returnUrl=%2Fhistory');
+    await signIn('a long passphrase');
+    (await mock.next('POST', '/api/auth/login?useCookies=true')).respond(200);
+    (await mock.next('GET', '/api/auth/antiforgery')).respond(204);
+    (await mock.next('GET', '/api/me')).respond(200, undecided);
+    await waitFor(() =>
+      expect(first.state.location.pathname + first.state.location.search).toBe('/consent?returnUrl=%2Fhistory'),
+    );
+    cleanup();
+    auth.clearSession();
+
+    const second = renderPage('/login', LoginPage, '/login?returnUrl=%2Fdelete-account');
+    await signIn('a long passphrase');
+    (await mock.next('POST', '/api/auth/login?useCookies=true')).respond(200);
+    (await mock.next('GET', '/api/auth/antiforgery')).respond(204);
+    (await mock.next('GET', '/api/me')).respond(200, undecided);
+    await waitFor(() => expect(second.state.location.pathname).toBe('/delete-account'));
+  });
+
+  it('returns to the account-deletion page after the second factor', async () => {
+    const router = renderPage('/login', LoginPage, '/login?returnUrl=%2Fdelete-account');
+    expect(screen.getByRole('link', { name: 'Sign in with Discord' })).toHaveAttribute(
+      'href',
+      api.discordLoginUrl('/delete-account'),
+    );
+    await signIn('a long passphrase');
+    (await mock.next('POST', '/api/auth/login?useCookies=true')).respond(401, { status: 401, detail: 'RequiresTwoFactor' });
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Authenticator code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    (await mock.next('POST', '/api/auth/login?useCookies=true')).respond(200);
+    (await mock.next('GET', '/api/auth/antiforgery')).respond(204);
+    (await mock.next('GET', '/api/me')).respond(200, me);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/delete-account'));
+  });
+
   async function reachCodeStep() {
     renderPage('/login', LoginPage, '/login');
     await signIn('a long passphrase');

@@ -1,4 +1,4 @@
-import { type SubmitEvent, useRef, useState } from 'react';
+import { type ReactNode, type SubmitEvent, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -25,9 +25,9 @@ const deleteWord: Validator = (value) => {
 
 /**
  * Deletes the account after its password (when it has one) and the typed delete word, then this device's copy, and
- * signs out; without an account, deletes everything on this device instead.
+ * signs out; without an account, deletes everything on this device instead. `more` follows the form.
  */
-export function DeleteCard({ title, me, local }: { title: string; me: Me; local: boolean }) {
+export function DeleteCard({ title, me, local, more }: { title: string; me: Me; local: boolean; more?: ReactNode }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { busy, isBusy, start, finish, fail, outcome } = useSettingsStatus();
@@ -131,6 +131,7 @@ export function DeleteCard({ title, me, local }: { title: string; me: Me; local:
           </form>
         </>
       )}
+      {more}
     </SettingsCard>
   );
 }

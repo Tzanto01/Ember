@@ -164,6 +164,7 @@ for (const { code, locale, strings } of languages) {
 
       await visit(page, '/local', tr('local.start.title'), 'start', found);
       await visit(page, '/about', tr('title.about'), 'page', found);
+      await visit(page, '/delete-account', tr('title.deleteAccount'), 'page', found);
       await visit(page, '/feedback', tr('title.feedback'), 'empty', found);
       await page.getByLabel(tr('feedback.title.label'), { exact: true }).fill('Synthetic');
       await page

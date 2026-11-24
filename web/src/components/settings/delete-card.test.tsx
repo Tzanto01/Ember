@@ -54,6 +54,15 @@ describe('DeleteCard', { timeout: 15_000 }, () => {
     expect(remove.body).toEqual({ password: 'synthetic-secret-1', confirm: 'DELETE' });
   });
 
+  it('links the page that says what goes and what stays', async () => {
+    await openSettings('/settings/privacy');
+
+    expect(screen.getByRole('link', { name: 'What gets deleted and what stays for a while' })).toHaveAttribute(
+      'href',
+      '/delete-account',
+    );
+  });
+
   it('deletes the account with the password and lands on /login?reason=deleted', async () => {
     const user = userEvent.setup();
     const { fetch, router } = await openSettings('/settings/privacy');
