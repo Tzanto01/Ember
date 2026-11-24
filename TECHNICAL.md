@@ -149,13 +149,13 @@ Lookout's `docs/restore.md` has the whole procedure. Ember's part is its step 4,
 1. Print every ref, whatever its age, into a file only you can read. The command must exit with 0:
 
    ```bash
-   (umask 077 && mkdir -p ~/.local/share/lookout-restore)
+   mkdir -p -m 700 ~/.local/share/lookout-restore && chmod 700 ~/.local/share/lookout-restore
    (umask 077 && docker compose --profile lookout exec -T lookout-sender dotnet Ember.Api.dll --lookout-deleted-refs > ~/.local/share/lookout-restore/ember-refs)
    ```
 
    If the sender isn't running, use `docker compose --profile lookout run --rm --no-deps -T lookout-sender --lookout-deleted-refs` instead.
-2. Stderr gives `Total: <count>` and since when refs are recorded. Never restore a copy older than that time or older than 30 days: deletions before that are unknown.
-3. From Lookout's checkout, pass that count, never one counted from the file: `host/lookout-apply-deletions.py ember <copy> <count> < ~/.local/share/lookout-restore/ember-refs`
+2. Stderr gives `Total: <count>` and since when refs are recorded. Never restore a copy older than that time, because deletions before it are unknown, or older than the 14 days Lookout's `docs/restore.md` allows.
+3. From Lookout's checkout (`~/lookout`), pass that count, never one counted from the file: `host/lookout-apply-deletions.py ember <copy> <count> < ~/.local/share/lookout-restore/ember-refs`
 4. Go on with Lookout's steps. Its last one deletes `~/.local/share/lookout-restore`, so the refs file too.
 
 Leave the sender running or start it after the hub: a deletion still waiting in the outbox then reaches the restored store too. The command fails, printing no ref, when the file isn't configured or can't be read, or when any line of it is malformed. Lookout's store comes back without the tickets sent after the copy, and Ember doesn't send those again.

@@ -5,7 +5,7 @@ One-time steps for the release that drops Ember's feedback board. Run them in th
 The check, used in steps 2 and 8:
 
 ```bash
-LOOKOUT_AGENT_NAME=... LOOKOUT_AGENT_PROVIDER=... tools/feedback-move/check.sh ~/projects/lookout > check.txt 2>&1; echo "exit $?"; cat check.txt
+LOOKOUT_AGENT_NAME=... LOOKOUT_AGENT_PROVIDER=... tools/feedback-move/check.sh ~/lookout > check.txt 2>&1; echo "exit $?"; cat check.txt
 ```
 
 It reads only. For every report Ember has it looks for Lookout's ticket and compares the status, the title and text, the notes one by one, and the number and size of the pictures. `check.txt` holds ids, counts, sizes and statuses, never titles or texts. Its last line is `RESULT`; without it the check didn't finish.
@@ -17,13 +17,13 @@ It reads only. For every report Ember has it looks for Lookout's ticket and comp
   - A picture: `tools/feedback-images.sh` of the running version, then `board.sh picture-add`.
   - A report that was never queued: the running version can still import it. The command is in `git show 96d815c:TECHNICAL.md` (`--lookout-import`). Lookout takes it only while its registry has `importOpen: true` for `ember`.
   - Notes of a `parked` or `waiting` report: save them, Lookout has no ticket for it yet. The report itself stays in Ember until Lookout takes it, pictures included, for 12 months at most.
-  - A ticket Nico deleted on Lookout's board, or a problem settled by hand: pass the report ids as the second argument (`check.sh ~/projects/lookout 12,15`). They show as `ACCEPTED`.
+  - A ticket Nico deleted on Lookout's board, or a problem settled by hand: pass the report ids as the second argument (`check.sh ~/lookout 12,15`). They show as `ACCEPTED`.
 
 **Before the deploy, with the old version still running**
 
 1. Set `FEEDBACK_RETENTION_ENABLED=false` in the environment file and leave `FEEDBACK_DELETE_SENT_COPIES` unset. The new version then deletes no feedback until step 10. The old one knows neither setting and goes on deleting by its own rules (12 months; pictures 30 days after the report was resolved).
 2. Run `python3 -m unittest discover tools/feedback-move`, then the check. Go on only with exit 0, or exit 2 and every difference understood.
-3. Make sure last night's dump holds `emberdb` and `emberops`. After step 9 Lookout's store is the only place with the notes, and after step 10 the only one with most pictures. If Lookout's store isn't backed up yet, take a consistent copy of its `lookout.db` first.
+3. Make sure last night's dump holds `emberdb` and `emberops`. After step 9 Lookout's store is the only place with the notes, and after step 10 the only one with most pictures. Check that last night's copy of Lookout's store exists (its own nightly backup).
 
 **The deploy**
 
