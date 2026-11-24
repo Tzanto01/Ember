@@ -97,6 +97,7 @@ export class Reminders {
   private chain: Promise<void> = Promise.resolve();
   private channelLanguage: string | null = null;
   private keyHandedOff = false;
+  private cleared = 0;
 
   /** Called when a check-in was queued here without going through {@link ApiClient}; set by the composition root. */
   onCheckIn: ((habitId: number, date: LocalDateString) => void) | null = null;
@@ -168,6 +169,7 @@ export class Reminders {
    * and resets "Show habit names in reminders" (sign-out, session end, account deletion).
    */
   async clearAll(): Promise<void> {
+    this.cleared++;
     reminderNames.set(false);
     this.keyHandedOff = false;
     forgetPhone();
@@ -286,19 +288,21 @@ export class Reminders {
   }
 
   /**
-   * The habit list: live (and cached), or when the API can't answer the cached one with queued day edits applied;
+   * The habit list: live (and cached, unless {@link clearAll} came meanwhile), or when the API can't answer the cached one with queued day edits applied;
    * `signedOut` on a 401, null when nothing is cached.
    */
   private async load(
     userId: string,
     timeZone: string,
   ): Promise<{ habits: AnyHabit[]; routines: Routine[]; live: boolean } | 'signedOut' | null> {
+    const cleared = this.cleared;
     try {
       const habits = await this.api.listHabits();
       const routines = await this.api
         .listRoutines()
         .catch(async () => (await this.store.habits(userId).catch(() => null))?.routines);
       await this.store.saveHabits({ userId, timeZone, habits, routines }).catch(() => undefined);
+      if (cleared !== this.cleared) await this.store.deleteHabits(userId).catch(() => undefined);
       return { habits, routines: routines ?? [], live: true };
     } catch (error) {
       if (asApiError(error).status === 401) return 'signedOut';

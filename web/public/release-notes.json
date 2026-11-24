@@ -7,13 +7,15 @@
         "Android: with an account, the “Today in Ember” widget now loads the new day by itself after midnight and keeps up with check-ins you make elsewhere, so you no longer have to open the app for it.",
         "You can now delete your account on its own page, in the browser or in the app, also when you don't have the app anymore. It says what goes right away and what stays for a while. You find it in Settings, on About Ember and below the privacy policy.",
         "On the web and in the beta app, the footer and About Ember link to a page where you can tip Nico a coffee, if you like.",
-        "A habit can have a timer now: give it a length, start it on Today, and Ember tells you when the time is up. Checking in stays up to you."
+        "A habit can have a timer now: give it a length, start it on Today, and Ember tells you when the time is up. Checking in stays up to you.",
+        "Android, without an account: “Delete everything on this device” left a copy of your habit list in the app's storage. It deletes that copy now too, and a copy left from before goes the next time you use Ember."
       ],
       "de": [
         "Android: Mit einem Konto lädt das Widget „Heute in Ember“ den neuen Tag nach Mitternacht jetzt von selbst und zeigt auch Check-ins, die du woanders machst. Dafür musst du die App nicht mehr öffnen.",
         "Dein Konto kannst du jetzt auf einer eigenen Seite löschen, im Browser oder in der App, auch wenn du die App nicht mehr hast. Dort steht, was sofort weg ist und was noch eine Weile bleibt. Du findest sie in den Einstellungen, unter „Über Ember“ und unter der Datenschutzerklärung.",
         "Im Web und in der Beta-App führen die Fußzeile und „Über Ember“ zu einer Seite, auf der du Nico einen Kaffee ausgeben kannst, wenn du magst.",
-        "Ein Habit kann jetzt einen Timer haben: Gib ihm eine Länge, starte ihn unter Heute, und Ember sagt dir, wenn die Zeit um ist. Ob du abhakst, entscheidest du."
+        "Ein Habit kann jetzt einen Timer haben: Gib ihm eine Länge, starte ihn unter Heute, und Ember sagt dir, wenn die Zeit um ist. Ob du abhakst, entscheidest du.",
+        "Android, ohne Konto: „Alles auf diesem Gerät löschen“ ließ eine Kopie deiner Habit-Liste im Speicher der App zurück. Jetzt löscht Ember auch sie, und eine Kopie von früher verschwindet, wenn du Ember das nächste Mal benutzt."
       ]
     }
   },

@@ -121,9 +121,15 @@ export class LocalMode implements LocalModeApi {
 
   async wipe(): Promise<void> {
     await this.auth.wipeDevice();
-    await this.store.clear();
+    try {
+      await this.store.clear();
+    } catch (error) {
+      this.auth.leaving = false;
+      throw error;
+    }
     this.leave();
     this.auth.clearSession();
+    await this.auth.forgetHabits();
     await this.auth.refreshAntiforgery();
   }
 

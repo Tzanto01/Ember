@@ -279,6 +279,19 @@ describe('Reminders', () => {
     expect(schedule).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps no habit list that arrives after the reminders were cleared', async () => {
+    const done = reminders.rebuild('u1', zone);
+    const list = await mock.next('GET', '/api/habits');
+    const cleared = reminders.clearAll();
+    list.respond(200, [reminded]);
+    (await mock.next('GET', '/api/routines')).respond(200, []);
+    await phoneRegistered(null);
+    await done;
+    await cleared;
+
+    expect(await device.habits('u1')).toBeNull();
+  });
+
   it('schedules nothing from the cache when the API answers 401', async () => {
     const done = reminders.rebuild('u1', zone);
     (await mock.next('GET', '/api/habits')).respond(401);

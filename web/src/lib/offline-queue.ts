@@ -104,6 +104,11 @@ export class OfflineQueue {
     this.droppedNotes.set([]);
   }
 
+  /** Forgets the habit lists cached for anyone but `userId` (null: for everyone); queued edits stay. Never throws. */
+  async keepHabitsOf(userId: string | null): Promise<void> {
+    await this.store.keepHabitsOf(userId).catch(() => undefined);
+  }
+
   /** Re-reads the user's queue length into `pending` (when the user is the signed-in one). */
   async refreshCount(userId: string): Promise<void> {
     const count = (await this.store.edits(userId).catch(() => [] as QueuedEdit[])).length;
