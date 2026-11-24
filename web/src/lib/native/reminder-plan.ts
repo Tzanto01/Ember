@@ -11,6 +11,9 @@ import {
 } from '../models';
 import type { ReminderPhone } from './phone';
 
+/** The one notification id the habit timer uses; {@link reminderId} never returns it. */
+export const timerNotificationId = 1;
+
 /** One local notification to schedule: for one habit (`habitId`) or for a routine's pending habits (`routineId`). */
 export interface PlannedReminder {
   /** Unique within one plan and stable across plans for the same habit or routine, date, time and kind; see {@link reminderId}. */
@@ -75,9 +78,14 @@ function wallClock(utc: number, timeZone: string): { date: LocalDateString; minu
   };
 }
 
+/** `id`, or the first one after it that neither 0 nor the habit timer uses. */
+function freeId(id: number): number {
+  return Math.max(id, timerNotificationId + 1);
+}
+
 /**
  * The notification id for one reminder: a positive 31-bit FNV-1a hash of `habit` or `routine`, the id, the local
- * date, the `HH:mm` time and whether it's the second reminder. The same reminder keeps its id when the plan is
+ * date, the `HH:mm` time and whether it's the second reminder, never {@link timerNotificationId}. The same reminder keeps its id when the plan is
  * rebuilt, so Android replaces it rather than showing it twice.
  */
 export function reminderId(
@@ -86,7 +94,7 @@ export function reminderId(
   const key = `${reminder.habitId !== undefined ? `h${reminder.habitId}` : `r${reminder.routineId}`}|${reminder.date}|${reminder.time}|${reminder.second ? 2 : 1}`;
   let hash = 0x811c9dc5;
   for (let i = 0; i < key.length; i++) hash = Math.imul(hash ^ key.charCodeAt(i), 0x01000193);
-  return (hash & 0x7fffffff) || 1;
+  return freeId(hash & 0x7fffffff);
 }
 
 /** The local calendar day in `timeZone` at the UTC instant `utc`. */
@@ -124,7 +132,8 @@ function offset(utc: number, timeZone: string): number {
   return Date.UTC(y, m - 1, d, 0, wall.minutes) - Math.floor(utc / 60_000) * 60_000;
 }
 
-function pausedOn(habit: Pick<Habit, 'pausedFrom' | 'pausedUntil'>, date: LocalDateString): boolean {
+/** True when `date` falls inside the habit's pause. */
+export function pausedOn(habit: Pick<Habit, 'pausedFrom' | 'pausedUntil'>, date: LocalDateString): boolean {
   return (
     habit.pausedUntil !== null &&
     date <= habit.pausedUntil &&
@@ -285,7 +294,7 @@ export function planReminders(
     .slice(0, planCap)
     .map((reminder) => {
       let id = reminderId(reminder);
-      while (used.has(id)) id = (id % 0x7fffffff) + 1;
+      while (used.has(id)) id = freeId((id % 0x7fffffff) + 1);
       used.add(id);
       return { ...reminder, id };
     });

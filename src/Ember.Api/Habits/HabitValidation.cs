@@ -128,6 +128,13 @@ internal static class HabitValidation
         return timesPerDay;
     }
 
+    internal static void ValidateTimer(int? timerMinutes, HabitKind? kind, Dictionary<string, string[]> errors)
+    {
+        if (timerMinutes is null) return;
+        if (kind == HabitKind.LetGo) errors["timerMinutes"] = ["Never set for let-go habits."];
+        else if (timerMinutes is < 1 or > Limits.TimerMinutes) errors["timerMinutes"] = [$"Must be between 1 and {Limits.TimerMinutes}."];
+    }
+
     internal static void ValidateWeeklyTarget(int? weeklyTarget, FrequencyType? frequency, Dictionary<string, string[]> errors)
     {
         if (weeklyTarget is null) return;

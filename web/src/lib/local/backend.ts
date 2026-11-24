@@ -137,6 +137,7 @@ export function exportDocument(data: LocalData, journal = true): Record<string, 
       reminder_channels: h.reminderChannels,
       days: h.days,
       times_per_day: h.timesPerDay,
+      timer_minutes: h.timerMinutes ?? null,
       routine_id: h.routineId,
       routine_position: h.routinePosition,
     })),
@@ -283,6 +284,15 @@ function timesPerDayField(value: unknown, frequency: Frequency | null, errors: E
 
 function given(value: unknown): boolean {
   return value !== null && value !== undefined;
+}
+
+function timerField(value: unknown, letGo: boolean, errors: Errors): number | null {
+  if (!given(value)) return null;
+  const minutes = value as number;
+  if (letGo) errors['timerMinutes'] = ['Never set for let-go habits.'];
+  else if (!Number.isInteger(value) || minutes < 1 || minutes > limits.timerMinutes)
+    errors['timerMinutes'] = [`Must be between 1 and ${limits.timerMinutes}.`];
+  return minutes;
 }
 
 function letGoFields(b: Body, errors: Errors): void {
@@ -662,6 +672,7 @@ export class LocalBackend {
       reminderTimesField(b['reminderTimes'], frequency === 'weekly' ? 1 : timesPerDay, errors) ??
       (reminder ? [reminder] : []);
     const channels = channelsField(b['reminderChannels'], errors);
+    const timerMinutes = timerField(b['timerMinutes'], letGo, errors);
     if (letGo) letGoFields(b, errors);
     if (Object.keys(errors).length) throw invalid(errors);
 
@@ -677,6 +688,7 @@ export class LocalBackend {
         weeklyTarget: frequency === 'weekly' ? ((b['weeklyTarget'] as number | null | undefined) ?? 3) : null,
         days: frequency === 'weekdays' ? days : null,
         timesPerDay: frequency === 'weekly' ? 1 : timesPerDay,
+        timerMinutes,
         reminderTime: times[0] ?? null,
         reminderTimes: times,
         reminderChannels: channels ?? (this.options.native ? ['mobile'] : []),
@@ -718,6 +730,9 @@ export class LocalBackend {
     );
     const times = reminderTimesField(b['reminderTimes'], newFrequency === 'weekly' ? 1 : timesPerDay, errors);
     if (times !== null && clearReminder) errors['reminderTimes'] = ["Can't be combined with clearReminder."];
+    const timerMinutes = timerField(b['timerMinutes'], letGo, errors);
+    const clearTimer = b['clearTimer'] === true;
+    if (timerMinutes !== null && clearTimer) errors['timerMinutes'] = ["Can't be combined with clearTimer."];
     const channels = channelsField(b['reminderChannels'], errors);
     if (Object.keys(errors).length) throw invalid(errors);
 
@@ -730,6 +745,8 @@ export class LocalBackend {
       if (name !== null) h.name = name;
       let kept = times ?? (clearReminder ? [] : reminder !== null ? [reminder] : reminderTimesOf(h));
       if (channels) h.reminderChannels = channels;
+      if (clearTimer) h.timerMinutes = null;
+      else if (timerMinutes !== null) h.timerMinutes = timerMinutes;
       if (scheduleGiven) {
         const target = newFrequency === 'weekly' ? 1 : timesPerDay;
         if (target !== h.timesPerDay) d.logs = retarget(d, id, target, this.today(d));

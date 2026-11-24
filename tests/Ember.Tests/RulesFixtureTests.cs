@@ -199,6 +199,7 @@ public partial class RulesFixtureTests
                 HabitNoteText = MaxLength<HabitNote>(nameof(HabitNote.Text)),
                 TodayOrder = User.MaxTodayOrderEntries,
                 TimesPerDay = Limits.TimesPerDay,
+                TimerMinutes = Limits.TimerMinutes,
                 WeeklyTarget = Limits.WeeklyTarget,
             },
             Fireside = new

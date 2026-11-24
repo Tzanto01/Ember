@@ -22,14 +22,14 @@ internal static class HabitEndpoints
         int Id, string Name, string Frequency, int? WeeklyTarget, string? ReminderTime,
         DateOnly? PausedFrom, DateOnly? PausedUntil, bool PausedToday, DateTime CreatedAt, DateOnly StartDate,
         object Today, object Stats, List<string> ReminderChannels, List<string>? Days, int TimesPerDay, int? RoutineId,
-        List<string> ReminderTimes, List<string> ReminderExclusions, bool ServerReminders, string Kind);
+        List<string> ReminderTimes, List<string> ReminderExclusions, bool ServerReminders, string Kind, int? TimerMinutes);
 
     public sealed record TemplateDto(string Key, string Name, string Description, string SuggestedReminderTime, string Frequency, int? WeeklyTarget);
 
     public sealed record CreateHabitRequest(string? Name, string? ReminderTime, string? Frequency, int? WeeklyTarget,
-        string?[]? Days, int? TimesPerDay, string?[]? ReminderTimes, string?[]? ReminderExclusions, string? Kind);
+        string?[]? Days, int? TimesPerDay, string?[]? ReminderTimes, string?[]? ReminderExclusions, string? Kind, int? TimerMinutes);
     public sealed record UpdateHabitRequest(string? Name, string? ReminderTime, bool? ClearReminder, string? Frequency, int? WeeklyTarget,
-        string?[]? ReminderExclusions, string?[]? Days, int? TimesPerDay, string?[]? ReminderTimes, string? Kind);
+        string?[]? ReminderExclusions, string?[]? Days, int? TimesPerDay, string?[]? ReminderTimes, string? Kind, int? TimerMinutes, bool? ClearTimer);
     public sealed record SlipRequest(string? Date, string? Reason);
     public sealed record PauseRequest(string? Until);
     public sealed record DayRequest(bool? Completed, int? Count);
@@ -67,12 +67,13 @@ internal static class HabitEndpoints
             if (kind is null) errors["kind"] = [HabitValidation.KindMessage];
             else if (kind == HabitKind.LetGo)
                 HabitValidation.ValidateLetGo(frequency, request.TimesPerDay, request.WeeklyTarget, request.Days, request.ReminderTimes?.Length, errors);
+            HabitValidation.ValidateTimer(request.TimerMinutes, kind, errors);
             var userId = principal.UserId();
             var exclusions = await HabitValidation.ParseReminderExclusionsAsync(request.ReminderExclusions, reminders, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var (result, habit) = await habits.AddHabitAsync(userId, name!, reminder, frequency!.Value, request.WeeklyTarget,
-                exclusions, days, timesPerDay, reminderTimes, kind!.Value);
+                exclusions, days, timesPerDay, reminderTimes, kind!.Value, request.TimerMinutes);
             if (result == HabitWriteResult.ConsentRequired) return Problems.ConsentRequired();
             if (result == HabitWriteResult.LimitReached) return Problems.HabitLimit();
 
@@ -104,14 +105,18 @@ internal static class HabitEndpoints
             if (request.Kind is not null && HabitValidation.ParseKind(request.Kind) != habit.Kind) errors["kind"] = ["Can't be changed."];
             if (habit.Kind == HabitKind.LetGo)
                 HabitValidation.ValidateLetGo(frequency, request.TimesPerDay, request.WeeklyTarget, request.Days, request.ReminderTimes?.Length, errors);
+            HabitValidation.ValidateTimer(request.TimerMinutes, habit.Kind, errors);
+            if (request.TimerMinutes is not null && request.ClearTimer == true) errors["timerMinutes"] = ["Can't be combined with clearTimer."];
             var exclusions = await HabitValidation.ParseReminderExclusionsAsync(request.ReminderExclusions, reminders, userId, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
             if (name is not null && name != habit.Name && !await consent.HasHealthDataConsentAsync(userId)) return Problems.ConsentRequired();
 
             if (frequency is not null || request.WeeklyTarget is not null || request.Days is not null || request.TimesPerDay is not null)
                 await habits.SetScheduleAsync(userId, id, newFrequency!.Value, request.WeeklyTarget ?? habit.WeeklyTarget, days, timesPerDay);
-            if ((name is not null || reminder is not null || reminderTimes is not null || request.ClearReminder == true || exclusions is not null)
-                && (await habits.EditHabitAsync(userId, id, name, reminder, request.ClearReminder == true, exclusions, reminderTimes)).Result
+            if ((name is not null || reminder is not null || reminderTimes is not null || request.ClearReminder == true || exclusions is not null
+                    || request.TimerMinutes is not null || request.ClearTimer == true)
+                && (await habits.EditHabitAsync(userId, id, name, reminder, request.ClearReminder == true, exclusions, reminderTimes,
+                    request.TimerMinutes, request.ClearTimer == true)).Result
                     == HabitWriteResult.ConsentRequired)
                 return Problems.ConsentRequired();
 
@@ -321,7 +326,7 @@ internal static class HabitEndpoints
             habit.FrequencyType == FrequencyType.Weekdays && habit.Days is { } days ? ScheduleDayNames.ToNames(days) : null,
             habit.TimesPerDay, habit.RoutineId, habit.ReminderTimes.Select(Formats.Time).ToList(),
             habit.ReminderExclusions.Where(user.DestinationIds.Contains).ToList(), targets.Any,
-            habit.Kind == HabitKind.LetGo ? "letGo" : "build");
+            habit.Kind == HabitKind.LetGo ? "letGo" : "build", habit.TimerMinutes);
     }
 
     private static DayDto ToDayDto(HabitDay day) => new(day.Date, Lower(day.State), day.Completed, day.Count, day.Skipped);

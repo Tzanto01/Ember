@@ -12,6 +12,7 @@ import { formatDate } from '@/lib/local-date';
 import type { Habit } from '@/lib/models';
 import type { NotTodayReason } from '@/lib/today-plan';
 import { cn } from '@/lib/utils';
+import { TimerControl } from './timer-control';
 import { CheckButton, checkButtonId } from './check-button';
 import type { RewardKeyword } from './reward';
 import { RollingNumber } from './rolling-number';
@@ -40,6 +41,8 @@ export interface HabitRowProps {
   grip?: boolean;
   /** Under Not for today: a paused habit still gets its check button (keeping the paused line). */
   checkInPaused?: boolean;
+  /** Says what a tap on the row's timer did, for the page's live region. */
+  onAnnounce?: (message: string) => void;
   /** Its Today order key, for hold-and-drag (`useReorder`). */
   reorderKey?: string;
   /** Class for the `<li>`, for example the lifted look while it is moved. */
@@ -90,7 +93,7 @@ function Progress({ habit, roll, showStreaks }: { habit: Habit; roll: boolean; s
 
 /**
  * One Today habit card: name, meta line, Edit icon link, and the CheckButton (or a static day slot when not
- * checkable). Multi-count habits show "2 of 3 today" and a "take one off" button once started; a rest day says so,
+ * checkable), with the {@link TimerControl} under them or, from `sm`, beside the check button. Multi-count habits show "2 of 3 today" and a "take one off" button once started; a rest day says so,
  * and a Not for today row always says why it is there.
  */
 export function HabitRow({
@@ -106,6 +109,7 @@ export function HabitRow({
   menu,
   notToday,
   grip = false,
+  onAnnounce,
   reorderKey,
   className,
   checkInPaused = false,
@@ -171,7 +175,7 @@ export function HabitRow({
     <li id={habitRowId(habit.id)} data-reorder-key={reorderKey} className={className}>
       <Card
         className={cn(
-          'relative isolate grid grid-cols-[minmax(0,1fr)_56px] items-center gap-x-3 gap-y-0 py-3 md:py-3',
+          'relative isolate grid grid-cols-[minmax(0,1fr)_56px] items-center gap-x-3 gap-y-0 py-3 sm:has-[[data-timer]]:grid-cols-[minmax(0,1fr)_auto_56px] md:py-3',
           done &&
             'bg-[color-mix(in_oklch,var(--done)_8%,var(--card))] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_3px_0_0_var(--done)]',
           reward === 'fill' && 'ember-row-fill',
@@ -225,6 +229,7 @@ export function HabitRow({
         ) : (
           <DayCell state={paused ? 'paused' : 'beforestart'} size="slot" />
         )}
+        <TimerControl habit={habit} startable={!paused && !notStarted} onAnnounce={onAnnounce} />
       </Card>
     </li>
   );

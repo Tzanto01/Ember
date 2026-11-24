@@ -346,6 +346,9 @@ namespace Ember.Core.Data.Migrations
                     b.Property<DateTime?>("SecondReminderUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("TimerMinutes")
+                        .HasColumnType("integer");
+
                     b.Property<int>("TimesPerDay")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")

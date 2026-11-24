@@ -27,6 +27,8 @@ export interface LocalHabit {
   days: Weekday[] | null;
   /** 1–10 for daily and weekdays habits, always 1 for weekly. */
   timesPerDay: number;
+  /** Length of its timer in whole minutes, 1–240; missing or null means none, always so for let-go habits. */
+  timerMinutes?: number | null;
   /** The first of `reminderTimes`, or null. */
   reminderTime: TimeOfDay | null;
   /** Sorted, unique, 0 to `timesPerDay`; absent on data saved before multi-time reminders (then `reminderTime` alone). */

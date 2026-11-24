@@ -19,7 +19,7 @@ public static class ExportBuilder
 {
     /// <summary>
     /// Column header of the CSV export. One row per record, discriminated by <c>record_type</c>. Columns after <c>discord_id</c>:
-    /// <c>two_factor_enabled</c> (settings); <c>days</c> (habit weekdays joined with <c>;</c>), <c>times_per_day</c>, <c>routine_id</c> (habit, routine);
+    /// <c>two_factor_enabled</c> (settings); <c>days</c> (habit weekdays joined with <c>;</c>), <c>times_per_day</c>, <c>timer_minutes</c> (habit), <c>routine_id</c> (habit, routine);
     /// <c>count</c> (log); <c>routine_position</c> (habit, its order inside its routine); <c>text</c>, <c>mood</c> (day_note);
     /// <c>mood_id</c>, <c>label</c>, <c>emoji</c>, <c>archived</c> (mood); <c>cipher_version</c>, <c>cipher_iv</c>, <c>cipher_text</c>
     /// (encrypted day_note or mood); <c>version</c>, <c>turning_off</c>, <c>passphrase_salt</c>, <c>passphrase_iterations</c>,
@@ -40,7 +40,7 @@ public static class ExportBuilder
         "health_data_consent_at,consent_policy_version,consent_prompted_on,consent_withdrawn_at," +
         "habit_id,name,frequency,weekly_target,reminder_time,paused_until,paused_from,created_at,next_reminder_utc," +
         "date,completed,guild_id,kind,reminder_exclusions,endpoint,email,discord_id,account_created_at," +
-        "two_factor_enabled,days,times_per_day,routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived," +
+        "two_factor_enabled,days,times_per_day,timer_minutes,routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived," +
         "cipher_version,cipher_iv,cipher_text,version,turning_off," +
         "passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped," +
         "second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen," +
@@ -78,12 +78,12 @@ public static class ExportBuilder
     /// <c>Days</c> lists the weekdays (<c>mon</c> … <c>sun</c>, Monday first) of a <c>weekdays</c> habit, null otherwise.
     /// <c>RoutinePosition</c> is the habit's order inside its routine, null when it has none.
     /// <c>ReminderTimes</c> lists all reminder times, sorted; <c>ReminderTime</c> is the first of them, or null.
-    /// <c>Kind</c> is <c>build</c> or <c>let_go</c>.
+    /// <c>TimerMinutes</c> is null without a timer. <c>Kind</c> is <c>build</c> or <c>let_go</c>.
     /// </summary>
     public sealed record HabitRecord(
         int Id, string Name, string Frequency, int? WeeklyTarget,
         TimeOnly? ReminderTime, DateOnly? PausedUntil, DateOnly? PausedFrom, DateTime CreatedAt, DateTime? NextReminderUtc,
-        List<string> ReminderExclusions, List<string>? Days, int TimesPerDay, int? RoutineId, int? RoutinePosition,
+        List<string> ReminderExclusions, List<string>? Days, int TimesPerDay, int? TimerMinutes, int? RoutineId, int? RoutinePosition,
         List<TimeOnly> ReminderTimes, string Kind);
 
     /// <summary>The slips of a let-go habit on one local day: how many and the reason ids picked (may be empty).</summary>
@@ -199,7 +199,7 @@ public static class ExportBuilder
                 h.Id, h.Name, h.FrequencyType.ToString().ToLowerInvariant(), h.WeeklyTarget,
                 h.ReminderTime, h.PausedUntil, h.PausedFrom, DateTime.SpecifyKind(h.CreatedAt, DateTimeKind.Utc),
                 AsUtc(h.NextReminderUtc), h.ReminderExclusions.ToList(),
-                h.Days is { } days ? ScheduleDayNames.ToNames(days) : null, h.TimesPerDay, h.RoutineId,
+                h.Days is { } days ? ScheduleDayNames.ToNames(days) : null, h.TimesPerDay, h.TimerMinutes, h.RoutineId,
                 h.RoutineId is null ? null : h.RoutinePosition, h.ReminderTimes.ToList(),
                 h.Kind == HabitKind.LetGo ? "let_go" : "build")).ToList(),
             habits.SelectMany(h => h.Logs.OrderBy(l => l.Date).Select(l => new LogRecord(
@@ -288,7 +288,7 @@ public static class ExportBuilder
                 ("paused_until", Date(h.PausedUntil)), ("paused_from", Date(h.PausedFrom)),
                 ("created_at", Utc(h.CreatedAt)), ("next_reminder_utc", Utc(h.NextReminderUtc)),
                 ("reminder_exclusions", string.Join(';', h.ReminderExclusions)), ("days", string.Join(';', h.Days ?? [])),
-                ("times_per_day", Num(h.TimesPerDay)), ("routine_id", h.RoutineId is { } r ? Num(r) : ""),
+                ("times_per_day", Num(h.TimesPerDay)), ("timer_minutes", h.TimerMinutes is { } m ? Num(m) : ""), ("routine_id", h.RoutineId is { } r ? Num(r) : ""),
                 ("routine_position", h.RoutinePosition is { } p ? Num(p) : ""), ("kind", h.Kind));
 
         foreach (var l in doc.Logs)

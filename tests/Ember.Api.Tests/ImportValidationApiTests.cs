@@ -12,8 +12,8 @@ public class ImportValidationApiTests(PostgresFixture postgres) : ApiTestBase(po
     private static string B64(int bytes) => Convert.ToBase64String(Enumerable.Repeat((byte)7, bytes).ToArray());
 
     private static object Habit(int id, string name = "Water", string frequency = "daily", string? kind = null, int? weeklyTarget = null,
-        string[]? days = null, int? timesPerDay = null, string[]? reminderTimes = null)
-        => new { id, name, frequency, kind, weekly_target = weeklyTarget, days, times_per_day = timesPerDay, reminder_times = reminderTimes, created_at = Created };
+        string[]? days = null, int? timesPerDay = null, string[]? reminderTimes = null, int? timerMinutes = null)
+        => new { id, name, frequency, kind, weekly_target = weeklyTarget, days, times_per_day = timesPerDay, reminder_times = reminderTimes, timer_minutes = timerMinutes, created_at = Created };
 
     private static object Doc(object[]? habits = null, object? settings = null, object[]? routines = null, object[]? moods = null,
         object[]? dayNotes = null, object[]? habitNotes = null, object? journalKey = null) => new
@@ -60,6 +60,9 @@ public class ImportValidationApiTests(PostgresFixture postgres) : ApiTestBase(po
                 Habit(6, frequency: "weekdays", days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
                 Habit(7, frequency: "weekdays", days: []),
                 Habit(8, frequency: "weekdays"),
+                Habit(9, timerMinutes: 0),
+                Habit(10, timerMinutes: 241),
+                Habit(11, timerMinutes: 240),
             ],
             moods: [new { id = 1, label = "", emoji = "ab" }, new { id = 2, label = new string('m', 25), emoji = "x" }],
             dayNotes:
@@ -92,6 +95,8 @@ public class ImportValidationApiTests(PostgresFixture postgres) : ApiTestBase(po
               "habits[5].days":["All seven days: use daily instead."],
               "habits[6].days":["Pick 1 to 6 days."],
               "habits[7].days":["Required for weekdays habits."],
+              "habits[8].timer_minutes":["Must be between 1 and 240."],
+              "habits[9].timer_minutes":["Must be between 1 and 240."],
               "moods[0].label":["Must be 1 to 24 characters."],
               "moods[0].emoji":["Must be a single emoji."],
               "moods[1].label":["Must be 1 to 24 characters."],
@@ -114,6 +119,7 @@ public class ImportValidationApiTests(PostgresFixture postgres) : ApiTestBase(po
             Habit(1, kind: "let_go", timesPerDay: 3, reminderTimes: ["08:00", "09:00"]),
             Habit(2, kind: "let_go", frequency: "weekdays", weeklyTarget: 2, days: ["mon"]),
             Habit(3, kind: "let_go", frequency: "weekly", weeklyTarget: 3, timesPerDay: 2, days: ["tue"], reminderTimes: ["08:00", "09:00"]),
+            Habit(4, kind: "let_go", timerMinutes: 30),
         ]);
 
         await (await user.Post("/api/me/import", doc)).ExpectErrors("""
@@ -127,7 +133,8 @@ public class ImportValidationApiTests(PostgresFixture postgres) : ApiTestBase(po
               "habits[2].times_per_day":["Always 1 for let-go habits."],
               "habits[2].reminder_times":["At most one for let-go habits."],
               "habits[2].frequency":["Let-go habits are daily."],
-              "habits[2].weekly_target":["Not for let-go habits."]
+              "habits[2].weekly_target":["Not for let-go habits."],
+              "habits[3].timer_minutes":["Never set for let-go habits."]
             }
             """);
         await AssertNothingImportedAsync(user);

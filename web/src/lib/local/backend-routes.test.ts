@@ -19,6 +19,7 @@ interface Sent {
 const args: Record<string, unknown[][]> = {
   sendDayEdit: [[{ habitId: 1, date: '2026-11-01', completed: true }]],
   dayEdit: [[{ habitId: 1, date: '2026-11-01', completed: true }]],
+  sendOrQueue: [[{ habitId: 1, date: '2026-11-01', completed: true }]],
   sendNoteEdit: [
     [{ kind: 'note', date: '2026-11-01', body: null }],
     [{ kind: 'note', date: '2026-11-01', body: { text: 'Synthetic' } }],
@@ -61,7 +62,7 @@ async function clientRequests(): Promise<{ sent: Sent[]; silent: string[] }> {
 }
 
 /** ApiClient methods that send nothing themselves (URL builders for full-page navigation, the habit cache). */
-const helpers = ['discordLinkUrl', 'discordLoginUrl', 'remember'];
+const helpers = ['discordLinkUrl', 'discordLoginUrl', 'remember', 'seen'];
 
 /**
  * Endpoints only the server has; no-account mode answers them 404 (see {@link LocalBackend}). A new endpoint lands here

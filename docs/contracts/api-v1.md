@@ -2,6 +2,8 @@
 
 v1.29 (2026-11-24, Nico on Ember's copy of feedback in Lookout: "Ember keeps a copy (Recommended)"): Lookout owns feedback's board, status, comments and email. Ember keeps what a signed-in user sent only for the export and the deletion, so the export's reports no longer have `status`, `resolved_at` and pictures, and the daily digest, `--feedback-status` and the ops board are gone. See "Feedback copy v1.29".
 
+v1.28 (2026-11-23, Nico: "Build this too." on "Habit timer: 'Walk for 30 minutes' starts a timer that tells you when it's done. You liked this one."): a build habit can have a timer length in minutes (`timerMinutes`), in the API, export and import. The running timer lives on the device and is never sent. See "Habit timer length v1.28".
+
 v1.27 (2026-11-21, the server and the phone couldn't tell a skip from a count of 0): a check-in log stores whether it was written by a skip. Day objects gain `skipped`, a skip of today ends that day's reminders on every channel and leaves the habit out of its routine's reminder, a routine whose members left are skipped closes like a done one, and the missed-day message leaves out a skipped day. A Discord skip keeps the day's check-ins; the web's "Not done" writes count 0. See "Skip marker v1.27".
 
 v1.26 (2026-11-21, Send diagnostics): the Android app can send an anonymous technical report (versions, launch events, recent exit reasons) to the Ember team and gets a reference code to quote in Discord (`POST /api/diagnostics`). See "Diagnostics v1.26".
@@ -359,7 +361,7 @@ Client only (team `local`), except the import endpoint below.
 
 snake_case like today, plus `"format_version": 2` at the top level (an export without it is the old format; import accepts only 2). Existing sections (`settings`, `habits`, `logs`, `day_marks`, `account`, push data) keep their names. Additions:
 
-- `habits[]`: `days` (`["mon",…]` or null), `times_per_day`, `routine_id` (or null), `routine_position` (or null).
+- `habits[]`: `days` (`["mon",…]` or null), `times_per_day`, `timer_minutes` (or null, v1.28), `routine_id` (or null), `routine_position` (or null).
 - `logs[]`: `count`, `skipped` (v1.27; CSV column `skipped`).
 - `account`: `created_at` (instant or null; CSV `account_created_at`).
 - `routines`: `[{ id, name, reminder_time, reminder_channels }]` (membership lives on the habits). *(Superseded in v1.14, see "Reminder destinations v1.14".)*
@@ -877,3 +879,13 @@ The Discord bot (it shows no tick; its slips still clear the mark through Core) 
 
 - New table `LookoutDiagnostics`: `Id` (send order), `Key` (version 7 GUID, unique), `Ref` (unique), `Body` (the exact bytes sent), `CreatedAt`, `NextAttemptAt`, `Attempts`. No user, installation or IP. Not part of the export; untouched by merges and account deletion. An upload unsent for 30 days is deleted.
 - The `lookout-sender` sends uploads with `PUT diagnostics/{key}` after every user deletion and ticket. 200 or 201 deletes the row; 400, 409, 413 or 415 drop it; any other answer or a network failure retries only that upload later, with its own backoff, so it never holds up tickets or deletions. Logs row id and status only; the API never logs an upload.
+
+## Habit timer length v1.28
+
+- `Habit.TimerMinutes` (`int`, null without one): the length of the habit's timer in whole minutes, 1 to 240. Existing habits have none. Let-go habits never have one.
+- Only the length is stored with the habit. A running, paused or ended timer lives on the device, keyed by the signed-in user, and is never sent to the server; a check-in at its end is an ordinary day write. No server push, no widget field and no Discord text carries the timer.
+- `Habit` gains `timerMinutes: int | null`, null for every let-go habit.
+- `POST /api/habits` accepts optional `timerMinutes` (missing or null: none).
+- `PATCH /api/habits/{id}` accepts `timerMinutes` and `clearTimer`: `timerMinutes` missing or null keeps the length, a number sets it, `clearTimer: true` removes it. Both together → 400 `validation` on `timerMinutes` ("Can't be combined with clearTimer."). No consent is needed, as for the schedule. Old clients never send either field, so their edits keep the length.
+- Outside 1 to 240, or any value for a let-go habit ("Never set for let-go habits.") → 400 `validation` on `timerMinutes`; nothing is written. A value that isn't a whole number is an unreadable body → 400, like any other field of the wrong type. `clearTimer` on a let-go habit changes nothing.
+- Export: JSON `habits[].timer_minutes` (null without one), CSV `habit` rows' `timer_minutes` column, right after `times_per_day`. Import reads optional `timer_minutes` (missing or null: none) with the same checks → 400 `validation` on `habits[i].timer_minutes`. Account merge moves habits with their length. No-account mode stores the same field, its backups carry it, older backups restore without one, and moving device data into an account sends it.

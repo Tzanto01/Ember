@@ -26,7 +26,7 @@ internal static class ImportEndpoints
         string? Language, bool? CalmMode, List<string?>? TipsSeen, bool? OfferHabitNote, List<string?>? TodayOrder);
     public sealed record ImportHabit(int? Id, string? Name, string? Frequency, int? WeeklyTarget, TimeOnly? ReminderTime,
         DateOnly? PausedUntil, DateOnly? PausedFrom, DateTimeOffset? CreatedAt, string?[]? Days,
-        int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind);
+        int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind, int? TimerMinutes);
     public sealed record ImportLog(int? HabitId, DateOnly? Date, bool? Completed, int? Count, bool? Skipped);
     public sealed record ImportSlip(int? HabitId, DateOnly? Date, int? Count, List<string?>? Reasons);
     public sealed record ImportMadeItDay(int? HabitId, DateOnly? Date);
@@ -140,6 +140,7 @@ internal static class ImportEndpoints
                 HabitValidation.ValidateLetGo(frequency, h.TimesPerDay, h.WeeklyTarget, h.Days, reminderTimes.Distinct().Count(), local);
                 if (h.RoutineId is not null) local["routine_id"] = ["Let-go habits can't be in a routine."];
             }
+            HabitValidation.ValidateTimer(h.TimerMinutes, kind, local);
 
             var habit = new Habit
             {
@@ -152,6 +153,7 @@ internal static class ImportEndpoints
                 WeeklyTarget = frequency == FrequencyType.Weekly ? h.WeeklyTarget ?? HabitRules.DefaultWeeklyTarget : null,
                 Days = frequency == FrequencyType.Weekdays ? days : null,
                 TimesPerDay = frequency == FrequencyType.Weekly ? 1 : timesPerDay,
+                TimerMinutes = h.TimerMinutes,
                 Routine = routine,
                 RoutinePosition = routine is null ? 0 : h.RoutinePosition ?? 0,
                 CreatedAt = createdAt,

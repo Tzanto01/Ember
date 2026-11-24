@@ -12,7 +12,7 @@ import { Notice } from '@/components/ui/notice';
 import { t } from '@/lib/i18n';
 import type { BackupSummary, ParsedBackup } from '@/lib/local/types';
 import { saveExport } from '@/lib/native/save-file';
-import { auth, backup, localMode } from '@/lib/services';
+import { auth, backup, habitTimer, localMode } from '@/lib/services';
 import { DeviceWarning } from './device-warning';
 
 type Busy = 'export' | 'import' | 'restore' | 'upgrade';
@@ -110,6 +110,7 @@ export function DeviceDataSettings() {
     if (!pending || !begin('restore')) return;
     try {
       await backup.restoreBackup(pending);
+      await habitTimer.clear();
       await Promise.all([queryClient.invalidateQueries(), auth.loadMe(true).catch(() => null)]);
       flushSync(() => {
         setPending(null);

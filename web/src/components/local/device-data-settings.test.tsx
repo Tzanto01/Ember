@@ -6,13 +6,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import i18n from '@/lib/i18n';
 import type { ParsedBackup } from '@/lib/local/types';
 import { saveExport } from '@/lib/native/save-file';
-import { backup, localMode } from '@/lib/services';
+import { backup, habitTimer, localMode } from '@/lib/services';
 import { DeleteDeviceData, DeviceDataSettings } from './device-data-settings';
 
 vi.mock('@/lib/services', async () => {
   const { Store } = await import('@/lib/store');
   return {
     auth: { loadMe: vi.fn(async () => null) },
+    habitTimer: { clear: vi.fn(async () => {}) },
     localMode: {
       mode: new Store('local'),
       evicted: new Store(false),
@@ -80,6 +81,7 @@ describe('DeviceDataSettings', () => {
     await user.click(screen.getByRole('button', { name: 'Replace my data' }));
 
     expect(backup.restoreBackup).toHaveBeenCalledWith(parsed);
+    expect(habitTimer.clear).toHaveBeenCalled();
     expect(invalidate).toHaveBeenCalled();
     expect(await screen.findByText('Backup restored.')).toHaveFocus();
     expect(screen.queryByRole('group')).toBeNull();

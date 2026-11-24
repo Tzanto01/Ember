@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -123,6 +123,49 @@ describe('HabitNewPage', () => {
         timesPerDay: 2,
         reminderTimes: ['08:00', '13:00'],
       });
+    });
+  });
+
+  describe('timer length', () => {
+    it('is empty by default, asks for whole minutes in range, and is sent with the habit', async () => {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      (await fetch.next('GET', '/api/habit-templates')).respond(200, []);
+      await user.type(await screen.findByLabelText('Name', { exact: true }), 'Walk');
+      const length = screen.getByLabelText(/^Timer length/);
+      expect(length).toHaveValue('');
+
+      for (const wrong of ['0', '241', '1.5']) {
+        await user.clear(length);
+        await user.type(length, wrong);
+        await user.click(screen.getByRole('button', { name: 'Create habit' }));
+        expect(length).toHaveFocus();
+        expect(length).toHaveAccessibleDescription(/Use whole minutes from 1 to 240, or leave it empty\./);
+      }
+      expect(fetch.all.some((call) => call.method === 'POST')).toBe(false);
+
+      await user.clear(length);
+      await user.type(length, '30');
+      await user.click(screen.getByRole('button', { name: 'Create habit' }));
+      const post = await fetch.next('POST', '/api/habits');
+      expect(post.body).toEqual({ name: 'Walk', frequency: 'daily', timesPerDay: 1, timerMinutes: 30 });
+      post.respond(400, { type: 'https://ember/problems/validation', status: 400, errors: { timerMinutes: ['Too long.'] } });
+      await waitFor(() => expect(length).toHaveAccessibleDescription(/Too long\./));
+    });
+
+    it('is dropped for a habit to let go of', async () => {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      (await fetch.next('GET', '/api/habit-templates')).respond(200, []);
+      await user.type(await screen.findByLabelText('Name', { exact: true }), 'Coffee');
+      await user.type(screen.getByLabelText(/^Timer length/), '300');
+      await user.click(screen.getByRole('radio', { name: 'Something to let go of' }));
+      expect(screen.queryByLabelText(/^Timer length/)).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Create habit' }));
+
+      expect((await fetch.next('POST', '/api/habits')).body).not.toHaveProperty('timerMinutes');
     });
   });
 

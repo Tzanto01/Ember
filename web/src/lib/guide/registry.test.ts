@@ -10,12 +10,12 @@ const entries = Object.values(guides).flatMap((guide) => guide.entries);
 const placeholders = (text: string) => [...text.matchAll(/\{\{\s*(\w+)/g)].map((m) => m[1]!).sort();
 
 describe('the guide registry', () => {
-  it('gives every screen a name, a lede and 3 to 5 questions (Settings 6) with unique ids', () => {
+  it('gives every screen a name, a lede and 3 to 5 questions (Today and Settings 6) with unique ids', () => {
     for (const [screen, guide] of Object.entries(guides)) {
       expect(english[guide.nameKey]).toBeTruthy();
       expect(english[guide.ledeKey]).toBeTruthy();
       expect(guide.entries.length, screen).toBeGreaterThanOrEqual(3);
-      expect(guide.entries.length, screen).toBeLessThanOrEqual(screen === 'settings' ? 6 : 5);
+      expect(guide.entries.length, screen).toBeLessThanOrEqual(screen === 'settings' || screen === 'today' ? 6 : 5);
     }
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
   });

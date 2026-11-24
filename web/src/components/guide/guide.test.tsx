@@ -108,6 +108,7 @@ describe('Guide', () => {
       'What does “2 of 3 this week” mean?',
       'What is a low day?',
       'When will Ember remind me, and can I check in ahead?',
+      'How does the timer work?',
       'What is “I need a moment”?',
     ]);
 

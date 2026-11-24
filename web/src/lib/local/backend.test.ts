@@ -552,6 +552,30 @@ describe('LocalBackend through ApiClient', () => {
     expect(doc.logs).toEqual([{ habit_id: 1, date: '2026-10-25', completed: true, count: 2, skipped: false }]);
   });
 
+  it('sets, keeps and clears a timer length, and refuses one the API would refuse', async () => {
+    await store.replace(seed([localHabit(1), localHabit(2, { kind: 'letGo' })]));
+    const refused = async (change: Promise<unknown>) => (await rejection(change)).problem?.errors;
+
+    const created = await api.createHabit({ name: 'Walk', frequency: 'daily', timerMinutes: 240 });
+    expect(created.timerMinutes).toBe(240);
+    expect((await api.getHabit(1)).timerMinutes).toBeNull();
+    expect((await api.updateHabit(created.id, { timerMinutes: 1 })).timerMinutes).toBe(1);
+    expect((await api.updateHabit(created.id, { name: 'Stroll', timerMinutes: null })).timerMinutes).toBe(1);
+    expect((await api.updateHabit(created.id, { clearTimer: true })).timerMinutes).toBeNull();
+
+    const bounds = { timerMinutes: ['Must be between 1 and 240.'] };
+    expect(await refused(api.createHabit({ name: 'A', frequency: 'daily', timerMinutes: 0 }))).toEqual(bounds);
+    expect(await refused(api.updateHabit(1, { timerMinutes: 241 }))).toEqual(bounds);
+    expect(await refused(api.updateHabit(1, { timerMinutes: 1.5 }))).toEqual(bounds);
+    expect(await refused(api.updateHabit(1, { timerMinutes: 30, clearTimer: true }))).toEqual({
+      timerMinutes: ["Can't be combined with clearTimer."],
+    });
+    const letGo = { timerMinutes: ['Never set for let-go habits.'] };
+    expect(await refused(api.createHabit({ name: 'A', kind: 'letGo', frequency: 'daily', timerMinutes: 30 }))).toEqual(letGo);
+    expect(await refused(api.updateHabit(2, { timerMinutes: 30 }))).toEqual(letGo);
+    expect((await api.getHabit(2)).timerMinutes).toBeNull();
+  });
+
   describe('let-go habits', () => {
     const letGo = (id = 1) => localHabit(id, { kind: 'letGo' });
 

@@ -36,6 +36,7 @@ import {
 } from '@/components/settings/settings-status';
 import { settingsGroupOf, settingsGroups, summaryKeyOf } from '@/components/settings/settings-groups';
 import { StreaksCard } from '@/components/settings/streaks-card';
+import { TimerCard } from '@/components/settings/timer-card';
 import { TimezoneCard } from '@/components/settings/timezone-card';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
 import { Button } from '@/components/ui/button';
@@ -162,6 +163,7 @@ export default function SettingsPage() {
     { id: 'routines', title: t('settings.card.routines') },
     { id: 'streaks', title: t('settings.card.streaks') },
     { id: 'habit-notes', title: t('settings.card.habitNotes') },
+    { id: 'timer', title: t('settings.card.timer') },
     ...(streaksShown ? [{ id: 'grace', title: t('settings.card.grace') }] : []),
     { id: 'timezone', title: t('settings.card.timezone') },
     { id: 'moods', title: t('settings.card.moods') },
@@ -393,6 +395,8 @@ export default function SettingsPage() {
                   onCheckedChange={changeOfferNote}
                 />
               )}
+
+              {shown('timer') && <TimerCard title={title('timer')} />}
 
               {shown('grace') && (
                 <GraceCard title={title('grace')} value={grace ?? me.graceDaysPerWeek} onChange={changeGrace} />

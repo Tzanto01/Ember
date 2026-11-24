@@ -179,6 +179,7 @@ function parse(text: string): ParsedBackup {
           : []
         : [...new Set(list(listed).map((t) => time(t) ?? damaged()))].sort();
     if (reminderTimes.length > timesPerDay) damaged();
+    const timerMinutes = field(h, 'timer_minutes') ?? null;
     const habit: LocalHabit = {
       id: index + 1,
       name: validName(field(h, 'name'), limits.habitName) ?? damaged(),
@@ -186,6 +187,7 @@ function parse(text: string): ParsedBackup {
       weeklyTarget: frequency === 'weekly' ? (weeklyTarget === null ? 3 : int(weeklyTarget, 1, limits.weeklyTarget)) : null,
       days: frequency === 'weekdays' ? (parseWeekdays(field(h, 'days')) ?? damaged()) : null,
       timesPerDay,
+      timerMinutes: timerMinutes === null ? null : int(timerMinutes, 1, limits.timerMinutes),
       reminderTime: reminderTimes[0] ?? null,
       reminderTimes,
       reminderChannels: channels(field(h, 'reminder_channels')),
@@ -197,7 +199,7 @@ function parse(text: string): ParsedBackup {
     };
     if (frequency !== 'weekly' && weeklyTarget !== null) damaged();
     if (kind === 'let_go') {
-      if (frequency !== 'daily' || timesPerDay !== 1 || reminderTimes.length > 1 || routineId !== null) damaged();
+      if (frequency !== 'daily' || timesPerDay !== 1 || reminderTimes.length > 1 || routineId !== null || timerMinutes !== null) damaged();
       habit.kind = 'letGo';
       habit.routinePosition = null;
     }

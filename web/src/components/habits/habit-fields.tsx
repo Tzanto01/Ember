@@ -36,13 +36,15 @@ export interface HabitFormState {
   days: Weekday[];
   /** 1 to 10 (for `daily` and `weekdays`). */
   timesPerDay: number;
+  /** The timer length as typed, empty for none (build habits only). */
+  timerMinutes: string;
   /** The reminder rows in the order they were added, each `HH:MM` or empty; at least one row. */
   reminderTimes: string[];
 }
 
 /**
  * The form read as API-ready values: name trimmed, weekly target only when weekly, days only for set weekdays
- * (all seven become `daily`), times per day 1 when weekly, reminder times sorted without blanks or repeats and at
+ * (all seven become `daily`), times per day 1 when weekly, the timer length null when empty or let-go, reminder times sorted without blanks or repeats and at
  * most one per check-in (the earliest).
  */
 export interface HabitFormValue {
@@ -51,6 +53,7 @@ export interface HabitFormValue {
   weeklyTarget: number | null;
   days: Weekday[] | null;
   timesPerDay: number;
+  timerMinutes: number | null;
   reminderTimes: TimeOfDay[];
 }
 
@@ -62,6 +65,7 @@ export const emptyHabitForm: HabitFormState = {
   weeklyTarget: 3,
   days: [],
   timesPerDay: 1,
+  timerMinutes: '',
   reminderTimes: [''],
 };
 
@@ -74,6 +78,7 @@ export function habitToForm(habit: AnyHabit): HabitFormState {
     weeklyTarget: habit.weeklyTarget ?? 3,
     days: habit.days ?? [],
     timesPerDay: habit.timesPerDay,
+    timerMinutes: String(habit.timerMinutes ?? ''),
     reminderTimes: reminderTimesOf(habit).length ? [...reminderTimesOf(habit)] : [''],
   };
 }
@@ -89,6 +94,14 @@ export function habitNameError(name: string): string | null {
 /** Null when the chosen weekdays are fine (at least one, when the schedule is set weekdays). */
 export function habitDaysError(state: HabitFormState): string | null {
   return state.kind === 'build' && state.frequency === 'weekdays' && state.days.length === 0 ? t('habitFields.daysMissing') : null;
+}
+
+/** Null when the timer length is empty or whole minutes the API takes. */
+export function habitTimerError({ kind, timerMinutes }: HabitFormState): string | null {
+  const text = timerMinutes.trim();
+  if (kind === 'letGo' || !text) return null;
+  const minutes = /^\d+$/.test(text) ? Number(text) : 0;
+  return minutes >= 1 && minutes <= limits.timerMinutes ? null : t('habitFields.timerInvalid', { max: limits.timerMinutes });
 }
 
 /** "Every day", "Mon, Wed, Fri", "Once a week" or "3 times a week", with ", 3 times a day" when more than once. */
@@ -150,6 +163,7 @@ export function habitFormValue(state: HabitFormState): HabitFormValue {
       weeklyTarget: null,
       days: null,
       timesPerDay: 1,
+      timerMinutes: null,
       reminderTimes: sortedTimes(state.reminderTimes).slice(0, 1),
     };
   }
@@ -161,6 +175,7 @@ export function habitFormValue(state: HabitFormState): HabitFormValue {
     weeklyTarget: frequency === 'weekly' ? state.weeklyTarget : null,
     days: frequency === 'weekdays' ? weekdays.filter((day) => state.days.includes(day)) : null,
     timesPerDay: frequency === 'weekly' ? 1 : state.timesPerDay,
+    timerMinutes: state.timerMinutes.trim() ? Number(state.timerMinutes) : null,
     reminderTimes: sortedTimes(state.reminderTimes).slice(0, frequency === 'weekly' ? 1 : state.timesPerDay),
   };
 }
@@ -205,8 +220,8 @@ export interface HabitFieldsProps {
 }
 
 /**
- * Name, "How often" (every day, set weekdays or a few times a week), the weekdays, times per day or per week, and
- * the optional reminder times (one per check-in a day, with "Add another time" and a line spelling out the schedule).
+ * Name, "How often" (every day, set weekdays or a few times a week), the weekdays, times per day or per week,
+ * the optional timer length (build habits) and the optional reminder times (one per check-in a day, with "Add another time" and a line spelling out the schedule).
  * Place inside the page's `form`.
  */
 export function HabitFields({
@@ -230,6 +245,7 @@ export function HabitFields({
   const timesRef = useRef<HTMLDivElement>(null);
   const [dropped, setDropped] = useState<TimeOfDay[]>([]);
   const nameEdited = useRef(false);
+  const [timerLeft, setTimerLeft] = useState(false);
   const letGo = value.kind === 'letGo';
   const limit = letGo || value.frequency === 'weekly' ? 1 : value.timesPerDay;
   const times = sortedTimes(value.reminderTimes);
@@ -287,6 +303,7 @@ export function HabitFields({
   const daysId = `${id}-days`;
   const nameError = (touched ? habitNameError(value.name) : null) ?? errors['name'] ?? null;
   const daysError = (touched ? habitDaysError(value) : null) ?? errors['days'] ?? null;
+  const timerError = (touched || timerLeft ? habitTimerError(value) : null) ?? errors['timerMinutes'] ?? null;
   const allDays = value.frequency === 'weekdays' && value.days.length === weekdays.length;
 
   function toggleDay(day: Weekday, checked: boolean): void {
@@ -298,7 +315,7 @@ export function HabitFields({
     setDropped([]);
     onChange(
       kind === 'letGo'
-        ? { ...value, kind, frequency: 'daily', timesPerDay: 1, reminderTimes: [''] }
+        ? { ...value, kind, frequency: 'daily', timesPerDay: 1, timerMinutes: '', reminderTimes: [''] }
         : { ...value, kind },
     );
   }
@@ -463,6 +480,23 @@ export function HabitFields({
                 </option>
               ))}
             </NativeSelect>
+          )}
+        </FormField>
+      )}
+
+      {!letGo && (
+        <FormField label={t('habitFields.timer')} optional hint={t('habitFields.timerHint')} error={timerError}>
+          {(field) => (
+            <Input
+              {...field}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              className="max-w-[12rem]"
+              value={value.timerMinutes}
+              onChange={(event) => onChange({ ...value, timerMinutes: event.target.value })}
+              onBlur={() => setTimerLeft(true)}
+            />
           )}
         </FormField>
       )}

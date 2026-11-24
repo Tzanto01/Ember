@@ -18,6 +18,9 @@ public static class Limits
     /// <summary>Most check-ins per week a weekly habit can target (<see cref="Models.Habit.WeeklyTarget"/>), from 1.</summary>
     public const int WeeklyTarget = 6;
 
+    /// <summary>Longest timer a build habit can have, in minutes (<see cref="Models.Habit.TimerMinutes"/>), from 1.</summary>
+    public const int TimerMinutes = 240;
+
     /// <summary>Most characters in a habit name, after trimming.</summary>
     public const int HabitNameLength = 100;
 

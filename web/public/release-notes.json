@@ -7,12 +7,14 @@
         "Android: with an account, the “Today in Ember” widget now loads the new day by itself after midnight and keeps up with check-ins you make elsewhere, so you no longer have to open the app for it.",
         "You can now delete your account on its own page, in the browser or in the app, also when you don't have the app anymore. It says what goes right away and what stays for a while. You find it in Settings, on About Ember and below the privacy policy.",
         "On the web and in the beta app, the footer and About Ember link to a page where you can tip Nico a coffee, if you like.",
+        "A habit can have a timer now: give it a length, start it on Today, and Ember tells you when the time is up. Checking in stays up to you.",
         "Your data export no longer holds the pictures and status of your feedback, only its text. Ember keeps that text for 12 months at most. Pictures, status and answers are in Lookout, Nico's own ticket system. Email contact@nicowoellnitz.de if you'd like them."
       ],
       "de": [
         "Android: Mit einem Konto lädt das Widget „Heute in Ember“ den neuen Tag nach Mitternacht jetzt von selbst und zeigt auch Check-ins, die du woanders machst. Dafür musst du die App nicht mehr öffnen.",
         "Dein Konto kannst du jetzt auf einer eigenen Seite löschen, im Browser oder in der App, auch wenn du die App nicht mehr hast. Dort steht, was sofort weg ist und was noch eine Weile bleibt. Du findest sie in den Einstellungen, unter „Über Ember“ und unter der Datenschutzerklärung.",
         "Im Web und in der Beta-App führen die Fußzeile und „Über Ember“ zu einer Seite, auf der du Nico einen Kaffee ausgeben kannst, wenn du magst.",
+        "Ein Habit kann jetzt einen Timer haben: Gib ihm eine Länge, starte ihn unter Heute, und Ember sagt dir, wenn die Zeit um ist. Ob du abhakst, entscheidest du.",
         "Dein Datenexport enthält von deinem Feedback nur noch den Text, nicht mehr die Bilder und den Status. Ember behält diesen Text höchstens 12 Monate. Bilder, Status und Antworten liegen in Lookout, Nicos eigenem Ticket-System. Wenn du sie haben möchtest, schreib an contact@nicowoellnitz.de."
       ]
     }

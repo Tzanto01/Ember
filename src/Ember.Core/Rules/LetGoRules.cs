@@ -76,12 +76,12 @@ public static class LetGoRules
         return new LetGoStats(run, longest, month, last30);
     }
 
-    /// <summary>Throws when a let-go habit wouldn't be daily and once a day, without weekly target or days, with at most one reminder time.</summary>
+    /// <summary>Throws when a let-go habit wouldn't be daily and once a day, without weekly target, days or timer, with at most one reminder time.</summary>
     internal static void ThrowIfInvalid(HabitKind kind, FrequencyType frequency, int timesPerDay, int? weeklyTarget, ScheduleDays? days,
-        int reminderTimes)
+        int reminderTimes, int? timerMinutes)
     {
         if (kind == HabitKind.LetGo && (frequency != FrequencyType.Daily || timesPerDay != 1 || weeklyTarget is not null
-            || days is not null || reminderTimes > 1))
-            throw new ArgumentException("A let-go habit is daily, once a day, with at most one reminder time.");
+            || days is not null || reminderTimes > 1 || timerMinutes is not null))
+            throw new ArgumentException("A let-go habit is daily, once a day, without a timer, with at most one reminder time.");
     }
 }

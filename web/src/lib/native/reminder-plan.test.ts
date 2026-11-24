@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Habit, Routine } from '../models';
 import {
   planCap,
@@ -8,6 +8,7 @@ import {
   reminderId,
   settled,
   zonedToUtc,
+  timerNotificationId,
 } from './reminder-plan';
 
 function habit(overrides: Partial<Habit> = {}): Habit {
@@ -604,5 +605,18 @@ describe('settled', () => {
         date: '2026-11-02',
       }),
     ).toBe(false);
+  });
+});
+
+describe('notification ids', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([0, 1, 0x7fffffff])('never take the habit timer\'s id, also when the hash is %s or wraps', (hash) => {
+    vi.spyOn(Math, 'imul').mockReturnValue(hash);
+    const ids = planReminders([habit({ id: 1 }), habit({ id: 2 })], 'Europe/Berlin', Date.parse('2026-11-01T08:00:00Z')).map(({ id }) => id);
+
+    expect(ids.length).toBeGreaterThan(2);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.every((id) => id > timerNotificationId)).toBe(true);
   });
 });

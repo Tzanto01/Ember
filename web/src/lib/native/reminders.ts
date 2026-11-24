@@ -1,5 +1,5 @@
 import type { LocalNotificationsPlugin } from '@capacitor/local-notifications';
-import type { ApiClient } from '../api-client';
+import { type ApiClient, unreachable } from '../api-client';
 import { type DeviceStore, withDayEdit } from '../device-store';
 import { env } from '../env';
 import { currentLanguage, t } from '../i18n';
@@ -11,7 +11,7 @@ import { asApiError } from '../problem';
 import { notificationColor } from '../theme';
 import { reminderNames } from './reminder-names';
 import { cachedPhone, forgetPhone, installId, phoneLabel, type ReminderPhone, rememberPhone } from './phone';
-import { localDate, type PlannedReminder, planReminders, type ReminderTarget, settled } from './reminder-plan';
+import { localDate, type PlannedReminder, planReminders, type ReminderTarget, settled, timerNotificationId } from './reminder-plan';
 import { updaterAvailable } from './updater';
 import { capacitorWidget, type EmberWidgetPlugin, heldRows, widgetSnapshot } from './widget';
 
@@ -52,11 +52,6 @@ async function digest(value: unknown): Promise<string> {
   return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function unreachable(error: unknown): boolean {
-  const apiError = asApiError(error);
-  return apiError.status === 0 || (apiError.status === 504 && !apiError.problem);
-}
-
 const capacitorNotifications = () => import('@capacitor/local-notifications');
 
 /** A validated check-in target from a notification `extra` or a widget tap. */
@@ -78,11 +73,11 @@ export function checkInTarget(extra: unknown, userId: string): CheckInTarget | n
   return { habitId, date };
 }
 
-/** The habit ({@link checkInTarget}) or routine reminder of `userId` that `extra` names; null for anything else. */
+/** The habit ({@link checkInTarget}) or routine reminder of `userId` that `extra` names; null for anything else, the habit timer's included. */
 function remindedOf(extra: unknown, userId: string): Pick<PlannedReminder, 'habitId' | 'routineId' | 'date'> | null {
+  if (typeof extra !== 'object' || extra === null || (extra as { timer?: unknown }).timer === true) return null;
   const habit = checkInTarget(extra, userId);
   if (habit) return habit;
-  if (typeof extra !== 'object' || extra === null) return null;
   const { userId: owner, routineId, date } = extra as Record<string, unknown>;
   if (typeof owner !== 'string' || owner !== userId) return null;
   if (typeof routineId !== 'number' || !Number.isSafeInteger(routineId) || routineId <= 0) return null;
@@ -94,13 +89,17 @@ function remindedOf(extra: unknown, userId: string): Pick<PlannedReminder, 'habi
  * Native build only: keeps the device's local reminder notifications in step with the habits and routines that
  * remind on this phone ({@link ReminderTarget}: in no-account mode the `mobile` channel; with an account this
  * phone's destination, registered on every online rebuild while notifications are allowed and cached for offline
- * ones), so they fire offline. A rebuild whose plan differs from the last scheduled one replaces every
+ * ones), so they fire offline. The habit timer's notification ({@link timerNotificationId}) is left alone except by
+ * {@link clearAll}. A rebuild whose plan differs from the last scheduled one replaces every
  * pending notification with it; an unchanged plan leaves them alone.
  */
 export class Reminders {
   private chain: Promise<void> = Promise.resolve();
   private channelLanguage: string | null = null;
   private keyHandedOff = false;
+
+  /** Called when a check-in was queued here without going through {@link ApiClient}; set by the composition root. */
+  onCheckIn: ((habitId: number, date: LocalDateString) => void) | null = null;
 
   constructor(
     private readonly api: ApiClient,
@@ -122,7 +121,7 @@ export class Reminders {
     return this.chain;
   }
 
-  /** Cancels every scheduled reminder and clears the widget while the health-data consent is withdrawn. Never throws. */
+  /** Cancels every scheduled reminder (not the habit timer's notification) and clears the widget while the health-data consent is withdrawn. Never throws. */
   pause(): Promise<void> {
     this.chain = this.chain
       .then(async () => {
@@ -165,7 +164,7 @@ export class Reminders {
   }
 
   /**
-   * Cancels every scheduled reminder, clears delivered ones and the widget, forgets this phone's cached destination
+   * Cancels every scheduled reminder and the habit timer's notification, clears delivered ones and the widget, forgets this phone's cached destination
    * and resets "Show habit names in reminders" (sign-out, session end, account deletion).
    */
   async clearAll(): Promise<void> {
@@ -178,7 +177,7 @@ export class Reminders {
       .then(async () => {
         await this.toWidget((widget) => widget.clear());
         const plugin = (await this.notifications()).LocalNotifications;
-        await this.cancelPending();
+        await this.cancelPending(true);
         await plugin.removeAllDeliveredNotifications();
       })
       .catch(() => undefined);
@@ -187,10 +186,10 @@ export class Reminders {
 
   /**
    * True when this app scheduled a notification with "Done" under `id` carrying exactly `extra` (recent days),
-   * so a notification action forged by another app through the exported activity is not acted on.
+   * so a notification action forged by another app through the exported activity is not acted on; never the habit timer's.
    */
   wasIssued(id: unknown, extra: unknown): boolean {
-    if (typeof extra !== 'object' || extra === null) return false;
+    if (id === timerNotificationId || typeof extra !== 'object' || extra === null) return false;
     const { userId, habitId, date } = extra as Record<string, unknown>;
     return readIssued().some(
       (issued) =>
@@ -214,7 +213,7 @@ export class Reminders {
     queue: OfflineQueue,
   ): Promise<string | null> {
     const target = checkInTarget(extra, userId);
-    if (!target) return null;
+    if (!target || (extra as { timer?: unknown }).timer === true) return null;
     try {
       const loaded = await this.load(userId, timeZone);
       const day = loaded && loaded !== 'signedOut' ? await this.day(loaded.habits, target) : null;
@@ -250,6 +249,7 @@ export class Reminders {
         try {
           if (!loaded) {
             await queue.add({ ...target, completed: null, count });
+            this.onCheckIn?.(target.habitId, target.date);
             continue;
           }
           const day = await this.day(loaded.habits, target);
@@ -281,6 +281,7 @@ export class Reminders {
     const edit = { ...target, completed: null, count };
     await this.api.setDayCount(edit.habitId, edit.date, edit.count).catch(async (error: unknown) => {
       if (!unreachable(error) || !(await queue.add(edit))) throw error;
+      this.onCheckIn?.(target.habitId, target.date);
     });
   }
 
@@ -523,11 +524,9 @@ export class Reminders {
       .catch(() => undefined);
   }
 
-  private async cancelPending(): Promise<void> {
+  private async cancelPending(timerToo = false): Promise<void> {
     const plugin = (await this.notifications()).LocalNotifications;
-    const pending = await plugin.getPending();
-    if (pending.notifications.length) {
-      await plugin.cancel({ notifications: pending.notifications.map(({ id }) => ({ id })) });
-    }
+    const pending = (await plugin.getPending()).notifications.filter(({ id }) => timerToo || id !== timerNotificationId);
+    if (pending.length) await plugin.cancel({ notifications: pending.map(({ id }) => ({ id })) });
   }
 }

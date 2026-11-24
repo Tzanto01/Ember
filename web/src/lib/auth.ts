@@ -8,6 +8,7 @@ import type { OfflineQueue } from './offline-queue';
 import { asApiError } from './problem';
 import type { PushService } from './push';
 import { Store } from './store';
+import type { HabitTimer } from './timer/habit-timer';
 import { adoptAccountTheme, rememberAccountTheme, resetTheme, type ThemeId, themePicks } from './theme';
 
 /** The native build's device state: bearer tokens and scheduled reminders. */
@@ -48,6 +49,9 @@ export class AuthService {
 
   /** The day journal; its key is restored after `me` loads and forgotten on sign-out, session end and wipe. */
   journal: Pick<JournalApi, 'forget' | 'restore'> | null = null;
+
+  /** The device's habit timer; it ends with the session: on sign-out, session end, wipe, and when `me` answers 401. */
+  timer: Pick<HabitTimer, 'endSession'> | null = null;
 
   constructor(
     private readonly api: ApiClient,
@@ -97,6 +101,7 @@ export class AuthService {
       )
       .then((me) => {
         if (session !== this.session) return null;
+        if (!me) void this.timer?.endSession();
         this.me.set(me);
         this.loaded = true;
         const unsaved = me && adoptAccountTheme(me.theme, picks);
@@ -127,8 +132,9 @@ export class AuthService {
     this.setMe(me);
   }
 
-  /** Forgets the session locally (the server already ended it) and cancels the native build's reminders. */
+  /** Forgets the session locally (the server already ended it) and the habit timer, and cancels the native build's reminders. */
   clearSession(): void {
+    void this.timer?.endSession();
     void this.native?.reminders.clearAll();
     void this.journal?.forget();
     this.session++;
@@ -235,12 +241,13 @@ export class AuthService {
   }
 
   /**
-   * Forgets this device's state for the signed-in user: queued offline edits, the habit cache and the journal key,
+   * Forgets this device's state for the signed-in user: queued offline edits, the habit cache, the habit timer and the journal key,
    * and in the native build the tokens and every scheduled reminder; shows the default theme again. Call before
    * `clearSession()`. Never throws.
    */
   async wipeDevice(): Promise<void> {
     const userId = this.me.get()?.id;
+    await this.timer?.endSession();
     await this.journal?.forget();
     if (this.native) {
       await this.native.reminders.clearAll();

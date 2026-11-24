@@ -291,6 +291,7 @@ export function habitView(data: LocalData, habitId: number, today: LocalDateStri
       reminderChannels: habit.reminderChannels,
       days: null,
       timesPerDay: 1,
+      timerMinutes: null,
       routineId: null,
     };
   }
@@ -325,6 +326,7 @@ export function habitView(data: LocalData, habitId: number, today: LocalDateStri
     reminderChannels: habit.reminderChannels,
     days: habit.frequency === 'weekdays' && habit.days ? weekdays.filter((d) => habit.days!.includes(d)) : null,
     timesPerDay: habit.timesPerDay,
+    timerMinutes: habit.timerMinutes ?? null,
     routineId: habit.routineId,
   };
 }

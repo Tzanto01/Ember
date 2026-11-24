@@ -31,12 +31,15 @@ public partial class HabitService
     /// <paramref name="days"/> is stored for <see cref="FrequencyType.Weekdays"/> habits only; weekly habits always get <paramref name="timesPerDay"/> 1.
     /// <paramref name="reminderTimes"/>, when given, replaces <paramref name="reminderTime"/> and is kept as <see cref="HabitRules.NormalizeReminderTimes"/> does.
     /// </remarks>
-    /// <exception cref="ArgumentException">A <see cref="HabitKind.LetGo"/> habit that isn't daily, once a day, without weekly target or days and with at most one reminder time.</exception>
+    /// <exception cref="ArgumentException">A <see cref="HabitKind.LetGo"/> habit that isn't daily, once a day, without weekly target, days or timer and with at most one reminder time.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timerMinutes"/> is outside 1 to <see cref="Limits.TimerMinutes"/>.</exception>
     public async Task<(HabitWriteResult Result, Habit? Habit)> AddHabitAsync(Guid userId, string name, TimeOnly? reminderTime,
         FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null, IReadOnlyCollection<string>? reminderExclusions = null,
-        ScheduleDays? days = null, int timesPerDay = 1, IReadOnlyCollection<TimeOnly>? reminderTimes = null, HabitKind kind = HabitKind.Build)
+        ScheduleDays? days = null, int timesPerDay = 1, IReadOnlyCollection<TimeOnly>? reminderTimes = null, HabitKind kind = HabitKind.Build,
+        int? timerMinutes = null)
     {
-        LetGoRules.ThrowIfInvalid(kind, frequency, timesPerDay, weeklyTarget, days, reminderTimes?.Distinct().Count() ?? 0);
+        ThrowIfTimerOutOfRange(timerMinutes);
+        LetGoRules.ThrowIfInvalid(kind, frequency, timesPerDay, weeklyTarget, days, reminderTimes?.Distinct().Count() ?? 0, timerMinutes);
         if (!await _consent.HasHealthDataConsentAsync(userId))
             return (HabitWriteResult.ConsentRequired, null);
         if (await _db.Habits.CountAsync(h => h.UserId == userId) >= Limits.HabitsPerUser)
@@ -52,6 +55,7 @@ public partial class HabitService
             WeeklyTarget = frequency == FrequencyType.Weekly ? (weeklyTarget ?? HabitRules.DefaultWeeklyTarget) : null,
             Days = frequency == FrequencyType.Weekdays ? days : null,
             TimesPerDay = frequency == FrequencyType.Weekly ? 1 : timesPerDay,
+            TimerMinutes = timerMinutes,
             ReminderExclusions = reminderExclusions?.Distinct().ToList() ?? [],
             CreatedAt = _time.GetUtcNow().UtcDateTime
         };
@@ -398,7 +402,7 @@ public partial class HabitService
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
 
         if (habit is null) return null;
-        LetGoRules.ThrowIfInvalid(habit.Kind, type, timesPerDay, null, null, 0);
+        LetGoRules.ThrowIfInvalid(habit.Kind, type, timesPerDay, null, null, 0, null);
 
         var target = type == FrequencyType.Weekly ? 1 : timesPerDay;
         var recompute = target != habit.TimesPerDay;
@@ -444,25 +448,30 @@ public partial class HabitService
     /// Edits the user's habit; null arguments keep the current value. <paramref name="newReminderTime"/> replaces all reminder times
     /// with that one; <paramref name="newReminderTimes"/> replaces them with those (empty clears the reminder), kept as
     /// <see cref="HabitRules.NormalizeReminderTimes"/> does. <paramref name="reminderExclusions"/> replaces <see cref="Habit.ReminderExclusions"/>.
+    /// <paramref name="timerMinutes"/> sets <see cref="Habit.TimerMinutes"/>, <paramref name="clearTimer"/> removes it.
     /// <see cref="HabitWriteResult.NotFound"/> when the habit isn't the user's; <see cref="HabitWriteResult.ConsentRequired"/>, writing
     /// nothing, for a new name without the current health-data consent.
     /// </summary>
-    /// <exception cref="ArgumentException">More than one reminder time for a let-go habit; nothing is written.</exception>
+    /// <exception cref="ArgumentException">More than one reminder time or a timer for a let-go habit; nothing is written.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timerMinutes"/> is outside 1 to <see cref="Limits.TimerMinutes"/>; nothing is written.</exception>
     public async Task<(HabitWriteResult Result, Habit? Habit)> EditHabitAsync(Guid userId, int habitId, string? newName,
         TimeOnly? newReminderTime, bool clearReminder, IReadOnlyCollection<string>? reminderExclusions = null,
-        IReadOnlyCollection<TimeOnly>? newReminderTimes = null)
+        IReadOnlyCollection<TimeOnly>? newReminderTimes = null, int? timerMinutes = null, bool clearTimer = false)
     {
+        ThrowIfTimerOutOfRange(timerMinutes);
         var habit = await _db.Habits
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
 
         if (habit is null) return (HabitWriteResult.NotFound, null);
-        if (!clearReminder && newReminderTimes is not null)
-            LetGoRules.ThrowIfInvalid(habit.Kind, FrequencyType.Daily, 1, null, null, newReminderTimes.Distinct().Count());
+        LetGoRules.ThrowIfInvalid(habit.Kind, FrequencyType.Daily, 1, null, null,
+            clearReminder ? 0 : newReminderTimes?.Distinct().Count() ?? 0, clearTimer ? null : timerMinutes);
         if (newName is not null && newName != habit.Name && !await _consent.HasHealthDataConsentAsync(userId))
             return (HabitWriteResult.ConsentRequired, null);
 
         if (newName is not null) habit.Name = newName;
         if (reminderExclusions is not null) habit.ReminderExclusions = reminderExclusions.Distinct().ToList();
+        if (clearTimer) habit.TimerMinutes = null;
+        else if (timerMinutes is not null) habit.TimerMinutes = timerMinutes;
 
         if (clearReminder)
         {
@@ -482,6 +491,12 @@ public partial class HabitService
 
         await _db.SaveChangesAsync();
         return (HabitWriteResult.Saved, habit);
+    }
+
+    private static void ThrowIfTimerOutOfRange(int? timerMinutes)
+    {
+        if (timerMinutes is < 1 or > Limits.TimerMinutes)
+            throw new ArgumentOutOfRangeException(nameof(timerMinutes), timerMinutes, $"Must be between 1 and {Limits.TimerMinutes}.");
     }
 
     /// <summary>

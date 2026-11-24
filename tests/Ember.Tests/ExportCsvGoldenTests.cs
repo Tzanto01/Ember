@@ -43,6 +43,7 @@ public class ExportCsvGoldenTests
             FrequencyType = FrequencyType.Weekdays,
             Days = ScheduleDays.Mon | ScheduleDays.Wed | ScheduleDays.Sun,
             TimesPerDay = 2,
+            TimerMinutes = 30,
             ReminderTimes = [new TimeOnly(8, 30), new TimeOnly(20, 0)],
             ReminderExclusions = ["discord"],
             RoutineId = 7,
