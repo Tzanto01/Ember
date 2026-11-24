@@ -19,7 +19,7 @@ namespace Ember.Api;
 /// confirmed linked one are deleted at once. A diagnostics upload never holds up the
 /// outbox: each step first drops uploads unsent for <see cref="LookoutDiagnostic.MaxUnsentAge"/>; an upload Lookout accepted or
 /// refused for good is deleted, and any other answer defers only that upload by its own backoff (<see cref="LookoutDiagnostic.NextAttemptAt"/>).
-/// Refuses to start while its database login lacks a right it uses. Logs row id, kind and status or exception type only.
+/// Refuses to start while its database login lacks a right it uses. Drops old refs also while Lookout isn't configured. Logs row id, kind and status or exception type only.
 /// </summary>
 internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http, IConfiguration configuration, TimeProvider time,
     ILogger<LookoutSender> logger, LookoutDeletedRefs deletedRefs) : BackgroundService
@@ -29,6 +29,8 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
 
     /// <summary>How often <see cref="LookoutDeletedRefs.Prune"/> runs.</summary>
     internal static readonly TimeSpan PruneInterval = TimeSpan.FromHours(1);
+
+    private readonly bool _deleteSentCopies = configuration.GetValue(FeedbackRetention.DeleteSentCopiesSetting, false);
 
     private int _failures;
 
@@ -47,14 +49,21 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (deletedRefs.IsOff)
+            logger.LogWarning("Deletions Lookout confirms aren't recorded ({Setting} is not set); a restore of Lookout's store can't repeat them.", LookoutDeletedRefs.FileSetting);
+        deletedRefs.Start();
+        PruneDeletedRefs(time.GetUtcNow().UtcDateTime);
         if (!LookoutIngest.TryGetEndpoint(configuration, out _, out _))
         {
             logger.LogWarning("Lookout ingest is not configured; feedback and diagnostics stay queued.");
-            return;
+            while (true)
+            {
+                await Task.Delay(PruneInterval, time, stoppingToken);
+                PruneDeletedRefs(time.GetUtcNow().UtcDateTime);
+            }
         }
 
         await RequireRightsAsync(stoppingToken);
-        deletedRefs.Start();
         while (!stoppingToken.IsCancellationRequested)
         {
             var wait = await StepAsync(stoppingToken);
@@ -140,7 +149,6 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         now = time.GetUtcNow().UtcDateTime;
         if (LookoutIngest.IsConfirmed(row.Kind, status))
         {
-            var deleteCopy = configuration.GetValue(FeedbackRetention.DeleteSentCopiesSetting, false);
             if (row.Kind == LookoutOutbox.UserDelete)
             {
                 try
@@ -153,11 +161,11 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
                 }
                 await rows.ExecuteDeleteAsync(cancellationToken);
             }
-            else if (deleteCopy && row.UserRef is null) await db.Feedback.Where(f => f.Id == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
+            else if (_deleteSentCopies && row.UserRef is null) await db.Feedback.Where(f => f.Id == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
             else
             {
                 await rows.ExecuteUpdateAsync(s => s.SetProperty(o => o.SentAt, now), cancellationToken);
-                if (deleteCopy) await db.FeedbackImages.Where(i => i.FeedbackId == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
+                if (_deleteSentCopies) await db.FeedbackImages.Where(i => i.FeedbackId == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
             }
             _failures = 0;
             return TimeSpan.Zero;

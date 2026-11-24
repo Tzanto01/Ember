@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Ember.Api.Feedback;
 using Ember.Api.Hosting;
 using Ember.Api.Lookout;
 using Ember.Core.Data;
@@ -238,5 +239,44 @@ public sealed class LookoutDeletedRefsTests(PostgresFixture postgres) : ApiTestB
         var print = () => LookoutDeletedRefsCli.PrintAsync(db, RefsFile, TextWriter.Null, TextWriter.Null);
 
         await print.Should().ThrowAsync<InvalidDataException>();
+    }
+
+    [DockerFact]
+    public async Task A_sender_that_has_no_ingest_configured_still_drops_refs_after_30_days()
+    {
+        var refs = new LookoutDeletedRefs(RefsFile, Host.Time);
+        refs.Start();
+        refs.Append("ref-kept-30-days");
+        Host.Time.Advance(LookoutDeletedRefs.Retention);
+        await using var rig = await SenderRig.StartAsync(Host, ingestUrl: _ => null, extraSettings: new() { [LookoutDeletedRefs.FileSetting] = RefsFile });
+
+        await rig.Run();
+
+        await Eventually(() => rig.Logs.All.Contains("not configured", StringComparison.Ordinal));
+        LookoutDeletedRefs.Read(RefsFile).Refs.Should().BeEmpty();
+    }
+
+    [DockerFact]
+    public async Task A_sender_that_records_no_refs_says_so()
+    {
+        await using var rig = await SenderRig.StartAsync(Host, ingestUrl: _ => null);
+
+        await rig.Run();
+
+        await Eventually(() => rig.Logs.All.Contains("Warning: Deletions Lookout confirms aren't recorded", StringComparison.Ordinal));
+    }
+
+    [DockerFact]
+    public async Task A_sender_with_a_setting_that_is_no_boolean_stops_before_it_sends()
+    {
+        var start = () => SenderRig.StartAsync(Host, extraSettings: new() { [FeedbackRetention.DeleteSentCopiesSetting] = "1" });
+
+        await start.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    private static async Task Eventually(Func<bool> condition)
+    {
+        for (var i = 0; i < 200 && !condition(); i++) await Task.Delay(50);
+        condition().Should().BeTrue();
     }
 }

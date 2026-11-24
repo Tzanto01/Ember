@@ -24,6 +24,9 @@ internal sealed partial class LookoutDeletedRefs(string? path, TimeProvider time
 
     private readonly string? _path = string.IsNullOrWhiteSpace(path) ? null : path;
 
+    /// <summary>Whether no ref is recorded.</summary>
+    public bool IsOff => _path is null;
+
     /// <summary>Creates the file with its start line when it is missing or empty. Does nothing when off.</summary>
     public void Start()
     {

@@ -147,6 +147,8 @@ internal sealed class SenderRig : IAsyncDisposable
         return rig;
     }
 
+    public Task Run() => _sender.StartAsync(default);
+
     public Task RequireRights() => _sender.RequireRightsAsync(default);
 
     public Task<TimeSpan> Step() => _sender.StepAsync(default);
