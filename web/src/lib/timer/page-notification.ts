@@ -16,6 +16,8 @@ function granted(): boolean {
  */
 export class PageNotification implements TimerNotifier {
   readonly allowed = new Store(granted());
+  /** Always false: the page shows its notification itself, at the end. */
+  readonly late = new Store(false);
   private chain: Promise<unknown> = Promise.resolve();
   private clears = 0;
   private shown: Notification | null = null;

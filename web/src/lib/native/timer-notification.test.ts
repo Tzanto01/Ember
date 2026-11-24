@@ -8,8 +8,9 @@ import type { TimerRecord } from '../timer/habit-timer';
 import { timerSound } from '../timer/timer-sound';
 import { capacitorPlugin } from '@/test/test-support';
 import { reminderNames } from './reminder-names';
+import { timerNotificationId } from './reminder-plan';
 import { Reminders } from './reminders';
-import { TimerNotification, timerNotificationId } from './timer-notification';
+import { TimerNotification } from './timer-notification';
 import type { EmberWidgetPlugin } from './widget';
 
 const end = Date.parse('2026-11-01T10:30:00Z');
@@ -33,6 +34,9 @@ class FakeAndroid {
   exact = 'granted';
   asked = 0;
   hold: Promise<void> = Promise.resolve();
+  held = false;
+  refuses = false;
+  posts = 0;
 
   plugin = capacitorPlugin({
     checkPermissions: async () => ({ display: this.display }),
@@ -42,16 +46,25 @@ class FakeAndroid {
       return { display: this.display };
     },
     checkExactNotificationSetting: async () => {
+      this.held = true;
       await this.hold;
       return { exact_alarm: this.exact };
     },
     createChannel: async (channel: { id: string; name: string }) => void this.channels.set(channel.id, channel),
     schedule: async ({ notifications }: { notifications: LocalNotificationSchema[] }) => {
+      if (this.refuses) throw new Error('refused');
       for (const n of notifications) {
         this.shown.delete(n.id);
-        this.pending.set(n.id, n);
+        this.pending.delete(n.id);
+        if (n.schedule) this.pending.set(n.id, n);
+        else {
+          if (n.isExactNotification !== false && this.exact !== 'granted') throw new Error('opened the exact alarm setting');
+          this.posts++;
+          this.shown.add(n.id);
+        }
       }
     },
+    getDeliveredNotifications: async () => ({ notifications: [...this.shown].map((id) => ({ id })) }),
     getPending: async () => ({ notifications: [...this.pending.values()] }),
     cancel: async ({ notifications }: { notifications: { id: number }[] }) => {
       for (const { id } of notifications) this.pending.delete(id);
@@ -143,10 +156,11 @@ describe('TimerNotification', () => {
   });
 
   it('ends with nothing scheduled when it is cleared while being scheduled', async () => {
+    android.held = false;
     let go: () => void = () => undefined;
     android.hold = new Promise((resolve) => (go = () => resolve()));
     const running = timer.running(record);
-    await vi.waitFor(() => expect(android.channels.size).toBe(1));
+    await vi.waitFor(() => expect(android.held).toBe(true));
     const cleared = timer.clear();
     reminderNames.set(true);
     go();
@@ -175,6 +189,89 @@ describe('TimerNotification', () => {
     await timer.running(record);
     expect(android.pending.size).toBe(0);
     expect(timer.allowed.get()).toBe(false);
+  });
+
+  describe('at an end the app sees', () => {
+    const over = () => vi.setSystemTime(end);
+
+    it('without exact alarms, shows it at once and leaves no alarm for later', async () => {
+      android.exact = 'denied';
+      await timer.running(record);
+      expect(timer.late.get()).toBe(true);
+      over();
+
+      await expect(timer.ended({ ...record, told: true })).resolves.toBe(true);
+      expect([...android.shown]).toEqual([timerNotificationId]);
+      expect(android.pending.size).toBe(0);
+    });
+
+    it('without exact alarms, does not repeat one that was delivered, also after it was tapped away', async () => {
+      android.exact = 'denied';
+      await timer.running(record);
+      over();
+      android.fire();
+      await expect(timer.ended(record)).resolves.toBe(true);
+      android.shown.clear();
+      await expect(timer.ended(record)).resolves.toBe(true);
+      expect(android.posts).toBe(0);
+    });
+
+    it('with exact alarms, leaves it to the alarm', async () => {
+      await timer.running(record);
+      over();
+      await expect(timer.ended(record)).resolves.toBe(true);
+      expect(android.posts).toBe(0);
+      expect(scheduled()).toBeDefined();
+    });
+
+    it.each([
+      ['notifications are off', () => (android.display = 'denied')],
+      ['Android refused to schedule it', () => (android.refuses = true)],
+    ])('tells nothing when %s, so the app can chime', async (_case, prepare) => {
+      prepare();
+      await timer.running(record);
+      expect(timer.allowed.get()).toBe(false);
+      over();
+      await expect(timer.ended(record)).resolves.toBe(false);
+    });
+  });
+
+  describe('when a grant changes while a timer runs', () => {
+    it('is scheduled once notifications are allowed, and gone once they are not', async () => {
+      android.display = 'denied';
+      await timer.running(record);
+      android.display = 'granted';
+      await timer.check();
+      expect(scheduled()).toBeDefined();
+      expect(timer.allowed.get()).toBe(true);
+
+      android.display = 'denied';
+      await timer.check();
+      expect(scheduled()).toBeUndefined();
+      expect(timer.allowed.get()).toBe(false);
+    });
+
+    it('becomes exact once exact alarms are allowed, and no longer late', async () => {
+      android.exact = 'denied';
+      await timer.running(record);
+      expect(scheduled()?.isExactNotification).toBe(false);
+
+      android.exact = 'granted';
+      await timer.check();
+      expect(scheduled()?.isExactNotification).toBe(true);
+      expect(timer.late.get()).toBe(false);
+    });
+
+    it('is tried again after Android refused it', async () => {
+      android.refuses = true;
+      await timer.running(record);
+      expect(timer.allowed.get()).toBe(false);
+
+      android.refuses = false;
+      await timer.check();
+      expect(scheduled()).toBeDefined();
+      expect(timer.allowed.get()).toBe(true);
+    });
   });
 
   describe('next to the reminders', () => {

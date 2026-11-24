@@ -45,7 +45,9 @@ export type TimerConfirm = { status: 'done' } | { status: 'unavailable' } | { st
 export interface TimerNotifier {
   /** True when this device would show a notification at the end. */
   readonly allowed: Store<boolean>;
-  /** Reads the notification permission again. */
+  /** True when that notification may come late with the app closed (Android without exact alarms); false on the web. */
+  readonly late: Store<boolean>;
+  /** Reads the notification permission and the exact-alarm grant again and follows a change while a timer runs. */
   check(): Promise<void>;
   /** A timer runs until `record.endsAt`; `ask` may ask for the permission when the system never did. */
   running(record: TimerRecord, ask?: boolean): Promise<void>;
@@ -102,14 +104,22 @@ export class HabitTimer {
   readonly view = new Store<TimerView | null>(null);
   /** True when this device would show a notification at the end. */
   readonly notifies: Store<boolean>;
+  /** True when that notification may come late because exact alarms aren't allowed; {@link check} after a grant clears it. */
+  readonly late: Store<boolean>;
   private memory: TimerRecord | null = null;
   private wake: ReturnType<typeof setTimeout> | undefined;
   private ensured = '';
+  private userId: string | null = null;
+  private withdrawn = false;
   private confirming: Promise<TimerConfirm> | null = null;
 
   constructor(private readonly deps: TimerDeps) {
     this.notifies = deps.notifier.allowed;
-    deps.me.subscribe(() => this.evaluate());
+    this.late = deps.notifier.late;
+    deps.me.subscribe(() => {
+      this.follow();
+      this.evaluate();
+    });
   }
 
   /** Starts following the page, the other tabs and the stored timer; returns the function that stops it. */
@@ -123,6 +133,7 @@ export class HabitTimer {
     window.addEventListener('focus', evaluate);
     window.addEventListener('pageshow', evaluate);
     window.addEventListener('storage', stored);
+    this.follow();
     if (!this.read()) void this.deps.notifier.clear();
     this.check();
     return () => {
@@ -265,7 +276,10 @@ export class HabitTimer {
     return { status: 'done' };
   }
 
-  /** The record's day while it is open and can still be checked in, else null. */
+  /**
+   * The record's day while it is open and can still be checked in, else null. Offline, a day the device never saw
+   * counts as pending, except a past one of a habit with several a day: an absolute count could lower the real one.
+   */
   private async openDay(record: TimerRecord): Promise<{ count: number; timesPerDay: number } | null> {
     const today = this.today();
     const { habitId, date } = record;
@@ -274,19 +288,21 @@ export class HabitTimer {
     if (!habit) return null;
     if (date < habit.startDate || pausedOn(habit, date)) return null;
     const queued = await this.deps.device.edits(record.userId).catch(() => []);
+    const edited = queued.some((edit) => edit.kind !== 'note' && edit.habitId === habitId && edit.date === date);
+    const timesPerDay = habit.timesPerDay ?? 1;
     let entry: DayEntry | undefined = habit.today.date === date ? habit.today : undefined;
+    let unknown = edited;
     if (!entry) {
       const [day] = await this.deps.api.getDays(habitId, date, date).catch((error: unknown) => {
-        if (unreachable(error)) return [];
-        throw error;
+        if (!unreachable(error)) throw error;
+        unknown ||= timesPerDay === 1 || habit.today.date < date;
+        return [];
       });
       entry = day;
     }
-    if (!entry && queued.some((edit) => edit.kind !== 'note' && edit.habitId === habitId && edit.date === date))
-      entry = { date, state: 'pending', completed: null, count: 0, skipped: false };
+    if (!entry && unknown) entry = { date, state: 'pending', completed: null, count: 0, skipped: false };
     if (!entry) return null;
     const { state, count } = withQueued(habit, entry, queued);
-    const timesPerDay = habit.timesPerDay ?? 1;
     if (state === 'paused' || state === 'beforestart' || state === 'done' || count >= timesPerDay) return null;
     return { count, timesPerDay };
   }
@@ -345,15 +361,31 @@ export class HabitTimer {
     return JSON.stringify([record.userId, record.habitId, record.name, record.endsAt]);
   }
 
+  /**
+   * Removes a stored timer when this page's own `me` changes: one of somebody else when a user is first known or
+   * another one signs in, and this user's when the consent turns out withdrawn. A page that is merely behind another
+   * tab only hides it ({@link own}).
+   */
+  private follow(): void {
+    const me = this.deps.me.get();
+    if (!me) return;
+    const switched = me.id !== this.userId;
+    const withdrawn = !!me.consent?.withdrawnAt;
+    const withdrawnNow = withdrawn && (switched || !this.withdrawn);
+    this.userId = me.id;
+    this.withdrawn = withdrawn;
+    const stored = this.read();
+    if (stored && (stored.userId === me.id ? withdrawnNow : switched)) void this.drop();
+  }
+
   private evaluate(): void {
     clearTimeout(this.wake);
-    const me = this.deps.me.get();
-    const stored = this.read();
-    if (me && (stored ? !this.own() : this.view.get())) {
+    if (this.deps.me.get() && !this.read() && this.view.get()) {
       void this.drop();
       return;
     }
     let view = this.current();
+    if (view?.phase === 'ended' && !view.record.told) view = this.current();
     const telling = view?.phase === 'ended' && !view.record.told;
     if (view && telling) {
       view = { ...view, record: { ...view.record, told: true } };

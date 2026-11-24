@@ -28,6 +28,7 @@ const record: TimerRecord = {
 
 class FakeNotifier implements TimerNotifier {
   readonly allowed = new Store(false);
+  readonly late = new Store(false);
   /** The end the device would notify at, or null. */
   scheduled: number | null = null;
   asked = 0;
@@ -252,6 +253,33 @@ describe('HabitTimer', () => {
       expect(notifier.scheduled).toBeNull();
     });
 
+    it.each([
+      ['the previous user', me],
+      ['an old consent state', { ...me, consent: { ...me.consent, given: false, withdrawnAt: '2026-11-01T09:00:00Z' } }],
+    ])('is hidden, not removed, by a tab that still knows %s', (_case, stale) => {
+      timer = open(stale);
+      const kept = { ...record, userId: stale === me ? 'u2' : 'u1' };
+      store(kept);
+      notifier.scheduled = kept.endsAt;
+      window.dispatchEvent(new StorageEvent('storage', { key }));
+      wake();
+      auth.setMe({ ...stale });
+
+      expect(phase()).toBeNull();
+      expect(JSON.parse(localStorage.getItem(key) ?? 'null')).toEqual(kept);
+      expect(notifier.scheduled).toBe(kept.endsAt);
+    });
+
+    it('goes when this page changes to another user, and stays when it is theirs', () => {
+      timer.start(walk);
+      auth.setMe({ ...me, id: 'u2' });
+      expect(localStorage.getItem(key)).toBeNull();
+
+      store(record);
+      auth.setMe(me);
+      expect(phase()).toBe('running');
+    });
+
     it('waits, hidden, while the user is not known yet', () => {
       timer.start(walk);
       timer = open(null);
@@ -335,6 +363,23 @@ describe('HabitTimer', () => {
 
       expect(notifier.ends).toHaveLength(1);
     });
+  });
+
+  it('is not told by a tab that finds it told by another one while it looks', async () => {
+    timer.start(walk);
+    sleep(start + 30 * minute);
+    const read = Storage.prototype.getItem;
+    let reads = 0;
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, name) {
+      const raw = read.call(this, name);
+      if (name === key && ++reads === 2) store({ ...record, told: true });
+      return raw;
+    });
+    wake();
+    vi.restoreAllMocks();
+
+    expect(phase()).toBe('ended');
+    expect(notifier.ends).toEqual([]);
   });
 
   describe('the check-in it offers', () => {
@@ -430,6 +475,36 @@ describe('HabitTimer', () => {
       await expect(done).resolves.toEqual({ status: 'done' });
       expect(await device.edits('u1')).toMatchObject([{ habitId: 1, date: '2026-11-01', completed: true }]);
       expect(phase()).toBeNull();
+    });
+
+    it('is queued offline when the cached list is from before the timer’s day', async () => {
+      const older = { ...walk, timesPerDay: 3, today: { ...habit.today, date: '2026-10-31', state: 'done' as const, count: 3 } };
+      await device.saveHabits({ userId: 'u1', timeZone: me.timezone, habits: [older] });
+      const day = '/api/habits/1/days?from=2026-11-01&to=2026-11-01';
+      const offer = timer.offer();
+      (await fetch.next('GET', '/api/habits')).fail();
+      (await fetch.next('GET', day)).fail();
+      await expect(offer).resolves.toEqual({ canCheckIn: true, yesterday: false });
+
+      const done = timer.confirm();
+      (await fetch.next('GET', '/api/habits')).fail();
+      (await fetch.next('GET', day)).fail();
+      (await fetch.next('PUT', '/api/habits/1/days/2026-11-01')).fail();
+      await expect(done).resolves.toEqual({ status: 'done' });
+      expect(await device.edits('u1')).toMatchObject([{ habitId: 1, date: '2026-11-01', count: 1 }]);
+    });
+
+    it.each([
+      [1, true],
+      [3, false],
+    ])('offline after midnight with %i a day and the day unseen: %s, so no real count is lowered', async (timesPerDay, canCheckIn) => {
+      vi.setSystemTime(Date.parse('2026-11-02T08:00:00Z'));
+      const newer = { ...walk, timesPerDay, today: { ...habit.today, date: '2026-11-02' } };
+      await device.saveHabits({ userId: 'u1', timeZone: me.timezone, habits: [newer] });
+      const offer = timer.offer();
+      (await fetch.next('GET', '/api/habits')).fail();
+      (await fetch.next('GET', '/api/habits/1/days?from=2026-11-01&to=2026-11-01')).fail();
+      await expect(offer).resolves.toEqual({ canCheckIn, yesterday: true });
     });
 
     it('is not there offline when the device knows nothing of the habit', async () => {
