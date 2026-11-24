@@ -37,7 +37,7 @@ It reads only. For every report Ember has it looks for Lookout's ticket and comp
 8. Run the check once more. `never queued` may only be left on reports you decided about.
 9. Run `ops/sql/drop_feedback_board.sql` right away. It deletes the notes in `emberops` for good. Until then the notes of a deleted account stay: `ember-ops` no longer deletes them.
 10. Remove `FEEDBACK_RETENTION_ENABLED` and recreate `api`. The next run at 08:00 (Berlin) deletes, for good, reports older than 12 months and the pictures of confirmed reports older than 29 days. The pictures Lookout holds are listed with their sizes in the check of step 8.
-11. Set `FEEDBACK_DELETE_SENT_COPIES=true` only once a backup of Lookout's store was restored for real and the deleted refs are being recorded. Recreate `api` and `lookout-sender`.
+11. Set `FEEDBACK_DELETE_SENT_COPIES=true` only once the deleted refs are being recorded and you saw the first deletion recorded in the file (the restore itself passed a rehearsal on synthetic data on 2026-11-24). Recreate `api` and `lookout-sender`.
 
 **Going back.** Only before step 9, and only the columns `Status`, `ResolvedAt` and `DigestedAt` are gone by then; Lookout holds the status.
 
