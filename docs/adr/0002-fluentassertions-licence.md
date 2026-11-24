@@ -1,6 +1,6 @@
 # 0002: FluentAssertions 8 stays until the first paid tier
 
-Status: accepted, 2026-11-20 (audit decision D8).
+Status: superseded by [0003](0003-awesomeassertions.md); accepted 2026-11-20 (audit decision D8).
 
 ## Context
 
