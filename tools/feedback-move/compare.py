@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Compares Ember's feedback with what Lookout holds. Prints ids, counts and statuses only, never titles or texts.
 
-Usage: compare.py <ember.json> <notes.json> <lookout.json>
+Usage: compare.py <ember.json> <notes.json> <lookout.json> [<accepted ids>]
   ember.json    the array export.sql prints
-  notes.json    {"<report id>": <note count>} from emberops, or {} once its tables are dropped
+  notes.json    {"<report id>": ["<md5 of a trimmed note>", ...]} from emberops
   lookout.json  an array of board.sh show outputs: {"ticket": {...}, "comments": [...]}
+  accepted ids  comma-separated reports whose problems the operator settled by hand; printed, not counted
 
-Exit 0: Lookout holds everything. Exit 2: it does, but a status or text differs (Lookout's counts; look at each).
-Exit 1: something is missing.
+Exit 0: Lookout holds everything. Exit 2: it does, but a status, title or text differs (Lookout's counts; look at each).
+Exit 1: something is missing. The last line is always RESULT; without it the check didn't finish.
 """
 import hashlib
 import json
@@ -34,60 +35,77 @@ def pictures_expired(ticket, now):
             and moment(ticket["resolvedAt"]) < now - timedelta(days=29))
 
 
-def compare(reports, notes, held, now):
+def check(report, notes, tickets, used, now):
+    """The ticket that holds the report (None when there is none), what is missing and what differs."""
+    if report["delivery"] in ("waiting", "parked"):
+        missing = [f"{len(notes)} notes, only on Ember's board"] if notes else []
+        differs = [f"arrives as open, Ember has {report['status']}"] if report["status"] not in (None, "open") else []
+        return None, missing, differs
+
+    candidates = tickets.get(identity(report), [])
+    if len(candidates) > 1:
+        candidates = [c for c in candidates if md5(c["ticket"]["title"]) == report["titleMd5"]]
+    if len(candidates) != 1:
+        return None, [f"the report: {len(candidates)} tickets match"], []
+    ticket, comments = candidates[0]["ticket"], candidates[0]["comments"]
+    if ticket["id"] in used:
+        return None, ["the report: its ticket already matched another one"], []
+    used.add(ticket["id"])
+
+    missing, differs = [], []
+    lost = Counter(report["pictures"]) - Counter(p["size"] for p in ticket["pictures"])
+    if lost:
+        line = f"{sum(lost.values())} of {len(report['pictures'])} pictures (sizes {sorted(lost.elements())})"
+        if pictures_expired(ticket, now):
+            differs.append(line + " not there; resolved 29 days ago or longer, so Lookout's retention deleted them if it had them")
+        else:
+            missing.append(line)
+    lost = Counter(notes) - Counter(md5(c["body"].strip(" \t\r\n")) for c in comments)
+    if lost:
+        missing.append(f"{sum(lost.values())} of {len(notes)} notes")
+    if report["status"] not in (None, ticket["status"]):
+        differs.append(f"Ember has {report['status']}, Lookout {ticket['status']}")
+    if not same_content(report, ticket):
+        differs.append("title or text (edited on the board?)")
+    return ticket, missing, differs
+
+
+def same_content(report, ticket):
+    return report["titleMd5"] == md5(ticket["title"]) and report["textMd5"] == md5(ticket["text"])
+
+
+def compare(reports, notes, held, now, accepted=frozenset()):
     tickets = {}
     for entry in held:
         tickets.setdefault(identity(entry["ticket"]), []).append(entry)
 
-    missing, differs, unqueued, used = [], [], [], set()
+    problems, differences, mark, unsure, used = 0, 0, [], [], set()
     for report in reports:
-        name, delivery = f"report {report['id']}", report["delivery"] or "never queued"
-        if delivery in ("waiting", "parked"):
-            print(f"{name}: {delivery}, Lookout doesn't have it; Ember keeps it")
-            continue
-        candidates = tickets.get(identity(report), [])
-        if len(candidates) > 1:
-            candidates = [c for c in candidates if md5(c["ticket"]["title"]) == report["titleMd5"]]
-        if len(candidates) != 1:
-            missing.append(f"{name}: {delivery}, but {len(candidates)} tickets match")
-            continue
-        if candidates[0]["ticket"]["id"] in used:
-            missing.append(f"{name}: {delivery}, but its ticket already matched another report")
-            continue
-        used.add(candidates[0]["ticket"]["id"])
-        ticket, comments = candidates[0]["ticket"], candidates[0]["comments"]
-        where = f"{name} (ticket {ticket['id']})"
+        own_notes = notes.get(str(report["id"]), [])
+        ticket, missing, differs = check(report, own_notes, tickets, used, now)
+        where = f"ticket {ticket['id']}" if ticket else "no ticket"
+        print(f"report {report['id']}: {report['delivery'] or 'never queued'}, {where}, "
+              f"{len(report['pictures'])} pictures (sizes {report['pictures']}), {len(own_notes)} notes")
+        for line in missing:
+            print(f"  {'ACCEPTED' if report['id'] in accepted else 'MISSING'} {line}")
+        for line in differs:
+            print(f"  DIFFERS {line}")
+        if report["id"] in accepted:
+            missing = []
+        problems += len(missing)
+        differences += len(differs)
+        if report["delivery"] is None and ticket and not missing:
+            (mark if same_content(report, ticket) else unsure).append(report["id"])
 
-        lost = Counter(report["pictures"]) - Counter(p["size"] for p in ticket["pictures"])
-        if lost and pictures_expired(ticket, now):
-            print(f"{where}: Lookout's retention deleted {sum(lost.values())} pictures")
-        elif lost:
-            missing.append(f"{where}: {sum(lost.values())} of {len(report['pictures'])} pictures missing (sizes {sorted(lost.elements())})")
-
-        expected = notes.get(str(report["id"]), 0)
-        imported = sum(1 for c in comments if c["imported"])
-        if imported < expected:
-            missing.append(f"{where}: {imported} of {expected} notes")
-
-        if report["status"] is not None and report["status"] != ticket["status"]:
-            differs.append(f"{where}: Ember {report['status']}, Lookout {ticket['status']}")
-        if report["textMd5"] != md5(ticket["text"]):
-            differs.append(f"{where}: the text in Lookout is another one (edited on the board?)")
-        if report["delivery"] is None:
-            unqueued.append(report["id"])
-        print(f"{where}: held, {len(report['pictures'])} pictures, {expected} notes")
-
-    known = {str(r["id"]) for r in reports}
-    for orphan in sorted(set(notes) - known, key=int):
-        print(f"notes of report {orphan}: the report is gone from Ember")
-    for line in differs:
-        print(f"DIFFERS {line}")
-    for line in missing:
-        print(f"MISSING {line}")
-    print(f"{len(reports)} reports, {len(missing)} problems, {len(differs)} differences")
-    if unqueued and not missing:
-        print("FEEDBACK_IDS for ops/sql/mark_imported_feedback.sql: " + ",".join(map(str, unqueued)))
-    return 1 if missing else 2 if differs else 0
+    for orphan in sorted(set(notes) - {str(r["id"]) for r in reports}, key=int):
+        print(f"{len(notes[orphan])} notes of report {orphan}: the report is gone from Ember")
+    if unsure:
+        print("Held, but title or text differs; add to FEEDBACK_IDS only after looking: " + ",".join(map(str, unsure)))
+    if mark:
+        print("FEEDBACK_IDS for ops/sql/mark_imported_feedback.sql: " + ",".join(map(str, mark)))
+    code = 1 if problems else 2 if differences else 0
+    print(f"RESULT {code}: {len(reports)} reports, {problems} missing, {differences} differences")
+    return code
 
 
 def load(path):
@@ -96,6 +114,7 @@ def load(path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
-    sys.exit(compare(load(sys.argv[1]), load(sys.argv[2]), load(sys.argv[3]), datetime.now(timezone.utc)))
+    ids = frozenset(int(i) for i in sys.argv[4].split(",")) if len(sys.argv) == 5 else frozenset()
+    sys.exit(compare(load(sys.argv[1]), load(sys.argv[2]), load(sys.argv[3]), datetime.now(timezone.utc), ids))
