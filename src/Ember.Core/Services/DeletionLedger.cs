@@ -49,7 +49,7 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
         {
             var now = time.GetUtcNow().UtcDateTime;
             var line = JsonSerializer.Serialize(new Entry(now, kind, userId), Json) + "\n";
-            Locked(Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, stream =>
+            LockedFile.Use(Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, stream =>
             {
                 var prefix = "";
                 if (stream.Length == 0) prefix = JsonSerializer.Serialize(new { at = now, kind = Start }) + "\n";
@@ -81,7 +81,7 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
         var cutoff = time.GetUtcNow().UtcDateTime - Retention;
         try
         {
-            return Locked(Path, FileMode.Open, FileAccess.ReadWrite, stream =>
+            return LockedFile.Use(Path, FileMode.Open, FileAccess.ReadWrite, stream =>
             {
                 var lines = ReadLines(stream);
                 var keep = lines.Where(l => TryParse(l) is not { } entry || entry.Kind == Start || entry.At >= cutoff).ToList();
@@ -103,7 +103,7 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
     }
 
     /// <summary>Every entry of the ledger at <paramref name="ledgerPath"/>. Throws when the file is missing or any line isn't an entry.</summary>
-    public static List<Entry> Read(string ledgerPath) => Locked(ledgerPath, FileMode.Open, FileAccess.Read, stream =>
+    public static List<Entry> Read(string ledgerPath) => LockedFile.Use(ledgerPath, FileMode.Open, FileAccess.Read, stream =>
         ReadLines(stream).Select((line, i) => TryParse(line) ?? throw new InvalidDataException($"Line {i + 1} of the deletion ledger is not an entry.")).ToList());
 
     private static List<string> ReadLines(FileStream stream)
@@ -122,25 +122,6 @@ public sealed class DeletionLedger(string? path, TimeProvider time, ILogger<Dele
         catch (JsonException)
         {
             return null;
-        }
-    }
-
-    /// <summary>Opens the file with an exclusive lock, waiting up to 5 seconds while another process holds it.</summary>
-    private static T Locked<T>(string file, FileMode mode, FileAccess access, Func<FileStream, T> use)
-    {
-        for (var attempt = 1; ; attempt++)
-        {
-            FileStream stream;
-            try
-            {
-                stream = new FileStream(file, mode, access, FileShare.None);
-            }
-            catch (IOException e) when (e is not (FileNotFoundException or DirectoryNotFoundException) && attempt < 50)
-            {
-                Thread.Sleep(100);
-                continue;
-            }
-            using (stream) return use(stream);
         }
     }
 }
