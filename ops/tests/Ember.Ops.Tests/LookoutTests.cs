@@ -42,15 +42,6 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
 
     private static StringContent Json(string json) => new(json, Encoding.UTF8, "application/json");
 
-    private async Task<int> NewFeedbackAsync(string status = "declined")
-    {
-        await using var connection = await database.OpenAsync("emberdb");
-        return await new SyntheticRows(connection).AddReturningIdAsync("Feedback", new()
-        {
-            ["Platform"] = "web", ["Title"] = "Synthetic lookout", ["Text"] = "Synthetic", ["CreatedAt"] = DateTime.UtcNow.AddDays(-500), ["Status"] = status,
-        });
-    }
-
     [Fact]
     public async Task Refuses_a_wrong_peer_even_with_a_valid_key()
     {
@@ -125,7 +116,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         (manifest.GetProperty("id").GetString(), manifest.GetProperty("name").GetString(), manifest.GetProperty("icon").GetString(), manifest.GetProperty("timeZone").GetString())
             .Should().Be(("ember", "Ember", "flame", "Europe/Berlin"));
         manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("id").GetString()).Should().Equal(LookoutShape.PageIds);
-        manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("refreshSeconds").GetInt32()).Should().Equal(30, 60, 60, 30, 60, 30, 30, 0);
+        manifest.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("refreshSeconds").GetInt32()).Should().Equal(30, 60, 60, 30, 60, 30, 30);
     }
 
     [Theory]
@@ -136,7 +127,6 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     [InlineData("health")]
     [InlineData("notices")]
     [InlineData("system")]
-    [InlineData("feedback")]
     public async Task Every_page_has_the_contract_shape(string pageId)
     {
         using var client = Hub();
@@ -147,26 +137,19 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     }
 
     [Fact]
-    public async Task The_overview_and_feedback_pages_carry_the_hand_counted_values()
+    public async Task The_overview_page_carries_the_hand_counted_values()
     {
         using var client = Hub();
 
         var overview = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/overview");
         var tiles = LookoutShape.Widget(overview, "tiles");
-        var feedback = LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/feedback"), "feedback");
 
         LookoutShape.Item(tiles, "Users").GetProperty("value").GetInt32().Should().Be(6);
         LookoutShape.Item(tiles, "New users this week").GetProperty("value").GetInt32().Should().Be(1);
-        var card = feedback.GetProperty("cards").EnumerateArray().Single(c => c.GetProperty("id").GetString() == database.Data.FeedbackOpen.ToString());
-        card.GetProperty("column").GetString().Should().Be("open");
-        card.GetProperty("imageIds").GetArrayLength().Should().Be(1);
-        card.GetProperty("facets").GetProperty("platform").GetString().Should().Be("web");
-        var anonymous = feedback.GetProperty("cards").EnumerateArray().Single(c => c.GetProperty("id").GetString() == database.Data.FeedbackAnonymous.ToString());
-        anonymous.GetProperty("badges").EnumerateArray().Single().GetProperty("text").GetString().Should().Be("anonymous");
     }
 
     [Fact]
-    public async Task The_summary_has_the_four_tiles_a_state_and_at_most_five_alerts()
+    public async Task The_summary_has_the_three_tiles_a_state_and_at_most_five_alerts()
     {
         using var client = Hub();
 
@@ -175,89 +158,21 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         summary.GetProperty("generatedAt").GetString().Should().EndWith("Z");
         summary.GetProperty("state").GetString().Should().BeOneOf("ok", "warn", "bad");
         summary.GetProperty("tiles").EnumerateArray().Select(t => t.GetProperty("label").GetString()).Should()
-            .Equal("Users", "Active 7 days", "API p95", "Open feedback");
+            .Equal("Users", "Active 7 days", "API p95");
         summary.GetProperty("tiles")[0].GetProperty("value").GetInt32().Should().Be(6);
         summary.GetProperty("alerts").EnumerateArray().Select(a => a.GetProperty("text").GetString()).Should().Contain("Reminders not advancing");
         summary.GetProperty("alerts").GetArrayLength().Should().BeInRange(1, 5);
     }
 
-    [Fact]
-    public async Task An_unknown_page_is_a_404_problem()
+    [Theory]
+    [InlineData("nope")]
+    [InlineData("feedback")]
+    public async Task An_unknown_page_is_a_404_problem(string pageId)
     {
-        using var response = await Hub().GetAsync("/lookout/v1/pages/nope");
+        using var response = await Hub().GetAsync($"/lookout/v1/pages/{pageId}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-    }
-
-    [Fact]
-    public async Task A_comment_is_stored_with_the_decoded_actor_as_author()
-    {
-        using var client = Hub();
-        var id = await NewFeedbackAsync();
-
-        using var created = await client.SendAsync(Request(HttpMethod.Post, $"/lookout/v1/widgets/feedback/cards/{id}/comments", "Zo%C3%AB%20%E2%98%83",
-            JsonContent.Create(new { body = " hello " })));
-        var comments = await client.GetFromJsonAsync<JsonElement>($"/lookout/v1/widgets/feedback/cards/{id}/comments");
-
-        created.StatusCode.Should().Be(HttpStatusCode.Created);
-        var comment = comments.EnumerateArray().Single();
-        comment.GetProperty("author").GetString().Should().Be("Zoë ☃");
-        comment.GetProperty("body").GetString().Should().Be("hello");
-        comment.GetProperty("id").ValueKind.Should().Be(JsonValueKind.String);
-        (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("author").GetString().Should().Be("Zoë ☃");
-    }
-
-    [Fact]
-    public async Task A_move_with_an_actor_applies_the_status_and_resolved_at_and_without_one_changes_nothing()
-    {
-        using var client = Hub();
-        var id = await NewFeedbackAsync("planned");
-        var path = $"/lookout/v1/widgets/feedback/cards/{id}/move";
-        var state = () => database.ScalarAsync<string>("emberdb", """SELECT "Status" || ':' || ("ResolvedAt" IS NOT NULL)::text FROM "Feedback" WHERE "Id" = $1""", id);
-
-        using var refused = await client.SendAsync(Request(HttpMethod.Put, path, actor: null, JsonContent.Create(new { column = "released", position = (double?)null })));
-        var afterRefused = await state();
-        using var moved = await client.SendAsync(Request(HttpMethod.Put, path, "tester", JsonContent.Create(new { column = "released", position = (double?)null })));
-
-        refused.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        refused.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-        afterRefused.Should().Be("planned:false");
-        moved.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await state()).Should().Be("released:true");
-        using var back = await client.SendAsync(Request(HttpMethod.Put, path, "tester", JsonContent.Create(new { column = "planned", position = 1.5 })));
-        back.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await state()).Should().Be("planned:false");
-    }
-
-    [Fact]
-    public async Task A_card_moved_between_two_never_moved_cards_sorts_between_them()
-    {
-        var ids = new List<int>();
-        await using (var connection = await database.OpenAsync("emberdb"))
-        {
-            var rows = new SyntheticRows(connection);
-            foreach (var days in new[] { 30, 20, 10 })
-                ids.Add(await rows.AddReturningIdAsync("Feedback", new()
-                {
-                    ["Platform"] = "web", ["Title"] = $"Order {days}", ["Text"] = "Synthetic", ["CreatedAt"] = DateTime.UtcNow.AddDays(-days - 400), ["Status"] = "declined",
-                }));
-        }
-        var factory = Factory();
-        using var client = Hub(factory);
-        var databases = factory.Services.GetRequiredService<OpsDatabases>();
-        async Task<List<FeedbackItem>> ColumnAsync() =>
-            (await FeedbackStore.ListAsync(databases, CancellationToken.None)).Items.Where(i => ids.Contains(i.Id)).ToList();
-        var (oldest, middle, newest) = (ids[0], ids[1], ids[2]);
-        var before = await ColumnAsync();
-        before.Select(i => i.Id).Should().Equal(newest, middle, oldest);
-
-        var between = (before[1].Position + before[2].Position) / 2;
-        using var moved = await client.SendAsync(Request(HttpMethod.Put, $"/lookout/v1/widgets/feedback/cards/{newest}/move", "tester",
-            JsonContent.Create(new { column = "declined", position = between })));
-
-        moved.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await ColumnAsync()).Select(i => i.Id).Should().Equal(middle, newest, oldest);
     }
 
     [Fact]
@@ -274,7 +189,7 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
 
         var all = string.Join('\n', bodies).ToLowerInvariant();
 
-        all.Should().Contain("synthetic report one", "the payloads carry the seeded data");
+        all.Should().Contain("\"label\":\"users\",\"value\":6", "the payloads carry the seeded data");
         foreach (var id in database.Data.UserIds)
             all.Should().NotContain(id.ToString().ToLowerInvariant());
     }
@@ -299,15 +214,15 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
     [Fact]
     public async Task An_actor_of_101_characters_is_refused_and_100_is_accepted()
     {
-        using var client = Hub();
-        var id = await NewFeedbackAsync();
-        var path = $"/lookout/v1/widgets/feedback/cards/{id}/comments";
+        using var client = Hub(Factory(notices: new FakeNoticesUpstream(NoticesToken)));
+        const string path = "/lookout/v1/widgets/notices/notices";
+        static JsonContent Notice() => JsonContent.Create(new { id = $"lookout-{Guid.NewGuid():N}", kind = "info", text = new { en = "Hello", de = "Hallo" } });
 
-        using var long101 = await client.SendAsync(Request(HttpMethod.Post, path, new string('a', 101), JsonContent.Create(new { body = "x" })));
-        using var exact100 = await client.SendAsync(Request(HttpMethod.Post, path, new string('a', 100), JsonContent.Create(new { body = "x" })));
+        using var long101 = await client.SendAsync(Request(HttpMethod.Post, path, new string('a', 101), Notice()));
+        using var exact100 = await client.SendAsync(Request(HttpMethod.Post, path, new string('a', 100), Notice()));
 
         long101.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        exact100.StatusCode.Should().Be(HttpStatusCode.Created);
+        exact100.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -346,33 +261,21 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
         fake.Publishes.Should().Be(0);
     }
 
-    [Theory]
-    [InlineData("PUT", "/lookout/v1/widgets/feedback/cards/1/move")]
-    [InlineData("POST", "/lookout/v1/widgets/feedback/cards/1/comments")]
-    [InlineData("POST", "/lookout/v1/widgets/notices/notices")]
-    public async Task A_malformed_json_body_is_a_400_problem_not_an_empty_400(string method, string path)
+    [Fact]
+    public async Task A_malformed_json_body_is_a_400_problem_not_an_empty_400()
     {
         using var client = Hub(Factory(notices: new FakeNoticesUpstream(NoticesToken)));
 
-        using var response = await client.SendAsync(Request(new HttpMethod(method), path, "tester", Json("{not json")));
+        using var response = await client.SendAsync(Request(HttpMethod.Post, "/lookout/v1/widgets/notices/notices", "tester", Json("{not json")));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
         (await response.Content.ReadAsStringAsync()).Should().Contain("Invalid JSON body");
     }
 
-    [Fact]
-    public async Task Comments_of_an_unknown_card_are_a_404_problem()
-    {
-        using var response = await Hub().GetAsync("/lookout/v1/widgets/feedback/cards/2000000000/comments");
-
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-    }
-
     [Theory]
     [InlineData("GET", "/lookout/v1/nope")]
-    [InlineData("PUT", "/lookout/v1/widgets/feedback/cards/1/move")]
+    [InlineData("POST", "/lookout/v1/widgets/notices/notices")]
     public async Task The_peer_check_comes_before_the_key_check_and_both_before_routing(string method, string path)
     {
         using var wrongPeer = await Hub(ip: OpsApiFactory.UntrustedIp).SendAsync(Request(new HttpMethod(method), path, content: Json("{}")));
@@ -380,25 +283,5 @@ public sealed class LookoutTests(V2DatabaseFixture database) : IDisposable
 
         wrongPeer.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         wrongKey.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task An_image_is_served_with_its_stored_content_type_only_under_its_own_card()
-    {
-        using var client = Hub();
-        var feedback = LookoutShape.Widget(await client.GetFromJsonAsync<JsonElement>("/lookout/v1/pages/feedback"), "feedback");
-        var imageId = feedback.GetProperty("cards").EnumerateArray().Single(c => c.GetProperty("id").GetString() == database.Data.FeedbackOpen.ToString())
-            .GetProperty("imageIds")[0].GetString();
-        var own = $"/lookout/v1/widgets/feedback/cards/{database.Data.FeedbackOpen}/images/";
-
-        using var found = await client.GetAsync(own + imageId);
-        using var otherCard = await client.GetAsync($"/lookout/v1/widgets/feedback/cards/{database.Data.FeedbackPlanned}/images/{imageId}");
-        using var notAGuid = await client.GetAsync(own + "not-a-guid");
-
-        found.StatusCode.Should().Be(HttpStatusCode.OK);
-        found.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
-        (await found.Content.ReadAsByteArrayAsync()).Should().Equal(1, 2, 3, 4);
-        otherCard.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        notAGuid.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

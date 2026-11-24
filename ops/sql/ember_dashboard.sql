@@ -1,5 +1,5 @@
--- Creates or updates the read-mostly role ember_dashboard on emberdb: column-level SELECT on aggregates only, UPDATE on
--- Feedback ("Status", "ResolvedAt"). Idempotent; re-run after every Ember migration so new v2 tables and columns are granted.
+-- Creates or updates the read-only role ember_dashboard on emberdb: column-level SELECT on aggregates only, no write and nothing of
+-- Feedback or its images. Idempotent; re-run after every Ember migration so new v2 tables and columns are granted.
 -- Run as superuser from the repo root (the password never appears on a command line or in output):
 --   DASH_PW="$(cat ~/.config/ember-ops/ember_dashboard)" docker exec -i -e DASH_PW homeserver-postgres psql -U finvarex -d emberdb -f - < ops/sql/ember_dashboard.sql
 
@@ -32,7 +32,7 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ember_dashboard;
 DO $$
 DECLARE t text; c text;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['HabitLogs', 'DayNotes', 'DayMarks', 'JournalKeys', 'HabitSlips', 'FiresideLinks', 'Warmth', 'ReminderMessages', 'PushReminders'] LOOP
+    FOREACH t IN ARRAY ARRAY['HabitLogs', 'DayNotes', 'DayMarks', 'JournalKeys', 'HabitSlips', 'FiresideLinks', 'Warmth', 'ReminderMessages', 'PushReminders', 'Feedback', 'FeedbackImages'] LOOP
         IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
             EXECUTE format('REVOKE ALL ON public.%I FROM ember_dashboard', t);
         END IF;
@@ -68,9 +68,6 @@ GRANT SELECT ("NextReminderUtc") ON "Routines" TO ember_dashboard;
 GRANT SELECT ("UserId", "CreatedUtc", "LastSeenUtc") ON "AuthSessions" TO ember_dashboard;
 GRANT SELECT ("UserId", "Enabled") ON "PushSubscriptions" TO ember_dashboard;
 GRANT SELECT ("Id") ON "ReminderPhones" TO ember_dashboard;
-GRANT SELECT ("Id", "Title", "Text", "Platform", "Version", "CreatedAt", "Status", "ResolvedAt", "UserId") ON "Feedback" TO ember_dashboard;
-GRANT UPDATE ("Status", "ResolvedAt") ON "Feedback" TO ember_dashboard;
-GRANT SELECT ("Id", "FeedbackId", "ContentType", "Size", "Data") ON "FeedbackImages" TO ember_dashboard;
 GRANT SELECT ("MigrationId") ON "__EFMigrationsHistory" TO ember_dashboard;
 
 DO $$

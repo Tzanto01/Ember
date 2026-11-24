@@ -26,7 +26,6 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
     [InlineData("health")]
     [InlineData("notices")]
     [InlineData("system")]
-    [InlineData("feedback")]
     public async Task Every_page_has_the_contract_shape_on_the_production_schema(string pageId)
     {
         using var client = Hub();
@@ -82,7 +81,7 @@ public sealed class LookoutProductionSchemaTests(ProductionDatabaseFixture datab
         var summary = await client.GetFromJsonAsync<JsonElement>("/lookout/v1/summary");
 
         summary.GetProperty("tiles").EnumerateArray().Select(t => t.GetProperty("label").GetString()).Should()
-            .Equal("Users", "Active 7 days", "API p95", "Open feedback");
+            .Equal("Users", "Active 7 days", "API p95");
         summary.GetProperty("tiles")[0].GetProperty("value").GetInt32().Should().Be(6);
     }
 }

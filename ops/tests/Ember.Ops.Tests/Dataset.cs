@@ -10,12 +10,6 @@ public sealed class Dataset
 {
     public List<Guid> UserIds { get; } = [];
 
-    public int FeedbackOpen { get; private set; }
-
-    public int FeedbackPlanned { get; private set; }
-
-    public int FeedbackAnonymous { get; private set; }
-
     public int[] HabitIds { get; private set; } = [];
 
     public static async Task<Dataset> InsertAsync(string superuserEmberConnection, DateOnly today, bool includeV2)
@@ -123,23 +117,6 @@ public sealed class Dataset
             await rows.AddAsync("PushSubscriptions", new() { ["UserId"] = data.UserIds[i], ["Endpoint"] = $"https://push.example.test/{i}", ["Enabled"] = i != 2, ["CreatedAt"] = now });
         for (var i = 0; i < 2; i++)
             await rows.AddAsync("ReminderPhones", new() { ["UserId"] = data.UserIds[i], ["InstallId"] = $"synthetic-install-{i}", ["Enabled"] = i == 0, ["CreatedAt"] = now });
-
-        // feedback: open (by u1, one image), planned (anonymous), released (by u2)
-        var open = await rows.AddReturningIdAsync("Feedback", new()
-        {
-            ["UserId"] = data.UserIds[0], ["Platform"] = "web", ["Title"] = "Synthetic report one", ["Text"] = "Synthetic text one", ["CreatedAt"] = now.AddDays(-3), ["Status"] = "open",
-        });
-        await rows.AddAsync("FeedbackImages", new() { ["Id"] = Guid.NewGuid(), ["FeedbackId"] = open, ["ContentType"] = "image/png", ["Size"] = 4, ["Data"] = new byte[] { 1, 2, 3, 4 } });
-        var planned = await rows.AddReturningIdAsync("Feedback", new()
-        {
-            ["UserId"] = null, ["Platform"] = "android", ["Title"] = "Synthetic report two", ["Text"] = "Synthetic text two", ["CreatedAt"] = now.AddDays(-2), ["Status"] = "planned",
-        });
-        await rows.AddReturningIdAsync("Feedback", new()
-        {
-            ["UserId"] = data.UserIds[1], ["Platform"] = "web", ["Title"] = "Synthetic report three", ["Text"] = "Synthetic text three", ["CreatedAt"] = now.AddDays(-1),
-            ["Status"] = "released", ["ResolvedAt"] = now.AddHours(-5),
-        });
-        (data.FeedbackOpen, data.FeedbackPlanned, data.FeedbackAnonymous) = (open, planned, planned);
         return data;
     }
 }

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -19,7 +18,6 @@ public static class LookoutApi
     public const string ActorHeader = "Lookout-Actor";
     public const int MaxActorLength = 100;
     public const int MinKeyBytes = 32;
-    private const string BoardId = "feedback";
     private const string NoticesId = "notices";
 
     /// <summary>
@@ -53,52 +51,9 @@ public static class LookoutApi
             "devices" => Results.Ok(LookoutPages.Devices(await OpsApp.DevicesAsync(cache, db, time, ct))),
             "releases" => Results.Ok(LookoutPages.Releases(await OpsApp.SystemAsync(cache, system, ct))),
             "health" => Results.Ok(LookoutPages.Health(await OpsApp.ApiHealthAsync(cache, timings, ct))),
-            "feedback" => Results.Ok(LookoutPages.Feedback(await FeedbackStore.ListAsync(db, ct), time.GetUtcNow().UtcDateTime)),
             "notices" => Results.Ok(LookoutPages.Notices(await notices.GetAsync(ct), time.GetUtcNow().UtcDateTime)),
             "system" => Results.Ok(LookoutPages.System(await OpsApp.SystemAsync(cache, system, ct))),
             _ => Problem(StatusCodes.Status404NotFound, "No page with that id"),
-        });
-
-        lookout.MapPut("/widgets/{w}/cards/{card}/move", async (string w, string card, HttpRequest request, OpsDatabases db, CancellationToken ct) =>
-        {
-            if (Actor(request) is null) return MissingActor();
-            if (w != BoardId) return NoWidget();
-            if (CardId(card) is not { } id) return NoFeedback();
-            if (await BodyAsync<CardMove>(request, ct) is not { } move) return InvalidBody();
-            if (move.Column is not { } column || !FeedbackStore.Statuses.Contains(column))
-                return Problem(StatusCodes.Status400BadRequest, "column must be one of " + string.Join(", ", FeedbackStore.Statuses));
-            if (move.Position is { } position && !double.IsFinite(position))
-                return Problem(StatusCodes.Status400BadRequest, "position must be a finite number or null");
-            return await FeedbackStore.MoveAsync(db, id, column, move.Position, ct) ? Results.NoContent() : NoFeedback();
-        });
-
-        lookout.MapGet("/widgets/{w}/cards/{card}/comments", async (string w, string card, OpsDatabases db, CancellationToken ct) =>
-        {
-            if (w != BoardId) return NoWidget();
-            if (CardId(card) is not { } id || !await FeedbackStore.ExistsAsync(db.Ember, id, ct)) return NoFeedback();
-            return Results.Ok((await FeedbackStore.CommentsAsync(db.Ops, id, ct)).Select(ToLookout).ToList());
-        });
-
-        lookout.MapPost("/widgets/{w}/cards/{card}/comments", async (string w, string card, HttpRequest request, OpsDatabases db, CancellationToken ct) =>
-        {
-            if (Actor(request) is not { } actor) return MissingActor();
-            if (w != BoardId) return NoWidget();
-            if (CardId(card) is not { } id) return NoFeedback();
-            if (await BodyAsync<CommentInput>(request, ct) is not { } input) return InvalidBody();
-            var body = input.Body?.Trim();
-            if (string.IsNullOrEmpty(body) || body.Length > FeedbackStore.MaxCommentLength || body.Contains('\0'))
-                return Problem(StatusCodes.Status400BadRequest, $"A comment needs 1 to {FeedbackStore.MaxCommentLength} characters and no NUL");
-            if (!await FeedbackStore.ExistsAsync(db.Ember, id, ct)) return NoFeedback();
-            return Results.Json(ToLookout(await FeedbackStore.AddCommentAsync(db.Ops, id, actor, body, ct)), statusCode: StatusCodes.Status201Created);
-        });
-
-        lookout.MapGet("/widgets/{w}/cards/{card}/images/{imageId}", async (string w, string card, string imageId, OpsDatabases db, CancellationToken ct) =>
-        {
-            if (w != BoardId) return NoWidget();
-            if (CardId(card) is not { } id || !Guid.TryParse(imageId, out var image)
-                || await FeedbackStore.ImageAsync(db.Ember, id, image, ct) is not { } data)
-                return Problem(StatusCodes.Status404NotFound, "No image with that id");
-            return Results.Bytes(data.Data, data.ContentType);
         });
 
         lookout.MapPost("/widgets/{w}/notices", async (string w, HttpRequest request, NoticeStore notices, CancellationToken ct) =>
@@ -154,18 +109,12 @@ public static class LookoutApi
         var overview = await Read(() => OpsApp.OverviewCountersAsync(cache, db, time, ct));
         var series = await Read(() => OpsApp.OverviewSeriesAsync(cache, db, time, ct));
         var api = await Read(() => OpsApp.ApiHealthAsync(cache, timings, ct));
-        var feedback = await Read(() => FeedbackStore.ListAsync(db, ct));
         var report = await OpsApp.SystemAsync(cache, system, ct);
-        return Results.Ok(LookoutPages.Summary(overview, feedback, report, time.GetUtcNow().UtcDateTime, series, api));
+        return Results.Ok(LookoutPages.Summary(overview, report, series, api));
     }
 
     private static IResult Notices(IResult result) =>
         result is Ok<NoticesView> { Value: { } view } ? Results.Ok<Widget>(LookoutPages.Notices(view)) : result;
-
-    private static Comment ToLookout(Ember.Ops.Comment c) => new(c.Id.ToString(CultureInfo.InvariantCulture), c.Author, c.Body, c.CreatedAt);
-
-    private static int? CardId(string card) =>
-        int.TryParse(card, NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
 
     private static async Task<T?> BodyAsync<T>(HttpRequest request, CancellationToken ct) where T : class
     {
@@ -222,6 +171,4 @@ public static class LookoutApi
     private static IResult InvalidBody() => Problem(StatusCodes.Status400BadRequest, "Invalid JSON body");
 
     private static IResult NoWidget() => Problem(StatusCodes.Status404NotFound, "No widget with that id");
-
-    private static IResult NoFeedback() => Problem(StatusCodes.Status404NotFound, "No feedback with that id");
 }

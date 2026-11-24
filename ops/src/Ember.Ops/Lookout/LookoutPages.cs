@@ -22,7 +22,6 @@ public static class LookoutPages
             new("health", "Health", "heart-pulse", 60),
             new("notices", "Notices", "megaphone", 30),
             new("system", "System", "server", 30),
-            new("feedback", "Feedback", "kanban", 0),
         ]);
 
     public static Page Overview(Overview o, ActivityInsights a)
@@ -44,19 +43,6 @@ public static class LookoutPages
             ActivePerDay(a, figures),
         ]);
     }
-
-    public static Page Feedback(FeedbackList list, DateTime generatedAt) => new("feedback", "Feedback", generatedAt,
-    [
-        new BoardWidget
-        {
-            Id = "feedback",
-            Title = "Feedback",
-            Columns = FeedbackStore.Statuses.Select(s => new BoardColumn(s, char.ToUpperInvariant(s[0]) + s[1..])).ToList(),
-            Facets = [new("platform", "Platform")],
-            Comments = true,
-            Cards = list.Items.Select(Card).ToList(),
-        },
-    ]);
 
     public static Page Notices(IResult notices, DateTime generatedAt) => new("notices", "Notices", generatedAt,
     [
@@ -287,16 +273,15 @@ public static class LookoutPages
     public static bool Failed(CiRun run) => run.Status == "completed" && run.Conclusion != "success";
 
     /// <summary>
-    /// The summary card. A null overview or feedback is a failed database read: its tiles are null, the state is bad and the first alert says so.
+    /// The summary card. A null overview is a failed database read: its tiles are null, the state is bad and the first alert says so.
     /// Overdue reminders show only as the failing "Reminders advancing" health check.
     /// Parked Lookout outbox rows and a pending one older than <see cref="OutboxPendingLimit"/> are warnings; a missing outbox raises nothing.
     /// A nightly backup older than <see cref="NightlyBackupLimit"/> warns and turns bad past <see cref="NightlyBackupBadLimit"/>; a readable host status
     /// without one warns, an unreadable one only raises its own alert.
     /// </summary>
-    public static Summary Summary(OverviewCounters? overview, FeedbackList? feedback, SystemReport system, DateTime now,
-        OverviewSeries? series = null, ApiHealth? api = null)
+    public static Summary Summary(OverviewCounters? overview, SystemReport system, OverviewSeries? series = null, ApiHealth? api = null)
     {
-        var databaseFailed = overview is null || feedback is null;
+        var databaseFailed = overview is null;
         var failedCi = (system.Ci ?? []).Where(Failed).ToList();
         system.Errors.TryGetValue("status", out var statusError);
 
@@ -315,15 +300,12 @@ public static class LookoutPages
 
         var bad = databaseFailed || system.Services.Any(x => !x.Ok) || failedCi.Any(run => run.Branch == "main") || lowDisks.Any(d => DiskTone(d) == "bad")
             || backupAlert?.Tone == "bad";
-        var generatedAt = new[] { overview?.GeneratedAt, feedback is null ? null : now, system.GeneratedAt }.Where(t => t is not null).Min()!.Value;
+        var generatedAt = overview is null || system.GeneratedAt < overview.GeneratedAt ? system.GeneratedAt : overview.GeneratedAt;
         return new(generatedAt, bad ? "bad" : statusError is not null || lowDisks.Count > 0 || backupAlert is not null || outboxAlerts.Count > 0 ? "warn" : "ok",
         [
             overview is null ? new("Users", null) : UsersItem(overview.Users, series),
             overview is null ? new("Active 7 days", null) : Active7Item(overview.Active7, overview.Users, series),
             ApiP95(api),
-            feedback is null
-                ? new("Open feedback", null)
-                : new("Open feedback", feedback.Items.Count(i => i.Status == "open"), Goal: new(Below: 5)),
         ],
         alerts.Take(5).ToList());
     }
@@ -403,19 +385,6 @@ public static class LookoutPages
     private static IEnumerable<Bar> Guarded(IEnumerable<(Bar Bar, int Users)> bars) => bars.Where(b => !Small(b.Users)).Select(b => b.Bar);
 
     private static Bar Bar(DayCount d) => new(Date(d.Date), [d.Count]);
-
-    private static Card Card(FeedbackItem item)
-    {
-        var fields = new List<CardField> { new("Platform", item.Platform) };
-        if (item.Version is not null) fields.Add(new("Version", item.Version));
-        fields.Add(new("Sent", Iso(item.CreatedAt), "time"));
-        fields.Add(new("Sent anonymously", item.Anonymous ? "Yes" : "No"));
-        if (item.ResolvedAt is { } resolved) fields.Add(new("Resolved", Iso(resolved), "time"));
-        return new(item.Id.ToString(CultureInfo.InvariantCulture), item.Status, item.Position, item.Title, item.Text, item.CreatedAt, fields,
-            new Dictionary<string, string> { ["platform"] = item.Platform },
-            item.Anonymous ? [new("anonymous", "muted")] : null,
-            item.ImageIds.Select(id => id.ToString("D")).ToList(), item.CommentCount);
-    }
 
     private static StatsWidget Section(SystemReport s, string id, string title, IReadOnlyList<StatItem>? items) =>
         items is null ? Stats(id, title, "list", []) with { Unavailable = Unavailable(s, id) } : Stats(id, title, "list", items);

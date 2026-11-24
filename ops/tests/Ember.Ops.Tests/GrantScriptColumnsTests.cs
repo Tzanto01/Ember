@@ -17,8 +17,8 @@ public sealed partial class GrantScriptColumnsTests(EmptyDatabaseFixture fixture
         var script = await File.ReadAllTextAsync(Path.Combine(DatabaseFixture.OpsRoot(), "sql", "ember_dashboard.sql"));
         var named = NamedColumns(script);
         var tables = NamedTables(script);
-        named.Should().Contain(("Feedback", "Status")).And.Contain(("Habits", "Kind")).And.Contain(("AuthSessions", "AppVersion"));
-        tables.Should().Contain("LookoutOutbox").And.Contain("HabitLogs");
+        named.Should().Contain(("Routines", "NextReminderUtc")).And.Contain(("Habits", "Kind")).And.Contain(("AuthSessions", "AppVersion"));
+        tables.Should().Contain("LookoutOutbox").And.Contain("HabitLogs").And.Contain("FeedbackImages");
 
         var existing = (await fixture.ScalarAsync<string>("emberdb", """
             SELECT string_agg(table_name || '.' || column_name, ',') FROM information_schema.columns WHERE table_schema = 'public'

@@ -8,12 +8,9 @@ namespace Ember.Ops.TestHost;
 /// </summary>
 public static class OpsSeed
 {
-    /// <summary>A 1x1 PNG.</summary>
-    public static readonly byte[] Png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
-
     public const int Users = 12;
 
-    /// <summary>Fills emberdb with a dozen users and their habits, sign-in sessions, reminders, devices and feedback.</summary>
+    /// <summary>Fills emberdb with a dozen users and their habits, sign-in sessions, reminders and devices.</summary>
     public static async Task SeedEmberAsync(string superuserEmberConnection, DateTime utcNow, CancellationToken ct = default)
     {
         var random = new Random(42);
@@ -126,55 +123,7 @@ public static class OpsSeed
                 ["UserId"] = users[i + 5], ["InstallId"] = $"seed-install-{i}", ["Enabled"] = i != 2, ["CreatedAt"] = utcNow.AddDays(-7),
             }, ct, returning: null);
 
-        var feedback = new (string Status, string Platform, bool Anonymous, string? Version, int Images)[]
-        {
-            ("open", "web", false, "1.21.0", 1), ("open", "android", true, "1.20.3", 0), ("planned", "discord", false, null, 0),
-            ("planned", "web", false, "1.21.0", 2), ("implemented", "android", false, "1.19.0", 0), ("released", "web", true, "1.18.2", 0),
-            ("declined", "discord", false, null, 0), ("open", "web", false, "1.21.0", 0),
-        };
-        for (var f = 0; f < feedback.Length; f++)
-        {
-            var (status, platform, anonymous, version, images) = feedback[f];
-            var created = utcNow.AddDays(-2 * f - 1);
-            var id = (int)(await rows.InsertAsync("Feedback", new()
-            {
-                ["UserId"] = anonymous ? null : users[f],
-                ["Platform"] = platform,
-                ["Version"] = version,
-                ["Title"] = $"Synthetic report {f + 1}",
-                ["Text"] = $"Synthetic feedback text {f + 1}.\nSecond line.",
-                ["CreatedAt"] = created,
-                ["Status"] = status,
-                ["ResolvedAt"] = status is "released" or "declined" ? created.AddDays(1) : null,
-            }, ct))!;
-            for (var n = 0; n < images; n++)
-                await rows.InsertAsync("FeedbackImages", new()
-                {
-                    ["Id"] = Guid.CreateVersion7(), ["FeedbackId"] = id, ["ContentType"] = "image/png", ["Size"] = Png.Length, ["Data"] = Png,
-                }, ct, returning: null);
-        }
-
         await transaction.CommitAsync(ct);
-    }
-
-    /// <summary>Adds a few comments to emberops.</summary>
-    public static async Task SeedOpsAsync(string superuserOpsConnection, DateTime utcNow, CancellationToken ct = default)
-    {
-        await using var connection = new NpgsqlConnection(superuserOpsConnection);
-        await connection.OpenAsync(ct);
-        await using var batch = new NpgsqlBatch(connection)
-        {
-            BatchCommands =
-            {
-                new("""
-                    INSERT INTO comments (feedback_id, author, body, created_at) VALUES
-                        (1, 'e2e@example.test', 'Synthetic first comment.', $1 - interval '2 hours'),
-                        (1, 'tailnet', 'Synthetic reply.', $1 - interval '1 hour'),
-                        (4, 'e2e@example.test', 'Synthetic note on a planned card.', $1 - interval '30 minutes')
-                    """) { Parameters = { new() { Value = utcNow } } },
-            },
-        };
-        await batch.ExecuteNonQueryAsync(ct);
     }
 
     private sealed record EmptyArray;

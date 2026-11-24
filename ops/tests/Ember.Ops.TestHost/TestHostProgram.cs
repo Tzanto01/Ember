@@ -58,7 +58,6 @@ public static class TestHostProgram
 
         await using var app = OpsApp.Build(builder);
         await OpsApp.InitializeAsync(app);
-        await OpsSeed.SeedOpsAsync(database.SuperuserConnection("emberops"), DateTime.UtcNow);
 
         using var refresh = new CancellationTokenSource();
         var keepFresh = KeepFreshAsync(statusFile, refresh.Token);

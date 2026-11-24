@@ -30,7 +30,6 @@ public sealed record Page(string Id, string Title, DateTime GeneratedAt, IReadOn
 [JsonDerivedType(typeof(CiWidget), "ci")]
 [JsonDerivedType(typeof(ListWidget), "list")]
 [JsonDerivedType(typeof(PanelWidget), "panel")]
-[JsonDerivedType(typeof(BoardWidget), "board")]
 [JsonDerivedType(typeof(NoticesWidget), "notices")]
 public abstract record Widget
 {
@@ -112,34 +111,6 @@ public sealed record PanelWidget : Widget
 {
     public required IReadOnlyList<Widget> Children { get; init; }
 }
-
-public sealed record BoardWidget : Widget
-{
-    public required IReadOnlyList<BoardColumn> Columns { get; init; }
-    public required IReadOnlyList<Facet> Facets { get; init; }
-    public required bool Comments { get; init; }
-    public required IReadOnlyList<Card> Cards { get; init; }
-}
-
-public sealed record BoardColumn(string Id, string Title);
-
-public sealed record Facet(string Id, string Label);
-
-public sealed record Card(
-    string Id, string Column, double Position, string Title, string Text, DateTime CreatedAt, IReadOnlyList<CardField> Fields,
-    IReadOnlyDictionary<string, string> Facets,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<Badge>? Badges,
-    IReadOnlyList<string> ImageIds, int CommentCount);
-
-public sealed record CardField(string Label, string Value, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Format = null);
-
-/// <summary><c>PUT widgets/{boardId}/cards/{cardId}/move</c>; a null position clears the stored one.</summary>
-public sealed record CardMove(string? Column, double? Position);
-
-/// <summary><c>POST widgets/{boardId}/cards/{cardId}/comments</c>.</summary>
-public sealed record CommentInput(string? Body);
-
-public sealed record Comment(string Id, string Author, string Body, DateTime CreatedAt);
 
 /// <summary>The notices publisher; every notice write answers with it.</summary>
 public sealed record NoticesWidget : Widget

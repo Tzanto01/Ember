@@ -1,5 +1,5 @@
--- Creates or updates the role emberops and its own database emberops (the dashboard's comments, card positions and reminder
--- snapshots; the app creates its tables at startup). Idempotent.
+-- Creates or updates the role emberops and its own database emberops (the dashboard's own data, such as sign-in counts
+-- and the notice log; the app creates its tables at startup). Idempotent.
 -- Run as superuser from the repo root (the password never appears on a command line or in output):
 --   OPS_PW="$(cat ~/.config/ember-ops/emberops)" docker exec -i -e OPS_PW homeserver-postgres psql -U finvarex -d postgres -f - < ops/sql/emberops.sql
 

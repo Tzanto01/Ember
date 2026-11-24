@@ -11,9 +11,6 @@ public sealed class LookoutSummaryTests
 
     private static OverviewCounters Overview() => new(Now, 6, 4, 5);
 
-    private static FeedbackList Feedback(params string[] statuses) =>
-        new(statuses.Select((s, i) => new FeedbackItem(i + 1, "t", "x", "web", null, Now, s, null, false, [], 0, i)).ToList());
-
     private static CiRun Ci(string branch, string conclusion = "failure", string status = "completed") =>
         new(branch, status, conclusion, "https://example.test/run", Now, "abc");
 
@@ -29,7 +26,7 @@ public sealed class LookoutSummaryTests
     private static StatsWidget NightlyWidget(SystemReport report) =>
         LookoutPages.System(report).Widgets.OfType<StatsWidget>().Single(w => w.Id == "nightly-backup");
 
-    private static Summary Build(SystemReport? system = null) => LookoutPages.Summary(Overview(), Feedback("open", "open", "planned"), system ?? System(), Now);
+    private static Summary Build(SystemReport? system = null) => LookoutPages.Summary(Overview(), system ?? System());
 
     [Fact]
     public void Everything_healthy_is_ok_without_alerts_and_counts_the_tiles()
@@ -38,8 +35,8 @@ public sealed class LookoutSummaryTests
 
         summary.State.Should().Be("ok");
         summary.Alerts.Should().BeEmpty();
-        summary.Tiles.Select(t => t.Label).Should().Equal("Users", "Active 7 days", "API p95", "Open feedback");
-        summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal("6", "4", null, "2");
+        summary.Tiles.Select(t => t.Label).Should().Equal("Users", "Active 7 days", "API p95");
+        summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal("6", "4", null);
     }
 
     [Fact]
@@ -83,12 +80,11 @@ public sealed class LookoutSummaryTests
     [Fact]
     public void A_failed_database_read_nulls_the_tiles_and_leads_with_its_alert()
     {
-        var summary = LookoutPages.Summary(null, Feedback(), System([new("API", false, "down")]), Now);
+        var summary = LookoutPages.Summary(null, System([new("API", false, "down")]));
 
         summary.State.Should().Be("bad");
-        summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal(null, null, null, "0");
+        summary.Tiles.Select(t => t.Value?.ToString()).Should().Equal(null, null, null);
         summary.Alerts.Select(a => a.Text).Should().Equal("Database unavailable", "API: down");
-        LookoutPages.Summary(Overview(), null, System(), Now).Tiles.Single(t => t.Label == "Open feedback").Value.Should().BeNull();
     }
 
     [Theory]

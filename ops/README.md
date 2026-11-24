@@ -2,11 +2,11 @@
 
 The Lookout provider for Ember. It runs on the homeserver as one container (`ember-ops`, .NET 10). The [Lookout hub](https://github.com/Tzanto01/lookout) calls it over the Docker network `lookout-net` and draws its pages. The container publishes no host port and serves no UI. The provider contract is in the Lookout repo: `contract/provider-v1.md` (the hub's rules) and `contract/ember-provider-v1.md` (what Ember serves).
 
-It reads the production database `emberdb` as the role `ember_dashboard`, which can only read the columns the pages need. Its own data (comments, card order, sign-in activity and retention counts, the notice log) lives in the database `emberops`.
+It reads the production database `emberdb` as the role `ember_dashboard`, which can only read the columns the pages need. Its own data (sign-in activity and retention counts, the notice log) lives in the database `emberops`.
 
 ## Pages
 
-The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built from the data below. Lookout draws the charts, cards and board.
+The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built from the data below. Lookout draws the charts and cards. Feedback is not part of it: Lookout keeps the tickets, their status and the notes itself.
 
 | Page | What it shows |
 |---|---|
@@ -15,11 +15,10 @@ The hub asks for these pages at `/lookout/v1/pages/{pageId}`. Each one is built 
 | `devices` | Users of the last 7 days by sign-in platform and by app version, web push on, Android app installs, Discord linked |
 | `health` | Ember's API over the last 24 hours (requests per minute, p50, p95, 5xx rate), the same per 2 hours over 7 days, and the 10 slowest route templates by p95 |
 | `releases` | Deployed SHA of production and staging, the provider's build SHA, the published APK version, CI of `main`, `test` and `v2/next` |
-| `feedback` | The reports, one column per Ember status (open, planned, implemented, released, declined). Each card has its description, pictures, platform, version, send time, whether it was sent anonymously, and its comments. A move sets the status and the card position. Moves are not logged |
 | `notices` | Live, scheduled and ended notices: info or maintenance, English and German, up to 280 characters each, up to 10 notices in a 16 KiB document. Publish, end now or delete. Each change is written to `NoticeLog` in `emberops` with the author |
 | `system` | Container states, whether reminders are advancing (a health check only), `emberdb` size, connections in use against `max_connections` and latest migration, free space per disk, newest nightly backup (Hosting's 03:30 `pg_dumpall` in `~/backups/postgres/daily`; a warning on the page and in the summary when it is over 26 hours old or none is found, bad over 50 hours), newest pre-deploy dump, Lookout outbox (pending and parked rows and the oldest pending row's age; a warning when any row is parked or one has waited over an hour; unavailable before Ember has the outbox) |
 
-The overview, releases, notices and system pages refresh every 30 seconds, the engagement, devices and health pages every 60. The feedback page has no timer (`refreshSeconds: 0` in the manifest). The server computes counters at most every 20 seconds and the series at most every 5 minutes, shared by all viewers.
+The overview, releases, notices and system pages refresh every 30 seconds, the engagement, devices and health pages every 60. The server computes counters at most every 20 seconds and the series at most every 5 minutes, shared by all viewers.
 
 Lookout shows how the app is doing, never what people do in it: no habits, routines, reminders, streaks, grace days, designs or other in-app settings, not even as counts.
 
@@ -39,13 +38,7 @@ Limits of the data:
 
 ## Privacy
 
-Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on the ids, dates and flags the pages count, plus the feedback columns the board shows, and `UPDATE` on `Feedback` (`Status`, `ResolvedAt`) only. It cannot read names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table, or which habits are let-go habits (`Habits.Kind`), and no habit, routine, reminder or settings columns beyond the next reminder time the health check needs. Of `LookoutOutbox` it reads only the three times the outbox health counts with, never kinds, keys or user refs. Re-running the script revokes grants older versions gave on those. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
-
-`Feedback.UserId` is readable only so the board can say whether a report was anonymous. The app uses it only as `"UserId" IS NULL` and never returns it.
-
-Every 5 minutes, with the activity snapshots, the app deletes the comments and card positions in `emberops` whose report Ember no longer has (Ember deletes feedback after 12 months or with the account).
-
-Moving a card to released or declined sets `ResolvedAt` the same way `--feedback-status` does, so Ember deletes the pictures 30 days later. Moving it back clears `ResolvedAt`.
+Aggregates only. The database role enforces it: `ember_dashboard` has column-level `SELECT` on the ids, dates and flags the pages count. It can write nothing in `emberdb`: no `INSERT`, `UPDATE` or `DELETE` anywhere. It cannot read feedback or its pictures, names, emails, hashes, tokens, push endpoints, or any check-in, journal, mood, low-day, let-go slip or Fireside table, or which habits are let-go habits (`Habits.Kind`), and no habit, routine, reminder or settings columns beyond the next reminder time the health check needs. Of `LookoutOutbox` it reads only the three times the outbox health counts with, never kinds, keys or user refs. Re-running the script revokes grants older versions gave on those. The role runs with `jit = off`. The full column list is in [sql/ember_dashboard.sql](sql/ember_dashboard.sql).
 
 ## Access
 
@@ -64,12 +57,8 @@ Routes, all under `/lookout/v1`:
 | Method and path | What it does |
 |---|---|
 | `GET /manifest` | Name, build SHA as `version`, pages and refresh times |
-| `GET /summary` | The summary card: Users, Active 7 days, API p95 and Open feedback, a state and up to five alerts |
-| `GET /pages/{pageId}` | One page: `overview`, `engagement`, `devices`, `releases`, `health`, `notices`, `system` or `feedback`. Other ids get 404 |
-| `GET /widgets/feedback/cards/{id}/comments` | Comments on a report |
-| `POST /widgets/feedback/cards/{id}/comments` | Add a comment (201). Needs `Lookout-Actor`. 1 to 4000 characters, no NUL |
-| `PUT /widgets/feedback/cards/{id}/move` | Set a report's status and position (204). Needs `Lookout-Actor` |
-| `GET /widgets/feedback/cards/{id}/images/{imageId}` | One picture |
+| `GET /summary` | The summary card: Users, Active 7 days and API p95, a state and up to five alerts |
+| `GET /pages/{pageId}` | One page: `overview`, `engagement`, `devices`, `releases`, `health`, `notices` or `system`. Other ids get 404 |
 | `POST /widgets/notices/notices` | Publish a notice. Replaces the notice with the same id. Needs `Lookout-Actor` |
 | `POST /widgets/notices/notices/{id}/end` | End a notice now (409 when it has already ended). Needs `Lookout-Actor` |
 | `DELETE /widgets/notices/notices/{id}` | Delete a notice. Needs `Lookout-Actor` |
@@ -94,6 +83,14 @@ Publishing a notice sends the whole `notices.json` document to `PUT https://beta
    ```
 
    Both scripts can run again safely. Re-run `ember_dashboard.sql` after an Ember release that adds tables or columns the dashboard reads, then restart the container.
+
+   [sql/drop_feedback_board.sql](sql/drop_feedback_board.sql) is not part of setup. It drops the tables `comments` and `card_positions` of the old feedback board from `emberops` and deletes the notes in them for good. The app still creates both on a new database and never reads them. A superuser runs it once, by hand, after the release day check confirmed that Lookout holds every note:
+
+   ```bash
+   docker exec -i homeserver-postgres psql -U finvarex -d emberops -f - < ops/sql/drop_feedback_board.sql
+   ```
+
+   When updating from a version with the feedback page, start the new container before Ember drops its feedback status columns, because the old container's summary reads them. Then re-run the new `ember_dashboard.sql`, which revokes the feedback grants.
 4. Checkout: `git clone --branch v2/next <Ember repo> ~/ember-ops`. Ops deploys from `v2/next`, the same line as the rest of Ember; CI builds and tests the ops projects there, so there is no separate ops branch.
 5. Host status timer: it writes `~/.local/state/ember-ops/status.json` every minute (free space of every local disk, the newest nightly backup in `~/backups/postgres/daily` as `nightlyBackup` and the newest pre-deploy dump in `~/backups/ember` as `backup`, each name, time and size only, deployed SHAs, container states; it needs `jq`). The container reads only that folder, read-only.
 
@@ -148,7 +145,7 @@ Everything runs from the repo root. The ops projects are part of Ember's solutio
 | .NET tests (need Docker) | `dotnet test ops/tests/Ember.Ops.Tests` |
 | Test host on http://127.0.0.1:5185 | `dotnet run --project ops/tests/Ember.Ops.TestHost` (add `-- --prod-schema` for production's schema) |
 
-The test host starts a throwaway PostgreSQL container (Testcontainers, needs Docker), applies Ember's migrations and both SQL scripts, and seeds synthetic data. Notices go to an in-process fake endpoint with a random token, never to the real one. Its Lookout routes accept the hub only from `127.0.0.1`, so call it as `http://127.0.0.1:5185`, not `localhost`. Its key comes from the file named by `LOOKOUT_KEY_FILE`. Without that variable it uses a built-in synthetic key.
+The test host starts a throwaway PostgreSQL container (Testcontainers, needs Docker), applies Ember's migrations and both setup scripts, and seeds synthetic data. Notices go to an in-process fake endpoint with a random token, never to the real one. Its Lookout routes accept the hub only from `127.0.0.1`, so call it as `http://127.0.0.1:5185`, not `localhost`. Its key comes from the file named by `LOOKOUT_KEY_FILE`. Without that variable it uses a built-in synthetic key.
 
 To run the Lookout contract check against the test host, create a key file outside the repo, start the test host with it, then run the check from the Lookout repo's `web/` folder (after `bun install`):
 
@@ -159,7 +156,7 @@ LOOKOUT_KEY_FILE="$D/test.key" dotnet run --project ops/tests/Ember.Ops.TestHost
 bun run contract:check http://127.0.0.1:5185 "$D/test.key"
 ```
 
-The .NET tests run both SQL scripts on the full schema and on production's schema, check what `ember_dashboard` can and cannot read, count the aggregates against a hand-counted dataset, and cover the Lookout gate, routes and notice rules.
+The .NET tests run both setup scripts on the full schema and on production's schema, check what `ember_dashboard` can and cannot read, count the aggregates against a hand-counted dataset, and cover the Lookout gate, routes, notice rules and the drop script.
 
 ## Configuration
 

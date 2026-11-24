@@ -78,13 +78,13 @@ public sealed class OpsTestDatabase : IAsyncDisposable
         }
     }
 
-    /// <summary>Runs one of the <c>ops/sql</c> scripts with psql inside the container, as the deploy does.</summary>
-    public async Task RunScriptAsync(string script, string database, string variable, string password, CancellationToken ct = default)
+    /// <summary>Runs one of the <c>ops/sql</c> scripts with psql inside the container, as the deploy does, with <paramref name="variable"/> in its environment when given.</summary>
+    public async Task RunScriptAsync(string script, string database, string? variable = null, string? password = null, CancellationToken ct = default)
     {
         var target = $"/tmp/{Path.GetFileName(script)}";
         await _container.CopyAsync(await File.ReadAllBytesAsync(script, ct), target, ct: ct);
         var result = await _container.ExecAsync(
-            ["sh", "-c", $"{variable}='{password}' psql -U postgres -d {database} -f - < {target}"], ct);
+            ["sh", "-c", $"{(variable is null ? "" : $"{variable}='{password}' ")}psql -U postgres -d {database} -f - < {target}"], ct);
         if (result.ExitCode != 0)
             throw new InvalidOperationException($"{Path.GetFileName(script)} failed ({result.ExitCode}): {result.Stderr}");
     }

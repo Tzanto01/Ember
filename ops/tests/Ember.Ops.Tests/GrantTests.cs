@@ -18,8 +18,6 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
             """SELECT "UserId", "CreatedUtc", "LastSeenUtc" FROM "AuthSessions" """,
             """SELECT "UserId", "Enabled" FROM "PushSubscriptions" """,
             """SELECT count(*) FROM "ReminderPhones" """,
-            """SELECT "Id", "Title", "Text", "Platform", "Version", "CreatedAt", "Status", "ResolvedAt", "UserId" FROM "Feedback" """,
-            """SELECT "Id", "FeedbackId", "ContentType", "Size", "Data" FROM "FeedbackImages" """,
             """SELECT "MigrationId" FROM "__EFMigrationsHistory" """,
             """SELECT count(*), min("CreatedAt"), max("SentAt"), max("ParkedAt") FROM "LookoutOutbox" """,
         ];
@@ -78,6 +76,11 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
     [InlineData("""SELECT "ParkedStatus" FROM "LookoutOutbox" """)]
     [InlineData("""SELECT * FROM "LookoutOutbox" """)]
     [InlineData("""SELECT "Ref" FROM "LookoutUserRefs" """)]
+    [InlineData("""SELECT "Id" FROM "Feedback" """)]
+    [InlineData("""SELECT count(*) FROM "Feedback" """)]
+    [InlineData("""SELECT "UserId" FROM "Feedback" """)]
+    [InlineData("""SELECT "Id" FROM "FeedbackImages" """)]
+    [InlineData("""SELECT "Data" FROM "FeedbackImages" """)]
     [InlineData("""UPDATE "Feedback" SET "Title" = 'changed' """)]
     [InlineData("""UPDATE "Habits" SET "NextReminderUtc" = NULL""")]
     [InlineData("""INSERT INTO "Feedback" ("Title") VALUES ('x')""")]
@@ -112,20 +115,6 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
         await using var command = new NpgsqlCommand("SHOW jit", connection);
 
         (await command.ExecuteScalarAsync()).Should().Be("off", "JIT compiling costs more than the small dashboard queries on the shared host");
-    }
-
-    [Fact]
-    public async Task Dashboard_role_can_move_a_feedback_card()
-    {
-        await using var connection = fixture.DashboardConnection();
-        await connection.OpenAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
-        await using var command = new NpgsqlCommand("""UPDATE "Feedback" SET "Status" = 'implemented', "ResolvedAt" = NULL WHERE "Id" = $1""", connection, transaction)
-        {
-            Parameters = { new() { Value = fixture.Data.FeedbackOpen } },
-        };
-
-        (await command.ExecuteNonQueryAsync()).Should().Be(1);
     }
 
     [Fact]
@@ -198,6 +187,28 @@ public sealed class GrantTests(V2DatabaseFixture fixture)
             WHERE grantee = 'ember_dashboard' AND table_name = 'AuthSessions' AND privilege_type = 'SELECT'
             """);
         sessions.Should().Be("CreatedUtc,LastSeenUtc,UserId");
+    }
+
+    [Fact]
+    public async Task Rerunning_the_grant_script_revokes_the_feedback_board_grants_and_leaves_the_role_without_any_write()
+    {
+        await using (var superuser = await fixture.OpenAsync("emberdb"))
+        await using (var grant = new NpgsqlCommand("""
+            GRANT SELECT ("Id", "Title", "Text", "Platform", "Version", "CreatedAt", "UserId") ON "Feedback" TO ember_dashboard;
+            GRANT UPDATE ("Title", "Version") ON "Feedback" TO ember_dashboard;
+            GRANT SELECT ("Id", "FeedbackId", "ContentType", "Size", "Data") ON "FeedbackImages" TO ember_dashboard;
+            """, superuser))
+            await grant.ExecuteNonQueryAsync();
+
+        await fixture.Database.RunScriptAsync(Path.Combine(DatabaseFixture.OpsRoot(), "sql", "ember_dashboard.sql"), "emberdb", "DASH_PW",
+            File.ReadAllText(fixture.Database.EmberPasswordFile).Trim());
+
+        var left = await fixture.ScalarAsync<string>("emberdb", """
+            SELECT string_agg(table_name || '.' || column_name || ':' || privilege_type, ',') FROM information_schema.column_privileges
+            WHERE grantee = 'ember_dashboard' AND table_schema = 'public'
+              AND (table_name IN ('Feedback', 'FeedbackImages') OR privilege_type <> 'SELECT')
+            """);
+        left.Should().BeNull();
     }
 
     [Fact]

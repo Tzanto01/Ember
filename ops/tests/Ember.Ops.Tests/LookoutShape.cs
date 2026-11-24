@@ -6,7 +6,7 @@ namespace Ember.Ops.Tests;
 /// <summary>Asserts the widget shapes of provider-v1.ts on a decoded page.</summary>
 public static class LookoutShape
 {
-    public static readonly string[] PageIds = ["overview", "engagement", "devices", "releases", "health", "notices", "system", "feedback"];
+    public static readonly string[] PageIds = ["overview", "engagement", "devices", "releases", "health", "notices", "system"];
 
     public static readonly Dictionary<string, string[]> WidgetIds = new()
     {
@@ -15,7 +15,6 @@ public static class LookoutShape
         ["devices"] = ["platforms", "versions", "adoption"],
         ["releases"] = ["deployed", "apk", "ci"],
         ["health"] = ["api", "requests", "latency", "errors", "slowest"],
-        ["feedback"] = ["feedback"],
         ["notices"] = ["notices"],
         ["system"] = ["services", "database", "disks", "nightly-backup", "backup", "outbox"],
     };
@@ -25,7 +24,7 @@ public static class LookoutShape
         ["tiles"] = "stats", ["new-users"] = "bars", ["active-per-day"] = "bars", ["active-per-week"] = "bars", ["days-active"] = "bars", ["retention"] = "stats",
         ["api"] = "stats", ["requests"] = "bars", ["latency"] = "bars", ["errors"] = "bars", ["slowest"] = "stats",
         ["platforms"] = "bars", ["versions"] = "bars", ["adoption"] = "stats",
-        ["feedback"] = "board", ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
+        ["notices"] = "notices", ["services"] = "status", ["database"] = "stats", ["disks"] = "stats",
         ["nightly-backup"] = "stats", ["backup"] = "stats", ["outbox"] = "stats", ["deployed"] = "stats", ["apk"] = "stats", ["ci"] = "ci",
     };
 
@@ -89,18 +88,6 @@ public static class LookoutShape
                 {
                     child.GetProperty("type").GetString().Should().BeOneOf("stats", "bars", "status", "ci", "list");
                     AssertWidget(child, nested: true);
-                }
-                break;
-            case "board":
-                nested.Should().BeFalse();
-                w.GetProperty("columns").EnumerateArray().Select(c => c.GetProperty("id").GetString()).Should().Equal("open", "planned", "implemented", "released", "declined");
-                w.GetProperty("comments").GetBoolean().Should().BeTrue();
-                foreach (var card in w.GetProperty("cards").EnumerateArray())
-                {
-                    card.GetProperty("id").ValueKind.Should().Be(JsonValueKind.String);
-                    foreach (var name in new[] { "column", "title", "text", "createdAt", "fields", "facets", "imageIds", "commentCount" })
-                        card.TryGetProperty(name, out _).Should().BeTrue(name);
-                    card.GetProperty("position").ValueKind.Should().Be(JsonValueKind.Number);
                 }
                 break;
             case "notices":

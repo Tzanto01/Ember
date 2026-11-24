@@ -2,7 +2,7 @@ using Npgsql;
 
 namespace Ember.Ops;
 
-/// <summary>The two databases: Ember's (read-mostly, as <c>ember_dashboard</c>) and the dashboard's own <c>emberops</c>.</summary>
+/// <summary>The two databases: Ember's (read-only, as <c>ember_dashboard</c>) and the dashboard's own <c>emberops</c>.</summary>
 public sealed class OpsDatabases(NpgsqlDataSource ember, NpgsqlDataSource ops) : IAsyncDisposable
 {
     public NpgsqlDataSource Ember { get; } = ember;

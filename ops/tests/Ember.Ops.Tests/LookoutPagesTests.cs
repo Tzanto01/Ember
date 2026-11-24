@@ -133,27 +133,21 @@ public sealed class LookoutPagesTests
     [Fact]
     public void The_summary_carries_the_v1_1_fields()
     {
-        var feedback = new FeedbackList([
-            new(1, "t", "x", "web", null, Now.AddDays(-2), "open", null, false, [], 0, 1),
-            new(2, "t", "x", "web", null, Now.AddDays(-20), "open", null, false, [], 0, 2),
-        ]);
-
         var api = new ApiHealth(Now, null, [], new(Now.AddHours(-23), 23 * 60, new(ApiTimings.AllRoutes, 40, 0, 80, 412.4)), []);
-        var tiles = LookoutPages.Summary(Counters, feedback, EmptySystem(), Now, Series(1, (7, 1), (0, 3)), api).Tiles;
+        var tiles = LookoutPages.Summary(Counters, EmptySystem(), Series(1, (7, 1), (0, 3)), api).Tiles;
 
         tiles[0].Trend.Should().HaveCount(12).And.EndWith(6);
         tiles[0].Delta.Should().Be(new Delta(2, "last week", "up"));
         tiles[1].Should().BeEquivalentTo(new { Max = 6d, Delta = new Delta(2, "the 7 days before", "up"), Trend = new[] { 1d, 3d } });
         tiles[2].Should().Be(new StatItem("API p95", 412d, Hint: "ms, last 24 hours", Goal: new(Below: 300)));
-        LookoutPages.Summary(Counters, feedback, EmptySystem(), Now, api: new(Now, ApiTimings.NotReporting, [], null, [])).Tiles[2]
+        LookoutPages.Summary(Counters, EmptySystem(), api: new(Now, ApiTimings.NotReporting, [], null, [])).Tiles[2]
             .Should().Be(new StatItem("API p95", null, Hint: ApiTimings.NotReporting, Goal: new(Below: 300)));
-        tiles[3].Should().BeEquivalentTo(new { Value = (object)2, Goal = new Goal(Below: 5), Delta = (Delta?)null });
     }
 
     [Fact]
     public void The_active_7_tile_has_no_trend_below_two_points_and_no_delta_without_a_row_for_7_days_ago()
     {
-        var tile = LookoutPages.Summary(Counters, null, EmptySystem(), Now, Series(null, (0, 3))).Tiles[1];
+        var tile = LookoutPages.Summary(Counters, EmptySystem(), Series(null, (0, 3))).Tiles[1];
 
         tile.Value.Should().Be(3);
         tile.Trend.Should().BeNull();
