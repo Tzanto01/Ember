@@ -6,6 +6,7 @@ import i18n from '../i18n';
 import { applyCalm } from '../theme';
 import type { TimerRecord } from '../timer/habit-timer';
 import { timerSound } from '../timer/timer-sound';
+import { capacitorPlugin } from '@/test/test-support';
 import { reminderNames } from './reminder-names';
 import { Reminders } from './reminders';
 import { TimerNotification, timerNotificationId } from './timer-notification';
@@ -33,7 +34,7 @@ class FakeAndroid {
   asked = 0;
   hold: Promise<void> = Promise.resolve();
 
-  plugin = {
+  plugin = capacitorPlugin({
     checkPermissions: async () => ({ display: this.display }),
     requestPermissions: async () => {
       this.asked++;
@@ -59,7 +60,7 @@ class FakeAndroid {
       for (const id of ids) this.shown.delete(id);
     },
     removeAllDeliveredNotifications: async () => this.shown.clear(),
-  } as unknown as LocalNotificationsPlugin;
+  }) as unknown as LocalNotificationsPlugin;
 
   fire() {
     for (const id of this.pending.keys()) this.shown.add(id);

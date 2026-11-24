@@ -39,7 +39,7 @@ export class TimerNotification implements TimerNotifier {
 
   check(): Promise<void> {
     return this.queue(async () => {
-      this.allowed.set((await (await this.plugin()).checkPermissions()).display === 'granted');
+      this.allowed.set((await (await this.notifications()).LocalNotifications.checkPermissions()).display === 'granted');
     });
   }
 
@@ -64,13 +64,9 @@ export class TimerNotification implements TimerNotifier {
     return this.chain;
   }
 
-  private async plugin(): Promise<LocalNotificationsPlugin> {
-    return (await this.notifications()).LocalNotifications;
-  }
-
   private async apply(): Promise<void> {
     const record = this.wanted;
-    const plugin = await this.plugin();
+    const plugin = (await this.notifications()).LocalNotifications;
     if (!record) {
       await plugin.cancel({ notifications: [{ id }] }).catch(() => undefined);
       await plugin.removeDeliveredNotificationsById({ ids: [id] });
