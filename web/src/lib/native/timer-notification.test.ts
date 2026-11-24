@@ -216,6 +216,25 @@ describe('TimerNotification', () => {
       expect(android.posts).toBe(0);
     });
 
+    it('counts as told after a restart when the user already took the delivered one away', async () => {
+      await timer.running(record);
+      over();
+      android.pending.clear();
+      const restarted = new TimerNotification(async () => ({ LocalNotifications: android.plugin }));
+      await expect(restarted.ended(record)).resolves.toBe(true);
+      expect(android.posts).toBe(0);
+    });
+
+    it('shows it at once when exact alarms were allowed too late for the alarm it has', async () => {
+      android.exact = 'denied';
+      await timer.running(record);
+      android.exact = 'granted';
+      over();
+      await expect(timer.ended(record)).resolves.toBe(true);
+      expect([...android.shown]).toEqual([timerNotificationId]);
+      expect(android.pending.size).toBe(0);
+    });
+
     it('with exact alarms, leaves it to the alarm', async () => {
       await timer.running(record);
       over();

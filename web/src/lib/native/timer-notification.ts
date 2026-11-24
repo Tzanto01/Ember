@@ -32,6 +32,7 @@ export class TimerNotification implements TimerNotifier {
   private wanted: TimerRecord | null = null;
   private ask = false;
   private scheduled: { run: string; exact: boolean } | null = null;
+  private refused: string | null = null;
   private readonly channels = new Map<string, string>();
 
   constructor(
@@ -92,7 +93,8 @@ export class TimerNotification implements TimerNotifier {
     const { notifications: delivered } = await plugin.getDeliveredNotifications();
     if (delivered.some((notification) => notification.id === id)) return true;
     const pending = (await plugin.getPending()).notifications.some((notification) => notification.id === id);
-    if (exact || !pending) return pending || !!this.scheduledFor(record);
+    if (!pending) return this.refused !== runOf(record);
+    if (this.scheduledFor(record)?.exact ?? exact) return true;
     if (!(await this.channelReady(plugin)) || this.wanted !== record) return false;
     await plugin.schedule({ notifications: [{ ...this.content(record), isExactNotification: false }] });
     return true;
@@ -103,6 +105,7 @@ export class TimerNotification implements TimerNotifier {
     const plugin = (await this.notifications()).LocalNotifications;
     if (!record) {
       this.scheduled = null;
+      this.refused = null;
       await plugin.cancel({ notifications: [{ id }] }).catch(() => undefined);
       await plugin.removeDeliveredNotificationsById({ ids: [id] });
       return;
@@ -117,6 +120,7 @@ export class TimerNotification implements TimerNotifier {
     if (!current()) return;
     if (!ready) {
       this.scheduled = null;
+      this.refused = runOf(record);
       await plugin.cancel({ notifications: [{ id }] });
       return;
     }
@@ -131,8 +135,10 @@ export class TimerNotification implements TimerNotifier {
         ],
       });
       this.scheduled = { run: runOf(record), exact };
+      this.refused = null;
     } catch {
       this.scheduled = null;
+      this.refused = runOf(record);
       this.show(false, exact);
       await plugin.cancel({ notifications: [{ id }] });
     }
