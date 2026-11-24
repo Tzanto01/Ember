@@ -31,6 +31,7 @@ describe('DeleteAccountPage', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     auth.clearSession();
+    vi.restoreAllMocks();
     localMode.mode.set('account');
   });
 
@@ -87,6 +88,7 @@ describe('DeleteAccountPage', () => {
     await user.type(card.getByLabelText('Your password', { exact: true }), 'wrong-synthetic-1');
     await user.type(card.getByLabelText('Type DELETE to confirm'), 'DELETE');
     await user.click(remove()!);
+    (await fetch.next('GET', '/api/me')).respond(200, me);
     (await fetch.next('POST', '/api/me/delete')).respond(400, {
       status: 400,
       errors: { password: ['The password is not correct.'] },
@@ -99,6 +101,7 @@ describe('DeleteAccountPage', () => {
     await user.clear(password);
     await user.type(password, 'synthetic-secret-1');
     await user.click(remove()!);
+    (await fetch.next('GET', '/api/me')).respond(200, me);
     const sent = await fetch.next('POST', '/api/me/delete');
     expect(sent.body).toEqual({ password: 'synthetic-secret-1', confirm: 'DELETE' });
     sent.respond(204);
@@ -117,7 +120,8 @@ describe('DeleteAccountPage', () => {
 
   it('a Discord-only account deletes with the word alone', async () => {
     const user = userEvent.setup();
-    auth.setMe({ ...me, email: null, hasPassword: false });
+    const discordOnly = { ...me, email: null, hasPassword: false };
+    auth.setMe(discordOnly);
     open();
 
     expect(screen.getByText("You're signed in with Discord.")).toBeInTheDocument();
@@ -129,6 +133,7 @@ describe('DeleteAccountPage', () => {
     await user.clear(screen.getByLabelText('Type DELETE to confirm'));
     await user.type(screen.getByLabelText('Type DELETE to confirm'), 'DELETE');
     await user.click(remove()!);
+    (await fetch.next('GET', '/api/me')).respond(200, discordOnly);
     expect((await fetch.next('POST', '/api/me/delete')).body).toEqual({ confirm: 'DELETE' });
   });
 

@@ -214,8 +214,9 @@ export default function LoginPage() {
   }
 
   function signedIn(): void {
-    const consentFirst = auth.needsConsent() && !skipsConsent(returnUrl);
-    void navigate(consentFirst ? `/consent?${queryString({ returnUrl })}` : returnUrl);
+    const skip = skipsConsent(returnUrl);
+    if (skip) auth.offerConsentLater();
+    void navigate(auth.needsConsent() && !skip ? `/consent?${queryString({ returnUrl })}` : returnUrl);
   }
 
   const login = useMutation({

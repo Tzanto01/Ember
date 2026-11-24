@@ -25,12 +25,13 @@ const deleteWord: Validator = (value) => {
 
 /**
  * Deletes the account after its password (when it has one) and the typed delete word, then this device's copy, and
- * signs out; without an account, deletes everything on this device instead. `more` follows the form.
+ * signs out; without an account, deletes everything on this device instead. Deletes nothing when this browser has signed
+ * in to another account than `me` since. `more` follows the form.
  */
 export function DeleteCard({ title, me, local, more }: { title: string; me: Me; local: boolean; more?: ReactNode }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { busy, isBusy, start, finish, fail, outcome } = useSettingsStatus();
+  const { busy, isBusy, start, finish, fail, show, outcome } = useSettingsStatus();
   const deleteForm = useRef<HTMLFormElement>(null);
   const [deleteErrors, setDeleteErrors] = useState<{ password?: string; confirm?: string }>({});
   const password = useField(me.hasPassword ? passwordRequired : noPassword);
@@ -43,6 +44,15 @@ export function DeleteCard({ title, me, local, more }: { title: string; me: Me; 
     start('delete');
     setDeleteErrors({});
     try {
+      const current = await auth.loadMe(true);
+      if (current?.id !== me.id) {
+        if (current) {
+          const account = current.email ?? 'Discord';
+          show('delete', { tone: 'notice', text: t('settings.delete.otherAccount', { account }) });
+        }
+        finish();
+        return;
+      }
       await api.deleteAccount(
         me.hasPassword ? { password: password.value, confirm: 'DELETE' } : { confirm: 'DELETE' },
       );

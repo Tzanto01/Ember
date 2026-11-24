@@ -9,6 +9,8 @@ import {
   useSettingsStatusState,
 } from '@/components/settings/settings-status';
 import { Button } from '@/components/ui/button';
+import { env } from '@/lib/env';
+import type { AppMode } from '@/lib/local/types';
 import type { Me } from '@/lib/models';
 import { queryString } from '@/lib/navigation';
 import { deleteAccountPath } from '@/lib/return-url';
@@ -51,7 +53,7 @@ function SignedOut() {
             {t('deleteAccount.stuck.password')}{' '}
             <TapLink to="/forgot-password">{t('deleteAccount.stuck.passwordLink')}</TapLink>
           </li>
-          <li>{t('deleteAccount.stuck.discord')}</li>
+          <li>{t('deleteAccount.stuck.discord', { button: t(env.native ? 'auth.discordContinue' : 'login.discord') })}</li>
           <li>
             {t('deleteAccount.stuck.contact')}{' '}
             <a
@@ -78,14 +80,18 @@ function SignedOut() {
   );
 }
 
-function SignedIn({ me, local }: { me: Me; local: boolean }) {
+function SignedIn({ me, mode }: { me: Me; mode: AppMode }) {
   const { t } = useTranslation();
-  if (local) {
+  if (mode === 'local') {
     return (
       <>
         <p>{t('deleteAccount.local')}</p>
         <DeleteCard title={t('settings.card.deleteDevice')} me={me} local />
+        <p>{t('deleteAccount.localSent')}</p>
         <p>{t('deleteAccount.localAccount')}</p>
+        <p>
+          <TapLink to="/legal/privacy">{t('deleteAccount.stays.policy')}</TapLink>
+        </p>
       </>
     );
   }
@@ -96,6 +102,7 @@ function SignedIn({ me, local }: { me: Me; local: boolean }) {
           ? t('deleteAccount.signedInAs', { email: me.email })
           : t('deleteAccount.signedInDiscord')}
       </p>
+      {mode === 'upgrading' && <p>{t('deleteAccount.deviceWaits')}</p>}
       <DeleteCard
         title={t('settings.card.deleteAccount')}
         me={me}
@@ -117,7 +124,8 @@ function SignedIn({ me, local }: { me: Me; local: boolean }) {
 export default function DeleteAccountPage() {
   const { t } = useTranslation();
   const me = useStore(auth.me);
-  const local = useStore(localMode.mode) === 'local';
+  const mode = useStore(localMode.mode);
+  const local = mode === 'local';
   const status = useSettingsStatusState();
   const [lastMe, setLastMe] = useState(me);
   if (me && me !== lastMe) setLastMe(me);
@@ -128,7 +136,7 @@ export default function DeleteAccountPage() {
       <PageHeader title={t('title.deleteAccount')} lede={t('deleteAccount.lede')} />
       {shown ? (
         <SettingsStatusProvider status={status}>
-          <SignedIn me={shown} local={local} />
+          <SignedIn me={shown} mode={mode} />
         </SettingsStatusProvider>
       ) : (
         <SignedOut />

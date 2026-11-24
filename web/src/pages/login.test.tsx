@@ -175,6 +175,7 @@ describe('LoginPage', () => {
     (await mock.next('GET', '/api/auth/antiforgery')).respond(204);
     (await mock.next('GET', '/api/me')).respond(200, undecided);
     await waitFor(() => expect(second.state.location.pathname).toBe('/delete-account'));
+    expect(auth.takeConsentPrompt()).toBe(true);
   });
 
   it('returns to the account-deletion page after the second factor', async () => {
