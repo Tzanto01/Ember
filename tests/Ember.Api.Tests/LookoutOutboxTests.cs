@@ -142,7 +142,8 @@ internal sealed class SenderRig : IAsyncDisposable
             ["Lookout:KeyFile"] = keyFile,
         }).Build(), out var endpoint, out _);
         var rig = new SenderRig(fake, keyFile, key, endpoint, logs);
-        rig._sender = new LookoutSender(host.Services.GetRequiredService<IServiceScopeFactory>(), rig._http, configuration, host.Time, logs);
+        rig._sender = new LookoutSender(host.Services.GetRequiredService<IServiceScopeFactory>(), rig._http, configuration, host.Time, logs,
+            new LookoutDeletedRefs(configuration[LookoutDeletedRefs.FileSetting], host.Time));
         return rig;
     }
 

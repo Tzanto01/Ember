@@ -99,11 +99,14 @@ services:
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=emberdb;Username=${DB_USER};Password=${DB_PASSWORD};GSS Encryption Mode=Disable
       Lookout__IngestUrl: ${LOOKOUT_INGEST_URL:-}
       Lookout__KeyFile: /run/secrets/lookout_app_ember
+      Lookout__DeletedRefsFile: ${LOOKOUT_DELETED_REFS_FILE:-}
       Feedback__DeleteSentCopies: ${FEEDBACK_DELETE_SENT_COPIES:-false}
       Logging__LogLevel__Default: Information
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
     secrets:
       - lookout_app_ember
+    volumes:
+      - ${LOOKOUT_DELETED_REFS_DIR:-./lookout-deleted-refs}:/deleted-refs
     networks:
       homeserver-net:
         gw_priority: 1

@@ -42,6 +42,9 @@ ScaffoldingReadMe.txt
 # Deletion ledger bind mount (docker-compose.yml default)
 /deletion-ledger/
 
+# Deleted Lookout refs bind mount (docker-compose.yml default)
+/lookout-deleted-refs/
+
 # App secrets
 appsettings.Development.json
 src/**/appsettings.json

@@ -13,7 +13,8 @@ namespace Ember.Api;
 /// order. Deleting an account cascades away that user's unsent tickets, so a deletion still follows every ticket of that user, and a
 /// ticket stuck on a quota can't hold up an erasure. Sends nothing unless <see cref="LookoutIngest.TryGetEndpoint"/> accepts the
 /// configuration. A transient failure keeps an outbox row at the head and waits <see cref="LookoutIngest.Backoff"/>; a permanent
-/// refusal parks a ticket and moves on, while a deletion is never parked, only retried. With
+/// refusal parks a ticket and moves on, while a deletion is never parked, only retried, and its ref is
+/// recorded in <see cref="LookoutDeletedRefs"/> before its row is deleted. With
 /// <see cref="FeedbackRetention.DeleteSentCopiesSetting"/> a confirmed anonymous report and the pictures of a
 /// confirmed linked one are deleted at once. A diagnostics upload never holds up the
 /// outbox: each step first drops uploads unsent for <see cref="LookoutDiagnostic.MaxUnsentAge"/>; an upload Lookout accepted or
@@ -21,12 +22,17 @@ namespace Ember.Api;
 /// Logs row id, kind and status or exception type only.
 /// </summary>
 internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http, IConfiguration configuration, TimeProvider time,
-    ILogger<LookoutSender> logger) : BackgroundService
+    ILogger<LookoutSender> logger, LookoutDeletedRefs deletedRefs) : BackgroundService
 {
     /// <summary>How long the sender waits when the outbox is empty.</summary>
     internal static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(10);
 
+    /// <summary>How often <see cref="LookoutDeletedRefs.Prune"/> runs.</summary>
+    internal static readonly TimeSpan PruneInterval = TimeSpan.FromHours(1);
+
     private int _failures;
+
+    private DateTime _nextPrune;
 
     /// <summary>The sender host: environment configuration, console logging, Ember's Core (<see cref="ServiceCollectionExtensions.AddEmberCore"/>) and this loop only.</summary>
     public static IHost BuildHost()
@@ -34,6 +40,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         var builder = Host.CreateApplicationBuilder();
         builder.Services.AddEmberCore(builder.Configuration);
         builder.Services.AddSingleton(_ => LookoutIngest.CreateClient());
+        builder.Services.AddSingleton(sp => new LookoutDeletedRefs(builder.Configuration[LookoutDeletedRefs.FileSetting], sp.GetRequiredService<TimeProvider>()));
         builder.Services.AddHostedService<LookoutSender>();
         return builder.Build();
     }
@@ -46,6 +53,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
             return;
         }
 
+        deletedRefs.Start();
         while (!stoppingToken.IsCancellationRequested)
         {
             var wait = await StepAsync(stoppingToken);
@@ -68,6 +76,7 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         var now = time.GetUtcNow().UtcDateTime;
         if (await LookoutDiagnostic.DeleteExpiredAsync(db.LookoutDiagnostics, now, cancellationToken) is > 0 and var expired)
             logger.LogInformation("Dropped {Count} diagnostics uploads unsent for 30 days.", expired);
+        PruneDeletedRefs(now);
         var row = await db.LookoutOutbox.AsNoTracking().Where(o => o.SentAt == null && o.ParkedAt == null)
             .OrderBy(o => o.Kind == LookoutOutbox.UserDelete ? 0 : 1).ThenBy(o => o.Id).FirstOrDefaultAsync(cancellationToken);
         if (row is null) return await StepDiagnosticAsync(db, endpoint, keyFile, now, cancellationToken);
@@ -110,7 +119,18 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         if (LookoutIngest.IsConfirmed(row.Kind, status))
         {
             var deleteCopy = configuration.GetValue(FeedbackRetention.DeleteSentCopiesSetting, false);
-            if (row.Kind == LookoutOutbox.UserDelete) await rows.ExecuteDeleteAsync(cancellationToken);
+            if (row.Kind == LookoutOutbox.UserDelete)
+            {
+                try
+                {
+                    deletedRefs.Append(row.UserRef!);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    return Failed(row, "deleted refs file " + e.GetType().Name);
+                }
+                await rows.ExecuteDeleteAsync(cancellationToken);
+            }
             else if (deleteCopy && row.UserRef is null) await db.Feedback.Where(f => f.Id == row.FeedbackId).ExecuteDeleteAsync(cancellationToken);
             else
             {
@@ -160,6 +180,20 @@ internal sealed class LookoutSender(IServiceScopeFactory scopes, HttpClient http
         await rows.ExecuteUpdateAsync(s => s.SetProperty(d => d.Attempts, attempts).SetProperty(d => d.NextAttemptAt, next), cancellationToken);
         logger.LogWarning("Lookout diagnostics row {Id} failed with {Reason}; retrying in {Wait}.", row.Id, reason, wait);
         return TimeSpan.Zero;
+    }
+
+    private void PruneDeletedRefs(DateTime now)
+    {
+        if (now < _nextPrune) return;
+        _nextPrune = now + PruneInterval;
+        try
+        {
+            if (deletedRefs.Prune() is > 0 and var pruned) logger.LogInformation("Pruned {Count} deleted refs older than 30 days.", pruned);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning("Could not prune the deleted refs: {ExceptionType}.", e.GetType().Name);
+        }
     }
 
     private TimeSpan Failed(LookoutOutbox row, string reason)

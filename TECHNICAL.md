@@ -98,11 +98,13 @@ Back up the database before you deploy a build with a new migration.
 | `API_KNOWN_PROXY`, `API_KNOWN_NETWORK` | `api` only. Set at least one. The reverse proxy address, or the network it sits in (CIDR), whose forwarded client IP the API trusts. See below. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | `api` only. Mail server for account emails. `SMTP_HOST` and `SMTP_FROM` are required. The port defaults to 587. |
 | `SMTP_REPLY_TO` | `api` only, optional. `Reply-To` address for account emails. Without it, replies go to `SMTP_FROM`. |
-| `FEEDBACK_DELETE_SENT_COPIES` | `api` and `lookout-sender`, optional. `true` deletes Ember's copy of an anonymous report, and of every report's pictures, as soon as Lookout confirmed it. Off by default. Turn it on only while Lookout's store is backed up. |
+| `FEEDBACK_DELETE_SENT_COPIES` | `api` and `lookout-sender`, optional. `true` deletes Ember's copy of an anonymous report, and of every report's pictures, as soon as Lookout confirmed it. Off by default. Turn it on only while Lookout's store is backed up and the deleted refs are recorded. |
 | `FEEDBACK_RETENTION_ENABLED` | `api` only, optional. `false` holds back the daily deletion of feedback Ember no longer keeps; the API logs a warning at startup. On by default. |
 | `EMBER_DELETION_LEDGER_FILE` | `ember` and `api`, optional. The deletion ledger inside the containers, `/ledger/deletions.jsonl` on production. Without it Ember keeps no ledger. See "Restoring a backup" below. |
 | `EMBER_DELETION_LEDGER_DIR` | Optional. Host directory mounted at `/ledger` in `ember` and `api`. Defaults to `./deletion-ledger`. Set it together with `EMBER_DELETION_LEDGER_FILE`: otherwise Docker creates the default directory owned by root and every ledger write fails. |
 | `LOOKOUT_INGEST_URL` | `lookout-sender` only, optional. Lookout's ingest address as an IP literal, `http://172.31.250.18:8081` on the homeserver. Set it only on production; without it the sender sends nothing. |
+| `LOOKOUT_DELETED_REFS_FILE` | `lookout-sender` only, optional. The deleted refs inside the container, `/deleted-refs/refs.jsonl` on production. Without it no ref is recorded, and the deletions can't be repeated in a restored Lookout store. Never unset it once it is on. See "Restoring Lookout's store" below. |
+| `LOOKOUT_DELETED_REFS_DIR` | Optional. Host directory mounted at `/deleted-refs` in `lookout-sender`. Defaults to `./lookout-deleted-refs`. Set it together with `LOOKOUT_DELETED_REFS_FILE` to a directory owned by uid 1000 with mode 700, outside Lookout's own folder and never under `~/backups`. |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | `api` only. Discord OAuth application for signing in with Discord and linking it, on the web and in the Android app. |
 | `VITE_PUBLIC_ORIGIN` | Optional build argument for the `api` image. Your public origin, for example `https://example.com`. It adds a canonical link and a sitemap to the web build. |
 
@@ -130,6 +132,30 @@ setfacl -m u:1654:rwx ~/backups/ember-ledger
 ```
 
 Then set `EMBER_DELETION_LEDGER_DIR=/home/nico/backups/ember-ledger` and `EMBER_DELETION_LEDGER_FILE=/ledger/deletions.jsonl` in `.env` and recreate the containers (`docker compose --profile api up -d`). A deletion whose ledger line can't be written still happens; the container logs a warning.
+
+**Restoring Lookout's store (maintainer).** A copy of Lookout's `lookout.db` brings back feedback of accounts deleted since. The `lookout-sender` therefore records the random ref of every deletion Lookout confirmed, with the time and never with the account id, in `LOOKOUT_DELETED_REFS_FILE`, and keeps it 30 days. Deletions Lookout hasn't confirmed yet still wait in the outbox. Set it up once:
+
+```bash
+mkdir -p -m 700 ~/.local/share/ember-lookout-refs
+```
+
+Set `LOOKOUT_DELETED_REFS_DIR=/home/nico/.local/share/ember-lookout-refs` and `LOOKOUT_DELETED_REFS_FILE=/deleted-refs/refs.jsonl` in `.env` and recreate the sender (`docker compose --profile lookout up -d lookout-sender`). It creates the file when it starts, which is the time deletions are known from.
+
+Lookout's `docs/restore.md` has the whole procedure. Ember's part is its step 4, with Lookout's hub stopped and from the Ember compose directory:
+
+1. Print every ref, whatever its age, into a file only you can read. The command must exit with 0:
+
+   ```bash
+   (umask 077 && mkdir -p ~/.local/share/lookout-restore)
+   (umask 077 && docker compose --profile lookout exec -T lookout-sender dotnet Ember.Api.dll --lookout-deleted-refs > ~/.local/share/lookout-restore/ember-refs)
+   ```
+
+   If the sender isn't running, use `docker compose --profile lookout run --rm --no-deps -T lookout-sender --lookout-deleted-refs` instead.
+2. Stderr gives `Total: <count>` and since when refs are recorded. Never restore a copy older than that time or older than 30 days: deletions before that are unknown.
+3. From Lookout's checkout, pass that count, never one counted from the file: `host/lookout-apply-deletions.py ember <copy> <count> < ~/.local/share/lookout-restore/ember-refs`
+4. Go on with Lookout's steps. Its last one deletes `~/.local/share/lookout-restore`, so the refs file too.
+
+Leave the sender running or start it after the hub: a deletion still waiting in the outbox then reaches the restored store too. The command fails, printing no ref, when the file isn't configured or can't be read, or when any line of it is malformed. Lookout's store comes back without the tickets sent after the copy, and Ember doesn't send those again.
 
 **Reading feedback (maintainer).** Feedback is read, answered and moved in Lookout. Ember keeps the copy of a signed-in user's report only for their export and the deletion with their account, and no command reads it. Only reports Lookout hasn't confirmed (waiting, parked, or never queued) can be read on the homeserver, from the Ember compose directory:
 
