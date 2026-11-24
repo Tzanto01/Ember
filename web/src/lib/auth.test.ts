@@ -203,6 +203,30 @@ describe('AuthService', () => {
       expect(auth.me.get()).toBeNull();
       expect(auth.signedIn()).toBe(false);
     });
+
+    it.each([
+      { answer: 'the account', status: 200, body: me as unknown, kept: [true, false] },
+      { answer: 'a 401', status: 401, body: undefined, kept: [false, false] },
+      { answer: 'a 503', status: 503, body: undefined, kept: [true, true] },
+    ])('on $answer keeps only the cached habit lists that still belong here, and every queued edit', async ({ status, body, kept }) => {
+      const auth = setup();
+      const device = new DeviceStore();
+      for (const userId of [me.id, 'other']) {
+        await device.saveHabits({ userId, timeZone: me.timezone, habits: [] });
+        queue.userId.set(userId);
+        await queue.add({ habitId: 1, date: '2026-07-08', completed: true });
+      }
+
+      const loading = auth.loadMe(true).catch(() => null);
+      (await mock.next('GET', '/api/me')).respond(status, body);
+      await loading;
+
+      await vi.waitFor(async () =>
+        expect([!!(await device.habits(me.id)), !!(await device.habits('other'))]).toEqual(kept),
+      );
+      expect(await device.edits(me.id)).toHaveLength(1);
+      expect(await device.edits('other')).toHaveLength(1);
+    });
   });
 
   describe('journal key', () => {

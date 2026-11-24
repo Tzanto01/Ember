@@ -62,7 +62,7 @@ export class DeviceSync {
 
   /**
    * Replays the signed-in user's queue, then (native) the widget's pending check-ins ({@link Reminders.replayWidget}, after
-   * the queue so a queued count can't lower one) and rebuilds the reminders. Never throws.
+   * the queue so a queued count can't lower one) and rebuilds the reminders, unless the user left meanwhile. Never throws.
    */
   async sync(): Promise<void> {
     const me = this.auth.me.get();
@@ -74,6 +74,7 @@ export class DeviceSync {
       .catch(() => null);
     if (result?.dropped) this.dropped.update((count) => count + result.dropped);
     if (result && (result.sent || result.dropped)) this.synced.update((count) => count + 1);
+    if (this.auth.leaving || this.auth.me.get()?.id !== me.id) return;
     await this.reminders?.replayWidget(me.id, me.timezone, this.queue);
     this.rebuildReminders();
   }

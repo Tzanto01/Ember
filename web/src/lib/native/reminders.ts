@@ -115,10 +115,13 @@ export class Reminders {
    * day edits applied, so an offline check-in still cancels today's reminder), in `timeZone`, with a second
    * reminder `secondMinutes` after each one when above 0, pushes the widget's snapshot in the account's Today
    * `order` (marking the rows with queued day edits as held), and removes the delivered reminders that have
-   * nothing left to remind of. Rebuilds run one after another. Never throws.
+   * nothing left to remind of. Rebuilds run one after another; one still waiting when {@link clearAll} comes is dropped. Never throws.
    */
   rebuild(userId: string, timeZone: string, secondMinutes = 0, order: string[] | null = null): Promise<void> {
-    this.chain = this.chain.then(() => this.run(userId, timeZone, secondMinutes, order)).catch(() => undefined);
+    const cleared = this.cleared;
+    this.chain = this.chain
+      .then(() => (cleared === this.cleared ? this.run(userId, timeZone, secondMinutes, order) : undefined))
+      .catch(() => undefined);
     return this.chain;
   }
 
@@ -236,6 +239,7 @@ export class Reminders {
    * answers 401 they are dropped, as are unknown and let-go habits. Never throws.
    */
   async replayWidget(userId: string, timeZone: string, queue: OfflineQueue): Promise<void> {
+    const cleared = this.cleared;
     try {
       const { EmberWidget } = await this.widget();
       if (typeof EmberWidget.takePending !== 'function') return;
@@ -245,7 +249,7 @@ export class Reminders {
         return target && Number.isSafeInteger(entry.count) && entry.count >= 1 ? [{ target, count: entry.count }] : [];
       });
       if (!pending.length) return;
-      const loaded = await this.load(userId, timeZone);
+      const loaded = await this.load(userId, timeZone, cleared);
       if (loaded === 'signedOut') return;
       for (const { target, count } of pending) {
         try {
@@ -288,14 +292,14 @@ export class Reminders {
   }
 
   /**
-   * The habit list: live (and cached, unless {@link clearAll} came meanwhile), or when the API can't answer the cached one with queued day edits applied;
+   * The habit list: live (and cached, unless {@link clearAll} came since `cleared` was read), or when the API can't answer the cached one with queued day edits applied;
    * `signedOut` on a 401, null when nothing is cached.
    */
   private async load(
     userId: string,
     timeZone: string,
+    cleared = this.cleared,
   ): Promise<{ habits: AnyHabit[]; routines: Routine[]; live: boolean } | 'signedOut' | null> {
-    const cleared = this.cleared;
     try {
       const habits = await this.api.listHabits();
       const routines = await this.api
