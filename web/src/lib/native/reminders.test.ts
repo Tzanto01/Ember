@@ -567,7 +567,7 @@ describe('Reminders', () => {
       true,
     );
 
-    getPending.mockResolvedValue({ notifications: [{ id: 1 }] });
+    getPending.mockResolvedValue({ notifications: [{ id: 7 }] });
     const off = reminders.rebuild('u1', zone);
     (await mock.next('GET', '/api/habits')).respond(200, [reminded]);
     (await mock.next('GET', '/api/routines')).respond(200, []);
@@ -575,7 +575,7 @@ describe('Reminders', () => {
     await off;
 
     expect(schedule).toHaveBeenCalledTimes(1);
-    expect(cancel).toHaveBeenLastCalledWith({ notifications: [{ id: 1 }] });
+    expect(cancel).toHaveBeenLastCalledWith({ notifications: [{ id: 7 }] });
   });
 
   it('plans with the last registration when registering fails, and with nothing when it never succeeded', async () => {
