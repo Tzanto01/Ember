@@ -8,8 +8,8 @@ import {
   reminderId,
   settled,
   zonedToUtc,
+  timerNotificationId,
 } from './reminder-plan';
-import { timerNotificationId } from './timer-notification';
 
 function habit(overrides: Partial<Habit> = {}): Habit {
   return {

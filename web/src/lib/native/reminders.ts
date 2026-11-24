@@ -11,8 +11,7 @@ import { asApiError } from '../problem';
 import { notificationColor } from '../theme';
 import { reminderNames } from './reminder-names';
 import { cachedPhone, forgetPhone, installId, phoneLabel, type ReminderPhone, rememberPhone } from './phone';
-import { localDate, type PlannedReminder, planReminders, type ReminderTarget, settled } from './reminder-plan';
-import { timerNotificationId } from './timer-notification';
+import { localDate, type PlannedReminder, planReminders, type ReminderTarget, settled, timerNotificationId } from './reminder-plan';
 import { updaterAvailable } from './updater';
 import { capacitorWidget, type EmberWidgetPlugin, heldRows, widgetSnapshot } from './widget';
 
@@ -74,11 +73,11 @@ export function checkInTarget(extra: unknown, userId: string): CheckInTarget | n
   return { habitId, date };
 }
 
-/** The habit ({@link checkInTarget}) or routine reminder of `userId` that `extra` names; null for anything else. */
+/** The habit ({@link checkInTarget}) or routine reminder of `userId` that `extra` names; null for anything else, the habit timer's included. */
 function remindedOf(extra: unknown, userId: string): Pick<PlannedReminder, 'habitId' | 'routineId' | 'date'> | null {
+  if (typeof extra !== 'object' || extra === null || (extra as { timer?: unknown }).timer === true) return null;
   const habit = checkInTarget(extra, userId);
   if (habit) return habit;
-  if (typeof extra !== 'object' || extra === null) return null;
   const { userId: owner, routineId, date } = extra as Record<string, unknown>;
   if (typeof owner !== 'string' || owner !== userId) return null;
   if (typeof routineId !== 'number' || !Number.isSafeInteger(routineId) || routineId <= 0) return null;

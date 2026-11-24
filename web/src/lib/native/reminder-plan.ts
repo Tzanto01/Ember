@@ -10,7 +10,9 @@ import {
   weekdays,
 } from '../models';
 import type { ReminderPhone } from './phone';
-import { timerNotificationId } from './timer-notification';
+
+/** The one notification id the habit timer uses; {@link reminderId} never returns it. */
+export const timerNotificationId = 1;
 
 /** One local notification to schedule: for one habit (`habitId`) or for a routine's pending habits (`routineId`). */
 export interface PlannedReminder {

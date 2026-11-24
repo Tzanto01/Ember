@@ -11,7 +11,7 @@ import { OfflineQueue } from '../offline-queue';
 import { type FetchMock, habit, letGoHabit, mockFetch } from '@/test/test-support';
 import { applyTheme } from '../theme';
 import { reminderNames } from './reminder-names';
-import { planDays } from './reminder-plan';
+import { planDays, timerNotificationId } from './reminder-plan';
 import { doneActionType, Reminders, reminderBody, secondReminderBody } from './reminders';
 import type { EmberWidgetPlugin, WidgetSnapshot } from './widget';
 
@@ -326,7 +326,7 @@ describe('Reminders', () => {
       removeDelivered.mock.calls.flatMap(([{ notifications }]) => notifications.map(({ id }) => id));
     const doneToday = { date: '2026-11-01', state: 'done', completed: true, count: 1, skipped: false } as const;
 
-    it("removes a done habit's and a finished routine's reminder for that day, even when the plan is unchanged", async () => {
+    it("removes a done habit's and a finished routine's reminder for that day, not the timer's, even when the plan is unchanged", async () => {
       const morning: Habit = { ...reminded, reminderTime: '08:30' };
       const reading: Habit = {
         ...reminded,
@@ -346,6 +346,7 @@ describe('Reminders', () => {
         [14, { userId: 'u1', routineId: 4, date: '2026-11-01' }],
         [15, { userId: 'u2', habitId: 1, date: '2026-11-01' }],
         [16, { userId: 'u1', routineId: 5, date: '2026-11-01' }],
+        [timerNotificationId, { userId: 'u1', habitId: 1, date: '2026-11-01', timer: true }],
       );
 
       await rebuildOnline([{ ...morning, today: doneToday }, reading, stretch], [routine, evening]);
