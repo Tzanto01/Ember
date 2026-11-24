@@ -121,7 +121,7 @@ describe('ConfirmEmailPage', () => {
 
     const code = await screen.findByLabelText('6-digit code');
     expect(code).toHaveAttribute('aria-invalid', 'true');
-    expect(code).toHaveFocus();
+    await waitFor(() => expect(code).toHaveFocus());
     expect(screen.getByText(invalidCode.detail)).toBeInTheDocument();
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
 
@@ -161,7 +161,7 @@ describe('ConfirmEmailPage', () => {
     first.respond(401, { status: 401, type: 'password_required', detail: 'Enter your password to finish on this device.' });
 
     const password = await screen.findByLabelText('Password');
-    expect(password).toHaveFocus();
+    await waitFor(() => expect(password).toHaveFocus());
     expect(screen.getByLabelText('6-digit code')).toHaveValue('123456');
     expect(screen.queryByRole('textbox', { name: /^Email/ })).not.toBeInTheDocument();
     await user.type(password, 'a long sign-up phrase');
