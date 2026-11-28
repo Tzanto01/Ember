@@ -38,6 +38,7 @@ import {
 import {
   type SettingsGroup,
   settingsBlocks,
+  settingsCardId,
   settingsGroupOf,
   settingsGroups,
   settingsSlugAliases,
@@ -227,7 +228,8 @@ function blocksOf<T extends Pick<SettingsGroup, 'block'>>(groups: T[]) {
  * `/settings` and `/settings/:group`: every settings card, in the groups of `settingsGroups`. On phones `/settings`
  * lists the groups in their blocks, Help right now apart at the end, and `/settings/:group` shows one with a way back;
  * from `md` a side rail picks the group and `/settings` opens the first. A `#card-id` in the address (also the older
- * `/settings#card-id`) opens that card's group, scrolls to the card and focuses its heading; an older group slug opens
+ * `/settings#card-id`) opens that card's group, scrolls to the card and focuses its heading, and an older card id
+ * becomes the id of the card that took its place; an older group slug opens
  * the group that took its cards; `?discord=` opens the Discord card's group. Reloads `me` on entry. Every
  * `PATCH /api/me` runs one at a time, in order.
  */
@@ -339,8 +341,10 @@ export default function SettingsPage() {
   const query = new URLSearchParams(location.search);
   const discordPending = !!discordNotice && query.has('discord');
   const slug = params['group'];
+  const cardId = settingsCardId(location.hash.slice(1));
+  const hash = cardId ? `#${cardId}` : '';
   const current =
-    visibleGroup(settingsGroupOf(location.hash.slice(1))?.slug) ??
+    visibleGroup(settingsGroupOf(cardId)?.slug) ??
     visibleGroup(slug && (settingsSlugAliases[slug] ?? slug)) ??
     (discordPending ? visibleGroup(settingsGroupOf('discord')?.slug) : undefined) ??
     (wide ? groups[0] : undefined);
@@ -357,8 +361,8 @@ export default function SettingsPage() {
   const pathname = current ? `/settings/${current.slug}` : '/settings';
   const search = query.toString();
   const redirect =
-    pathname !== location.pathname || discordPending
-      ? `${pathname}${search ? `?${search}` : ''}${location.hash}`
+    pathname !== location.pathname || discordPending || hash !== location.hash
+      ? `${pathname}${search ? `?${search}` : ''}${hash}`
       : null;
   const fromList = (location.state as { fromList?: boolean } | null)?.fromList === true;
 

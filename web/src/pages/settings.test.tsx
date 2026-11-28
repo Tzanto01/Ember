@@ -126,12 +126,22 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
   });
 
-  it('opens Reminders & sounds for an older #dm-reminders link', async () => {
-    const { router } = await openSettings('/settings#dm-reminders');
+  it.each(['/settings#dm-reminders', '/settings/reminders#dm-reminders'])(
+    'sends an older %s link to the push card that took its place and focuses its heading',
+    async (url) => {
+      Element.prototype.scrollIntoView = vi.fn();
+      const frames = new Map<number, FrameRequestCallback>();
+      vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.set(frames.size + 1, callback).size);
+      vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+      const { router } = await openSettings(url);
 
-    await waitFor(() => expect(settingsPath(router)).toBe('/settings/reminders#dm-reminders'));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Reminders & sounds');
-  });
+      await waitFor(() => expect(settingsPath(router)).toBe('/settings/reminders#push'));
+      expect(router.state.historyAction).toBe('REPLACE');
+      await settle();
+      frames.forEach((callback) => callback(0));
+      expect(screen.getByRole('heading', { name: 'Where Ember reminds you' })).toHaveFocus();
+    },
+  );
 
   it('sends the older Send feedback address to Feedback & about, keeping its query and hash', async () => {
     const { router } = await openSettings('/settings/feedback?from=today#top');

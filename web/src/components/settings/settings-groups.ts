@@ -136,8 +136,13 @@ export const settingsSlugAliases: Record<string, string> = { feedback: 'support'
 
 const legacyCardIds: Record<string, string> = { 'dm-reminders': 'push' };
 
+/** The current id of a settings card: an older id (`dm-reminders`) gives the card that took its place. */
+export function settingsCardId(cardId: string): string {
+  return legacyCardIds[cardId] ?? cardId;
+}
+
 /** The group holding the settings card with this id (or an older id of it), if any. */
 export function settingsGroupOf(cardId: string): SettingsGroup | undefined {
-  const id = legacyCardIds[cardId] ?? cardId;
+  const id = settingsCardId(cardId);
   return settingsGroups.find((group) => group.cards.includes(id));
 }
