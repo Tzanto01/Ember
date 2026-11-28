@@ -31,6 +31,7 @@
     { "name": "trail in minutes below the range", "kind": "build", "picture": "trail", "portionAmount": 0, "portionUnit": "min", "valid": false, "field": "portionAmount", "message": "Must be between 1 and 240." },
     { "name": "trail in ml", "kind": "build", "picture": "trail", "portionAmount": 250, "portionUnit": "ml", "valid": false, "field": "portionUnit", "message": "Must be min or m for trail." },
     { "name": "portion without a picture", "kind": "build", "picture": null, "portionAmount": 250, "portionUnit": "ml", "valid": false, "field": "portionAmount", "message": "Choose a picture first." },
+    { "name": "out-of-range portion without a picture", "kind": "build", "picture": null, "portionAmount": 10, "portionUnit": "ml", "valid": false, "field": "portionAmount", "message": "Choose a picture first." },
     { "name": "let-go habit with a picture", "kind": "letGo", "picture": "kindling", "portionAmount": null, "portionUnit": null, "valid": false, "field": "picture", "message": "Never set for let-go habits." },
     { "name": "let-go habit with a portion only", "kind": "letGo", "picture": null, "portionAmount": 250, "portionUnit": "ml", "valid": false, "field": "portionAmount", "message": "Never set for let-go habits." },
     { "name": "plain let-go habit", "kind": "letGo", "picture": null, "portionAmount": null, "portionUnit": null, "valid": true }

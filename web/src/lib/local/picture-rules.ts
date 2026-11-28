@@ -47,6 +47,8 @@ export interface PictureError {
   message: string;
 }
 
+const portionUnitNames: readonly PortionUnit[] = ['ml', 'min', 'pages', 'm'];
+
 /**
  * Checks a habit's picture and portion as finally stored (after defaults) in Core's order and returns the first
  * failure, or null when the combination is valid. Null and undefined both mean not set.
@@ -62,6 +64,8 @@ export function pictureError(
   const hasUnit = portionUnit !== null && portionUnit !== undefined;
   if (hasPicture && !isHabitPicture(picture))
     return { field: 'picture', message: `Must be one of ${habitPictures.join(', ')}.` };
+  if (hasUnit && !portionUnitNames.includes(portionUnit as PortionUnit))
+    return { field: 'portionUnit', message: `Must be one of ${portionUnitNames.join(', ')}.` };
   if (kind === 'letGo') {
     if (hasPicture) return { field: 'picture', message: 'Never set for let-go habits.' };
     if (hasAmount || hasUnit)

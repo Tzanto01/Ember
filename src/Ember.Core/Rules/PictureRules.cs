@@ -95,7 +95,7 @@ public static class PictureRules
     /// <summary>
     /// The first rule <paramref name="state"/> breaks for a habit of <paramref name="kind"/>, or null when it may be stored. In order:
     /// let-go (on <c>picture</c> when one is set, else on <c>portionAmount</c>); a portion for pills or kindling; only one of amount and
-    /// unit; a unit the picture doesn't allow; an amount outside the unit's <see cref="Range"/>; a portion without a picture.
+    /// unit; a portion without a picture; a unit the picture doesn't allow; an amount outside the unit's <see cref="Range"/>.
     /// </summary>
     public static PictureError? Validate(HabitKind kind, HabitPictureState state)
     {
@@ -110,11 +110,11 @@ public static class PictureRules
             return new("portionAmount", "Pills and kindling have no portion.");
         if ((amount is null) != (unit is null)) return new("portionAmount", "Send portionAmount and portionUnit together.");
         if (amount is not { } value || unit is not { } portionUnit) return null;
-        if (picture is { } p && !AllowedUnits(p).Contains(portionUnit))
+        if (picture is not { } p) return new("portionAmount", "Choose a picture first.");
+        if (!AllowedUnits(p).Contains(portionUnit))
             return new("portionUnit", $"Must be {string.Join(" or ", AllowedUnits(p).Select(Name))} for {Name(p)}.");
         var (min, max) = Range(portionUnit);
-        if (value < min || value > max) return new("portionAmount", $"Must be between {min} and {max}.");
-        return picture is null ? new("portionAmount", "Choose a picture first.") : null;
+        return value < min || value > max ? new("portionAmount", $"Must be between {min} and {max}.") : null;
     }
 
     /// <summary>Throws when <see cref="Validate"/> finds a broken rule.</summary>
