@@ -72,7 +72,7 @@ export function Pills({ habit, count, busy, onSetCount, animate }: PictureProps)
                 ) : (
                   <PillIcon />
                 )}
-                <span aria-hidden="true">{text}</span>
+                <span>{text}</span>
               </button>
             </li>
           );

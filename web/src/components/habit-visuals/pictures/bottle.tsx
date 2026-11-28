@@ -1,4 +1,11 @@
-import { type KeyboardEvent, type PointerEvent, useEffect, useRef, useState } from 'react';
+import {
+  type FocusEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { holdMs } from '@/components/today/use-reorder';
 import { Button } from '@/components/ui/button';
@@ -144,15 +151,28 @@ export function Bottle(props: PictureProps) {
   }
 
   function keyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    if (event.key !== 'Escape') return;
+    if (event.key !== 'Escape' || !opener) return;
     event.stopPropagation();
     close();
+  }
+
+  function focusLeft(event: FocusEvent<HTMLDivElement>): void {
+    const next = event.relatedTarget;
+    if (
+      !next ||
+      event.currentTarget.contains(next) ||
+      next === bottle.current ||
+      next === more.current
+    )
+      return;
+    setOpener(null);
   }
 
   return (
     <div
       className="flex flex-wrap items-center gap-x-2 gap-y-2"
       data-picture-motion={animate ? '' : undefined}
+      onKeyDown={keyDown}
     >
       <PictureButton
         ref={bottle}
@@ -186,7 +206,7 @@ export function Bottle(props: PictureProps) {
           role="group"
           aria-label={t('habitVisuals.today.bottle.choices', { name: habit.name })}
           className="flex basis-full flex-wrap items-center gap-2"
-          onKeyDown={keyDown}
+          onBlur={focusLeft}
         >
           {choices.map((taps, index) => {
             const amount = amounts.times(habit, taps);

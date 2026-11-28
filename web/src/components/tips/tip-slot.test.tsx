@@ -159,6 +159,30 @@ describe('TipSlot picture offer', () => {
     expect(readTipMemory('pictures-no').wait).toBe('2026-11-01');
   });
 
+  it('brings the question back, saying so, when "Not for this habit" did not save', async () => {
+    await offer('pictures-no-fail');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Not for this habit' }));
+    expect(screen.queryByRole('heading', question)).toBeNull();
+    (await f.next('PATCH', '/api/habits/2')).fail();
+
+    expect(await screen.findByRole('heading', question)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(readTipMemory('pictures-no-fail').wait).toBeNull();
+  });
+
+  it('keeps the question and shows no note when "Show me" did not save', async () => {
+    await offer('pictures-yes-fail');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Show me' }));
+    (await f.next('PATCH', '/api/habits/2')).fail();
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('heading', question)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '“Read” shows its picture now.' })).toBeNull();
+    expect(readTipMemory('pictures-yes-fail').wait).toBeNull();
+  });
+
   it('never asks once the account turned picture suggestions off', async () => {
     await offer('pictures-off', false);
     await act(async () => {});

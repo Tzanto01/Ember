@@ -128,6 +128,88 @@ describe('Bottle', () => {
   });
 });
 
+describe('Bottle picker focus', () => {
+  it('closes when Tab moves focus past its last button, and leaves focus where it went', async () => {
+    render(
+      <>
+        <HabitPictureControl habit={water} busy={false} onSetCount={() => {}} />
+        <button type="button">Next on the page</button>
+      </>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'More for Drink water' }));
+    expect(screen.getByRole('button', { name: '+250 ml' })).toHaveFocus();
+
+    await userEvent.tab();
+    await userEvent.tab();
+    await userEvent.tab();
+    await userEvent.tab();
+
+    expect(screen.getByRole('button', { name: 'Next on the page' })).toHaveFocus();
+    expect(screen.queryByRole('group')).toBeNull();
+  });
+
+  it('stays open while focus moves back to its opener, and Escape there still closes it', async () => {
+    show(water);
+    const more = screen.getByRole('button', { name: 'More for Drink water' });
+    await userEvent.click(more);
+
+    await userEvent.tab({ shift: true });
+    expect(more).toHaveFocus();
+    expect(screen.getByRole('group', { name: 'Amounts for Drink water' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('group')).toBeNull();
+    expect(more).toHaveFocus();
+  });
+});
+
+describe('Zero total', () => {
+  it('shows only the count at zero, and the total from the first check-in on', () => {
+    const { view, onSetCount } = show({
+      ...water,
+      today: { ...water.today, state: 'pending', count: 0 },
+    });
+    expect(screen.getByText('0 of 8')).toHaveAttribute('aria-live', 'polite');
+    expect(
+      screen.getByRole('button', { name: 'Drink water, 0 of 8 glasses. Add 250 ml.' }),
+    ).toBeInTheDocument();
+
+    view.rerender(
+      <HabitPictureControl
+        habit={{ ...water, today: { ...water.today, count: 1 } }}
+        busy={false}
+        onSetCount={onSetCount}
+      />,
+    );
+    expect(screen.getByText('1 of 8, 250 ml')).toBeInTheDocument();
+  });
+
+  it('shows no zero minutes or meters on an empty shelf or trail', () => {
+    show({
+      ...water,
+      name: 'Read',
+      timesPerDay: 3,
+      picture: 'shelf',
+      portionAmount: 15,
+      portionUnit: 'min',
+      today: { ...water.today, count: 0 },
+    });
+    show({
+      ...water,
+      id: 2,
+      name: 'Walk',
+      timesPerDay: 2,
+      picture: 'trail',
+      portionAmount: 1000,
+      portionUnit: 'm',
+      today: { ...water.today, count: 0 },
+    });
+
+    expect(screen.getByText('0 of 3')).toBeInTheDocument();
+    expect(screen.getByText('0 of 2')).toBeInTheDocument();
+  });
+});
+
 describe('Pills', () => {
   const tablets: Habit = {
     ...habit,
@@ -158,6 +240,8 @@ describe('Pills', () => {
       'Take tablets, 2nd',
       'Take tablets, 3rd',
     ]);
+
+    expect(screen.getByRole('button', { name: 'Take tablets, 2nd' })).toHaveTextContent('2nd');
 
     const { default: i18n } = await import('@/lib/i18n');
     await act(() => i18n.changeLanguage('de'));

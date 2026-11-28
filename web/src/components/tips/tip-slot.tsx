@@ -28,6 +28,8 @@ import {
 const fiveMinutes = 5 * 60_000;
 /** After "Show me" on the picture tip: whose habit now has its picture, until the note is dismissed. */
 const pictureNote = new Store<{ userId: string; name: string } | null>(null);
+/** A "Not for this habit" that did not save: the offer is back, saying why. */
+const declineFailed = new Store<{ habitId: number; message: string } | null>(null);
 const sending = new Set<string>();
 const flushed = new Set<string>();
 let listening = false;
@@ -276,7 +278,9 @@ function PictureTip({ me, offer }: { me: Me; offer: PictureOffer }) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const failed = useStore(declineFailed);
   const { habit, picture } = offer;
+  const shownProblem = problem ?? (failed?.habitId === habit.id ? failed.message : null);
 
   const answer = (patch: Partial<Habit>) =>
     queryClient.setQueryData<TodayData>(
@@ -288,6 +292,7 @@ function PictureTip({ me, offer }: { me: Me; offer: PictureOffer }) {
     if (busy) return;
     setBusy(true);
     setProblem(null);
+    declineFailed.set(null);
     try {
       const updated = await api.updateHabit(habit.id, { picture, pictureOfferAnswered: true });
       writeTipMemory(me.id, { wait: me.localToday });
@@ -304,22 +309,30 @@ function PictureTip({ me, offer }: { me: Me; offer: PictureOffer }) {
     }
   }
 
-  function decline(): void {
+  async function decline(): Promise<void> {
     if (busy) return;
     focusHeading();
+    declineFailed.set(null);
+    const wait = readTipMemory(me.id).wait;
     writeTipMemory(me.id, { wait: me.localToday });
     answer({ pictureOfferAnswered: true });
-    api.updateHabit(habit.id, { pictureOfferAnswered: true }).catch(() => undefined);
+    try {
+      await api.updateHabit(habit.id, { pictureOfferAnswered: true });
+    } catch (error) {
+      declineFailed.set({ habitId: habit.id, message: problemToMessage(asApiError(error)).message });
+      writeTipMemory(me.id, { wait });
+      answer({ pictureOfferAnswered: false });
+    }
   }
 
   return (
     <TipCard id="picture" heading={t(`habitVisuals.tip.${picture}`, { name: habit.name })}>
-      {problem && <p role="alert">{problem}</p>}
+      {shownProblem && <p role="alert">{shownProblem}</p>}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Button type="button" variant="secondary" aria-disabled={busy || undefined} onClick={() => void show()}>
           {t('habitVisuals.tip.show')}
         </Button>
-        <Button type="button" variant="secondary" aria-disabled={busy || undefined} onClick={decline}>
+        <Button type="button" variant="secondary" aria-disabled={busy || undefined} onClick={() => void decline()}>
           {t('habitVisuals.tip.decline')}
         </Button>
       </div>

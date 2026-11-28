@@ -48,14 +48,14 @@ export function useAmounts() {
 }
 
 /**
- * The texts of a picture at `count`: the visible progress ("5 of 8, 1.25 L", or "2 of 3" without a portion) and what
- * a tap does ("Add 250 ml.", `noPortion` without a portion, or "All done for today." once full).
+ * The texts of a picture at `count`: the visible progress ("5 of 8, 1.25 L", or "2 of 3" without a portion or at
+ * zero) and what a tap does ("Add 250 ml.", `noPortion` without a portion, or "All done for today." once full).
  */
 export function usePictureText(habit: Habit, count: number, noPortion?: string) {
   const { t } = useTranslation();
   const amounts = useAmounts();
   const target = habit.timesPerDay;
-  const total = amounts.total(habit, count);
+  const total = count > 0 ? amounts.total(habit, count) : null;
   const portion = amounts.portion(habit);
   const full = count >= target;
   const progress = total
