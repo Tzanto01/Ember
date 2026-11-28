@@ -179,6 +179,8 @@ export class UpgradeService implements UpgradeApi {
             showStreaks: profile.showStreaks ?? true,
             calmMode: profile.calmMode ?? false,
             offerHabitNote: profile.offerHabitNote ?? false,
+            suggestPictures: profile.suggestPictures ?? true,
+            units: profile.units ?? 'metric',
             language: deviceLanguage(),
             ...(profile.theme ? { theme: profile.theme } : {}),
           });

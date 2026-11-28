@@ -15,6 +15,10 @@ function habit(id: number, overrides: Partial<LocalHabit> = {}): LocalHabit {
     days: null,
     timesPerDay: 1,
     timerMinutes: null,
+    picture: null,
+    portionAmount: null,
+    portionUnit: null,
+    pictureOfferAnswered: false,
     reminderTime: null,
     reminderTimes: [],
     reminderChannels: [],
@@ -31,7 +35,7 @@ function sample(): LocalData {
   const data = newLocalData({ timezone: 'Europe/Berlin', theme: 'tidepool' }, new Date('2026-09-01T00:00:00Z'));
   data.profile.graceDaysPerWeek = 2;
   data.habits = [
-    habit(1, { timerMinutes: 30, routineId: 1, routinePosition: 1, reminderTime: '07:30', reminderTimes: ['07:30'], reminderChannels: ['mobile'] }),
+    habit(1, { timerMinutes: 30, picture: 'bottle', portionAmount: 300, portionUnit: 'ml', pictureOfferAnswered: true, routineId: 1, routinePosition: 1, reminderTime: '07:30', reminderTimes: ['07:30'], reminderChannels: ['mobile'] }),
     habit(2, {
       frequency: 'weekdays',
       days: ['mon', 'fri'],
@@ -227,6 +231,26 @@ describe('BackupService', () => {
     }
 
     const letGo = exportDocument({ ...sample(), habits: [habit(1, { kind: 'letGo', timerMinutes: 30 })], logs: [], habitNotes: [] });
+    expect(backup.parseBackup(fileText(letGo))).toHaveProperty('error');
+  });
+
+  it('reads a file from before pictures as plain and not answered, and refuses an invalid picture or portion', () => {
+    const doc = exportDocument(sample());
+    const habits = doc['habits'] as Record<string, unknown>[];
+    const { picture: _p, portion_amount: _a, portion_unit: _u, picture_offer_answered: _o, ...older } = habits[0];
+    habits[0] = older;
+    expect(parsed(backup.parseBackup(fileText(doc))).data.habits[0]).toMatchObject({
+      picture: null,
+      portionAmount: null,
+      portionUnit: null,
+      pictureOfferAnswered: false,
+    });
+
+    for (const change of [{ picture: 'cup' }, { picture: 'bottle', portion_amount: 2001, portion_unit: 'ml' }, { picture: 'pills', portion_amount: 1, portion_unit: 'min' }, { picture: 'bottle', picture_offer_answered: 'yes' }]) {
+      expect(backup.parseBackup(fileText({ ...doc, habits: [{ ...habits[0], ...change }, ...habits.slice(1)] }))).toHaveProperty('error');
+    }
+
+    const letGo = exportDocument({ ...sample(), habits: [habit(1, { kind: 'letGo', picture: 'kindling' })], logs: [], habitNotes: [] });
     expect(backup.parseBackup(fileText(letGo))).toHaveProperty('error');
   });
 

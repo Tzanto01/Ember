@@ -2,13 +2,16 @@ import type { ExportFile } from '../api-client';
 import type {
   Frequency,
   HabitKind,
+  HabitPicture,
   LocalDateString,
   MoodKey,
+  PortionUnit,
   ReminderChannel,
   SecondReminderMinutes,
   SlipReason,
   TimeOfDay,
   TipId,
+  UnitSystem,
   Weekday,
 } from '../models';
 import type { Store } from '../store';
@@ -29,6 +32,13 @@ export interface LocalHabit {
   timesPerDay: number;
   /** Length of its timer in whole minutes, 1–240; missing or null means none, always so for let-go habits. */
   timerMinutes?: number | null;
+  /** The picture Today shows; missing or null means plain, always so for let-go habits. */
+  picture?: HabitPicture | null;
+  /** What one tap means in `portionUnit`; set together with `portionUnit` (see `picture-rules.ts`), else missing or null. */
+  portionAmount?: number | null;
+  portionUnit?: PortionUnit | null;
+  /** The picture offer for this habit was answered; missing reads as false. */
+  pictureOfferAnswered?: boolean;
   /** The first of `reminderTimes`, or null. */
   reminderTime: TimeOfDay | null;
   /** Sorted, unique, 0 to `timesPerDay`; absent on data saved before multi-time reminders (then `reminderTime` alone). */
@@ -116,6 +126,10 @@ export interface LocalProfile {
   todayOrderRestored?: boolean;
   /** Offer a note after a check-in; missing reads as false. */
   offerHabitNote?: boolean;
+  /** Suggest pictures for habits; missing reads as true. */
+  suggestPictures?: boolean;
+  /** How portions and totals are shown; missing reads as metric. */
+  units?: UnitSystem;
   /** Tips answered or dismissed on this device; missing reads as `["streaks"]` with habits, else empty. */
   tipsSeen?: TipId[];
   /** ISO instant the local profile was made. */

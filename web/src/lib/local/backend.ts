@@ -40,6 +40,7 @@ import type { LocalStore } from './store';
 import { habitTemplates } from './templates';
 import type { LocalData, LocalHabit, LocalMadeItDay, LocalRoutine } from './types';
 import { limits } from './limits';
+import { defaultPortions, isHabitPicture, pictureError } from './picture-rules';
 
 export { limits };
 
@@ -138,6 +139,10 @@ export function exportDocument(data: LocalData, journal = true): Record<string, 
       days: h.days,
       times_per_day: h.timesPerDay,
       timer_minutes: h.timerMinutes ?? null,
+      picture: h.picture ?? null,
+      portion_amount: h.portionAmount ?? null,
+      portion_unit: h.portionUnit ?? null,
+      picture_offer_answered: h.pictureOfferAnswered ?? false,
       routine_id: h.routineId,
       routine_position: h.routinePosition,
     })),
@@ -293,6 +298,33 @@ function timerField(value: unknown, letGo: boolean, errors: Errors): number | nu
   else if (!Number.isInteger(value) || minutes < 1 || minutes > limits.timerMinutes)
     errors['timerMinutes'] = [`Must be between 1 and ${limits.timerMinutes}.`];
   return minutes;
+}
+
+type PictureFields = Pick<LocalHabit, 'picture' | 'portionAmount' | 'portionUnit'>;
+
+/**
+ * The picture and portion a create (`current` null) or patch body stores, or null when it leaves them unchanged.
+ * Without a portion the current picture keeps its portion and another one gets its default.
+ */
+function pictureFields(b: Body, letGo: boolean, current: LocalHabit | null, errors: Errors): PictureFields | null {
+  const picture = given(b['picture']) ? b['picture'] : null;
+  const amount = given(b['portionAmount']) ? b['portionAmount'] : null;
+  const unit = given(b['portionUnit']) ? b['portionUnit'] : null;
+  const portionGiven = amount !== null || unit !== null;
+  if (picture === null && !portionGiven) return null;
+  const stored = {
+    picture: picture ?? current?.picture ?? null,
+    portionAmount: amount,
+    portionUnit: unit,
+  } as PictureFields;
+  if (picture !== null && !portionGiven) {
+    const kept = current?.picture === picture ? current : isHabitPicture(picture) ? defaultPortions[picture] : null;
+    stored.portionAmount = kept?.portionAmount ?? null;
+    stored.portionUnit = kept?.portionUnit ?? null;
+  }
+  const error = pictureError(letGo ? 'letGo' : 'build', stored.picture, stored.portionAmount, stored.portionUnit);
+  if (error) errors[error.field] = [error.message];
+  return stored;
 }
 
 function letGoFields(b: Body, errors: Errors): void {
@@ -546,6 +578,8 @@ export class LocalBackend {
       calmMode: profile.calmMode ?? false,
       todayOrder: profile.todayOrder ?? null,
       offerHabitNote: profile.offerHabitNote ?? false,
+      suggestPictures: profile.suggestPictures ?? true,
+      units: profile.units ?? 'metric',
       language: deviceLanguage(),
       tipsSeen: deviceTipsSeen(data),
     };
@@ -578,6 +612,11 @@ export class LocalBackend {
     const offerHabitNote = b['offerHabitNote'];
     if (offerHabitNote !== undefined && typeof offerHabitNote !== 'boolean')
       errors['offerHabitNote'] = ['Must be true or false.'];
+    const suggestPictures = b['suggestPictures'];
+    if (suggestPictures !== undefined && typeof suggestPictures !== 'boolean')
+      errors['suggestPictures'] = ['Must be true or false.'];
+    const units = b['units'];
+    if (given(units) && units !== 'metric' && units !== 'imperial') errors['units'] = ['Must be metric or imperial.'];
     const language = b['language'];
     if (language !== undefined && !isLanguage(language)) errors['language'] = ['Must be en or de.'];
     if (Object.keys(errors).length) throw invalid(errors);
@@ -590,6 +629,8 @@ export class LocalBackend {
       if (typeof showStreaks === 'boolean') d.profile.showStreaks = showStreaks;
       if (typeof calmMode === 'boolean') d.profile.calmMode = calmMode;
       if (typeof offerHabitNote === 'boolean') d.profile.offerHabitNote = offerHabitNote;
+      if (typeof suggestPictures === 'boolean') d.profile.suggestPictures = suggestPictures;
+      if (units === 'metric' || units === 'imperial') d.profile.units = units;
       return typeof showStreaks === 'boolean' ? withTipSeen(d, 'streaks') : d;
     });
     return json(200, this.me(data));
@@ -673,6 +714,7 @@ export class LocalBackend {
       (reminder ? [reminder] : []);
     const channels = channelsField(b['reminderChannels'], errors);
     const timerMinutes = timerField(b['timerMinutes'], letGo, errors);
+    const picture = pictureFields(b, letGo, null, errors);
     if (letGo) letGoFields(b, errors);
     if (Object.keys(errors).length) throw invalid(errors);
 
@@ -689,6 +731,10 @@ export class LocalBackend {
         days: frequency === 'weekdays' ? days : null,
         timesPerDay: frequency === 'weekly' ? 1 : timesPerDay,
         timerMinutes,
+        picture: picture?.picture ?? null,
+        portionAmount: picture?.portionAmount ?? null,
+        portionUnit: picture?.portionUnit ?? null,
+        pictureOfferAnswered: b['pictureOfferAnswered'] === true,
         reminderTime: times[0] ?? null,
         reminderTimes: times,
         reminderChannels: channels ?? (this.options.native ? ['mobile'] : []),
@@ -733,6 +779,10 @@ export class LocalBackend {
     const timerMinutes = timerField(b['timerMinutes'], letGo, errors);
     const clearTimer = b['clearTimer'] === true;
     if (timerMinutes !== null && clearTimer) errors['timerMinutes'] = ["Can't be combined with clearTimer."];
+    const clearPicture = b['clearPicture'] === true;
+    const pictureGiven = [b['picture'], b['portionAmount'], b['portionUnit']].some(given);
+    if (clearPicture && pictureGiven) errors['picture'] = ["Can't be combined with clearPicture."];
+    const picture = clearPicture ? null : pictureFields(b, letGo, habit, errors);
     const channels = channelsField(b['reminderChannels'], errors);
     if (Object.keys(errors).length) throw invalid(errors);
 
@@ -747,6 +797,9 @@ export class LocalBackend {
       if (channels) h.reminderChannels = channels;
       if (clearTimer) h.timerMinutes = null;
       else if (timerMinutes !== null) h.timerMinutes = timerMinutes;
+      if (clearPicture && h.picture) Object.assign(h, { picture: null, portionAmount: null, portionUnit: null });
+      else if (picture) Object.assign(h, picture);
+      if (b['pictureOfferAnswered'] === true) h.pictureOfferAnswered = true;
       if (scheduleGiven) {
         const target = newFrequency === 'weekly' ? 1 : timesPerDay;
         if (target !== h.timesPerDay) d.logs = retarget(d, id, target, this.today(d));

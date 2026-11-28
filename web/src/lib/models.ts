@@ -61,6 +61,10 @@ export interface Me {
   todayOrder: string[] | null;
   /** Whether Today offers a short note after a check-in; Ember never asks otherwise. */
   offerHabitNote: boolean;
+  /** v1.30: offer pictures for matching habits; missing from older servers, which means true. */
+  suggestPictures?: boolean;
+  /** v1.30: how portions and totals are shown; missing from older servers, which means metric. */
+  units?: UnitSystem;
 }
 
 /** v1.18 one-time tips, in priority order. */
@@ -81,7 +85,21 @@ export interface MePatch {
   /** v1.17. */
   calmMode?: boolean;
   offerHabitNote?: boolean;
+  /** v1.30. */
+  suggestPictures?: boolean;
+  /** v1.30. */
+  units?: UnitSystem;
 }
+
+/** v1.30 display unit systems; canonical units are always stored. */
+export type UnitSystem = 'metric' | 'imperial';
+
+/** v1.30 habit pictures Today can show for a build habit. */
+export const habitPictures = ['bottle', 'pills', 'kindling', 'shelf', 'trail'] as const;
+export type HabitPicture = (typeof habitPictures)[number];
+
+/** v1.30 canonical portion units: milliliters, minutes, pages, meters. */
+export type PortionUnit = 'ml' | 'min' | 'pages' | 'm';
 
 /** The `secondReminderMinutes` choices; 0 is off. */
 export const secondReminderChoices = [0, 15, 30, 60, 120] as const;
@@ -152,6 +170,13 @@ export interface Habit {
   timesPerDay: number;
   /** Length of its timer in whole minutes, 1 to 240, or null; always null for let-go habits. Missing from servers and caches before v1.28. */
   timerMinutes?: number | null;
+  /** v1.30: the picture Today shows, or null (plain); always null for let-go habits. Missing from older servers and caches. */
+  picture?: HabitPicture | null;
+  /** v1.30: what one tap means in `portionUnit`; set together with `portionUnit`, else null. */
+  portionAmount?: number | null;
+  portionUnit?: PortionUnit | null;
+  /** v1.30: the picture offer for this habit was answered either way; missing means not answered. */
+  pictureOfferAnswered?: boolean;
   /** The routine this habit belongs to, or null. */
   routineId: number | null;
   /** The first of `reminderTimes`, or null. */
@@ -252,6 +277,12 @@ export interface NewHabit {
   timesPerDay?: number;
   /** v1.28: 1 to 240, build habits only. */
   timerMinutes?: number | null;
+  /** v1.30: build habits only; without a portion the picture's default portion. */
+  picture?: HabitPicture | null;
+  /** v1.30: together with `portionUnit`. */
+  portionAmount?: number | null;
+  portionUnit?: PortionUnit | null;
+  pictureOfferAnswered?: boolean;
 }
 
 /** `PATCH /api/habits/{id}` body. */
@@ -269,6 +300,18 @@ export interface HabitPatch {
   timerMinutes?: number | null;
   /** v1.28: removes the timer; not together with `timerMinutes`. */
   clearTimer?: boolean;
+  /**
+   * v1.30: sets the picture; null leaves it unchanged. Without a portion the same picture keeps its portion and
+   * another one gets its default portion.
+   */
+  picture?: HabitPicture | null;
+  /** v1.30: together with `portionUnit`; without `picture` changes the current picture's portion. */
+  portionAmount?: number | null;
+  portionUnit?: PortionUnit | null;
+  /** v1.30: removes the picture and its portion; not together with `picture` or a portion. */
+  clearPicture?: boolean;
+  /** v1.30: true records the answer; false changes nothing. */
+  pictureOfferAnswered?: boolean;
   reminderChannels?: ReminderChannel[];
   /** v1.14: replaces the whole set; absent leaves it unchanged. */
   reminderExclusions?: string[];

@@ -576,6 +576,49 @@ describe('LocalBackend through ApiClient', () => {
     expect((await api.getHabit(2)).timerMinutes).toBeNull();
   });
 
+  it('gives a picture its default portion on create and keeps an edited portion when the same picture is resent', async () => {
+    await store.replace(seed());
+    const portion = (h: { picture?: unknown; portionAmount?: unknown; portionUnit?: unknown }) => [h.picture, h.portionAmount, h.portionUnit];
+
+    const created = await api.createHabit({ name: 'Water', frequency: 'daily', picture: 'bottle', pictureOfferAnswered: true });
+    expect(portion(created)).toEqual(['bottle', 250, 'ml']);
+    expect(created.pictureOfferAnswered).toBe(true);
+
+    expect(portion(await api.updateHabit(created.id, { portionAmount: 330, portionUnit: 'ml' }))).toEqual(['bottle', 330, 'ml']);
+    expect(portion(await api.updateHabit(created.id, { name: 'Drink water', picture: 'bottle' }))).toEqual(['bottle', 330, 'ml']);
+    expect(portion(await api.updateHabit(created.id, { picture: 'trail' }))).toEqual(['trail', 10, 'min']);
+    expect(portion(await api.updateHabit(created.id, { picture: 'pills' }))).toEqual(['pills', null, null]);
+    expect(portion(await api.updateHabit(created.id, { clearPicture: true }))).toEqual([null, null, null]);
+  });
+
+  it('refuses picture changes the API would refuse and writes nothing, and never takes an offer answer back', async () => {
+    await store.replace(seed([localHabit(1, { picture: 'shelf', portionAmount: 20, portionUnit: 'pages', pictureOfferAnswered: true }), localHabit(2, { kind: 'letGo' })]));
+    const refused = async (change: Promise<unknown>) => (await rejection(change)).problem?.errors;
+
+    expect(await refused(api.updateHabit(1, { name: 'Read more', picture: 'shelf', portionAmount: 15, portionUnit: 'm' }))).toEqual({
+      portionUnit: ['Must be min or pages for shelf.'],
+    });
+    expect(await refused(api.updateHabit(1, { picture: 'bottle', clearPicture: true }))).toEqual({
+      picture: ["Can't be combined with clearPicture."],
+    });
+    expect(await refused(api.createHabit({ name: 'A', frequency: 'daily', portionAmount: 250, portionUnit: 'ml' }))).toEqual({
+      portionAmount: ['Choose a picture first.'],
+    });
+    expect(await refused(api.updateHabit(2, { picture: 'kindling' }))).toEqual({ picture: ['Never set for let-go habits.'] });
+
+    const kept = await api.updateHabit(1, { pictureOfferAnswered: false });
+    expect([kept.name, kept.picture, kept.portionAmount, kept.portionUnit, kept.pictureOfferAnswered]).toEqual(['Habit 1', 'shelf', 20, 'pages', true]);
+  });
+
+  it('keeps suggest pictures and units, defaulting to on and metric, and refuses another unit system', async () => {
+    await store.replace(seed());
+
+    expect(await api.getMe()).toMatchObject({ suggestPictures: true, units: 'metric' });
+    expect(await api.updateMe({ suggestPictures: false, units: 'imperial' })).toMatchObject({ suggestPictures: false, units: 'imperial' });
+    expect((await rejection(api.updateMe({ units: 'nautical' as never }))).problem?.errors).toEqual({ units: ['Must be metric or imperial.'] });
+    expect(await api.getMe()).toMatchObject({ suggestPictures: false, units: 'imperial' });
+  });
+
   describe('let-go habits', () => {
     const letGo = (id = 1) => localHabit(id, { kind: 'letGo' });
 

@@ -350,20 +350,20 @@ describe('UpgradeService', () => {
   it('sends the device settings to the account before the import, leaving the theme out when unset', async () => {
     await upgrade.run();
 
-    expect(server.patches).toEqual([{ timezone: 'Europe/Berlin', graceDaysPerWeek: 1, showStreaks: false, calmMode: false, offerHabitNote: false, language: 'en' }]);
+    expect(server.patches).toEqual([{ timezone: 'Europe/Berlin', graceDaysPerWeek: 1, showStreaks: false, calmMode: false, offerHabitNote: false, suggestPictures: true, units: 'metric', language: 'en' }]);
     expect(callIndex('PATCH /api/me')).toBeLessThan(callIndex('POST /api/me/import'));
   });
 
   it('sends the chosen theme and calm mode with the device settings, and shown streaks of an older profile', async () => {
     await store.update((d) => {
       const { showStreaks: _, ...older } = d.profile;
-      return { ...d, profile: { ...older, theme: 'tidepool', graceDaysPerWeek: 2, calmMode: true } };
+      return { ...d, profile: { ...older, theme: 'tidepool', graceDaysPerWeek: 2, calmMode: true, suggestPictures: false, units: 'imperial' } };
     });
 
     await upgrade.run();
 
     expect(server.patches).toEqual([
-      { timezone: 'Europe/Berlin', graceDaysPerWeek: 2, showStreaks: true, calmMode: true, offerHabitNote: false, language: 'en', theme: 'tidepool' },
+      { timezone: 'Europe/Berlin', graceDaysPerWeek: 2, showStreaks: true, calmMode: true, offerHabitNote: false, suggestPictures: false, units: 'imperial', language: 'en', theme: 'tidepool' },
     ]);
   });
 

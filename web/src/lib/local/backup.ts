@@ -15,6 +15,7 @@ import {
   parseWeekdays,
   validName,
 } from './backend';
+import { pictureError } from './picture-rules';
 import { habitStartDate, localToday } from './rules';
 import type { LocalStore } from './store';
 import type {
@@ -180,6 +181,12 @@ function parse(text: string): ParsedBackup {
         : [...new Set(list(listed).map((t) => time(t) ?? damaged()))].sort();
     if (reminderTimes.length > timesPerDay) damaged();
     const timerMinutes = field(h, 'timer_minutes') ?? null;
+    const picture = field(h, 'picture') ?? null;
+    const portionAmount = field(h, 'portion_amount') ?? null;
+    const portionUnit = field(h, 'portion_unit') ?? null;
+    if (pictureError(kind === 'let_go' ? 'letGo' : 'build', picture, portionAmount, portionUnit)) damaged();
+    const pictureOfferAnswered = field(h, 'picture_offer_answered') ?? false;
+    if (typeof pictureOfferAnswered !== 'boolean') damaged();
     const habit: LocalHabit = {
       id: index + 1,
       name: validName(field(h, 'name'), limits.habitName) ?? damaged(),
@@ -188,6 +195,10 @@ function parse(text: string): ParsedBackup {
       days: frequency === 'weekdays' ? (parseWeekdays(field(h, 'days')) ?? damaged()) : null,
       timesPerDay,
       timerMinutes: timerMinutes === null ? null : int(timerMinutes, 1, limits.timerMinutes),
+      picture: picture as LocalHabit['picture'],
+      portionAmount: portionAmount as LocalHabit['portionAmount'],
+      portionUnit: portionUnit as LocalHabit['portionUnit'],
+      pictureOfferAnswered,
       reminderTime: reminderTimes[0] ?? null,
       reminderTimes,
       reminderChannels: channels(field(h, 'reminder_channels')),

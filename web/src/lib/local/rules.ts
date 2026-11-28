@@ -292,6 +292,10 @@ export function habitView(data: LocalData, habitId: number, today: LocalDateStri
       days: null,
       timesPerDay: 1,
       timerMinutes: null,
+      picture: null,
+      portionAmount: null,
+      portionUnit: null,
+      pictureOfferAnswered: habit.pictureOfferAnswered ?? false,
       routineId: null,
     };
   }
@@ -327,6 +331,10 @@ export function habitView(data: LocalData, habitId: number, today: LocalDateStri
     days: habit.frequency === 'weekdays' && habit.days ? weekdays.filter((d) => habit.days!.includes(d)) : null,
     timesPerDay: habit.timesPerDay,
     timerMinutes: habit.timerMinutes ?? null,
+    picture: habit.picture ?? null,
+    portionAmount: habit.portionAmount ?? null,
+    portionUnit: habit.portionUnit ?? null,
+    pictureOfferAnswered: habit.pictureOfferAnswered ?? false,
     routineId: habit.routineId,
   };
 }
