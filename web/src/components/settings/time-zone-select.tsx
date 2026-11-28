@@ -83,10 +83,31 @@ const aliasesByZone = new Map<string, string[]>();
 for (const [city, zone] of Object.entries(cityAliases))
   aliasesByZone.set(zone, [...(aliasesByZone.get(zone) ?? []), fold(city)]);
 
+let knownZones: readonly string[] | null = null;
+
+/** Every zone this runtime names, or the short fallback list, plus UTC (which V8 leaves out); worked out once. */
 function supportedZones(): readonly string[] {
-  return typeof Intl.supportedValuesOf === 'function'
-    ? Intl.supportedValuesOf('timeZone')
-    : fallbackZones;
+  knownZones ??= [
+    ...new Set([
+      ...(typeof Intl.supportedValuesOf === 'function'
+        ? Intl.supportedValuesOf('timeZone')
+        : fallbackZones),
+      'UTC',
+    ]),
+  ].sort();
+  return knownZones;
+}
+
+const labels = new Map<string, string>();
+
+/** "America/New York (UTC-05:00)", worked out the first time an option shows. */
+function zoneLabel(zone: string): string {
+  let label = labels.get(zone);
+  if (label === undefined) {
+    label = zoneName(timeZoneLabel(zone));
+    labels.set(zone, label);
+  }
+  return label;
 }
 
 /**
@@ -165,15 +186,14 @@ export function TimeZoneSelect({
   const [announced, setAnnounced] = useState('');
 
   const suggestion = suggested ?? null;
-  const zones = useMemo(
-    () =>
-      [...new Set([...supportedZones(), 'UTC', value, ...(suggestion ? [suggestion] : [])])].sort(),
-    [value, suggestion],
-  );
-  const labels = useMemo(
-    () => new Map(zones.map((zone) => [zone, zoneName(timeZoneLabel(zone))])),
-    [zones],
-  );
+  const zones = useMemo(() => {
+    const known = supportedZones();
+    const extra = [value, suggestion].filter(
+      (zone, index, all): zone is string =>
+        !!zone && !known.includes(zone) && all.indexOf(zone) === index,
+    );
+    return extra.length > 0 ? [...known, ...extra].sort() : known;
+  }, [value, suggestion]);
 
   function optionsFor(text: string | null): { suggested: boolean; zones: string[] } {
     const found = search(zones, text);
@@ -274,7 +294,7 @@ export function TimeZoneSelect({
         onClick={() => choose(zone)}
         className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-base hover:bg-accent hover:text-accent-foreground data-[active]:bg-accent data-[active]:text-accent-foreground data-[active]:ring-1 data-[active]:ring-primary data-[active]:ring-inset"
       >
-        <span className="min-w-0 flex-1 break-words">{labels.get(zone) ?? zone}</span>
+        <span className="min-w-0 flex-1 break-words">{zoneLabel(zone)}</span>
         {zone === value && (
           <>
             <Check aria-hidden className="size-[18px] shrink-0 text-primary" />

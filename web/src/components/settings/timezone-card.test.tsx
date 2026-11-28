@@ -14,11 +14,18 @@ import {
 vi.mock('@/lib/env', async (original) => ({
   env: { ...(await original<typeof import('@/lib/env')>()).env },
 }));
-const device = vi.hoisted(() => ({ zone: 'Europe/Berlin' }));
-vi.mock('@/lib/local-date', async (original) => ({
-  ...(await original<typeof import('@/lib/local-date')>()),
-  browserTimeZone: () => device.zone,
-}));
+const device = vi.hoisted(() => ({ zone: 'Europe/Berlin', labelled: [] as string[] }));
+vi.mock('@/lib/local-date', async (original) => {
+  const actual = await original<typeof import('@/lib/local-date')>();
+  return {
+    ...actual,
+    browserTimeZone: () => device.zone,
+    timeZoneLabel: (zone: string) => {
+      device.labelled.push(zone);
+      return actual.timeZoneLabel(zone);
+    },
+  };
+});
 vi.mock('@/lib/services', async (original) => {
   const { Store } = await import('@/lib/store');
   return {
@@ -55,6 +62,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
   beforeEach(() => {
     stubSettingsMedia();
     device.zone = 'Europe/Berlin';
+    device.labelled = [];
     vi.spyOn(Intl, 'supportedValuesOf').mockReturnValue(zones);
   });
 
@@ -171,6 +179,20 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
       await screen.findByText('Something went wrong on our side. Please try again in a moment.'),
     ).toBeInTheDocument();
     expect(screen.queryByText('Saved.')).toBeNull();
+  });
+
+  it('names the zones with their offsets only once the list opens, and only once each', async () => {
+    const user = userEvent.setup();
+    await openSettings('/settings/language');
+    expect(device.labelled.filter((zone) => zone !== me.timezone)).toEqual([]);
+
+    await user.click(zoneField());
+    await user.keyboard('{Escape}');
+    const named = device.labelled.length;
+    await user.click(zoneField());
+
+    expect(screen.getAllByRole('option')).toHaveLength(listed);
+    expect(device.labelled.length).toBe(named);
   });
 
   it('lists the saved zone even when this device does not name it', async () => {
