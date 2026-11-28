@@ -142,7 +142,7 @@ describe('MomentPage', () => {
     expect(box).toHaveValue('The bus');
   });
 
-  it('offers no Save with the plain journal and links to Privacy & data', async () => {
+  it('offers no Save with the plain journal and links to Journal & reflections', async () => {
     auth.me.set(me);
     const { journal } = open('off');
     await quickToReflect();
@@ -151,9 +151,9 @@ describe('MomentPage', () => {
         'Saving a reflection needs the private journal. Nothing from this moment was saved.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Privacy & data' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Open Journal & reflections' })).toHaveAttribute(
       'href',
-      '/settings/privacy',
+      '/settings/journal',
     );
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
     expect(journal.appendPrivate).not.toHaveBeenCalled();
@@ -214,7 +214,7 @@ describe('MomentPage', () => {
     const { journal } = open('unlocked');
     journal.turningOff.set(true);
     await quickToReflect();
-    expect(screen.getByRole('link', { name: 'Open Privacy & data' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Journal & reflections' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
     expect(journal.appendPrivate).not.toHaveBeenCalled();
   });

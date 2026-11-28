@@ -223,7 +223,7 @@ export function HelpsSettings() {
       <>
         <p>{t('helps.needsPrivate')}</p>
         <div>
-          <TapLink to="/settings/privacy#journal">{t('helps.openJournal')}</TapLink>
+          <TapLink to="/settings/journal#journal">{t('helps.openJournal')}</TapLink>
         </div>
       </>
     );
