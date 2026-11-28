@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
 import { applyGentleMotion, gentleMotion } from '@/lib/theme';
-import { auth } from '@/lib/services';
+import { auth, localMode } from '@/lib/services';
 import { me } from '@/test/test-support';
 import { openSettings, resetSettings, setWide, stubSettingsMedia } from '@/test/settings-page';
 
@@ -174,6 +174,20 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     expect(localStorage.getItem('ember.accountTheme')).toBe('fieldnotes');
     expect(screen.getByRole('radio', { name: 'Fieldnotes' })).toBeChecked();
     expect(screen.getByText('Saved.')).toBeInTheDocument();
+  });
+
+  it('without an account, saves a chosen theme through the device data and says it is saved', async () => {
+    localMode.mode.set('local');
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Marigold' }));
+
+    const patch = await fetch.next('PATCH', '/api/me');
+    expect(patch.body).toEqual({ theme: 'marigold' });
+    patch.respond(200, { ...me, theme: 'marigold' });
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    expect(localStorage.getItem('ember.theme')).toBe('marigold');
   });
 
   it('keeps the chosen theme on this device and says so gently when saving it fails', async () => {

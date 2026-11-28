@@ -6,7 +6,6 @@ import { useSettingsStatus } from '@/components/settings/settings-status';
 import { ThemePicker } from '@/components/theme-picker';
 import { Switch } from '@/components/ui/switch';
 import { env } from '@/lib/env';
-import { auth } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import { applyGentleMotion, gentleMotion, rememberAccountTheme, type ThemeId } from '@/lib/theme';
 
@@ -30,7 +29,6 @@ export function AppearanceCard({
   const gentle = useStore(gentleMotion);
 
   function saveTheme(theme: ThemeId): void {
-    if (!auth.signedIn()) return;
     void patch('appearance', { theme }).then((error) => {
       if (!error) rememberAccountTheme(theme);
       else if (!error.handled)
