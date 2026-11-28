@@ -43,6 +43,7 @@ function localData() {
       theme: null,
       showStreaks: true,
       tipsSeen: ['streaks', 'private-journal', 'routines', 'android', 'discord'],
+      suggestPictures: false,
       createdAt: '2026-09-01T08:00:00Z',
       lastBackupAt: '2026-11-01T08:00:00Z',
       backupReminderSnoozedUntil: null,
