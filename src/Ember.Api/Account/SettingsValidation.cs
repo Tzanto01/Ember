@@ -25,4 +25,18 @@ internal static class SettingsValidation
         if (language is not null && !Languages.All.Contains(language))
             errors["language"] = ["Must be en or de."];
     }
+
+    /// <summary>The <see cref="UnitSystem"/> named <c>metric</c> or <c>imperial</c>; null when <paramref name="units"/> is null or another value (an error).</summary>
+    internal static UnitSystem? ParseUnits(string? units, Dictionary<string, string[]> errors)
+    {
+        switch (units)
+        {
+            case null: return null;
+            case "metric": return UnitSystem.Metric;
+            case "imperial": return UnitSystem.Imperial;
+            default:
+                errors["units"] = ["Must be metric or imperial."];
+                return null;
+        }
+    }
 }

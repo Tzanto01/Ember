@@ -135,6 +135,28 @@ internal static class HabitValidation
         else if (timerMinutes is < 1 or > Limits.TimerMinutes) errors["timerMinutes"] = [$"Must be between 1 and {Limits.TimerMinutes}."];
     }
 
+    /// <summary>
+    /// Checks a write of the picture fields against a habit of <paramref name="kind"/> whose picture is <paramref name="current"/>
+    /// (all null for a new one), adding at most one error on <c>picture</c>, <c>portionAmount</c> or <c>portionUnit</c>: an unknown
+    /// picture or unit name, <paramref name="clear"/> with a picture or portion, then the first rule <see cref="PictureRules.Validate"/>
+    /// finds in the state <see cref="PictureRules.Apply"/> leads to. Returns the parsed picture and unit; skipped while
+    /// <paramref name="kind"/> is unknown.
+    /// </summary>
+    internal static (HabitPicture? Picture, PortionUnit? Unit) ValidatePicture(string? picture, int? portionAmount, string? portionUnit,
+        bool clear, HabitKind? kind, HabitPictureState current, Dictionary<string, string[]> errors)
+    {
+        var parsedPicture = PictureRules.ParsePicture(picture);
+        var parsedUnit = PictureRules.ParseUnit(portionUnit);
+        if (picture is not null && parsedPicture is null) errors["picture"] = [PictureRules.PictureMessage];
+        else if (portionUnit is not null && parsedUnit is null) errors["portionUnit"] = [PictureRules.UnitMessage];
+        else if (clear && (picture is not null || portionAmount is not null || portionUnit is not null))
+            errors["picture"] = ["Can't be combined with clearPicture."];
+        else if (kind is { } habitKind
+            && PictureRules.Validate(habitKind, PictureRules.Apply(current, parsedPicture, portionAmount, parsedUnit, clear)) is { } error)
+            errors[error.Field] = [error.Message];
+        return (parsedPicture, parsedUnit);
+    }
+
     internal static void ValidateWeeklyTarget(int? weeklyTarget, FrequencyType? frequency, Dictionary<string, string[]> errors)
     {
         if (weeklyTarget is null) return;

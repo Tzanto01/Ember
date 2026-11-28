@@ -27,10 +27,10 @@ internal static class MeEndpoints
         Guid Id, string? Email, bool EmailConfirmed, bool HasPassword, DiscordDto Discord,
         string Timezone, bool TimezoneSet, DateOnly LocalToday, int GraceDaysPerWeek, string? Theme, int SecondReminderMinutes,
         bool ShowStreaks, string Language, bool CalmMode, ConsentDto Consent, DmRemindersDto DmReminders, JournalState Journal,
-        string[] TipsSeen, string[]? TodayOrder, bool OfferHabitNote);
+        string[] TipsSeen, string[]? TodayOrder, bool OfferHabitNote, bool SuggestPictures, string Units);
 
     public sealed record MePatch(string? Timezone, int? GraceDaysPerWeek, string? Theme, int? SecondReminderMinutes, bool? ShowStreaks,
-        string? Language, bool? CalmMode, bool? OfferHabitNote);
+        string? Language, bool? CalmMode, bool? OfferHabitNote, bool? SuggestPictures, string? Units);
     public sealed record TodayOrderRequest(List<string?>? Order);
     public sealed record TodayOrderDto(List<string>? Order);
     public sealed record ConsentRequest(string? PolicyVersion, bool? AgeConfirmed);
@@ -64,12 +64,13 @@ internal static class MeEndpoints
             SettingsValidation.ValidateGraceAndTheme(patch.GraceDaysPerWeek, patch.Theme, errors);
             SettingsValidation.ValidateSecondReminder(patch.SecondReminderMinutes, errors);
             SettingsValidation.ValidateLanguage(patch.Language, errors);
+            var units = SettingsValidation.ParseUnits(patch.Units, errors);
             if (errors.Count > 0) return Problems.Validation(errors);
 
             var userId = principal.UserId();
             if (patch.SecondReminderMinutes is { } second) await reminders.SetSecondReminderMinutesAsync(userId, second);
             await settings.UpdateAsync(userId, new UserSettingsService.SettingsUpdate(patch.GraceDaysPerWeek, patch.Theme,
-                patch.ShowStreaks, patch.Language, patch.CalmMode, patch.OfferHabitNote, zone?.Id));
+                patch.ShowStreaks, patch.Language, patch.CalmMode, patch.OfferHabitNote, zone?.Id, patch.SuggestPictures, units));
             if (zone is not null) await reminders.RescheduleRemindersAsync(userId);
 
             return await LoadMe(principal, users, settings, consent, journal, time) is { } me ? Results.Ok(me) : Problems.Unauthenticated();
@@ -192,6 +193,7 @@ internal static class MeEndpoints
                 user.ConsentWithdrawnAt is { } withdrawn && await consent.HasHealthDataAsync(user.Id) ? ConsentService.DeletionDueUtc(withdrawn, user.DeletionReminderSentAt) : null),
             new DmRemindersDto(user.DmRemindersPausedAt is not null),
             await journal.GetJournalStateAsync(user.Id),
-            [.. user.TipsSeen], user.TodayOrder?.ToArray(), user.OfferHabitNote);
+            [.. user.TipsSeen], user.TodayOrder?.ToArray(), user.OfferHabitNote, user.SuggestPictures,
+            user.Units.ToString().ToLowerInvariant());
     }
 }
