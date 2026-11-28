@@ -68,6 +68,9 @@ describe('SettingsLinkRow', () => {
     );
 
     const link = screen.getByRole('link', { name: 'Routines' });
+    expect(link).toHaveTextContent(/^Routines$/);
+    expect(link).not.toHaveAttribute('aria-labelledby');
+    expect(link).not.toHaveAttribute('aria-label');
     expect(link).toHaveAttribute('href', '/routines');
     expect(link).toHaveAccessibleDescription('Group habits that go together');
     expect(document.getElementById('routines')).toContainElement(link);

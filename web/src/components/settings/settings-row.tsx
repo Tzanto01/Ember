@@ -90,8 +90,9 @@ export function SettingsRow({
 }
 
 /**
- * A Settings row that opens another page: label, a short hint and a chevron, at least 44 px tall. `id` is its
- * `#address`; the link itself (`<id>-heading`) takes focus when the address opens it.
+ * A Settings row that opens another page: label, a short hint and a chevron, at least 44 px tall. The link holds only
+ * the label (its name) and stretches over the whole row; the hint describes it. `id` is its `#address`; the link
+ * itself (`<id>-heading`) takes focus when the address opens it.
  */
 export function SettingsLinkRow({
   id,
@@ -105,26 +106,29 @@ export function SettingsLinkRow({
   hint?: string;
 }) {
   return (
-    <div id={id} className={cn('py-1.5', settingsScrollMargin)}>
-      <Link
-        id={`${id}-heading`}
-        to={to}
-        aria-labelledby={`${id}-name`}
-        aria-describedby={hint ? `${id}-hint` : undefined}
-        className="-mx-2 flex min-h-[44px] items-center gap-4 rounded-md px-2 py-1.5 text-card-foreground no-underline hover:bg-accent hover:text-accent-foreground focus-visible:outline-offset-0"
-      >
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span id={`${id}-name`} className="font-medium">
-            {label}
-          </span>
-          {hint && (
-            <span id={`${id}-hint`} className="text-[0.875rem] text-muted-foreground">
-              {hint}
-            </span>
-          )}
-        </span>
-        <ChevronRight aria-hidden className="size-[18px] shrink-0 text-muted-foreground" />
-      </Link>
+    <div
+      id={id}
+      className={cn(
+        'group relative flex min-h-[44px] items-center gap-4 rounded-md py-3 has-[a:focus-visible]:outline-[3px] has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ring has-[a:focus-visible]:outline-solid',
+        settingsScrollMargin,
+      )}
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <Link
+          id={`${id}-heading`}
+          to={to}
+          aria-describedby={hint ? `${id}-hint` : undefined}
+          className="font-medium text-card-foreground no-underline group-hover:underline after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+        >
+          {label}
+        </Link>
+        {hint && (
+          <p id={`${id}-hint`} className="text-[0.875rem] text-muted-foreground">
+            {hint}
+          </p>
+        )}
+      </div>
+      <ChevronRight aria-hidden className="size-[18px] shrink-0 text-muted-foreground" />
     </div>
   );
 }
