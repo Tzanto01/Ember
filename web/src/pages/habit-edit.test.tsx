@@ -8,10 +8,34 @@ import { auth, push } from '@/lib/services';
 import { type FetchMock, habit, me, mockFetch } from '@/test/test-support';
 import HabitEditPage from './habit-edit';
 
-const stretch: Habit = { ...habit, id: 7, name: 'Stretch', reminderTime: '08:00', reminderChannels: ['mobile'] };
-const discord: ReminderDestination = { id: 'discord', kind: 'discord', label: 'Discord DMs', enabled: true, current: false };
-const laptop: ReminderDestination = { id: 'browser-3', kind: 'browser', label: 'Firefox on Linux', enabled: true, current: true };
-const phone: ReminderDestination = { id: 'phone-5', kind: 'phone', label: 'Pixel 8', enabled: true, current: false };
+const stretch: Habit = {
+  ...habit,
+  id: 7,
+  name: 'Stretch',
+  reminderTime: '08:00',
+  reminderChannels: ['mobile'],
+};
+const discord: ReminderDestination = {
+  id: 'discord',
+  kind: 'discord',
+  label: 'Discord DMs',
+  enabled: true,
+  current: false,
+};
+const laptop: ReminderDestination = {
+  id: 'browser-3',
+  kind: 'browser',
+  label: 'Firefox on Linux',
+  enabled: true,
+  current: true,
+};
+const phone: ReminderDestination = {
+  id: 'phone-5',
+  kind: 'phone',
+  label: 'Pixel 8',
+  enabled: true,
+  current: false,
+};
 
 function renderPage() {
   const router = createMemoryRouter(
@@ -21,7 +45,9 @@ function renderPage() {
     ],
     { initialEntries: ['/habits/7/edit'] },
   );
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   render(
     <QueryClientProvider client={client}>
       <RouterProvider router={router} />
@@ -71,7 +97,9 @@ describe('HabitEditPage', () => {
     expect(screen.getByLabelText('Reminder time 1')).toHaveValue('08:00');
     expect(screen.getByLabelText('Reminder time 2')).toHaveValue('20:00');
     expect(screen.getByRole('button', { name: 'Remove 20:00' })).toBeInTheDocument();
-    expect(screen.getByText("Ember reminds you at 08:00 and 20:00 until you've checked in 3 times.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Ember reminds you at 08:00 and 20:00 until you've checked in 3 times."),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Add another time' }));
     fireEvent.change(screen.getByLabelText('Reminder time 3'), { target: { value: '13:00' } });
@@ -87,7 +115,9 @@ describe('HabitEditPage', () => {
   it('asks this browser for notifications when a reminder time is set and this browser is not a destination yet', async () => {
     push.available.set(true);
     vi.spyOn(push, 'check').mockResolvedValue();
-    const subscribe = vi.spyOn(push, 'subscribe').mockRejectedValue(new DOMException('Denied', 'NotAllowedError'));
+    const subscribe = vi
+      .spyOn(push, 'subscribe')
+      .mockRejectedValue(new DOMException('Denied', 'NotAllowedError'));
     const user = userEvent.setup();
     const fetch = mockFetch();
     renderPage();
@@ -101,7 +131,9 @@ describe('HabitEditPage', () => {
     expect(subscribe).toHaveBeenCalledTimes(1);
     expect(patch.body).toEqual({ reminderTimes: ['07:00'] });
     patch.respond(200, { ...stretch, reminderTimes: ['07:00'] });
-    expect(await screen.findByText(/Notifications are off for Ember in this browser/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Notifications are off for Ember in this browser/),
+    ).toBeInTheDocument();
   });
 
   it('sends a changed timer length, clears an emptied one, and leaves it out when unchanged', async () => {
@@ -136,7 +168,11 @@ describe('HabitEditPage', () => {
       const fetch = mockFetch();
       renderPage();
       await load(fetch, { ...stretch, reminderExclusions: ['phone-5'] });
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [discord, laptop, phone]);
+      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [
+        discord,
+        laptop,
+        phone,
+      ]);
 
       const group = within(await screen.findByRole('group', { name: 'Remind me on' }));
       expect(group.getByRole('checkbox', { name: 'Discord DMs' })).toBeChecked();
@@ -152,7 +188,9 @@ describe('HabitEditPage', () => {
       expect(group.getByRole('checkbox', { name: 'Discord DMs' })).not.toBeChecked();
 
       await user.click(group.getByRole('checkbox', { name: 'Pixel 8' }));
-      expect((await fetch.next('PATCH', '/api/habits/7')).body).toEqual({ reminderExclusions: ['discord'] });
+      expect((await fetch.next('PATCH', '/api/habits/7')).body).toEqual({
+        reminderExclusions: ['discord'],
+      });
     });
 
     it('locks the other places while a change saves, and says what was kept when it fails', async () => {
@@ -167,7 +205,9 @@ describe('HabitEditPage', () => {
       const patch = await fetch.next('PATCH', '/api/habits/7');
 
       expect(group).toHaveAttribute('aria-busy', 'true');
-      expect(within(group).getByRole('checkbox', { name: 'Firefox on Linux, This browser' })).toBeDisabled();
+      expect(
+        within(group).getByRole('checkbox', { name: 'Firefox on Linux, This browser' }),
+      ).toBeDisabled();
 
       patch.respond(500, { type: 'internal' });
 
@@ -175,7 +215,9 @@ describe('HabitEditPage', () => {
         "That didn't save, so Discord DMs is still on. Try again in a moment.",
       );
       expect(within(group).getByRole('checkbox', { name: 'Discord DMs' })).toBeChecked();
-      expect(within(group).getByRole('checkbox', { name: 'Firefox on Linux, This browser' })).toBeEnabled();
+      expect(
+        within(group).getByRole('checkbox', { name: 'Firefox on Linux, This browser' }),
+      ).toBeEnabled();
       expect(group).not.toHaveAttribute('aria-busy');
     });
 
@@ -184,14 +226,19 @@ describe('HabitEditPage', () => {
       const fetch = mockFetch();
       renderPage();
       await load(fetch);
-      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [{ ...discord, enabled: false }, laptop]);
+      (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, [
+        { ...discord, enabled: false },
+        laptop,
+      ]);
 
       const off = await screen.findByRole('checkbox', { name: 'Discord DMs' });
       expect(off).toBeDisabled();
       expect(off).not.toBeChecked();
       expect(off).toHaveAccessibleDescription('Turned off in Settings.');
       expect(
-        within(screen.getByRole('region', { name: 'Remind me on' })).getByRole('link', { name: 'Settings' }),
+        within(screen.getByRole('region', { name: 'Remind me on' })).getByRole('link', {
+          name: 'Settings',
+        }),
       ).toHaveAttribute('href', '/settings#push');
 
       await user.click(off);
@@ -207,7 +254,9 @@ describe('HabitEditPage', () => {
       expect(await screen.findByText(/Nothing can remind you yet/)).toBeInTheDocument();
       expect(screen.queryByRole('checkbox')).toBeNull();
       expect(
-        within(screen.getByRole('region', { name: 'Remind me on' })).getByRole('link', { name: 'Settings' }),
+        within(screen.getByRole('region', { name: 'Remind me on' })).getByRole('link', {
+          name: 'Settings',
+        }),
       ).toHaveAttribute('href', '/settings#push');
     });
   });
@@ -240,7 +289,9 @@ describe('HabitEditPage', () => {
     await load(fetch);
 
     await user.click(screen.getByRole('button', { name: 'Delete habit' }));
-    expect(screen.getByRole('group', { name: /Delete Stretch and all its check-ins/ })).toHaveFocus();
+    expect(
+      screen.getByRole('group', { name: /Delete Stretch and all its check-ins/ }),
+    ).toHaveFocus();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('group', { name: /Delete Stretch/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Delete habit' })).toHaveFocus();
@@ -272,20 +323,36 @@ describe('HabitEditPage', () => {
   it("shows the saved schedule and the routine reminder that replaces the habit's own", async () => {
     const fetch = mockFetch();
     renderPage();
-    const scheduled: Habit = { ...stretch, frequency: 'weekdays', days: ['mon', 'wed'], timesPerDay: 2, routineId: 5 };
+    const scheduled: Habit = {
+      ...stretch,
+      frequency: 'weekdays',
+      days: ['mon', 'wed'],
+      timesPerDay: 2,
+      routineId: 5,
+    };
     (await fetch.next('GET', '/api/me')).respond(200, me);
     (await fetch.next('GET', '/api/habits/7')).respond(200, scheduled);
     (await fetch.next('GET', '/api/routines')).respond(200, [
-      { id: 5, name: 'Morning', reminderTime: '07:30', reminderChannels: ['mobile'], habitIds: [7] },
+      {
+        id: 5,
+        name: 'Morning',
+        reminderTime: '07:30',
+        reminderChannels: ['mobile'],
+        habitIds: [7],
+      },
     ]);
 
-    expect(await screen.findByText(/Your Morning routine reminds you at 07:30 instead/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Your Morning routine reminds you at 07:30 instead/),
+    ).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'On set days' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Wednesday' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Tuesday' })).not.toBeChecked();
     expect(screen.getByLabelText('Times a day')).toHaveValue('2');
 
     await userEvent.selectOptions(screen.getByLabelText('Times a day'), '1');
-    expect(screen.getByText('Past days with more check-ins are trimmed to the new number.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Past days with more check-ins are trimmed to the new number.'),
+    ).toBeInTheDocument();
   });
 });

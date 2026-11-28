@@ -9,10 +9,15 @@ import { auth, localMode, push } from '@/lib/services';
 import { type FetchMock, habit, me, mockFetch } from '@/test/test-support';
 import HabitNewPage from './habit-new';
 
-vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));
+vi.mock('@/lib/env', async (original) => ({
+  env: { ...(await original<typeof import('@/lib/env')>()).env },
+}));
 vi.mock('@/lib/services', async (original) => {
   const { Store } = await import('@/lib/store');
-  return { ...(await original<typeof import('@/lib/services')>()), localMode: { mode: new Store('account') } };
+  return {
+    ...(await original<typeof import('@/lib/services')>()),
+    localMode: { mode: new Store('account') },
+  };
 });
 
 const template: HabitTemplate = {
@@ -32,7 +37,9 @@ function renderPage() {
     ],
     { initialEntries: ['/habits/new'] },
   );
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   render(
     <QueryClientProvider client={client}>
       <RouterProvider router={router} />
@@ -112,7 +119,9 @@ describe('HabitNewPage', () => {
       fireEvent.change(screen.getByLabelText('Reminder time 3'), { target: { value: '13:00' } });
 
       await user.selectOptions(screen.getByLabelText('Times a day'), '2');
-      expect(screen.getAllByText('20:00 was taken off, since you now check in 2 times a day.')).toHaveLength(2);
+      expect(
+        screen.getAllByText('20:00 was taken off, since you now check in 2 times a day.'),
+      ).toHaveLength(2);
       expect(screen.getByLabelText('Reminder time 1')).toHaveValue('08:00');
       expect(screen.getByLabelText('Reminder time 2')).toHaveValue('13:00');
       await user.click(screen.getByRole('button', { name: 'Create habit' }));
@@ -141,7 +150,9 @@ describe('HabitNewPage', () => {
         await user.type(length, wrong);
         await user.click(screen.getByRole('button', { name: 'Create habit' }));
         expect(length).toHaveFocus();
-        expect(length).toHaveAccessibleDescription(/Use whole minutes from 1 to 240, or leave it empty\./);
+        expect(length).toHaveAccessibleDescription(
+          /Use whole minutes from 1 to 240, or leave it empty\./,
+        );
       }
       expect(fetch.all.some((call) => call.method === 'POST')).toBe(false);
 
@@ -149,8 +160,17 @@ describe('HabitNewPage', () => {
       await user.type(length, '30');
       await user.click(screen.getByRole('button', { name: 'Create habit' }));
       const post = await fetch.next('POST', '/api/habits');
-      expect(post.body).toEqual({ name: 'Walk', frequency: 'daily', timesPerDay: 1, timerMinutes: 30 });
-      post.respond(400, { type: 'https://ember/problems/validation', status: 400, errors: { timerMinutes: ['Too long.'] } });
+      expect(post.body).toEqual({
+        name: 'Walk',
+        frequency: 'daily',
+        timesPerDay: 1,
+        timerMinutes: 30,
+      });
+      post.respond(400, {
+        type: 'https://ember/problems/validation',
+        status: 400,
+        errors: { timerMinutes: ['Too long.'] },
+      });
       await waitFor(() => expect(length).toHaveAccessibleDescription(/Too long\./));
     });
 
@@ -189,7 +209,9 @@ describe('HabitNewPage', () => {
     });
 
     it('reminds everywhere without a channel choice, asking this browser on the first reminder and not again once subscribed', async () => {
-      const subscribe = vi.spyOn(push, 'subscribe').mockImplementation(async () => push.subscribed.set(true));
+      const subscribe = vi
+        .spyOn(push, 'subscribe')
+        .mockImplementation(async () => push.subscribed.set(true));
       const fetch = mockFetch();
       const router = renderPage();
       (await fetch.next('GET', '/api/habit-templates')).respond(200, []);
@@ -197,7 +219,12 @@ describe('HabitNewPage', () => {
       expect(await screen.findByLabelText('Name', { exact: true })).toBeInTheDocument();
       expect(screen.queryByRole('checkbox')).toBeNull();
       const first = await createWith(fetch, 'Water', '08:00');
-      expect(first.body).toEqual({ name: 'Water', frequency: 'daily', timesPerDay: 1, reminderTimes: ['08:00'] });
+      expect(first.body).toEqual({
+        name: 'Water',
+        frequency: 'daily',
+        timesPerDay: 1,
+        reminderTimes: ['08:00'],
+      });
       expect(subscribe).toHaveBeenCalledTimes(1);
       first.respond(201, { ...habit, name: 'Water' });
       expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument();
@@ -219,8 +246,13 @@ describe('HabitNewPage', () => {
       expect(create.body).toMatchObject({ reminderTimes: ['08:00'] });
       create.respond(201, { ...habit, name: 'Water' });
 
-      expect(await screen.findByText(/Notifications are off for Ember in this browser/)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Turn them on in Settings' })).toHaveAttribute('href', '/settings#push');
+      expect(
+        await screen.findByText(/Notifications are off for Ember in this browser/),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Turn them on in Settings' })).toHaveAttribute(
+        'href',
+        '/settings#push',
+      );
       expect(router.state.location.pathname).toBe('/habits/new');
       expect(screen.queryByRole('button', { name: 'Create habit' })).toBeNull();
     });
@@ -262,7 +294,12 @@ describe('HabitNewPage', () => {
       await user.click(screen.getByRole('button', { name: 'Create habit' }));
 
       const create = await fetch.next('POST', '/api/habits');
-      expect(create.body).toEqual({ name: 'Coffee after 3pm', kind: 'letGo', frequency: 'daily', timesPerDay: 1 });
+      expect(create.body).toEqual({
+        name: 'Coffee after 3pm',
+        kind: 'letGo',
+        frequency: 'daily',
+        timesPerDay: 1,
+      });
     });
 
     it('drops a weekly schedule and extra times when the kind is switched to let go, keeping one check-in time', async () => {
@@ -277,7 +314,9 @@ describe('HabitNewPage', () => {
       expect(screen.queryByRole('radio', { name: 'A few times a week' })).toBeNull();
       expect(screen.queryByLabelText('Times per week')).toBeNull();
       expect(screen.queryByRole('button', { name: 'Add another time' })).toBeNull();
-      fireEvent.change(screen.getByLabelText(/Quiet evening check-in/), { target: { value: '21:00' } });
+      fireEvent.change(screen.getByLabelText(/Quiet evening check-in/), {
+        target: { value: '21:00' },
+      });
       await user.click(screen.getByRole('button', { name: 'Create habit' }));
 
       const create = await fetch.next('POST', '/api/habits');
@@ -363,7 +402,12 @@ describe('HabitNewPage', () => {
     await user.click(screen.getByRole('button', { name: 'Create habit' }));
 
     const create = await fetch.next('POST', '/api/habits');
-    expect(create.body).toEqual({ name: 'Stretch', frequency: 'weekly', weeklyTarget: 4, reminderTimes: ['07:30'] });
+    expect(create.body).toEqual({
+      name: 'Stretch',
+      frequency: 'weekly',
+      weeklyTarget: 4,
+      reminderTimes: ['07:30'],
+    });
     create.respond(201, { ...habit, name: 'Stretch' });
 
     expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument();
@@ -427,7 +471,15 @@ describe('HabitNewPage', () => {
 
     await user.type(await screen.findByLabelText('Name', { exact: true }), 'Water');
     await user.click(screen.getByRole('radio', { name: 'On set days' }));
-    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) {
+    for (const day of [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]) {
       expect(screen.getByRole('checkbox', { name: day })).not.toBeChecked();
     }
     await user.click(screen.getByRole('button', { name: 'Create habit' }));
@@ -445,14 +497,25 @@ describe('HabitNewPage', () => {
 
     await user.type(await screen.findByLabelText('Name', { exact: true }), 'Water');
     await user.click(screen.getByRole('radio', { name: 'On set days' }));
-    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) {
+    for (const day of [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]) {
       await user.click(screen.getByRole('checkbox', { name: day }));
     }
     await user.click(screen.getByRole('button', { name: 'Create habit' }));
 
     const create = await fetch.next('POST', '/api/habits');
     expect(create.body).toEqual({ name: 'Water', frequency: 'daily', timesPerDay: 1 });
-    create.respond(400, { type: 'validation', errors: { timesPerDay: ['Choose 1 to 10 times a day.'] } });
+    create.respond(400, {
+      type: 'validation',
+      errors: { timesPerDay: ['Choose 1 to 10 times a day.'] },
+    });
     expect(await screen.findByText('Choose 1 to 10 times a day.')).toBeInTheDocument();
   });
 
@@ -484,8 +547,15 @@ describe('HabitNewPage', () => {
 
     await user.click(await screen.findByRole('button', { name: /Walk/ }));
 
-    expect(await screen.findByText(/Reminders reach you through notifications on this device, or Discord if you use it/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Turn one on in Settings.' })).toHaveAttribute('href', '/settings#discord');
+    expect(
+      await screen.findByText(
+        /Reminders reach you through notifications on this device, or Discord if you use it/,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Turn one on in Settings.' })).toHaveAttribute(
+      'href',
+      '/settings#discord',
+    );
   });
 
   it('offers no reminder time without an account on the web', async () => {
@@ -501,6 +571,10 @@ describe('HabitNewPage', () => {
     expect(screen.queryByLabelText(/Reminder time/)).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Create habit' }));
 
-    expect((await fetch.next('POST', '/api/habits')).body).toEqual({ name: 'Walk', frequency: 'daily', timesPerDay: 1 });
+    expect((await fetch.next('POST', '/api/habits')).body).toEqual({
+      name: 'Walk',
+      frequency: 'daily',
+      timesPerDay: 1,
+    });
   });
 });

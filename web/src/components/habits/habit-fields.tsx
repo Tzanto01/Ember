@@ -57,7 +57,6 @@ export interface HabitFormValue {
   reminderTimes: TimeOfDay[];
 }
 
-
 export const emptyHabitForm: HabitFormState = {
   kind: 'build',
   name: '',
@@ -93,7 +92,9 @@ export function habitNameError(name: string): string | null {
 
 /** Null when the chosen weekdays are fine (at least one, when the schedule is set weekdays). */
 export function habitDaysError(state: HabitFormState): string | null {
-  return state.kind === 'build' && state.frequency === 'weekdays' && state.days.length === 0 ? t('habitFields.daysMissing') : null;
+  return state.kind === 'build' && state.frequency === 'weekdays' && state.days.length === 0
+    ? t('habitFields.daysMissing')
+    : null;
 }
 
 /** Null when the timer length is empty or whole minutes the API takes. */
@@ -101,7 +102,9 @@ export function habitTimerError({ kind, timerMinutes }: HabitFormState): string 
   const text = timerMinutes.trim();
   if (kind === 'letGo' || !text) return null;
   const minutes = /^\d+$/.test(text) ? Number(text) : 0;
-  return minutes >= 1 && minutes <= limits.timerMinutes ? null : t('habitFields.timerInvalid', { max: limits.timerMinutes });
+  return minutes >= 1 && minutes <= limits.timerMinutes
+    ? null
+    : t('habitFields.timerInvalid', { max: limits.timerMinutes });
 }
 
 /** "Every day", "Mon, Wed, Fri", "Once a week" or "3 times a week", with ", 3 times a day" when more than once. */
@@ -115,7 +118,9 @@ export function cadenceText(
   const perDay = timesPerDay > 1 ? t('habitFields.cadence.perDay', { count: timesPerDay }) : null;
   if (frequency === 'weekdays' && days?.length) {
     const shortDays = weekdayLabels(undefined, 'short');
-    const names = weekdays.flatMap((day, i) => (days.includes(day) ? [shortDays[i]] : [])).join(', ');
+    const names = weekdays
+      .flatMap((day, i) => (days.includes(day) ? [shortDays[i]] : []))
+      .join(', ');
     return perDay ? t('habitFields.cadence.daysPerDay', { days: names, perDay }) : names;
   }
   return perDay ? perDay.charAt(0).toUpperCase() + perDay.slice(1) : t('habitFields.cadence.daily');
@@ -133,7 +138,10 @@ function sortedTimes(rows: readonly string[]): TimeOfDay[] {
 
 function timeList(times: readonly string[]): string {
   return times.length > 1
-    ? t('habitFields.timeList', { rest: times.slice(0, -1).join(', '), last: times[times.length - 1] })
+    ? t('habitFields.timeList', {
+        rest: times.slice(0, -1).join(', '),
+        last: times[times.length - 1],
+      })
     : (times[0] ?? '');
 }
 
@@ -176,7 +184,10 @@ export function habitFormValue(state: HabitFormState): HabitFormValue {
     days: frequency === 'weekdays' ? weekdays.filter((day) => state.days.includes(day)) : null,
     timesPerDay: frequency === 'weekly' ? 1 : state.timesPerDay,
     timerMinutes: state.timerMinutes.trim() ? Number(state.timerMinutes) : null,
-    reminderTimes: sortedTimes(state.reminderTimes).slice(0, frequency === 'weekly' ? 1 : state.timesPerDay),
+    reminderTimes: sortedTimes(state.reminderTimes).slice(
+      0,
+      frequency === 'weekly' ? 1 : state.timesPerDay,
+    ),
   };
 }
 
@@ -276,7 +287,10 @@ export function HabitFields({
 
   function setTime(index: number, time: string): void {
     setDropped([]);
-    onChange({ ...value, reminderTimes: value.reminderTimes.map((t, i) => (i === index ? time : t)) });
+    onChange({
+      ...value,
+      reminderTimes: value.reminderTimes.map((t, i) => (i === index ? time : t)),
+    });
   }
 
   function focusTime(index: number): void {
@@ -303,7 +317,8 @@ export function HabitFields({
   const daysId = `${id}-days`;
   const nameError = (touched ? habitNameError(value.name) : null) ?? errors['name'] ?? null;
   const daysError = (touched ? habitDaysError(value) : null) ?? errors['days'] ?? null;
-  const timerError = (touched || timerLeft ? habitTimerError(value) : null) ?? errors['timerMinutes'] ?? null;
+  const timerError =
+    (touched || timerLeft ? habitTimerError(value) : null) ?? errors['timerMinutes'] ?? null;
   const allDays = value.frequency === 'weekdays' && value.days.length === weekdays.length;
 
   function toggleDay(day: Weekday, checked: boolean): void {
@@ -315,14 +330,23 @@ export function HabitFields({
     setDropped([]);
     onChange(
       kind === 'letGo'
-        ? { ...value, kind, frequency: 'daily', timesPerDay: 1, timerMinutes: '', reminderTimes: [''] }
+        ? {
+            ...value,
+            kind,
+            frequency: 'daily',
+            timesPerDay: 1,
+            timerMinutes: '',
+            reminderTimes: [''],
+          }
         : { ...value, kind },
     );
   }
   return (
     <div className="flex flex-col gap-5">
       {kindLocked ? (
-        <p className="text-muted-foreground">{t(letGo ? 'letgo.kind.letGo' : 'letgo.kind.build')}</p>
+        <p className="text-muted-foreground">
+          {t(letGo ? 'letgo.kind.letGo' : 'letgo.kind.build')}
+        </p>
       ) : (
         <div className="flex flex-col gap-2">
           <p id={kindId} className="font-medium">
@@ -335,7 +359,11 @@ export function HabitFields({
             className="sm:grid-cols-2"
           >
             {kinds.map((option) => (
-              <Label key={option.value} htmlFor={`${id}-kind-${option.value}`} className={optionClass}>
+              <Label
+                key={option.value}
+                htmlFor={`${id}-kind-${option.value}`}
+                className={optionClass}
+              >
                 <RadioGroupItem
                   id={`${id}-kind-${option.value}`}
                   value={option.value}
@@ -349,12 +377,18 @@ export function HabitFields({
         </div>
       )}
 
-      <FormField label={t('habitFields.name')} error={nameError} {...(nameId ? { id: nameId } : {})}>
+      <FormField
+        label={t('habitFields.name')}
+        error={nameError}
+        {...(nameId ? { id: nameId } : {})}
+      >
         {(field) => (
           <>
             <Input
               {...field}
-              aria-describedby={cn(field['aria-describedby'], nameLength >= 80 && `${field.id}-count`) || undefined}
+              aria-describedby={
+                cn(field['aria-describedby'], nameLength >= 80 && `${field.id}-count`) || undefined
+              }
               autoComplete="off"
               maxLength={120}
               value={value.name}
@@ -365,7 +399,10 @@ export function HabitFields({
               onBlur={() => nameEdited.current && onTouched()}
             />
             {nameLength >= 80 && (
-              <p id={`${field.id}-count`} className="self-end text-[0.875rem] text-muted-foreground">
+              <p
+                id={`${field.id}-count`}
+                className="self-end text-[0.875rem] text-muted-foreground"
+              >
                 {t('habitFields.nameCounter', { count: nameLength, max: 100 })}
               </p>
             )}
@@ -381,17 +418,25 @@ export function HabitFields({
           <RadioGroup
             aria-labelledby={legendId}
             value={value.frequency}
-            onValueChange={(frequency) => changeSchedule({ ...value, frequency: frequency as Frequency })}
+            onValueChange={(frequency) =>
+              changeSchedule({ ...value, frequency: frequency as Frequency })
+            }
             className="sm:grid-cols-3"
           >
             {frequencies.map((option) => (
               <Label key={option.value} htmlFor={`${id}-${option.value}`} className={optionClass}>
-                <RadioGroupItem id={`${id}-${option.value}`} value={option.value} aria-labelledby={`${id}-${option.value}-name`} />
+                <RadioGroupItem
+                  id={`${id}-${option.value}`}
+                  value={option.value}
+                  aria-labelledby={`${id}-${option.value}-name`}
+                />
                 <span id={`${id}-${option.value}-name`}>{t(option.label)}</span>
               </Label>
             ))}
           </RadioGroup>
-          {errors['frequency'] && <p className="text-[0.875rem] text-destructive">{errors['frequency']}</p>}
+          {errors['frequency'] && (
+            <p className="text-[0.875rem] text-destructive">{errors['frequency']}</p>
+          )}
         </div>
       )}
 
@@ -403,7 +448,9 @@ export function HabitFields({
           <div
             role="group"
             aria-labelledby={daysId}
-            aria-describedby={daysError ? `${daysId}-error` : allDays ? `${daysId}-hint` : undefined}
+            aria-describedby={
+              daysError ? `${daysId}-error` : allDays ? `${daysId}-hint` : undefined
+            }
             className="grid grid-cols-[repeat(auto-fit,minmax(max(3.5rem,calc(25%-0.5rem)),1fr))] gap-2 sm:grid-cols-7"
           >
             {weekdays.map((day, i) => (
@@ -449,7 +496,9 @@ export function HabitFields({
                 {...field}
                 className="max-w-[12rem]"
                 value={value.timesPerDay}
-                onChange={(event) => changeSchedule({ ...value, timesPerDay: Number(event.target.value) })}
+                onChange={(event) =>
+                  changeSchedule({ ...value, timesPerDay: Number(event.target.value) })
+                }
               >
                 {perDayOptions.map((n) => (
                   <option key={n} value={n}>
@@ -458,7 +507,9 @@ export function HabitFields({
                 ))}
               </NativeSelect>
               {savedTimesPerDay !== undefined && value.timesPerDay < savedTimesPerDay && (
-                <p className="text-[0.875rem] text-muted-foreground">{t('habitFields.pastDaysStay')}</p>
+                <p className="text-[0.875rem] text-muted-foreground">
+                  {t('habitFields.pastDaysStay')}
+                </p>
               )}
             </>
           )}
@@ -485,7 +536,12 @@ export function HabitFields({
       )}
 
       {!letGo && (
-        <FormField label={t('habitFields.timer')} optional hint={t('habitFields.timerHint')} error={timerError}>
+        <FormField
+          label={t('habitFields.timer')}
+          optional
+          hint={t('habitFields.timerHint')}
+          error={timerError}
+        >
           {(field) => (
             <Input
               {...field}
@@ -511,8 +567,8 @@ export function HabitFields({
                 letGo
                   ? t('letgo.form.checkInHint')
                   : value.frequency === 'weekly' && times[0] && !silent
-                  ? weeklySchedule(times[0], value.weeklyTarget)
-                  : t('habitFields.reminderTimeHint')
+                    ? weeklySchedule(times[0], value.weeklyTarget)
+                    : t('habitFields.reminderTimeHint')
               }
               error={timesError}
             >
@@ -520,7 +576,10 @@ export function HabitFields({
                 <div className="flex items-center gap-3">
                   <Input
                     {...field}
-                    aria-describedby={cn(field['aria-describedby'], !value.reminderTimes[0] && `${field.id}-off`) || undefined}
+                    aria-describedby={
+                      cn(field['aria-describedby'], !value.reminderTimes[0] && `${field.id}-off`) ||
+                      undefined
+                    }
                     type="time"
                     className="max-w-[12rem]"
                     value={value.reminderTimes[0] ?? ''}
@@ -538,7 +597,9 @@ export function HabitFields({
             <div className="flex flex-col gap-2">
               <p id={timesId} className="font-medium">
                 {t('habitFields.reminderTimes')}{' '}
-                <span className="font-normal text-muted-foreground">{t('habitFields.optional')}</span>
+                <span className="font-normal text-muted-foreground">
+                  {t('habitFields.optional')}
+                </span>
               </p>
               <p id={`${timesId}-hint`} className="-mt-1 text-[0.875rem] text-muted-foreground">
                 {t('habitFields.reminderTimesHint')}
@@ -547,7 +608,11 @@ export function HabitFields({
                 ref={timesRef}
                 role="group"
                 aria-labelledby={timesId}
-                aria-describedby={[`${timesId}-hint`, schedule ? `${timesId}-schedule` : '', timesError ? `${timesId}-error` : '']
+                aria-describedby={[
+                  `${timesId}-hint`,
+                  schedule ? `${timesId}-schedule` : '',
+                  timesError ? `${timesId}-error` : '',
+                ]
                   .filter(Boolean)
                   .join(' ')}
                 className="flex flex-col gap-2"
@@ -568,7 +633,9 @@ export function HabitFields({
                         variant="ghost"
                         size="icon"
                         aria-label={
-                          time ? t('habitFields.removeTime', { time }) : t('habitFields.removeTimeN', { n: i + 1 })
+                          time
+                            ? t('habitFields.removeTime', { time })
+                            : t('habitFields.removeTimeN', { n: i + 1 })
                         }
                         onClick={() => removeTime(i)}
                       >
@@ -590,16 +657,26 @@ export function HabitFields({
                 </p>
               )}
               {timesError && (
-                <p id={`${timesId}-error`} role="alert" className="text-[0.875rem] text-destructive">
+                <p
+                  id={`${timesId}-error`}
+                  role="alert"
+                  className="text-[0.875rem] text-destructive"
+                >
                   {timesError}
                 </p>
               )}
             </div>
           )}
-          {limit === 1 && silent && schedule && <p className="-mt-3 text-[0.875rem] text-muted-foreground">{schedule}</p>}
-          {droppedNote && <p className="-mt-3 text-[0.875rem] text-muted-foreground">{droppedNote}</p>}
+          {limit === 1 && silent && schedule && (
+            <p className="-mt-3 text-[0.875rem] text-muted-foreground">{schedule}</p>
+          )}
+          {droppedNote && (
+            <p className="-mt-3 text-[0.875rem] text-muted-foreground">{droppedNote}</p>
+          )}
           <LiveRegion message={droppedNote ?? ''} />
-          {reminderNote && <p className="-mt-3 text-[0.875rem] text-muted-foreground">{reminderNote}</p>}
+          {reminderNote && (
+            <p className="-mt-3 text-[0.875rem] text-muted-foreground">{reminderNote}</p>
+          )}
         </>
       )}
     </div>

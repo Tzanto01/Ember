@@ -14,7 +14,11 @@ import {
   habitNameError,
   habitTimerError,
 } from '@/components/habits/habit-fields';
-import { allowDeviceReminders, canAskDevice, DeviceRemindersOff } from '@/components/habits/device-reminders';
+import {
+  allowDeviceReminders,
+  canAskDevice,
+  DeviceRemindersOff,
+} from '@/components/habits/device-reminders';
 import { ChannelChoices, phoneChoice } from '@/components/habits/habit-edit-sections';
 import { HabitPreview } from '@/components/habits/habit-preview';
 import { useReminderReach, useReminderSettingsHash } from '@/components/habits/reminder-reach';
@@ -40,7 +44,11 @@ export default function HabitNewPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement>(null);
-  const templates = useQuery({ queryKey: ['habit-templates'], queryFn: () => api.listTemplates(), retry: false });
+  const templates = useQuery({
+    queryKey: ['habit-templates'],
+    queryFn: () => api.listTemplates(),
+    retry: false,
+  });
   const [chosen, setChosen] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
   const [form, setForm] = useState(emptyHabitForm);
@@ -228,7 +236,9 @@ export default function HabitNewPage() {
                     <Trans
                       t={t}
                       i18nKey="habitNew.reachNote"
-                      components={{ anchor: <Link to={{ pathname: '/settings', hash: reminderHash }} /> }}
+                      components={{
+                        anchor: <Link to={{ pathname: '/settings', hash: reminderHash }} />,
+                      }}
                     />
                   )
                 }
@@ -273,7 +283,12 @@ export default function HabitNewPage() {
             cadence={
               form.kind === 'letGo'
                 ? t('letgo.kind.letGo')
-                : cadenceText(preview.frequency, preview.weeklyTarget, preview.days, preview.timesPerDay)
+                : cadenceText(
+                    preview.frequency,
+                    preview.weeklyTarget,
+                    preview.days,
+                    preview.timesPerDay,
+                  )
             }
           />
         </div>
