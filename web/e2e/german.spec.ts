@@ -107,7 +107,7 @@ test('a signed-in user switches to German in Settings and back to English', asyn
     'Erinnerungen & Töne',
     'Habits & Streaks',
     'Tagebuch & Reflexion',
-    'Aussehen & Bewegung',
+    'Aussehen',
     'Am Lagerfeuer',
     'Feedback & Infos',
     'Hilfe jetzt',
