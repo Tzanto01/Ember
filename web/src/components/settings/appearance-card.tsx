@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { ColorSchemePicker } from '@/components/settings/color-scheme-picker';
 import { SettingsCard } from '@/components/settings/settings-card';
+import { DeviceChip } from '@/components/settings/settings-row';
 import { useSettingsStatus } from '@/components/settings/settings-status';
 import { ThemePicker } from '@/components/theme-picker';
 import { Label } from '@/components/ui/label';
@@ -69,12 +70,15 @@ export function AppearanceCard({
       {env.native && (
         <>
           <div className="flex min-h-[44px] items-center justify-between gap-4">
-            <Label htmlFor="gentle-motion" className="min-w-0 font-normal">
-              {t('settings.gentleMotion.label')}
-            </Label>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <Label htmlFor="gentle-motion" className="font-normal">
+                {t('settings.gentleMotion.label')}
+              </Label>
+              <DeviceChip id="gentle-motion-device" />
+            </div>
             <Switch
               id="gentle-motion"
-              aria-describedby="gentle-motion-hint"
+              aria-describedby="gentle-motion-hint gentle-motion-device"
               checked={gentle}
               onCheckedChange={applyGentleMotion}
             />

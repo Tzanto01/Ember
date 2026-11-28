@@ -1265,7 +1265,7 @@
   "settings.colorScheme.system": "System",
   "settings.colorScheme.light": "Light",
   "settings.colorScheme.dark": "Dark",
-  "settings.colorScheme.hint": "System follows your device. This choice stays on this device.",
+  "settings.colorScheme.hint": "System follows your device.",
   "themes.hearthlight": "Candle-lit kitchen table: warm, soft, familiar.",
   "themes.fieldnotes": "Pocket notebook: grounded, quiet, literary.",
   "themes.tidepool": "Morning by the water: cool, airy, unhurried.",

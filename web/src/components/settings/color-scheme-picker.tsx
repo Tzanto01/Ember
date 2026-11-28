@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DeviceChip } from '@/components/settings/settings-row';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { chooseColorScheme, type ColorScheme, colorScheme } from '@/lib/theme';
 
@@ -23,12 +24,15 @@ export function ColorSchemePicker() {
 
   return (
     <div data-guide="color-scheme" className="flex flex-col gap-2">
-      <p id="color-scheme-label" className="font-medium">
-        {t('settings.colorScheme.label')}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <p id="color-scheme-label" className="font-medium">
+          {t('settings.colorScheme.label')}
+        </p>
+        <DeviceChip id="color-scheme-device" />
+      </div>
       <RadioGroup
         aria-labelledby="color-scheme-label"
-        aria-describedby="color-scheme-hint"
+        aria-describedby="color-scheme-hint color-scheme-device"
         value={scheme}
         onValueChange={choose}
         className="flex flex-wrap gap-2"

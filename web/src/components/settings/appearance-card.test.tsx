@@ -46,6 +46,7 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     await openSettings('/settings/appearance');
 
     expect(screen.getByRole('radio', { name: 'System' })).toBeChecked();
+    expect(screen.getByRole('radiogroup', { name: 'Light or dark' })).toHaveAccessibleDescription(/System follows.*This device$/);
     await user.click(screen.getByRole('radio', { name: 'Dark' }));
     expect(document.documentElement).toHaveClass('dark');
     expect(localStorage.getItem('ember.colorScheme')).toBe('dark');
@@ -129,7 +130,7 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     const { fetch } = await openSettings('/settings/appearance');
     const toggle = screen.getByRole('switch', { name: 'Gentle motion' });
     expect(toggle).toBeChecked();
-    expect(toggle).toHaveAccessibleDescription(/calm mode/);
+    expect(toggle).toHaveAccessibleDescription(/calm mode.*This device$/);
 
     await user.click(toggle);
 

@@ -1265,7 +1265,7 @@
   "settings.colorScheme.system": "System",
   "settings.colorScheme.light": "Hell",
   "settings.colorScheme.dark": "Dunkel",
-  "settings.colorScheme.hint": "System folgt deinem Gerät. Diese Wahl bleibt auf diesem Gerät.",
+  "settings.colorScheme.hint": "System folgt deinem Gerät.",
   "themes.hearthlight": "Küchentisch bei Kerzenlicht: warm, weich, vertraut.",
   "themes.fieldnotes": "Notizbuch für die Tasche: geerdet, ruhig, literarisch.",
   "themes.tidepool": "Morgen am Wasser: kühl, luftig, ohne Eile.",
