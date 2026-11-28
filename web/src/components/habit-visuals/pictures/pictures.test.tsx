@@ -203,6 +203,59 @@ describe('Kindling', () => {
   });
 });
 
+describe('Shelf and trail', () => {
+  const reading: Habit = {
+    ...habit,
+    name: 'Read',
+    timesPerDay: 3,
+    picture: 'shelf',
+    portionAmount: 15,
+    portionUnit: 'min',
+    today: { ...habit.today, state: 'partial', count: 2 },
+  };
+
+  it('shows reading time or pages read, and adds one session per tap', async () => {
+    const { onSetCount, view } = show(reading);
+    expect(screen.getByText('2 of 3, 30 min')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Read, 2 of 3 books. Add 15 min.' }));
+    expect(onSetCount).toHaveBeenCalledWith(3);
+
+    view.rerender(
+      <HabitPictureControl
+        habit={{ ...reading, portionAmount: 20, portionUnit: 'pages' }}
+        busy={false}
+        onSetCount={onSetCount}
+      />,
+    );
+    expect(screen.getByText('2 of 3, 40 pages')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Read, 2 of 3 books. Add 20 pages.' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a walked distance in km, or in miles for an imperial account', () => {
+    const walk: Habit = {
+      ...reading,
+      name: 'Walk',
+      timesPerDay: 2,
+      picture: 'trail',
+      portionAmount: 1500,
+      portionUnit: 'm',
+      today: { ...habit.today, state: 'partial', count: 1 },
+    };
+    const { view } = show(walk);
+    expect(screen.getByText('1 of 2, 1.5 km')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Walk, 1 of 2 stops. Add 1.5 km.' }),
+    ).toBeInTheDocument();
+    view.unmount();
+
+    auth.setMe({ ...me, units: 'imperial' });
+    show(walk);
+    expect(screen.getByText('1 of 2, 0.93 mi')).toBeInTheDocument();
+  });
+});
+
 describe('HabitPictureControl', () => {
   it('turns the fill transition off in calm mode and on otherwise', () => {
     const { view } = show(water);

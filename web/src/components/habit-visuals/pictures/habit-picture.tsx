@@ -7,11 +7,15 @@ import { Bottle } from './bottle';
 import { Kindling } from './kindling';
 import { Pills } from './pills';
 import type { PictureProps } from './shared';
+import { Shelf } from './shelf';
+import { Trail } from './trail';
 
-const pictures: Partial<Record<HabitPicture, ComponentType<PictureProps>>> = {
+const pictures: Record<HabitPicture, ComponentType<PictureProps>> = {
   bottle: Bottle,
   pills: Pills,
   kindling: Kindling,
+  shelf: Shelf,
+  trail: Trail,
 };
 
 /** Whether Today shows the habit's picture: it has one, and it is neither paused nor before its start. */
