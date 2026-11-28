@@ -38,13 +38,94 @@ const fallbackZones = [
   'Pacific/Honolulu',
 ];
 
+/** City names people type that the IANA ids don't hold, and the zone each lies in. */
+const cityAliases: Record<string, string> = {
+  München: 'Europe/Berlin',
+  Munich: 'Europe/Berlin',
+  Hamburg: 'Europe/Berlin',
+  Köln: 'Europe/Berlin',
+  Cologne: 'Europe/Berlin',
+  Frankfurt: 'Europe/Berlin',
+  Stuttgart: 'Europe/Berlin',
+  Düsseldorf: 'Europe/Berlin',
+  Leipzig: 'Europe/Berlin',
+  Dresden: 'Europe/Berlin',
+  Hannover: 'Europe/Berlin',
+  Wien: 'Europe/Vienna',
+  Graz: 'Europe/Vienna',
+  Salzburg: 'Europe/Vienna',
+  Genf: 'Europe/Zurich',
+  Geneva: 'Europe/Zurich',
+  Bern: 'Europe/Zurich',
+  Basel: 'Europe/Zurich',
+  Rom: 'Europe/Rome',
+  Mailand: 'Europe/Rome',
+  Milan: 'Europe/Rome',
+  Prag: 'Europe/Prague',
+  Warschau: 'Europe/Warsaw',
+  Moskau: 'Europe/Moscow',
+  Lissabon: 'Europe/Lisbon',
+  Brüssel: 'Europe/Brussels',
+  Kopenhagen: 'Europe/Copenhagen',
+};
+
+/** Lower case, without accents or umlauts, `_` as a space: "Zürich" and "zurich" match. */
+const fold = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replaceAll('ß', 'ss')
+    .replace(/[_\s]+/g, ' ')
+    .trim();
+
+const aliasesByZone = new Map<string, string[]>();
+for (const [city, zone] of Object.entries(cityAliases))
+  aliasesByZone.set(zone, [...(aliasesByZone.get(zone) ?? []), fold(city)]);
+
 function supportedZones(): readonly string[] {
   return typeof Intl.supportedValuesOf === 'function'
     ? Intl.supportedValuesOf('timeZone')
     : fallbackZones;
 }
 
-const searchable = (text: string) => text.toLowerCase().replaceAll('_', ' ');
+/**
+ * How well `zone` matches the folded `query`: 0 when its city (or a city alias) starts with it, 1 when any other part
+ * of its id or an alias holds it, null when nothing does. The offset never counts.
+ */
+function rankOf(zone: string, query: string): number | null {
+  const parts = zone.split('/').map(fold);
+  const aliases = aliasesByZone.get(zone) ?? [];
+  if ((parts.at(-1) ?? '').startsWith(query) || aliases.some((alias) => alias.startsWith(query)))
+    return 0;
+  const id = parts.join('/');
+  if (
+    id.includes(query) ||
+    id.replaceAll('/', ' ').includes(query) ||
+    aliases.some((alias) => alias.includes(query))
+  )
+    return 1;
+  return null;
+}
+
+/** The zones that match `query`, best first (city prefix matches, then the rest, each by city); all of them for none. */
+function search(zones: readonly string[], query: string | null): string[] {
+  const folded = query === null ? '' : fold(query);
+  if (!folded) return [...zones];
+  const city = (zone: string) => fold(zone.split('/').at(-1) ?? zone);
+  return zones
+    .flatMap((zone) => {
+      const rank = rankOf(zone, folded);
+      return rank === null ? [] : [{ zone, rank }];
+    })
+    .sort(
+      (a, b) =>
+        a.rank - b.rank ||
+        city(a.zone).localeCompare(city(b.zone), 'en') ||
+        a.zone.localeCompare(b.zone),
+    )
+    .map(({ zone }) => zone);
+}
 
 /** "America/New York" for `America/New_York`. */
 const zoneName = (zone: string) => zone.replaceAll('_', ' ');
@@ -85,7 +166,8 @@ export function TimeZoneSelect({
 
   const suggestion = suggested ?? null;
   const zones = useMemo(
-    () => [...new Set([...supportedZones(), value, ...(suggestion ? [suggestion] : [])])].sort(),
+    () =>
+      [...new Set([...supportedZones(), 'UTC', value, ...(suggestion ? [suggestion] : [])])].sort(),
     [value, suggestion],
   );
   const labels = useMemo(
@@ -94,18 +176,12 @@ export function TimeZoneSelect({
   );
 
   function optionsFor(text: string | null): { suggested: boolean; zones: string[] } {
-    const words = text === null ? [] : searchable(text).split(/\s+/).filter(Boolean);
-    const matches = (zone: string) => {
-      const label = searchable(`${zone} ${labels.get(zone) ?? zone}`);
-      return words.every((word) => label.includes(word));
-    };
-    const first = !!suggestion && matches(suggestion);
+    const found = search(zones, text);
+    const first = !!suggestion && found.includes(suggestion);
     return {
       suggested: first,
-      zones: [
-        ...(first && suggestion ? [suggestion] : []),
-        ...zones.filter((zone) => zone !== suggestion && matches(zone)),
-      ],
+      zones:
+        first && suggestion ? [suggestion, ...found.filter((zone) => zone !== suggestion)] : found,
     };
   }
 

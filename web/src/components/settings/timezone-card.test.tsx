@@ -30,11 +30,18 @@ vi.mock('@/lib/services', async (original) => {
 const zones = [
   'America/Chicago',
   'America/New_York',
+  'Antarctica/Vostok',
   'Asia/Tokyo',
+  'Atlantic/Bermuda',
   'Europe/Berlin',
   'Europe/Paris',
+  'Europe/Vienna',
+  'Europe/Zurich',
   'Pacific/Auckland',
 ];
+
+/** What the list shows: `zones`, and UTC, which V8 leaves out of `Intl.supportedValuesOf`. */
+const listed = zones.length + 1;
 
 function zoneField() {
   return screen.getByRole('combobox', { name: 'Choose a timezone' });
@@ -61,7 +68,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     const { fetch } = await openSettings('/settings/language');
     const field = zoneField();
     expect(field).toHaveValue('Europe/Berlin');
-    expect(field).toHaveAccessibleDescription(/^Type a city or region/);
+    expect(field).toHaveAccessibleDescription(/^Type a city, like Berlin or Munich/);
     expect(field).toHaveAttribute('aria-expanded', 'false');
     expect(field).not.toHaveAttribute('aria-controls');
     expect(screen.queryByRole('button', { name: /Save/ })).toBeNull();
@@ -72,14 +79,14 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     const list = screen.getByRole('listbox', { name: 'Timezones' });
     expect(field).toHaveAttribute('aria-expanded', 'true');
     expect(field).toHaveAttribute('aria-controls', list.id);
-    expect(within(list).getAllByRole('option')).toHaveLength(zones.length);
+    expect(within(list).getAllByRole('option')).toHaveLength(listed);
     expect(activeOption()).toHaveTextContent(/^Europe\/Berlin \(UTC\+0[12]:00\)in use$/);
     expect(activeOption()).toHaveAttribute('aria-selected', 'true');
 
     await user.keyboard('{ArrowDown}');
     expect(activeOption()).toHaveTextContent(/^Europe\/Paris/);
     await user.keyboard('{End}');
-    expect(activeOption()).toHaveTextContent(/^Pacific\/Auckland/);
+    expect(activeOption()).toHaveTextContent(/^UTC/);
     await user.keyboard('{Home}');
     expect(activeOption()).toHaveTextContent(/^America\/Chicago/);
     await user.keyboard('{ArrowUp}');
@@ -166,14 +173,53 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     expect(screen.queryByText('Saved.')).toBeNull();
   });
 
-  it('lists the saved zone even when this device does not name it, like UTC', async () => {
+  it('lists the saved zone even when this device does not name it', async () => {
     const user = userEvent.setup();
-    await openSettings('/settings/language', { ...me, timezone: 'UTC' });
+    await openSettings('/settings/language', { ...me, timezone: 'America/Halifax' });
 
     await user.click(zoneField());
 
-    expect(screen.getAllByRole('option')).toHaveLength(zones.length + 1);
-    expect(activeOption()).toHaveTextContent(/^UTC \(UTC\+00:00\)in use$/);
+    expect(screen.getAllByRole('option')).toHaveLength(listed + 1);
+    expect(activeOption()).toHaveTextContent(/^America\/Halifax \(UTC-0[34]:00\)in use$/);
+  });
+
+  it('offers UTC, which the device list leaves out, and finds it by name, not by any offset', async () => {
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/language');
+    const field = zoneField();
+
+    await user.clear(field);
+    await user.type(field, 'utc');
+
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'UTC (UTC+00:00)',
+    ]);
+    await user.keyboard('{Enter}');
+
+    expect((await fetch.next('PATCH', '/api/me')).body).toEqual({ timezone: 'UTC' });
+  });
+
+  it.each([
+    ['ber', ['Europe/Berlin', 'Atlantic/Bermuda', 'Europe/Zurich']],
+    ['tok', ['Asia/Tokyo', 'Antarctica/Vostok']],
+    ['München', ['Europe/Berlin']],
+    ['Munich', ['Europe/Berlin']],
+    ['hamburg', ['Europe/Berlin']],
+    ['Wien', ['Europe/Vienna']],
+    ['Zürich', ['Europe/Zurich']],
+    ['zurich', ['Europe/Zurich']],
+  ])('typing %s lists cities that start with it first', async (typed, expected) => {
+    const user = userEvent.setup();
+    await openSettings('/settings/language');
+    const field = zoneField();
+
+    await user.clear(field);
+    await user.type(field, typed);
+
+    expect(
+      screen.getAllByRole('option').map((option) => option.textContent?.replace(/ \(UTC.*$/, '')),
+    ).toEqual(expected);
+    expect(activeOption()).toHaveTextContent(new RegExp(`^${expected[0]}`));
   });
 
   it.each([
@@ -196,7 +242,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
       ]);
       expect(
         within(screen.getByRole('group', { name: 'All timezones' })).getAllByRole('option'),
-      ).toHaveLength(zones.length - 1);
+      ).toHaveLength(listed - 1);
 
       await user.click(options[0] as HTMLElement);
 

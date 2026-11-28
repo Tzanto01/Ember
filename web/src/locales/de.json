@@ -1322,7 +1322,7 @@
   "settings.timezone.follows": "Deine Tage folgen <strong>{{zone}}</strong>. Erinnerungen und „heute“ nutzen diese Zeitzone.",
   "settings.timezone.notSet": "Du hast noch keine Zeitzone gewählt, deshalb nutzt Ember vorerst <strong>{{zone}}</strong>. Erinnerungen und „heute“ richten sich danach.",
   "settings.timezone.label": "Zeitzone wählen",
-  "settings.timezone.hint": "Tipp eine Stadt oder Region ein, etwa Berlin oder New York, und wähl sie aus der Liste.",
+  "settings.timezone.hint": "Tipp eine Stadt ein, etwa Berlin oder München, oder die nächste große Stadt, und wähl sie aus der Liste.",
   "settings.timezone.listLabel": "Zeitzonen",
   "settings.timezone.phoneSays": "Laut deinem Handy: {{zone}}",
   "settings.timezone.browserSays": "Laut deinem Browser: {{zone}}",
