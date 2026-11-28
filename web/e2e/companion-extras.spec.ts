@@ -166,7 +166,7 @@ test('calm mode: no motion, no What is new card or campfire, the ember summary s
 
   await openPage(page, 'Settings');
   await page
-    .getByRole('link', { name: /^Appearance/ })
+    .getByRole('link', { name: /^Look & feel/ })
     .first()
     .click();
   await page.getByRole('switch', { name: 'Calm mode' }).click();
