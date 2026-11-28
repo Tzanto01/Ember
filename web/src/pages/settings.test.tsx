@@ -281,6 +281,68 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(help.closest('ul')).not.toHaveAccessibleName();
   });
 
+  const habitRows = ['streaks', 'grace', 'habit-notes', 'routines'];
+  const signedInCards = {
+    account: ['account', 'two-factor', 'discord'],
+    language: ['language', 'timezone'],
+    privacy: ['consent', 'export', 'delete'],
+    reminders: ['push', 'second-reminder', 'timer'],
+    habits: habitRows,
+    journal: ['journal', 'moods', 'helps', 'moments'],
+    appearance: ['appearance', 'calm', 'this-device'],
+    people: ['fireside'],
+    support: ['feedback', 'whats-new', 'about'],
+    help: ['help'],
+  };
+  const localCards = {
+    account: ['device'],
+    language: ['language', 'timezone'],
+    privacy: ['delete'],
+    reminders: ['timer'],
+    habits: habitRows,
+    journal: ['moods', 'helps'],
+    appearance: ['appearance', 'calm', 'this-device'],
+    support: ['feedback', 'whats-new', 'about'],
+    help: ['help'],
+  };
+
+  it.each([
+    ['without an account on the web', 'local', false, false, localCards],
+    ['without an account in the app', 'local', true, false, {
+      ...localCards,
+      reminders: ['phone-reminders', 'second-reminder', 'timer'],
+      appearance: ['appearance', 'calm', 'this-device', 'gentle'],
+    }],
+    ['signed in on the web', 'account', false, false, signedInCards],
+    ['signed in in the beta Android app', 'account', true, true, {
+      ...signedInCards,
+      reminders: ['push', 'phone-reminders', 'second-reminder', 'timer'],
+      appearance: ['appearance', 'calm', 'this-device', 'gentle'],
+      support: ['feedback', 'diagnostics', 'app-updates', 'whats-new', 'about'],
+    }],
+  ] as const)('%s, every group holds its cards and rows in order', async (_, mode, native, beta, expected) => {
+    localMode.mode.set(mode);
+    env.native = native;
+    if (beta) {
+      exactAlarms.beta = true;
+      vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android');
+    }
+    const { router } = await openSettings('/settings');
+    const slugs = within(screen.getByRole('navigation', { name: 'Settings groups' }))
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href')?.replace('/settings/', ''));
+    expect(slugs).toEqual(Object.keys(expected));
+
+    const shown: Record<string, string[]> = {};
+    for (const slug of Object.keys(expected)) {
+      await act(() => router.navigate(`/settings/${slug}`));
+      shown[slug] = [...document.querySelectorAll('[id]')]
+        .map((element) => element.id)
+        .filter((id) => document.getElementById(`${id}-heading`));
+    }
+    expect(shown).toEqual(expected);
+  });
+
   it('without an account, sends the Fireside address back to the list', async () => {
     localMode.mode.set('local');
     const { router } = await openSettings('/settings/people');
