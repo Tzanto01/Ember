@@ -30,13 +30,11 @@ public partial class HabitService
     /// <remarks>
     /// <paramref name="days"/> is stored for <see cref="FrequencyType.Weekdays"/> habits only; weekly habits always get <paramref name="timesPerDay"/> 1.
     /// <paramref name="reminderTimes"/>, when given, replaces <paramref name="reminderTime"/> and is kept as <see cref="HabitRules.NormalizeReminderTimes"/> does.
+    /// <paramref name="picture"/> without a portion gets its <see cref="PictureRules.DefaultPortion"/>.
     /// </remarks>
-    /// <exception cref="ArgumentException">A <see cref="HabitKind.LetGo"/> habit that isn't daily, once a day, without weekly target, days or timer and with at most one reminder time.</exception>
+    /// <exception cref="ArgumentException">A <see cref="HabitKind.LetGo"/> habit that isn't daily, once a day, without weekly target, days or timer and with at most one reminder time;
+    /// or a picture and portion that fail <see cref="PictureRules.Validate"/>. Nothing is written.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timerMinutes"/> is outside 1 to <see cref="Limits.TimerMinutes"/>.</exception>
-    /// <remarks>
-    /// <paramref name="picture"/> without a portion gets its <see cref="PictureRules.DefaultPortion"/>; the picture and portion must pass
-    /// <see cref="PictureRules.Validate"/>, else <see cref="ArgumentException"/> and nothing is written.
-    /// </remarks>
     public async Task<(HabitWriteResult Result, Habit? Habit)> AddHabitAsync(Guid userId, string name, TimeOnly? reminderTime,
         FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null, IReadOnlyCollection<string>? reminderExclusions = null,
         ScheduleDays? days = null, int timesPerDay = 1, IReadOnlyCollection<TimeOnly>? reminderTimes = null, HabitKind kind = HabitKind.Build,
