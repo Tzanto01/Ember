@@ -14,6 +14,12 @@ import {
   habitNameError,
   habitTimerError,
 } from '@/components/habits/habit-fields';
+import { PictureOffer } from '@/components/habit-visuals/form/picture-offer';
+import {
+  habitGoalError,
+  habitPictureError,
+  useUnits,
+} from '@/components/habit-visuals/form/picture-form';
 import {
   allowDeviceReminders,
   canAskDevice,
@@ -44,6 +50,7 @@ export default function HabitNewPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement>(null);
+  const units = useUnits();
   const templates = useQuery({
     queryKey: ['habit-templates'],
     queryFn: () => api.listTemplates(),
@@ -123,16 +130,28 @@ export default function HabitNewPage() {
     event.preventDefault();
     if (submitting.current) return;
     flushSync(() => setTouched(true));
-    if (habitNameError(form.name) || habitDaysError(form) || habitTimerError(form)) {
+    if (
+      habitNameError(form.name) ||
+      habitDaysError(form) ||
+      habitTimerError(form) ||
+      habitGoalError(form, units) ||
+      habitPictureError(form, units)
+    ) {
       focusFirstInvalid(root.current);
       return;
     }
-    const value = habitFormValue(form);
+    const value = habitFormValue(form, units);
     const body: NewHabit = { name: value.name, frequency: value.frequency };
     if (form.kind === 'letGo') body.kind = 'letGo';
     if (value.days !== null) body.days = value.days;
     if (value.frequency !== 'weekly') body.timesPerDay = value.timesPerDay;
     if (value.timerMinutes !== null) body.timerMinutes = value.timerMinutes;
+    if (value.picture !== null) body.picture = value.picture;
+    if (value.portionAmount !== null) {
+      body.portionAmount = value.portionAmount;
+      body.portionUnit = value.portionUnit;
+    }
+    if (form.pictureOfferAnswered) body.pictureOfferAnswered = true;
     if (value.weeklyTarget !== null) body.weeklyTarget = value.weeklyTarget;
     if (reminders) {
       if (localPhone) body.reminderChannels = phoneOn ? ['mobile'] : [];
@@ -229,6 +248,9 @@ export default function HabitNewPage() {
                 onTouched={() => setTouched(true)}
                 errors={problem?.fields ?? {}}
                 nameId={nameId}
+                afterName={
+                  <PictureOffer value={form} onChange={setForm} units={units} nameId={nameId} />
+                }
                 showReminder={reminders}
                 silent={silent}
                 reminderNote={

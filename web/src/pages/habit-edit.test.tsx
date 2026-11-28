@@ -162,6 +162,74 @@ describe('HabitEditPage', () => {
     expect(await save(null)).toEqual({ clearTimer: true });
   });
 
+  describe('picture on Today', () => {
+    const bottle: Habit = {
+      ...stretch,
+      timesPerDay: 8,
+      picture: 'bottle',
+      portionAmount: 250,
+      portionUnit: 'ml',
+      pictureOfferAnswered: true,
+    };
+
+    afterEach(() => {
+      auth.me.set(null);
+    });
+
+    async function open(data: Habit, who = me) {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      await load(fetch, data, me.localToday, who);
+      const save = async (saved: Habit) => {
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        const patch = await fetch.next('PATCH', '/api/habits/7');
+        patch.respond(200, saved);
+        expect(await screen.findByText('Saved.')).toBeInTheDocument();
+        return patch.body;
+      };
+      return { user, save };
+    }
+
+    it('leaves an untouched portion out even where fl oz rounds, and sends a changed one in ml', async () => {
+      const { user, save } = await open(bottle, { ...me, units: 'imperial' });
+      const portion = screen.getByLabelText('Each tap counts as');
+      expect(portion).toHaveValue('8.5');
+      expect(screen.getByLabelText('Daily goal')).toHaveValue('68');
+
+      await user.type(screen.getByLabelText('Name', { exact: true }), ' more');
+      expect(await save({ ...bottle, name: 'Stretch more' })).toEqual({ name: 'Stretch more' });
+
+      await user.clear(portion);
+      await user.type(portion, '10');
+      expect(screen.getByLabelText('Times a day')).toHaveValue('7');
+      expect(await save({ ...bottle, timesPerDay: 7, portionAmount: 296 })).toEqual({
+        timesPerDay: 7,
+        portionAmount: 296,
+        portionUnit: 'ml',
+      });
+    });
+
+    it('sends another picture with its portion, and clears the picture when switched to plain', async () => {
+      const shelf: Habit = { ...bottle, picture: 'shelf', portionAmount: 15, portionUnit: 'min' };
+      const { user, save } = await open(bottle);
+      expect(screen.getByRole('radio', { name: 'Bottle' })).toBeChecked();
+
+      await user.click(screen.getByRole('radio', { name: 'Shelf' }));
+      expect(await save(shelf)).toEqual({
+        picture: 'shelf',
+        portionAmount: 15,
+        portionUnit: 'min',
+      });
+
+      await user.click(screen.getByRole('radio', { name: 'Plain' }));
+      expect(screen.queryByLabelText('Each tap counts as')).toBeNull();
+      expect(
+        await save({ ...shelf, picture: null, portionAmount: null, portionUnit: null }),
+      ).toEqual({ clearPicture: true });
+    });
+  });
+
   describe('remind me on', () => {
     it('ticks every destination the habit does not skip, marks this browser, and saves the skipped set', async () => {
       const user = userEvent.setup();

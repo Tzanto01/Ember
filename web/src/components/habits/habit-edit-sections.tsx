@@ -21,6 +21,11 @@ import {
   habitTimerError,
   habitToForm,
 } from '@/components/habits/habit-fields';
+import {
+  habitGoalError,
+  habitPictureError,
+  useUnits,
+} from '@/components/habit-visuals/form/picture-form';
 import { routineTitle } from '@/components/routines/routine-title';
 import { Spinner } from '@/components/spinner';
 import { Button } from '@/components/ui/button';
@@ -89,7 +94,8 @@ export function DetailsSection({
 }: SectionProps & { routine?: Routine | null }) {
   const { t } = useTranslation();
   const root = useRef<HTMLFormElement>(null);
-  const [form, setForm] = useState(() => habitToForm(habit));
+  const units = useUnits();
+  const [form, setForm] = useState(() => habitToForm(habit, units));
   const [touched, setTouched] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -111,7 +117,7 @@ export function DetailsSection({
       if (asked && !local)
         void queryClient.invalidateQueries({ queryKey: reminderDestinationsKey });
       onChange(updated);
-      setForm(habitToForm(updated));
+      setForm(habitToForm(updated, units));
       setTouched(false);
       setDeviceOff(!allowed);
       setFeedback({ tone: 'success', text: t('habitEdit.saved') });
@@ -132,11 +138,17 @@ export function DetailsSection({
       setDeviceOff(false);
       setTouched(true);
     });
-    if (habitNameError(form.name) || habitDaysError(form) || habitTimerError(form)) {
+    if (
+      habitNameError(form.name) ||
+      habitDaysError(form) ||
+      habitTimerError(form) ||
+      habitGoalError(form, units) ||
+      habitPictureError(form, units)
+    ) {
       focusFirstInvalid(root.current);
       return;
     }
-    const value = habitFormValue(form);
+    const value = habitFormValue(form, units);
     const patch: HabitPatch = {};
     if (value.name !== habit.name) patch.name = value.name;
     if (value.frequency !== habit.frequency) patch.frequency = value.frequency;
@@ -148,6 +160,18 @@ export function DetailsSection({
     if (value.timerMinutes === null && habit.timerMinutes) patch.clearTimer = true;
     else if (value.timerMinutes !== null && value.timerMinutes !== habit.timerMinutes)
       patch.timerMinutes = value.timerMinutes;
+    const saved = habitToForm(habit, units);
+    if (value.picture === null) {
+      if (saved.picture) patch.clearPicture = true;
+    } else {
+      if (value.picture !== saved.picture) patch.picture = value.picture;
+      const portionChanged =
+        form.portion.trim() !== saved.portion || form.portionUnit !== saved.portionUnit;
+      if (value.portionAmount !== null && (patch.picture || portionChanged)) {
+        patch.portionAmount = value.portionAmount;
+        patch.portionUnit = value.portionUnit;
+      }
+    }
     if (value.reminderTimes.join() !== reminderTimesOf(habit).join())
       patch.reminderTimes = value.reminderTimes;
     if (Object.keys(patch).length === 0) {

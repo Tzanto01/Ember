@@ -19,14 +19,28 @@ import {
   type Frequency,
   type Habit,
   type HabitKind,
+  type HabitPicture,
+  type PortionUnit,
   reminderTimesOf,
   type TimeOfDay,
+  type UnitSystem,
   type Weekday,
   weekdays,
 } from '@/lib/models';
+import { PictureField } from '@/components/habit-visuals/form/picture-field';
+import {
+  goalForTimes,
+  goalText,
+  type PictureFormState,
+  plainPicture,
+  portionAmount,
+  portionText,
+  useUnits,
+  withGoal,
+} from '@/components/habit-visuals/form/picture-form';
 
 /** What the create and edit form holds; fields that don't fit the chosen schedule are kept but not sent. */
-export interface HabitFormState {
+export interface HabitFormState extends PictureFormState {
   /** `letGo` ignores the schedule fields and keeps at most one reminder time (the evening check-in). */
   kind: HabitKind;
   name: string;
@@ -44,7 +58,8 @@ export interface HabitFormState {
 
 /**
  * The form read as API-ready values: name trimmed, weekly target only when weekly, days only for set weekdays
- * (all seven become `daily`), times per day 1 when weekly, the timer length null when empty or let-go, reminder times sorted without blanks or repeats and at
+ * (all seven become `daily`), times per day 1 when weekly, the timer length null when empty or let-go, the picture
+ * and its canonical portion null when plain or let-go, reminder times sorted without blanks or repeats and at
  * most one per check-in (the earliest).
  */
 export interface HabitFormValue {
@@ -54,6 +69,10 @@ export interface HabitFormValue {
   days: Weekday[] | null;
   timesPerDay: number;
   timerMinutes: number | null;
+  picture: HabitPicture | null;
+  /** Null for pictures without a portion, or when the typed portion isn't a number. */
+  portionAmount: number | null;
+  portionUnit: PortionUnit | null;
   reminderTimes: TimeOfDay[];
 }
 
@@ -66,10 +85,13 @@ export const emptyHabitForm: HabitFormState = {
   timesPerDay: 1,
   timerMinutes: '',
   reminderTimes: [''],
+  ...plainPicture,
 };
 
-/** The form filled from a saved habit. */
-export function habitToForm(habit: AnyHabit): HabitFormState {
+/** The form filled from a saved habit, portions shown in `units`; a bottle's goal is times per day × portion. */
+export function habitToForm(habit: AnyHabit, units: UnitSystem = 'metric'): HabitFormState {
+  const unit = habit.portionUnit ?? null;
+  const amount = habit.portionAmount ?? null;
   return {
     kind: habit.kind === 'letGo' ? 'letGo' : 'build',
     name: habit.name,
@@ -79,6 +101,12 @@ export function habitToForm(habit: AnyHabit): HabitFormState {
     timesPerDay: habit.timesPerDay,
     timerMinutes: String(habit.timerMinutes ?? ''),
     reminderTimes: reminderTimesOf(habit).length ? [...reminderTimesOf(habit)] : [''],
+    picture: habit.picture ?? null,
+    portion: unit && amount !== null ? portionText(amount, unit, units) : '',
+    portionUnit: unit && amount !== null ? unit : null,
+    goal:
+      habit.picture === 'bottle' && amount !== null ? goalText(habit.timesPerDay * amount, units) : '',
+    pictureOfferAnswered: habit.pictureOfferAnswered ?? false,
   };
 }
 
@@ -163,7 +191,10 @@ export function weeklySchedule(time: TimeOfDay, weeklyTarget: number): string {
   return t('habitFields.weeklySchedule', { time: formatTime(time), count: weeklyTarget });
 }
 
-export function habitFormValue(state: HabitFormState): HabitFormValue {
+export function habitFormValue(
+  state: HabitFormState,
+  units: UnitSystem = 'metric',
+): HabitFormValue {
   if (state.kind === 'letGo') {
     return {
       name: state.name.trim(),
@@ -172,11 +203,15 @@ export function habitFormValue(state: HabitFormState): HabitFormValue {
       days: null,
       timesPerDay: 1,
       timerMinutes: null,
+      picture: null,
+      portionAmount: null,
+      portionUnit: null,
       reminderTimes: sortedTimes(state.reminderTimes).slice(0, 1),
     };
   }
   const allDays = state.frequency === 'weekdays' && state.days.length === weekdays.length;
   const frequency = allDays ? 'daily' : state.frequency;
+  const portion = state.picture ? portionAmount(state, units) : null;
   return {
     name: state.name.trim(),
     frequency,
@@ -184,6 +219,9 @@ export function habitFormValue(state: HabitFormState): HabitFormValue {
     days: frequency === 'weekdays' ? weekdays.filter((day) => state.days.includes(day)) : null,
     timesPerDay: frequency === 'weekly' ? 1 : state.timesPerDay,
     timerMinutes: state.timerMinutes.trim() ? Number(state.timerMinutes) : null,
+    picture: state.picture,
+    portionAmount: portion,
+    portionUnit: portion === null ? null : state.portionUnit,
     reminderTimes: sortedTimes(state.reminderTimes).slice(
       0,
       frequency === 'weekly' ? 1 : state.timesPerDay,
@@ -205,7 +243,8 @@ const kinds = [
 const targets = Array.from({ length: limits.weeklyTarget }, (_, i) => i + 1);
 const perDayOptions = Array.from({ length: limits.timesPerDay }, (_, i) => i + 1);
 
-const optionClass =
+/** A bordered radio or checkbox option with its label, highlighted when checked. */
+export const optionClass =
   'flex min-h-[56px] cursor-pointer items-center gap-3 rounded-md border-[length:max(1px,var(--border-width))] border-input bg-card px-4 py-2 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:text-secondary-foreground';
 
 export interface HabitFieldsProps {
@@ -228,11 +267,13 @@ export interface HabitFieldsProps {
   silent?: boolean;
   /** Edit: the kind is shown but can't change. */
   kindLocked?: boolean;
+  /** Shown right under the name, for example the picture offer. */
+  afterName?: ReactNode;
 }
 
 /**
  * Name, "How often" (every day, set weekdays or a few times a week), the weekdays, times per day or per week,
- * the optional timer length (build habits) and the optional reminder times (one per check-in a day, with "Add another time" and a line spelling out the schedule).
+ * the optional timer length and the picture on Today (build habits) and the optional reminder times (one per check-in a day, with "Add another time" and a line spelling out the schedule).
  * Place inside the page's `form`.
  */
 export function HabitFields({
@@ -247,9 +288,11 @@ export function HabitFields({
   showReminder = true,
   silent = false,
   kindLocked = false,
+  afterName,
 }: HabitFieldsProps) {
   const { t } = useTranslation();
   const id = useId();
+  const units = useUnits();
   const shortDays = weekdayLabels(undefined, 'short');
   const longDays = weekdayLabels(undefined, 'long');
   const timesId = `${id}-times`;
@@ -337,6 +380,8 @@ export function HabitFields({
             timesPerDay: 1,
             timerMinutes: '',
             reminderTimes: [''],
+            ...plainPicture,
+            pictureOfferAnswered: value.pictureOfferAnswered,
           }
         : { ...value, kind },
     );
@@ -410,6 +455,8 @@ export function HabitFields({
         )}
       </FormField>
 
+      {afterName}
+
       {!letGo && (
         <div data-guide="frequency" className="flex flex-col gap-2">
           <p id={legendId} className="font-medium">
@@ -419,7 +466,7 @@ export function HabitFields({
             aria-labelledby={legendId}
             value={value.frequency}
             onValueChange={(frequency) =>
-              changeSchedule({ ...value, frequency: frequency as Frequency })
+              changeSchedule(withGoal({ ...value, frequency: frequency as Frequency }, units))
             }
             className="sm:grid-cols-3"
           >
@@ -497,7 +544,9 @@ export function HabitFields({
                 className="max-w-[12rem]"
                 value={value.timesPerDay}
                 onChange={(event) =>
-                  changeSchedule({ ...value, timesPerDay: Number(event.target.value) })
+                  changeSchedule(
+                    goalForTimes({ ...value, timesPerDay: Number(event.target.value) }, units),
+                  )
                 }
               >
                 {perDayOptions.map((n) => (
@@ -555,6 +604,16 @@ export function HabitFields({
             />
           )}
         </FormField>
+      )}
+
+      {!letGo && (
+        <PictureField
+          value={value}
+          onChange={changeSchedule}
+          units={units}
+          touched={touched}
+          errors={errors}
+        />
       )}
 
       {showReminder && (

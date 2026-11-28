@@ -135,6 +135,182 @@ describe('HabitNewPage', () => {
     });
   });
 
+  describe('picture on Today', () => {
+    async function start(name: string) {
+      const user = userEvent.setup();
+      const fetch = mockFetch();
+      renderPage();
+      (await fetch.next('GET', '/api/habit-templates')).respond(200, []);
+      await user.type(await screen.findByLabelText('Name', { exact: true }), name);
+      return { user, fetch };
+    }
+    const create = (user: ReturnType<typeof userEvent.setup>) =>
+      user.click(screen.getByRole('button', { name: 'Create habit' }));
+
+    it('starts plain, sends nothing for it, and is not offered for a habit to let go of', async () => {
+      const { user, fetch } = await start('Evening glass');
+      expect(screen.getByRole('radio', { name: 'Plain' })).toBeChecked();
+
+      await user.click(screen.getByRole('radio', { name: 'Pill box' }));
+      await user.click(screen.getByRole('radio', { name: 'Something to let go of' }));
+      expect(screen.queryByRole('radiogroup', { name: 'Picture on Today' })).toBeNull();
+      await create(user);
+
+      const body = (await fetch.next('POST', '/api/habits')).body;
+      expect(body).not.toHaveProperty('picture');
+      expect(body).not.toHaveProperty('portionAmount');
+    });
+
+    it('sets times a day from a 2 L goal at 250 ml a tap, and sends the bottle with its portion in ml', async () => {
+      const { user, fetch } = await start('Evening glass');
+      await user.click(screen.getByRole('radio', { name: 'Bottle' }));
+
+      expect(screen.getByLabelText('Daily goal')).toHaveValue('2');
+      expect(screen.getByLabelText('Each tap counts as')).toHaveValue('250');
+      expect(screen.getByLabelText('Times a day')).toHaveValue('8');
+      expect(screen.getByLabelText('Daily goal')).toHaveAccessibleDescription(
+        /That's 8 taps a day\./,
+      );
+
+      const portion = screen.getByLabelText('Each tap counts as');
+      await user.clear(portion);
+      await user.type(portion, '40');
+      await create(user);
+      expect(portion).toHaveFocus();
+      expect(portion).toHaveAccessibleDescription(/Use 50 to 2000 ml\./);
+      expect(fetch.all.some((call) => call.method === 'POST')).toBe(false);
+
+      await user.clear(portion);
+      await user.type(portion, '300');
+      expect(screen.getByLabelText('Times a day')).toHaveValue('7');
+      expect(screen.getByText("That's 7 taps a day, 2.1 L in all.")).toBeInTheDocument();
+      await create(user);
+
+      expect((await fetch.next('POST', '/api/habits')).body).toEqual({
+        name: 'Evening glass',
+        frequency: 'daily',
+        timesPerDay: 7,
+        picture: 'bottle',
+        portionAmount: 300,
+        portionUnit: 'ml',
+      });
+    });
+
+    it('keeps 10 taps for a 3 L goal and suggests a bigger portion, with no goal for a weekly habit', async () => {
+      const { user } = await start('Evening glass');
+      await user.click(screen.getByRole('radio', { name: 'Bottle' }));
+      const goal = screen.getByLabelText('Daily goal');
+      await user.clear(goal);
+      await user.type(goal, '3');
+
+      expect(screen.getByLabelText('Times a day')).toHaveValue('10');
+      expect(
+        screen.getByText(
+          'Ember counts up to 10 taps a day, so this stays at 10 (2.5 L). For 3 L, try 300 ml or more per tap.',
+        ),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole('radio', { name: 'A few times a week' }));
+      expect(screen.queryByLabelText('Daily goal')).toBeNull();
+      expect(screen.getByLabelText('Each tap counts as')).toHaveValue('250');
+    });
+
+    it('takes the portion in fl oz with imperial units and stores whole ml', async () => {
+      auth.setMe({ ...me, units: 'imperial' });
+      const { user, fetch } = await start('Evening glass');
+      await user.click(screen.getByRole('radio', { name: 'Bottle' }));
+      expect(screen.getByLabelText('Daily goal')).toHaveValue('64');
+      const portion = screen.getByLabelText('Each tap counts as');
+      expect(portion).toHaveAccessibleDescription(/fl oz/);
+
+      await user.clear(portion);
+      await user.type(portion, '1');
+      await create(user);
+      expect(portion).toHaveAccessibleDescription(/Use 1\.7 to 67\.6 fl oz\./);
+
+      await user.clear(portion);
+      await user.type(portion, '12');
+      await create(user);
+
+      expect((await fetch.next('POST', '/api/habits')).body).toMatchObject({
+        timesPerDay: 6,
+        picture: 'bottle',
+        portionAmount: 355,
+        portionUnit: 'ml',
+      });
+    });
+
+    it('types a trail distance in km and stores meters', async () => {
+      const { user, fetch } = await start('Evening loop');
+      await user.click(screen.getByRole('radio', { name: 'Trail' }));
+      expect(screen.getByLabelText('Each tap counts as')).toHaveValue('10');
+      await user.selectOptions(screen.getByLabelText('Counted in'), 'm');
+      const portion = screen.getByLabelText('Each tap counts as');
+      expect(portion).toHaveValue('1');
+      await user.clear(portion);
+      await user.type(portion, '2.5');
+      await create(user);
+
+      expect((await fetch.next('POST', '/api/habits')).body).toMatchObject({
+        timesPerDay: 1,
+        picture: 'trail',
+        portionAmount: 2500,
+        portionUnit: 'm',
+      });
+    });
+
+    it('offers the bottle for a water habit in English and German and sends the answer with "Try the bottle"', async () => {
+      const { user, fetch } = await start('Wasser trinken');
+      const offer = { name: 'Want to see this one as a bottle you fill up?' };
+      expect(screen.getByRole('group', offer)).toBeInTheDocument();
+      await user.clear(screen.getByLabelText('Name', { exact: true }));
+      expect(screen.queryByRole('group', offer)).toBeNull();
+      await user.type(screen.getByLabelText('Name', { exact: true }), 'Drink water');
+      expect(screen.getByRole('group', offer)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Try the bottle' }));
+      expect(screen.queryByRole('button', { name: 'Try the bottle' })).toBeNull();
+      expect(screen.getByRole('radio', { name: 'Bottle' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Bottle' })).toHaveFocus();
+      await create(user);
+
+      expect((await fetch.next('POST', '/api/habits')).body).toMatchObject({
+        picture: 'bottle',
+        portionAmount: 250,
+        pictureOfferAnswered: true,
+      });
+    });
+
+    it('creates a plain habit marked answered with "Keep it plain", and leaves an ignored offer unanswered', async () => {
+      const { user, fetch } = await start('Drink water');
+      await user.click(screen.getByRole('button', { name: 'Keep it plain' }));
+      expect(screen.queryByRole('button', { name: 'Try the bottle' })).toBeNull();
+      expect(screen.getByLabelText('Name', { exact: true })).toHaveFocus();
+      await create(user);
+      const answered = (await fetch.next('POST', '/api/habits')).body;
+      expect(answered).toMatchObject({ name: 'Drink water', pictureOfferAnswered: true });
+      expect(answered).not.toHaveProperty('picture');
+    });
+
+    it('sends no answer when the offer is ignored', async () => {
+      const { user, fetch } = await start('Read a page');
+      expect(screen.getByRole('button', { name: 'Try the shelf' })).toBeInTheDocument();
+      await create(user);
+      expect((await fetch.next('POST', '/api/habits')).body).toEqual({
+        name: 'Read a page',
+        frequency: 'daily',
+        timesPerDay: 1,
+      });
+    });
+
+    it('offers nothing with picture suggestions turned off', async () => {
+      auth.setMe({ ...me, suggestPictures: false });
+      await start('Drink water');
+      expect(screen.queryByRole('button', { name: 'Try the bottle' })).toBeNull();
+      expect(screen.getByRole('radio', { name: 'Plain' })).toBeChecked();
+    });
+  });
+
   describe('timer length', () => {
     it('is empty by default, asks for whole minutes in range, and is sent with the habit', async () => {
       const user = userEvent.setup();
