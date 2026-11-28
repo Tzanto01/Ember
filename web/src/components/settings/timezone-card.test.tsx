@@ -56,6 +56,10 @@ function zoneField() {
   return screen.getByRole('combobox', { name: 'Choose a timezone' });
 }
 
+function zoneOptions() {
+  return within(screen.getByRole('listbox', { name: 'Timezones' })).getAllByRole('option');
+}
+
 function activeOption() {
   return document.getElementById(zoneField().getAttribute('aria-activedescendant') ?? '');
 }
@@ -192,7 +196,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     await user.clear(field);
     await user.type(field, 'new york');
 
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    expect(zoneOptions().map((option) => option.textContent)).toEqual([
       expect.stringMatching(/^America\/New York \(UTC-0[45]:00\)$/),
     ]);
     expect(await screen.findByText('1 timezone found')).toHaveAttribute('role', 'status');
@@ -231,7 +235,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     expect(openPatches(fetch)).toHaveLength(0);
 
     await user.keyboard('{Backspace}');
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    expect(zoneOptions().map((option) => option.textContent)).toEqual([
       expect.stringMatching(/^Asia\/Tokyo/),
     ]);
   });
@@ -268,7 +272,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     const named = device.labelled.length;
     await user.click(zoneField());
 
-    expect(screen.getAllByRole('option')).toHaveLength(listed);
+    expect(zoneOptions()).toHaveLength(listed);
     expect(device.labelled.length).toBe(named);
   });
 
@@ -295,7 +299,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
 
     await user.click(zoneField());
 
-    expect(screen.getAllByRole('option')).toHaveLength(listed + 1);
+    expect(zoneOptions()).toHaveLength(listed + 1);
     expect(activeOption()).toHaveTextContent(/^America\/Halifax \(UTC-0[34]:00\)in use$/);
   });
 
@@ -307,7 +311,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     await user.clear(field);
     await user.type(field, 'utc');
 
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    expect(zoneOptions().map((option) => option.textContent)).toEqual([
       'UTC (UTC+00:00)',
     ]);
     await user.keyboard('{Enter}');
@@ -335,7 +339,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     await user.type(field, typed);
 
     expect(
-      screen.getAllByRole('option').map((option) => option.textContent?.replace(/ \(UTC.*$/, '')),
+      zoneOptions().map((option) => option.textContent?.replace(/ \(UTC.*$/, '')),
     ).toEqual(expected);
     expect(activeOption()).toHaveTextContent(new RegExp(`^${expected[0]}`));
   });
@@ -353,7 +357,7 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
 
       await user.click(zoneField());
 
-      const options = screen.getAllByRole('option');
+      const options = zoneOptions();
       expect(options[0]).toHaveTextContent(/^America\/New York/);
       expect(within(screen.getByRole('group', { name: label })).getAllByRole('option')).toEqual([
         options[0],
