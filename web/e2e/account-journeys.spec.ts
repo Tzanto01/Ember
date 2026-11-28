@@ -128,7 +128,7 @@ test('no-account mode moves device data into a new account', async ({ page }) =>
   await checkIn.click();
   await expect(checkIn).toHaveAttribute('aria-pressed', 'true');
 
-  await openSettingsGroup(page, 'Account & security');
+  await openSettingsGroup(page, 'Account & sign-in');
   await page.getByRole('button', { name: 'Create an account and keep my data' }).click();
   await expect(page).toHaveURL(/\/signup/);
   const email = uniqueEmail();

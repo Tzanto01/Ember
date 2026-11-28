@@ -371,9 +371,9 @@ for (const { code, locale, strings } of languages) {
       await expect(page.getByText(tr('moment.reflect.saved'))).toBeVisible();
       await capture(page, '/moment', 'reflect saved', code, found, big);
 
-      await page.goto('/settings/feedback');
+      await page.goto('/settings/support');
       await expect(heading(page, /./)).toBeVisible();
-      await capture(page, '/settings/feedback', 'signed in empty', code, found);
+      await capture(page, '/settings/support', 'signed in empty', code, found);
       await page.locator('input[type=file]').setInputFiles([
         { name: 'one.png', mimeType: 'image/png', buffer: png },
         { name: 'two.png', mimeType: 'image/png', buffer: png },
@@ -390,7 +390,7 @@ for (const { code, locale, strings } of languages) {
       await page
         .getByLabel(tr('feedback.description.label'), { exact: true })
         .fill('Synthetic feedback with pictures from the visual review.');
-      await capture(page, '/settings/feedback', 'with 2 pictures', code, found);
+      await capture(page, '/settings/support', 'with 2 pictures', code, found);
       await page.getByRole('button', { name: tr('feedback.send'), exact: true }).click();
       const outcome = page
         .getByText(tr('feedback.sent.heading'))
@@ -398,7 +398,7 @@ for (const { code, locale, strings } of languages) {
       await expect(outcome).toBeVisible();
       await capture(
         page,
-        '/settings/feedback',
+        '/settings/support',
         (await page.getByText(tr('feedback.sent.heading')).isVisible())
           ? 'signed in sent'
           : 'signed in rate limited',

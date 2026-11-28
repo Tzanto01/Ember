@@ -10,7 +10,8 @@
         "A habit can have a timer now: give it a length, start it on Today, and Ember tells you when the time is up. Checking in stays up to you.",
         "Android, without an account: “Delete everything on this device” left a copy of your habit list in the app's storage. It deletes that copy now too, and a copy left from before goes the next time you use Ember.",
         "Your data export no longer holds the pictures and status of your feedback, only its text. Ember keeps that text for 12 months at most. Pictures, status and answers are in Lookout, Nico's own ticket system. Email contact@nicowoellnitz.de if you'd like them.",
-        "A habit you build up can show a picture on Today now: a bottle, pill box, kindling, shelf or trail. One tap on it is one check-in, and the text next to it always says where you are. Ember suggests one only when the name fits, and you can pick or remove it when you edit the habit."
+        "A habit you build up can show a picture on Today now: a bottle, pill box, kindling, shelf or trail. One tap on it is one check-in, and the text next to it always says where you are. Ember suggests one only when the name fits, and you can pick or remove it when you edit the habit.",
+        "Settings are sorted into clearer groups. Your time zone is now under Language & time, in a list you can search, and every switch and choice saves on its own."
       ],
       "de": [
         "Android: Mit einem Konto lädt das Widget „Heute in Ember“ den neuen Tag nach Mitternacht jetzt von selbst und zeigt auch Check-ins, die du woanders machst. Dafür musst du die App nicht mehr öffnen.",
@@ -19,7 +20,8 @@
         "Ein Habit kann jetzt einen Timer haben: Gib ihm eine Länge, starte ihn unter Heute, und Ember sagt dir, wenn die Zeit um ist. Ob du abhakst, entscheidest du.",
         "Android, ohne Konto: „Alles auf diesem Gerät löschen“ ließ eine Kopie deiner Habit-Liste im Speicher der App zurück. Jetzt löscht Ember auch sie, und eine Kopie von früher verschwindet, wenn du Ember das nächste Mal benutzt.",
         "Dein Datenexport enthält von deinem Feedback nur noch den Text, nicht mehr die Bilder und den Status. Ember behält diesen Text höchstens 12 Monate. Bilder, Status und Antworten liegen in Lookout, Nicos eigenem Ticket-System. Wenn du sie haben möchtest, schreib an contact@nicowoellnitz.de.",
-        "Ein Habit zum Aufbauen kann unter Heute jetzt ein Bild zeigen: Flasche, Pillendose, Anzündholz, Regal oder Pfad. Ein Tippen darauf ist ein Check-in, und der Text daneben sagt dir immer, wo du stehst. Ember schlägt ein Bild nur vor, wenn der Name passt, und du wählst oder entfernst es, wenn du den Habit bearbeitest."
+        "Ein Habit zum Aufbauen kann unter Heute jetzt ein Bild zeigen: Flasche, Pillendose, Anzündholz, Regal oder Pfad. Ein Tippen darauf ist ein Check-in, und der Text daneben sagt dir immer, wo du stehst. Ember schlägt ein Bild nur vor, wenn der Name passt, und du wählst oder entfernst es, wenn du den Habit bearbeitest.",
+        "Die Einstellungen sind in klarere Gruppen sortiert. Deine Zeitzone findest du jetzt unter „Sprache & Zeit“, in einer Liste, die du durchsuchen kannst, und jeder Schalter und jede Auswahl speichert sich von selbst."
       ]
     }
   },

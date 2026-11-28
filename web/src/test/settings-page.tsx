@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import { env } from '@/lib/env';
 import { reminderNames } from '@/lib/native/reminder-names';
 import { auth, localMode, push } from '@/lib/services';
+import type { Me } from '@/lib/models';
 import { applyCalm } from '@/lib/theme';
 import SettingsPage from '@/pages/settings';
 import { type FetchMock, me, mockFetch } from '@/test/test-support';
@@ -44,12 +45,12 @@ export function resetSettings(): void {
 /** Test helper: waits a moment for requests that should not be sent. */
 export const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 20));
 
-/** Test helper: signs in as `me`, renders Settings at `url` and answers its `GET /api/me`. */
-export async function openSettings(url: string) {
-  auth.setMe(me);
+/** Test helper: signs in as `profile` (default `me`), renders Settings at `url` and answers its `GET /api/me`. */
+export async function openSettings(url: string, profile: Me = me) {
+  auth.setMe(profile);
   const fetch = mockFetch();
   const router = renderPage('/settings/:group?', SettingsPage, url);
-  (await fetch.next('GET', '/api/me')).respond(200, me);
+  (await fetch.next('GET', '/api/me')).respond(200, profile);
   await screen.findByRole('heading', { level: 1 });
   return { fetch, router };
 }

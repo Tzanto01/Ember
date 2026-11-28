@@ -1,9 +1,9 @@
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
 import { applyGentleMotion, gentleMotion } from '@/lib/theme';
-import { auth } from '@/lib/services';
+import { auth, localMode } from '@/lib/services';
 import { me } from '@/test/test-support';
 import { openSettings, resetSettings, setWide, stubSettingsMedia } from '@/test/settings-page';
 
@@ -41,21 +41,38 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     resetSettings();
   });
 
-  it('switches between light, dark and the system setting on this device', async () => {
-    const user = userEvent.setup();
+  it('holds theme and calm mode under Everywhere, and light or dark under This device', async () => {
     await openSettings('/settings/appearance');
 
+    expect([...document.querySelectorAll('section')].map((card) => card.id)).toEqual(['appearance', 'this-device']);
+    const everywhere = within(screen.getByRole('region', { name: 'Everywhere' }));
+    expect(everywhere.getByRole('radiogroup', { name: 'Theme' })).toHaveAccessibleDescription(
+      'Your theme and calm mode follow you to every device you sign in on.',
+    );
+    expect(everywhere.getByRole('switch', { name: 'Calm mode' })).toBeInTheDocument();
+    const device = within(screen.getByRole('region', { name: 'This device' }));
+    expect(device.getByRole('radiogroup', { name: 'Light or dark' })).toBeInTheDocument();
+    expect(device.queryByText('This device', { selector: ':not(h2)' })).toBeNull();
+  });
+
+  it('switches between light, dark and the system setting on this device and says it is saved', async () => {
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/appearance');
+
     expect(screen.getByRole('radio', { name: 'System' })).toBeChecked();
+    expect(screen.getByRole('radiogroup', { name: 'Light or dark' })).toHaveAccessibleDescription('System follows your device.');
     await user.click(screen.getByRole('radio', { name: 'Dark' }));
     expect(document.documentElement).toHaveClass('dark');
     expect(localStorage.getItem('ember.colorScheme')).toBe('dark');
+    expect(within(screen.getByRole('region', { name: 'This device' })).getByText('Saved.')).toBeInTheDocument();
+    expect(fetch.all.some((c) => c.method === 'PATCH')).toBe(false);
 
     await user.click(screen.getByRole('radio', { name: 'System' }));
     expect(document.documentElement).not.toHaveClass('dark');
     expect(localStorage.getItem('ember.colorScheme')).toBeNull();
   });
 
-  it('turns calm mode on through PATCH /api/me from Appearance', async () => {
+  it('turns calm mode on through PATCH /api/me from Look & feel', async () => {
     const user = userEvent.setup();
     const { fetch } = await openSettings('/settings/appearance');
     const toggle = screen.getByRole('switch', { name: 'Calm mode' });
@@ -71,15 +88,15 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     expect(toggle).toBeChecked();
   });
 
-  it('still shows calm mode being saved after leaving Appearance and coming back', async () => {
+  it('still shows calm mode being saved after leaving Look & feel and coming back', async () => {
     setWide(true);
     const user = userEvent.setup();
     const { fetch } = await openSettings('/settings/appearance');
 
     await user.click(screen.getByRole('switch', { name: 'Calm mode' }));
     const sent = await fetch.next('PATCH', '/api/me');
-    await user.click(screen.getByRole('link', { name: 'Habits & days' }));
-    await user.click(screen.getByRole('link', { name: 'Appearance' }));
+    await user.click(screen.getByRole('link', { name: 'Habits & streaks' }));
+    await user.click(screen.getByRole('link', { name: 'Look & feel' }));
 
     expect(screen.getByRole('switch', { name: 'Calm mode' })).toBeChecked();
     sent.respond(200, { ...me, calmMode: true });
@@ -129,11 +146,13 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     const { fetch } = await openSettings('/settings/appearance');
     const toggle = screen.getByRole('switch', { name: 'Gentle motion' });
     expect(toggle).toBeChecked();
-    expect(toggle).toHaveAccessibleDescription(/calm mode/);
+    expect(toggle).toHaveAccessibleDescription(/^On the home screen widget/);
+    expect(within(screen.getByRole('region', { name: 'This device' })).getByRole('switch')).toBe(toggle);
 
     await user.click(toggle);
 
     expect(toggle).not.toBeChecked();
+    expect(screen.getByText('Saved.')).toBeInTheDocument();
     expect(gentleMotion.get()).toBe(false);
     expect(localStorage.getItem('ember.gentleMotion')).toBe('0');
     expect(fetch.all.some((c) => c.method === 'PATCH')).toBe(false);
@@ -154,6 +173,25 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     await waitFor(() => expect(auth.me.get()?.theme).toBe('fieldnotes'));
     expect(localStorage.getItem('ember.accountTheme')).toBe('fieldnotes');
     expect(screen.getByRole('radio', { name: 'Fieldnotes' })).toBeChecked();
+    expect(screen.getByText('Saved.')).toBeInTheDocument();
+  });
+
+  it('without an account, saves a chosen theme through the device data and says it is saved', async () => {
+    localMode.mode.set('local');
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/appearance');
+
+    await user.click(screen.getByRole('radio', { name: 'Marigold' }));
+
+    expect(screen.queryByRole('region', { name: 'Everywhere' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Theme and calm mode' })).toHaveTextContent(
+      'Without an account, these stay on this device.',
+    );
+    const patch = await fetch.next('PATCH', '/api/me');
+    expect(patch.body).toEqual({ theme: 'marigold' });
+    patch.respond(200, { ...me, theme: 'marigold' });
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    expect(localStorage.getItem('ember.theme')).toBe('marigold');
   });
 
   it('keeps the chosen theme on this device and says so gently when saving it fails', async () => {
@@ -168,35 +206,5 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     expect(document.documentElement.dataset['theme']).toBe('tidepool');
     expect(localStorage.getItem('ember.theme')).toBe('tidepool');
     expect(screen.getByRole('radio', { name: 'Tidepool' })).toBeChecked();
-  });
-
-  it('switches to German on picking Deutsch: saves it to the account, remembers it on the device and sets <html lang>', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await openSettings('/settings/appearance');
-
-    await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
-
-    const patch = await fetch.next('PATCH', '/api/me');
-    expect(patch.body).toEqual({ language: 'de' });
-    patch.respond(200, { ...me, language: 'de' });
-    expect(await screen.findByRole('heading', { level: 1, name: 'Darstellung' })).toBeInTheDocument();
-    expect(screen.getByText('Sprache')).toBeInTheDocument();
-    expect(document.documentElement.lang).toBe('de');
-    expect(localStorage.getItem('ember.language')).toBe('de');
-    expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
-  });
-
-  it('goes back to English and says the language was not saved when saving it fails', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await openSettings('/settings/appearance');
-
-    await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
-    (await fetch.next('PATCH', '/api/me')).fail();
-
-    const status = await screen.findByText("Your language couldn't be saved. Try again in a moment.");
-    expect(status.closest('[role="status"]')).not.toBeNull();
-    expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
-    expect(document.documentElement.lang).toBe('en');
-    expect(localStorage.getItem('ember.language')).toBeNull();
   });
 });

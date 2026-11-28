@@ -207,7 +207,7 @@ export function Reflect({
               {newPassphrase && (
                 <p>
                   {momentCopy.newPassphraseLater}{' '}
-                  <TapLink to="/settings/privacy">{momentCopy.openPrivacy}</TapLink>
+                  <TapLink to="/settings/journal">{momentCopy.openPrivacy}</TapLink>
                 </p>
               )}
             </Notice>
@@ -226,7 +226,7 @@ export function Reflect({
           {saveCase === 'plain' && (
             <Notice>
               <p>{momentCopy.needsPrivate}</p>
-              <TapLink to="/settings/privacy">{momentCopy.openPrivacy}</TapLink>
+              <TapLink to="/settings/journal">{momentCopy.openPrivacy}</TapLink>
             </Notice>
           )}
           {saveCase === 'consent' && (

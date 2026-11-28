@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { cardVariants } from '@/components/ui/card';
 
-const scrollMargin = 'scroll-mt-[calc(56px+env(safe-area-inset-top)+1.5rem)]';
+/** Leaves room for the sticky header when a Settings `#address` scrolls its card or row into view. */
+export const settingsScrollMargin = 'scroll-mt-[calc(56px+env(safe-area-inset-top)+1.5rem)]';
 
 /**
  * One Settings card: a labelled section whose `id` is its `#card-id` address and whose heading (`<id>-heading`) takes
@@ -24,7 +25,7 @@ export function SettingsCard({
       aria-labelledby={`${id}-heading`}
       className={cardVariants({
         variant: farewell ? 'farewell' : 'default',
-        className: scrollMargin,
+        className: settingsScrollMargin,
       })}
     >
       <h2 id={`${id}-heading`} tabIndex={-1} className="text-[1.375rem] focus:outline-none">

@@ -1,39 +1,36 @@
-import { useId } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Label } from '@/components/ui/label';
+import { SettingsRow } from '@/components/settings/settings-row';
 import { Switch } from '@/components/ui/switch';
-import { reminderNames } from '@/lib/native/reminder-names';
-import { useStore } from '@/lib/store';
 
 /**
- * The "Show habit names in reminders" switch. Without props it is the native per-device setting bound to
- * `reminderNames`; with `checked` and `onCheckedChange` it shows and changes another value (this browser's push).
+ * The "Show habit names in reminders" row, marked as a setting of this device, for this phone's reminders or this
+ * browser's push. `children` show under the row.
  */
 export function ReminderNamesSetting({
+  id,
+  controlId,
   checked,
   onCheckedChange,
+  children,
 }: {
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-} = {}) {
+  id: string;
+  controlId: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  children?: ReactNode;
+}) {
   const { t } = useTranslation();
-  const id = useId();
-  const native = useStore(reminderNames);
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 flex-col gap-1">
-        <Label htmlFor={id}>{t('settings.reminderNames.label')}</Label>
-        <p id={`${id}-hint`} className="text-[0.875rem] text-muted-foreground">
-          {t('settings.reminderNames.hint')}
-        </p>
-      </div>
-      <Switch
-        id={id}
-        checked={checked ?? native}
-        aria-describedby={`${id}-hint`}
-        onCheckedChange={onCheckedChange ?? ((on) => reminderNames.set(on))}
-        className="mt-[2px]"
-      />
-    </div>
+    <SettingsRow
+      id={id}
+      controlId={controlId}
+      label={t('settings.reminderNames.label')}
+      hint={t('settings.reminderNames.hint')}
+      device
+      control={(field) => <Switch {...field} checked={checked} onCheckedChange={onCheckedChange} />}
+    >
+      {children}
+    </SettingsRow>
   );
 }

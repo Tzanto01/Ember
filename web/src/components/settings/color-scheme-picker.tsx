@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSettingsStatus } from '@/components/settings/settings-status';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { chooseColorScheme, type ColorScheme, colorScheme } from '@/lib/theme';
 
@@ -9,9 +10,10 @@ const choices = [
   { id: 'dark', label: 'settings.colorScheme.dark' },
 ] as const satisfies readonly { id: ColorScheme; label: string }[];
 
-/** Settings → Appearance: System, Light or Dark for this device; applies at once. */
+/** Settings → Look & feel → This device: System, Light or Dark for this device; applies at once. */
 export function ColorSchemePicker() {
   const { t } = useTranslation();
+  const { markSaved, savedStatus } = useSettingsStatus();
   const [scheme, setScheme] = useState(colorScheme);
 
   function choose(value: string): void {
@@ -19,6 +21,7 @@ export function ColorSchemePicker() {
     if (!next) return;
     chooseColorScheme(next);
     setScheme(next);
+    markSaved('colorScheme');
   }
 
   return (
@@ -51,6 +54,7 @@ export function ColorSchemePicker() {
       <p id="color-scheme-hint" className="text-[0.875rem] text-muted-foreground">
         {t('settings.colorScheme.hint')}
       </p>
+      {savedStatus('colorScheme')}
     </div>
   );
 }

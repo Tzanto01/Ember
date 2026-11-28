@@ -40,6 +40,9 @@ const groups = 'web/src/components/settings/settings-groups.ts';
 const appearanceCard = 'web/src/components/settings/appearance-card.tsx';
 const deviceData = 'web/src/components/local/device-data-settings.tsx';
 const journalSettings = 'web/src/components/settings/journal-settings.tsx';
+const languageCard = 'web/src/components/settings/language-card.tsx';
+const timezoneCard = 'web/src/components/settings/timezone-card.tsx';
+const timeZones = 'src/Ember.Core/Rules/TimeZones.cs';
 
 /** The screens with a guide. */
 export type GuideScreen =
@@ -50,6 +53,8 @@ export type GuideScreen =
   | 'settings'
   | 'reminders'
   | 'habitsDays'
+  | 'languageTime'
+  | 'journal'
   | 'appearance'
   | 'privacy'
   | 'fireside';
@@ -257,13 +262,13 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'settings-streaks',
         questionKey: 'guide.settings.streaks.q',
         answerKey: 'guide.settings.streaks.a',
-        covers: [groups, settingsPage, 'web/src/components/settings/streaks-card.tsx'],
+        covers: [groups, settingsPage, 'web/src/components/settings/streaks-row.tsx'],
       },
       {
         id: 'settings-looks',
         questionKey: 'guide.settings.looks.q',
         answerKey: 'guide.settings.looks.a',
-        covers: [groups, appearanceCard],
+        covers: [groups, appearanceCard, languageCard],
       },
       {
         id: 'settings-help-right-now',
@@ -345,20 +350,13 @@ export const guides: Record<GuideScreen, Guide> = {
         answerKey: 'guide.habitsDays.grace.a',
         values: { max: Math.max(...graceOptions) },
         target: 'grace',
-        covers: [rules, 'web/src/lib/models.ts', 'web/src/components/settings/grace-card.tsx'],
+        covers: [rules, 'web/src/lib/models.ts', 'web/src/components/settings/grace-row.tsx'],
       },
       {
         id: 'habits-days-kinds',
         questionKey: 'guide.habitsDays.kinds.q',
         answerKey: 'guide.habitsDays.kinds.a',
         covers: [rules],
-      },
-      {
-        id: 'habits-days-timezone',
-        questionKey: 'guide.habitsDays.timezone.q',
-        answerKey: 'guide.habitsDays.timezone.a',
-        target: 'timezone',
-        covers: ['src/Ember.Core/Rules/TimeZones.cs', plan],
       },
       {
         id: 'habits-days-slip',
@@ -368,6 +366,62 @@ export const guides: Record<GuideScreen, Guide> = {
           'web/src/components/letgo/slip-sheet.tsx',
           'web/src/components/letgo/try-instead.tsx',
           letGoRules,
+        ],
+      },
+    ],
+  },
+  languageTime: {
+    nameKey: 'settings.group.language',
+    ledeKey: 'guide.languageTime.lede',
+    entries: [
+      {
+        id: 'language-time-language',
+        questionKey: 'guide.languageTime.language.q',
+        answerKey: 'guide.languageTime.language.a',
+        target: 'language',
+        covers: [languageCard, 'web/src/components/settings/language-picker.tsx'],
+      },
+      {
+        id: 'habits-days-timezone',
+        questionKey: 'guide.habitsDays.timezone.q',
+        answerKey: 'guide.habitsDays.timezone.a',
+        target: 'timezone',
+        covers: [timeZones, plan],
+      },
+      {
+        id: 'language-time-day-start',
+        questionKey: 'guide.languageTime.dayStart.q',
+        answerKey: 'guide.languageTime.dayStart.a',
+        covers: [timeZones, timezoneCard, 'web/src/components/settings/time-zone-select.tsx'],
+      },
+    ],
+  },
+  journal: {
+    nameKey: 'settings.group.journal',
+    ledeKey: 'guide.journal.lede',
+    entries: [
+      {
+        id: 'privacy-journal',
+        questionKey: 'guide.privacy.journal.q',
+        answerKey: 'guide.privacy.journal.a',
+        target: 'journal',
+        covers: [journalSettings, 'web/src/lib/journal/journal.ts'],
+      },
+      {
+        id: 'privacy-passphrase',
+        questionKey: 'guide.privacy.passphrase.q',
+        answerKey: 'guide.privacy.passphrase.a',
+        covers: [journalSettings],
+      },
+      {
+        id: 'privacy-helps',
+        questionKey: 'guide.privacy.helps.q',
+        answerKey: 'guide.privacy.helps.a',
+        target: 'helps',
+        covers: [
+          'web/src/components/settings/helps-settings.tsx',
+          'src/Ember.Core/Services/JournalService.Helps.cs',
+          'web/src/pages/moment.tsx',
         ],
       },
     ],
@@ -404,28 +458,11 @@ export const guides: Record<GuideScreen, Guide> = {
     ledeKey: 'guide.privacy.lede',
     entries: [
       {
-        id: 'privacy-journal',
-        questionKey: 'guide.privacy.journal.q',
-        answerKey: 'guide.privacy.journal.a',
-        target: 'journal',
-        covers: [journalSettings, 'web/src/lib/journal/journal.ts'],
-      },
-      {
-        id: 'privacy-passphrase',
-        questionKey: 'guide.privacy.passphrase.q',
-        answerKey: 'guide.privacy.passphrase.a',
-        covers: [journalSettings],
-      },
-      {
-        id: 'privacy-helps',
-        questionKey: 'guide.privacy.helps.q',
-        answerKey: 'guide.privacy.helps.a',
-        target: 'helps',
-        covers: [
-          'web/src/components/settings/helps-settings.tsx',
-          'src/Ember.Core/Services/JournalService.Helps.cs',
-          'web/src/pages/moment.tsx',
-        ],
+        id: 'privacy-consent',
+        questionKey: 'guide.privacy.consent.q',
+        answerKey: 'guide.privacy.consent.a',
+        target: 'consent',
+        covers: ['web/src/components/settings/consent-card.tsx', 'web/src/pages/consent.tsx'],
       },
       {
         id: 'privacy-export',
@@ -477,7 +514,8 @@ export const guides: Record<GuideScreen, Guide> = {
 
 /**
  * The app routes with a guide, in match order. A route not listed here, like `/history/year`, gets none. On wide
- * screens `/settings` opens its first group, so Account & security shows the Settings guide.
+ * screens `/settings` opens its first group, so Account & sign-in shows the Settings guide, and so does Feedback &
+ * about. The older `/settings/feedback` gets none; it moves on to `/settings/support`.
  */
 export const guideRoutes: { path: string; screen: GuideScreen | null }[] = [
   { path: '/today', screen: 'today' },
@@ -489,10 +527,13 @@ export const guideRoutes: { path: string; screen: GuideScreen | null }[] = [
   { path: '/routines', screen: 'routines' },
   { path: '/settings', screen: 'settings' },
   { path: '/settings/account', screen: 'settings' },
+  { path: '/settings/language', screen: 'languageTime' },
+  { path: '/settings/privacy', screen: 'privacy' },
   { path: '/settings/reminders', screen: 'reminders' },
   { path: '/settings/habits', screen: 'habitsDays' },
+  { path: '/settings/journal', screen: 'journal' },
   { path: '/settings/appearance', screen: 'appearance' },
-  { path: '/settings/privacy', screen: 'privacy' },
+  { path: '/settings/support', screen: 'settings' },
   { path: '/settings/people', screen: 'fireside' },
   { path: '/fireside', screen: 'fireside' },
   { path: '/fireside/:id', screen: 'fireside' },

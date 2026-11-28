@@ -44,7 +44,7 @@ test('a saved moment goes to What helps me, shows as a Catch chip, and the list 
   await page.getByRole('button', { name: 'Add to What helps me: “Slow breathing”' }).click();
   await expect(page.getByText('In What helps me')).toBeVisible();
 
-  await openSettingsGroup(page, 'Privacy & data');
+  await openSettingsGroup(page, 'Journal & reflections');
   const card = helpsCard(page);
   const items = card.getByRole('list').getByRole('listitem');
   await expect(items).toHaveCount(1);
@@ -166,7 +166,7 @@ test('calm mode: no motion, no What is new card or campfire, the ember summary s
 
   await openPage(page, 'Settings');
   await page
-    .getByRole('link', { name: /^Appearance/ })
+    .getByRole('link', { name: /^Look & feel/ })
     .first()
     .click();
   await page.getByRole('switch', { name: 'Calm mode' }).click();

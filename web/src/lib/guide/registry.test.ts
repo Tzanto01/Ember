@@ -70,6 +70,9 @@ describe('the guide registry', () => {
     expect(guideFor('/settings')).toBe(guides.settings);
     expect(guideFor('/settings/account')).toBe(guides.settings);
     expect(guideFor('/settings/privacy')).toBe(guides.privacy);
+    expect(guideFor('/settings/language')).toBe(guides.languageTime);
+    expect(guideFor('/settings/journal')).toBe(guides.journal);
+    expect(guideFor('/settings/support')).toBe(guides.settings);
     for (const path of ['/history/year', '/routines/new', '/settings/help', '/settings/feedback', '/feedback', '/help', '/moments', '/moment']) {
       expect(guideFor(path), path).toBeNull();
     }

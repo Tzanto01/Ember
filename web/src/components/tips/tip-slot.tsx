@@ -174,7 +174,7 @@ function useTip(
 }
 
 const links: Record<Exclude<TipId, 'streaks'>, To> = {
-  'private-journal': '/settings/privacy#journal',
+  'private-journal': '/settings/journal#journal',
   routines: '/routines/new',
   android: '/download',
   discord: { pathname: '/settings', hash: 'discord' },

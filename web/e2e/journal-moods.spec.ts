@@ -17,7 +17,7 @@ test('a day note keeps its built-in and own mood, an archived mood leaves the pi
   await expect(page.getByRole('radio', { name: 'Good' })).toBeChecked();
   await expect(words).toHaveValue('Slept badly, still went for a walk.');
 
-  await page.goto('/settings/habits');
+  await page.goto('/settings/journal');
   const addMood = page.getByRole('form', { name: 'Add a mood' });
   await addMood.getByLabel('Name', { exact: true }).fill('Cozy');
   await addMood.getByLabel('Emoji').fill('🧸');
@@ -28,7 +28,7 @@ test('a day note keeps its built-in and own mood, an archived mood leaves the pi
   await page.getByRole('radio', { name: /Cozy/ }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Mood saved' })).toBeVisible();
 
-  await page.goto('/settings/habits');
+  await page.goto('/settings/journal');
   await page.getByRole('button', { name: 'Archive Cozy' }).click();
   await expect(page.getByRole('button', { name: 'Unarchive Cozy' })).toBeVisible();
 
@@ -63,7 +63,7 @@ test('the leaderboard is gone from Settings', async ({ page }) => {
     await expect(page.getByRole('switch', { name: /leaderboard/i })).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: /leaderboard/i })).toHaveCount(0);
   }
-  await page.goto('/settings/habits');
+  await page.goto('/settings/journal');
   await expect(page.getByRole('heading', { name: 'Moods' })).toBeVisible();
 });
 

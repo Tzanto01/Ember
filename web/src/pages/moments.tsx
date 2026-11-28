@@ -228,7 +228,7 @@ export default function MomentsPage() {
     body = (
       <Notice>
         <p>{t('moments.needsPrivate')}</p>
-        <TapLink to="/settings/privacy#journal">{t('moment.reflect.openPrivacy')}</TapLink>
+        <TapLink to="/settings/journal#journal">{t('moment.reflect.openPrivacy')}</TapLink>
       </Notice>
     );
   } else if (state === 'locked') {
@@ -298,7 +298,7 @@ export default function MomentsPage() {
       {newPassphrase && state === 'unlocked' && (
         <Notice>
           <p>{t('moment.reflect.newPassphraseLater')}</p>
-          <TapLink to="/settings/privacy">{t('moment.reflect.openPrivacy')}</TapLink>
+          <TapLink to="/settings/journal">{t('moment.reflect.openPrivacy')}</TapLink>
         </Notice>
       )}
       {body}

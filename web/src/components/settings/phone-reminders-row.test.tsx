@@ -30,7 +30,7 @@ vi.mock('@capacitor/local-notifications', () => ({
   LocalNotifications: { checkPermissions: async () => ({ ...notificationPermission }) },
 }));
 
-describe('PhoneRemindersCard', { timeout: 15_000 }, () => {
+describe('PhoneRemindersRow', { timeout: 15_000 }, () => {
   beforeEach(() => {
     stubSettingsMedia();
   });
@@ -73,11 +73,12 @@ describe('PhoneRemindersCard', { timeout: 15_000 }, () => {
 
     const names = screen.getByRole('switch', { name: 'Show habit names in reminders' });
     expect(names).not.toBeChecked();
-    expect(names).toHaveAccessibleDescription(/lock screen/);
+    expect(names).toHaveAccessibleDescription(/lock screen.*This device/);
     await user.click(names);
 
     expect(reminderNames.get()).toBe(true);
     expect(localStorage.getItem('ember.reminderNames')).toBe('1');
     expect(names).toBeChecked();
+    expect(document.getElementById('phone-reminders')).toContainElement(screen.getByText('Saved.'));
   });
 });

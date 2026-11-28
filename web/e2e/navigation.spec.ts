@@ -45,14 +45,15 @@ test('every sub page leads back up to its parent, and the main nav lights the pa
   await tab('Settings').click();
   await expect(page).toHaveURL(/\/settings/);
 
+  await page.getByRole('link', { name: 'Feedback & about', exact: true }).click();
   await page.getByRole('link', { name: "What's new", exact: true }).click();
   await expect(title("What's new")).toBeVisible();
   await expect(tab('Settings')).toHaveAttribute('aria-current', 'page');
   await back('Back to Settings');
   await expect(page).toHaveURL(/\/settings(\/account)?$/);
 
-  await page.getByRole('link', { name: 'Privacy & data', exact: true }).click();
-  await page.getByRole('link', { name: 'Open Your moments' }).click();
+  await page.getByRole('link', { name: 'Journal & reflections', exact: true }).click();
+  await page.getByRole('link', { name: 'Your moments', exact: true }).click();
   await expect(title('Your moments')).toBeVisible();
   await expect(tab('Settings')).toHaveAttribute('aria-current', 'page');
   await back('Back to Settings');
