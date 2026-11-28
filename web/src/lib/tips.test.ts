@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { pickTip, readTipMemory, type TipFacts, writeTipMemory } from './tips';
+import { habit } from '@/test/test-support';
+import type { Habit } from './models';
+import { pickTip, pictureOfferFor, readTipMemory, type TipFacts, writeTipMemory } from './tips';
 
 const base: TipFacts = {
   today: '2026-11-14',
@@ -18,6 +20,7 @@ const base: TipFacts = {
   routines: 1,
   checkInDays: 0,
   hasNote: false,
+  pictureOffer: false,
 };
 
 const everything: Partial<TipFacts> = {
@@ -66,6 +69,18 @@ describe('pickTip', () => {
     const calm = { ...base, ...everything, calm: true };
     expect(pickTip(calm)).toBe('streaks');
     expect(pickTip({ ...calm, seen: ['streaks'] })).toBeNull();
+  });
+
+  it('offers a picture only after every other tip, and only on a later, unanswered day outside calm mode', () => {
+    const all = { ...base, ...everything, pictureOffer: true };
+    const allSeen = ['streaks', 'private-journal', 'routines', 'android', 'discord'] as const;
+    expect(pickTip({ ...all, seen: ['streaks', 'private-journal', 'routines', 'android'] })).toBe('discord');
+    expect(pickTip({ ...all, seen: [...allSeen] })).toBe('picture');
+    expect(pickTip({ ...base, pictureOffer: true })).toBe('picture');
+    expect(pickTip({ ...base, pictureOffer: true, waitDay: '2026-11-14' })).toBeNull();
+    expect(pickTip({ ...base, pictureOffer: true, firstDay: '2026-11-14' })).toBeNull();
+    expect(pickTip({ ...base, pictureOffer: true, calm: true })).toBeNull();
+    expect(pickTip({ ...base, pictureOffer: true, checkInDays: null, native: false })).toBeNull();
   });
 
   it('asks about streaks only with a habit and streaks off', () => {
@@ -123,5 +138,24 @@ describe('tip memory', () => {
     expect(readTipMemory('u3')).toEqual({ first: null, wait: null, pending: ['android'] });
     localStorage.setItem('ember.tips.u4', '{');
     expect(readTipMemory('u4')).toEqual({ first: null, wait: null, pending: [] });
+  });
+});
+
+describe('pictureOfferFor', () => {
+  const walk: Habit = { ...habit, id: 1, name: 'Evening walk' };
+  const read: Habit = { ...habit, id: 2, name: 'Read' };
+
+  it("offers the first matching habit in Today's order, with the picture its name suggests", () => {
+    expect(pictureOfferFor([{ ...habit, id: 3, name: 'Stretch' }, read, walk], undefined)).toEqual({
+      habit: read,
+      picture: 'shelf',
+    });
+  });
+
+  it('skips habits that have a picture, were asked already or are paused, and offers nothing when switched off', () => {
+    expect(pictureOfferFor([{ ...read, picture: 'kindling' }, walk], true)?.habit).toBe(walk);
+    expect(pictureOfferFor([{ ...read, pictureOfferAnswered: true }, walk], true)?.habit).toBe(walk);
+    expect(pictureOfferFor([{ ...read, pausedToday: true }, walk], true)?.habit).toBe(walk);
+    expect(pictureOfferFor([read, walk], false)).toBeNull();
   });
 });

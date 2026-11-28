@@ -1,16 +1,43 @@
-import { type LocalDateString, type TipId, tipIds } from './models';
+import { matchPicture } from './habit-visuals/keywords';
+import type { Habit, HabitPicture, LocalDateString, TipId } from './models';
+import { tipIds } from './models';
 import { Store } from './store';
 
 /** Where a tip shows: above Today's habit list, below it, or under the day-note form (Today and History). */
 export type TipPlace = 'top' | 'below' | 'journal';
 
-export const tipPlaces: Record<TipId, TipPlace> = {
+/** A tip {@link pickTip} can choose: a `TipIds` entry, or the picture offer, whose "seen" lives on each habit. */
+export type ShownTip = TipId | 'picture';
+
+export const tipPlaces: Record<ShownTip, TipPlace> = {
   streaks: 'top',
   'private-journal': 'journal',
   routines: 'below',
   android: 'below',
   discord: 'below',
+  picture: 'top',
 };
+
+/** The habit the picture tip offers a picture to, and that picture. */
+export interface PictureOffer {
+  habit: Habit;
+  /** Kindling is never offered. */
+  picture: Exclude<HabitPicture, 'kindling'>;
+}
+
+/**
+ * The first of `forToday` (Today's For today habits, in Today order) the picture tip may ask about: the account
+ * suggests pictures, and the habit is not paused, has no picture, was never asked, and its name matches a picture.
+ */
+export function pictureOfferFor(forToday: readonly Habit[], suggestPictures: boolean | undefined): PictureOffer | null {
+  if (suggestPictures === false) return null;
+  for (const habit of forToday) {
+    if (habit.picture || habit.pictureOfferAnswered || habit.pausedToday) continue;
+    const picture = matchPicture(habit.name);
+    if (picture && picture !== 'kindling') return { habit, picture };
+  }
+  return null;
+}
 
 /** What {@link pickTip} decides on. Null counts and flags are still loading. */
 export interface TipFacts {
@@ -36,15 +63,17 @@ export interface TipFacts {
   checkInDays: number | null;
   /** Whether the account has a saved day note. */
   hasNote: boolean | null;
+  /** A habit on Today the picture tip may ask about ({@link pictureOfferFor}). */
+  pictureOffer: boolean;
 }
 
 const atLeast = (count: number | null, min: number) => (count === null ? null : count >= min);
 
 /**
- * The one tip to show now, by the contract's priority order, or null. Returns null while a higher-priority tip's
- * condition is still unknown, so a lower one never flashes first.
+ * The one tip to show now, by the contract's priority order with the picture offer last, or null. Returns null while a
+ * higher-priority tip's condition is still unknown, so a lower one never flashes first.
  */
-export function pickTip(f: TipFacts): TipId | null {
+export function pickTip(f: TipFacts): ShownTip | null {
   if (f.whatsNew) return null;
   const quiet = f.calm || f.today <= f.firstDay || (f.waitDay !== null && f.today <= f.waitDay);
   const conditions: Record<TipId, () => boolean | null> = {
@@ -60,7 +89,7 @@ export function pickTip(f: TipFacts): TipId | null {
     if (holds === null) return null;
     if (holds) return id;
   }
-  return null;
+  return f.pictureOffer && !quiet ? 'picture' : null;
 }
 
 /** Per user on this device: the first local day seen, the last answered day, and marks not yet sent. */

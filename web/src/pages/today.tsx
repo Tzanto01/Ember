@@ -553,7 +553,12 @@ export default function TodayPage() {
       <DeviceNotices />
       <FiresideToday />
       <WhatsNewCard />
-      <TipSlot place="top" habits={data?.habits} routines={data?.routines} />
+      <TipSlot
+        place="top"
+        habits={data?.habits}
+        routines={data?.routines}
+        forToday={plan?.today.flatMap((item) => (item.kind === 'habit' ? [item.habit] : item.habits))}
+      />
     </>
   );
 

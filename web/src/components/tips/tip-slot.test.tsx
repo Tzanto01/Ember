@@ -2,7 +2,7 @@ import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentType } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Habit, Me } from '@/lib/models';
+import { type Habit, type Me, tipIds } from '@/lib/models';
 import { auth } from '@/lib/services';
 import { type FetchMock, habit, me, mockFetch } from '@/test/test-support';
 import { readTipMemory } from '@/lib/tips';
@@ -102,5 +102,68 @@ describe('TipSlot', () => {
     (await f.next('GET', '/api/day-notes')).respond(200, []);
     await waitFor(() => expect(readTipMemory('restart').pending).toEqual([]));
     expect(screen.queryByRole('link', { name: 'Make a routine' })).toBeNull();
+  });
+});
+
+describe('TipSlot picture offer', () => {
+  let f: FetchMock;
+  const allSeen = [...tipIds];
+  const stretch: Habit = { ...habit, id: 1, name: 'Stretch' };
+  const read: Habit = { ...habit, id: 2, name: 'Read' };
+  const walk: Habit = { ...habit, id: 3, name: 'Walk' };
+
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('ember.seenReleaseNotes', '0.10.0-beta.1');
+    f = mockFetch();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    auth.clearSession();
+  });
+
+  const offer = (id: string, suggestPictures?: boolean) =>
+    renderSlot(f, { ...me, id, tipsSeen: allSeen, suggestPictures }, () => (
+      <TipSlot place="top" habits={[stretch, read, walk]} forToday={[stretch, read, walk]} />
+    ));
+  const question = { name: '“Read” could show as a small shelf that fills with each session. Try it?' };
+
+  it('asks about the first matching habit and "Show me" sets its picture, then says where to switch it off', async () => {
+    await offer('pictures-yes');
+
+    expect(await screen.findByRole('heading', question)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Show me' }));
+    const patch = await f.next('PATCH', '/api/habits/2');
+    expect(patch.body).toEqual({ picture: 'shelf', pictureOfferAnswered: true });
+    patch.respond(200, { ...read, picture: 'shelf', portionAmount: 15, portionUnit: 'min', pictureOfferAnswered: true });
+
+    expect(await screen.findByRole('heading', { name: '“Read” shows its picture now.' })).toHaveFocus();
+    expect(screen.getByText("You can switch it off in the habit's settings.")).toBeInTheDocument();
+    expect(screen.queryByRole('heading', question)).toBeNull();
+    expect(readTipMemory('pictures-yes').wait).toBe('2026-11-01');
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss tip' }));
+    expect(screen.queryByRole('heading', { name: '“Read” shows its picture now.' })).toBeNull();
+  });
+
+  it('records "Not for this habit" on the habit only, hiding the question at once', async () => {
+    await offer('pictures-no');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Not for this habit' }));
+
+    expect(screen.queryByRole('heading', question)).toBeNull();
+    const patch = await f.next('PATCH', '/api/habits/2');
+    expect(patch.body).toEqual({ pictureOfferAnswered: true });
+    patch.respond(200, { ...read, pictureOfferAnswered: true });
+    expect(f.all.some((c) => c.url.includes('/api/me/tips'))).toBe(false);
+    expect(readTipMemory('pictures-no').wait).toBe('2026-11-01');
+  });
+
+  it('never asks once the account turned picture suggestions off', async () => {
+    await offer('pictures-off', false);
+    await act(async () => {});
+
+    expect(screen.queryByRole('heading', question)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Show me' })).toBeNull();
   });
 });
