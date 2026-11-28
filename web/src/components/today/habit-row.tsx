@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { DayCell } from '@/components/day-cell';
+import { HabitPictureControl } from '@/components/habit-visuals/pictures/habit-picture';
 import { habitCadence } from '@/components/habits/habit-fields';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,8 @@ export interface HabitRowProps {
   onRewardEnd: () => void;
   /** Takes one check-in off a multi-count habit; the row offers it once today has any. */
   onUndoOne?: () => void;
+  /** Saves today's count from a tap on the habit's picture; without it the row shows no picture. */
+  onSetCount?: (count: number) => void;
   /** `h4` when the row sits under a routine heading. */
   headingLevel?: 'h2' | 'h3' | 'h4';
   /** The account's `showStreaks`: false leaves the streak chip out. */
@@ -93,7 +96,8 @@ function Progress({ habit, roll, showStreaks }: { habit: Habit; roll: boolean; s
 
 /**
  * One Today habit card: name, meta line, Edit icon link, and the CheckButton (or a static day slot when not
- * checkable), with the {@link TimerControl} under them or, from `sm`, beside the check button. Multi-count habits show "2 of 3 today" and a "take one off" button once started; a rest day says so,
+ * checkable), with the {@link TimerControl} and the habit's {@link HabitPictureControl} under them or, from `sm`,
+ * beside the check button. Multi-count habits show "2 of 3 today" and a "take one off" button once started; a rest day says so,
  * and a Not for today row always says why it is there.
  */
 export function HabitRow({
@@ -103,6 +107,7 @@ export function HabitRow({
   onToggle,
   onRewardEnd,
   onUndoOne,
+  onSetCount,
   headingLevel: Heading = 'h2',
   showStreaks,
   highlight = false,
@@ -175,7 +180,7 @@ export function HabitRow({
     <li id={habitRowId(habit.id)} data-reorder-key={reorderKey} className={className}>
       <Card
         className={cn(
-          'relative isolate grid grid-cols-[minmax(0,1fr)_56px] items-center gap-x-3 gap-y-0 py-3 sm:has-[[data-timer]]:grid-cols-[minmax(0,1fr)_auto_56px] md:py-3',
+          'relative isolate grid grid-cols-[minmax(0,1fr)_56px] items-center gap-x-3 gap-y-0 py-3 sm:has-[[data-timer]]:grid-cols-[minmax(0,1fr)_auto_56px] sm:has-[[data-picture-beside]]:grid-cols-[minmax(0,1fr)_auto_56px] md:py-3',
           done &&
             'bg-[color-mix(in_oklch,var(--done)_8%,var(--card))] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_3px_0_0_var(--done)]',
           reward === 'fill' && 'ember-row-fill',
@@ -230,6 +235,7 @@ export function HabitRow({
           <DayCell state={paused ? 'paused' : 'beforestart'} size="slot" />
         )}
         <TimerControl habit={habit} startable={!paused && !notStarted} onAnnounce={onAnnounce} />
+        {onSetCount && <HabitPictureControl habit={habit} busy={busy} onSetCount={onSetCount} />}
       </Card>
     </li>
   );

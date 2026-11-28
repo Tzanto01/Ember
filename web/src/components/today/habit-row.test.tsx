@@ -108,6 +108,41 @@ describe('HabitRow meta line', () => {
   });
 });
 
+describe('HabitRow picture', () => {
+  const water: Habit = { ...habit, name: 'Water', timesPerDay: 3, picture: 'kindling', today: { ...habit.today, count: 1 } };
+
+  function showPicture(subject: Habit, checkInPaused = false) {
+    render(
+      <MemoryRouter>
+        <HabitRow
+          habit={subject}
+          busy={false}
+          reward={null}
+          onToggle={() => {}}
+          onRewardEnd={() => {}}
+          onSetCount={() => {}}
+          showStreaks
+          checkInPaused={checkInPaused}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it('shows the picture next to the check button', () => {
+    showPicture(water);
+
+    expect(screen.getByRole('button', { name: 'Water, 1 of 3 logs. Add a log to the fire.' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check in Water for today, 1/3 done' })).toBeInTheDocument();
+  });
+
+  it('shows no picture for a paused habit, even where it can still be checked in', () => {
+    showPicture({ ...water, pausedToday: true, today: { ...water.today, state: 'paused' } }, true);
+
+    expect(screen.getByRole('button', { name: 'Check in Water for today, 1/3 done' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /logs/ })).toBeNull();
+  });
+});
+
 describe('HabitRow under Not for today', () => {
   const restDays = { frequency: 'weekdays' as const, days: ['mon' as const] };
   const restLine = 'Rest day, nothing planned. Checking in is still welcome.';

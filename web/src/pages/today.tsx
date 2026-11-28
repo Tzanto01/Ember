@@ -8,6 +8,7 @@ import { TapLink } from '@/components/auth/busy-button';
 import { EmptyState } from '@/components/empty-state';
 import { useReminderReach, useReminderSettingsHash } from '@/components/habits/reminder-reach';
 import { FiresideToday } from '@/components/fireside/fireside-today';
+import { showsPicture } from '@/components/habit-visuals/pictures/habit-picture';
 import { isPausedOn } from '@/components/history/kept-days';
 import { DayJournal } from '@/components/journal/day-journal';
 import { LetGoSection } from '@/components/letgo/letgo-section';
@@ -34,6 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { isOffday } from '@/lib/calendar';
 import { type DayEdit, withDayEdit } from '@/lib/device-store';
 import { highlightMs } from '@/lib/guide/highlight';
+import { clampCount } from '@/lib/habit-visuals/progress';
 import { t } from '@/lib/i18n';
 import { addDays, formatDate } from '@/lib/local-date';
 import { pulse } from '@/lib/moment/voice';
@@ -220,21 +222,22 @@ export default function TodayPage() {
       return next;
     });
 
-  async function toggle(habit: Habit, undoOne = false) {
+  /**
+   * Saves a check-in change: without `to` the check button's toggle, else today's count set to `to` (clamped to 0 to
+   * `timesPerDay`), as "take one off" and the habit's picture send it; an unchanged count sends nothing.
+   */
+  async function toggle(habit: Habit, to?: number, focusCheckAfter = false) {
     if (inFlight.current.has(habit.id) || !data) return;
-    inFlight.current.add(habit.id);
     const target = habit.timesPerDay;
     const multi = target > 1;
     const current = Math.min(habit.today.count, target);
-    if (undoOne && current === 1) focusAfter.current = checkButtonId(habit.id);
-    const nextCount = !multi
-      ? null
-      : undoOne
-        ? Math.max(current - 1, 0)
-        : habit.today.state === 'done'
-          ? 0
-          : current + 1;
-    const checkIn = nextCount === null ? habit.today.state !== 'done' : nextCount > current;
+    const done = habit.today.state === 'done';
+    const set = to === undefined ? null : clampCount(to, target);
+    if (set !== null && set === (done && !multi ? 1 : current)) return;
+    inFlight.current.add(habit.id);
+    if (focusCheckAfter) focusAfter.current = checkButtonId(habit.id);
+    const nextCount = !multi ? null : (set ?? (done ? 0 : Math.min(current + 1, target)));
+    const checkIn = nextCount === null ? (set === null ? !done : set === 1) : nextCount > current;
     const reaches = nextCount === null ? checkIn : nextCount >= target;
     const edit: DayEdit =
       nextCount === null
@@ -256,7 +259,8 @@ export default function TodayPage() {
             : await api.clearDay(habit.id, habit.today.date);
       updateHabit(habit.id, () => updated);
       if (checkIn && reaches && auth.me.get()?.offerHabitNote) openNote(habit, true);
-      setAnnouncement(
+      if (!showsPicture(habit))
+        setAnnouncement(
         nextCount === null
           ? checkIn
             ? t('today.announce.checkedIn', { name: habit.name })
@@ -461,7 +465,11 @@ export default function TodayPage() {
       highlight={highlighted === habit.id}
       reward={rewards.get(habit.id) ?? null}
       onToggle={() => void toggle(habit)}
-      onUndoOne={() => void toggle(habit, true)}
+      onUndoOne={() => {
+        const current = Math.min(habit.today.count, habit.timesPerDay);
+        void toggle(habit, current - 1, current === 1);
+      }}
+      onSetCount={(count) => void toggle(habit, count)}
       onRewardEnd={() => setReward(habit.id, null)}
       menu={extras.menu}
       onAnnounce={setAnnouncement}

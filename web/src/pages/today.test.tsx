@@ -294,6 +294,57 @@ describe('TodayPage', () => {
     expect(screen.getByText('2 of 3 today')).toBeInTheDocument();
   });
 
+  it("checks in once from a tap on the habit's picture, through the same absolute count as the check button", async () => {
+    const water: Habit = {
+      ...habit,
+      name: 'Water',
+      timesPerDay: 8,
+      picture: 'bottle',
+      portionAmount: 250,
+      portionUnit: 'ml',
+      today: { ...habit.today, state: 'partial', count: 5 },
+    };
+    renderToday();
+    await answerLoad(f, [water]);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Water, 5 of 8 glasses. Add 250 ml.' }));
+    const put = await f.next('PUT', '/api/habits/1/days/2026-11-01');
+    expect(put.body).toEqual({ count: 6 });
+    expect(screen.getByText('6 of 8, 1.5 L')).toBeInTheDocument();
+    put.respond(200, { ...water, today: { ...water.today, count: 6 } });
+
+    expect(await screen.findByRole('button', { name: 'Check in Water for today, 6/8 done' })).toBeInTheDocument();
+  });
+
+  it('undoes a pill box back to the taken slot that was tapped, and sends nothing for a tap on a full bottle', async () => {
+    const tablets: Habit = {
+      ...habit,
+      name: 'Tablets',
+      timesPerDay: 3,
+      picture: 'pills',
+      today: { ...habit.today, state: 'partial', count: 2 },
+    };
+    const full: Habit = {
+      ...habit,
+      id: 2,
+      name: 'Water',
+      timesPerDay: 2,
+      picture: 'bottle',
+      portionAmount: 250,
+      portionUnit: 'ml',
+      today: { ...habit.today, state: 'done', completed: true, count: 2 },
+    };
+    renderToday();
+    await answerLoad(f, [tablets, full]);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Water, 2 of 2 glasses. All done for today.' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Tablets, 1st' }));
+
+    const put = await f.next('PUT', '/api/habits/1/days/2026-11-01');
+    expect(put.body).toEqual({ count: 0 });
+    expect(f.all.filter((call) => call.method === 'PUT')).toHaveLength(1);
+  });
+
   it('says a checked-in rest day is still a rest day, and returns to the plain rest line when its check-in is cleared', async () => {
     const restDone = {
       ...habit,
