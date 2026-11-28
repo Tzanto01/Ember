@@ -317,7 +317,7 @@ export default function SettingsPage() {
     { id: 'moods', title: t('settings.card.moods') },
     { id: 'helps', title: t('settings.card.helps') },
     ...(local ? [] : [{ id: 'moments', title: t('settings.card.moments') }]),
-    { id: 'appearance', title: t('settings.card.appearance') },
+    { id: 'appearance', title: t('settings.card.everywhere') },
     ...(local ? [] : [{ id: 'fireside', title: t('fireside.title') }]),
     { id: 'feedback', title: t('settings.card.feedback') },
     ...(diagnosticsAvailable() ? [{ id: 'diagnostics', title: t('settings.card.diagnostics') }] : []),

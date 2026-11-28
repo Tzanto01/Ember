@@ -18,7 +18,7 @@ import {
  */
 export function LanguageCard({ title, local }: { title: string; local: boolean }) {
   const { t } = useTranslation();
-  const { show, outcome, patch } = useSettingsStatus();
+  const { show, outcome, savedStatus, patch } = useSettingsStatus();
 
   function saveLanguage(language: Language): void {
     const before = currentLanguage();
@@ -39,6 +39,7 @@ export function LanguageCard({ title, local }: { title: string; local: boolean }
   return (
     <SettingsCard id="language" title={title}>
       <LanguagePicker labelledBy="language-heading" local={local} onChoose={saveLanguage} />
+      {savedStatus('language')}
       {outcome('language')}
     </SettingsCard>
   );

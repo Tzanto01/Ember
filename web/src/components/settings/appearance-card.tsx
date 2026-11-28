@@ -1,24 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { ColorSchemePicker } from '@/components/settings/color-scheme-picker';
 import { SettingsCard } from '@/components/settings/settings-card';
-import { DeviceChip } from '@/components/settings/settings-row';
+import { SettingsRow } from '@/components/settings/settings-row';
 import { useSettingsStatus } from '@/components/settings/settings-status';
 import { ThemePicker } from '@/components/theme-picker';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { env } from '@/lib/env';
 import { auth } from '@/lib/services';
 import { useStore } from '@/lib/store';
-import {
-  applyGentleMotion,
-  gentleMotion,
-  rememberAccountTheme,
-  type ThemeId,
-} from '@/lib/theme';
+import { applyGentleMotion, gentleMotion, rememberAccountTheme, type ThemeId } from '@/lib/theme';
 
 /**
- * Light or dark, the theme and calm mode, saved to the account when there is one; in the native app also gentle
- * motion, which stays on this device.
+ * Look & feel in two cards: "Everywhere" (`#appearance`) holds the theme and calm mode, saved to the account when
+ * there is one; "This device" (`#this-device`) holds light or dark and, in the native app, gentle motion.
  */
 export function AppearanceCard({
   title,
@@ -32,62 +26,71 @@ export function AppearanceCard({
   onCalmChange: (value: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const { show, outcome, savedStatus, patch } = useSettingsStatus();
+  const { show, markSaved, outcome, savedStatus, patch } = useSettingsStatus();
   const gentle = useStore(gentleMotion);
 
   function saveTheme(theme: ThemeId): void {
     if (!auth.signedIn()) return;
     void patch('appearance', { theme }).then((error) => {
       if (!error) rememberAccountTheme(theme);
-      else if (!error.handled) show('appearance', { tone: 'info', text: t('settings.appearance.notSaved') });
+      else if (!error.handled)
+        show('appearance', { tone: 'info', text: t('settings.appearance.notSaved') });
     });
   }
 
   return (
-    <SettingsCard id="appearance" title={title}>
-      <p id="appearance-hint">
-        {local ? t('settings.appearance.hintLocal') : t('settings.appearance.hintAccount')}
-      </p>
-      <ColorSchemePicker />
-      <ThemePicker labelledBy="appearance-heading" describedBy="appearance-hint" onChoose={saveTheme} />
-      {outcome('appearance')}
-      <div className="flex min-h-[44px] items-center justify-between gap-4">
-        <Label htmlFor="calm-mode" className="min-w-0 font-normal">
-          {t('settings.calm.label')}
-        </Label>
-        <Switch
-          id="calm-mode"
-          aria-describedby="calm-mode-hint"
-          checked={calm}
-          onCheckedChange={onCalmChange}
-        />
-      </div>
-      <p id="calm-mode-hint" className="text-[0.875rem] text-muted-foreground">
-        {t('settings.calm.hint')}
-      </p>
-      {savedStatus('calm')}
-      {outcome('calm')}
-      {env.native && (
-        <>
-          <div className="flex min-h-[44px] items-center justify-between gap-4">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <Label htmlFor="gentle-motion" className="font-normal">
-                {t('settings.gentleMotion.label')}
-              </Label>
-              <DeviceChip id="gentle-motion-device" />
-            </div>
-            <Switch
-              id="gentle-motion"
-              aria-describedby="gentle-motion-hint gentle-motion-device"
-              checked={gentle}
-              onCheckedChange={applyGentleMotion}
-            />
-          </div>
-          <p id="gentle-motion-hint" className="text-[0.875rem] text-muted-foreground">
-            {t('settings.gentleMotion.hint')}
+    <>
+      <SettingsCard id="appearance" title={title}>
+        <p id="appearance-hint">
+          {local ? t('settings.appearance.hintLocal') : t('settings.appearance.hintAccount')}
+        </p>
+        <div className="flex flex-col gap-2">
+          <p id="theme-label" className="font-medium">
+            {t('settings.theme.label')}
           </p>
-        </>
-      )}
-    </SettingsCard>
+          <ThemePicker
+            labelledBy="theme-label"
+            describedBy="appearance-hint"
+            onChoose={saveTheme}
+          />
+          {savedStatus('appearance')}
+          {outcome('appearance')}
+        </div>
+        <SettingsRow
+          id="calm"
+          controlId="calm-mode"
+          label={t('settings.calm.label')}
+          hint={t('settings.calm.hint')}
+          control={(field) => <Switch {...field} checked={calm} onCheckedChange={onCalmChange} />}
+        >
+          {savedStatus('calm')}
+          {outcome('calm')}
+        </SettingsRow>
+      </SettingsCard>
+      <SettingsCard id="this-device" title={t('settings.thisDevice')}>
+        <p id="this-device-hint">{t('settings.deviceLooks.hint')}</p>
+        <ColorSchemePicker />
+        {env.native && (
+          <SettingsRow
+            id="gentle"
+            controlId="gentle-motion"
+            label={t('settings.gentleMotion.label')}
+            hint={t('settings.gentleMotion.hint')}
+            control={(field) => (
+              <Switch
+                {...field}
+                checked={gentle}
+                onCheckedChange={(on) => {
+                  applyGentleMotion(on);
+                  markSaved('gentle');
+                }}
+              />
+            )}
+          >
+            {savedStatus('gentle')}
+          </SettingsRow>
+        )}
+      </SettingsCard>
+    </>
   );
 }

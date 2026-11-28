@@ -79,5 +79,6 @@ describe('PhoneRemindersRow', { timeout: 15_000 }, () => {
     expect(reminderNames.get()).toBe(true);
     expect(localStorage.getItem('ember.reminderNames')).toBe('1');
     expect(names).toBeChecked();
+    expect(document.getElementById('phone-reminders')).toContainElement(screen.getByText('Saved.'));
   });
 });

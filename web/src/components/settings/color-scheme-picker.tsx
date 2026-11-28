@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DeviceChip } from '@/components/settings/settings-row';
+import { useSettingsStatus } from '@/components/settings/settings-status';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { chooseColorScheme, type ColorScheme, colorScheme } from '@/lib/theme';
 
@@ -10,9 +10,10 @@ const choices = [
   { id: 'dark', label: 'settings.colorScheme.dark' },
 ] as const satisfies readonly { id: ColorScheme; label: string }[];
 
-/** Settings → Appearance: System, Light or Dark for this device; applies at once. */
+/** Settings → Look & feel → This device: System, Light or Dark for this device; applies at once. */
 export function ColorSchemePicker() {
   const { t } = useTranslation();
+  const { markSaved, savedStatus } = useSettingsStatus();
   const [scheme, setScheme] = useState(colorScheme);
 
   function choose(value: string): void {
@@ -20,19 +21,17 @@ export function ColorSchemePicker() {
     if (!next) return;
     chooseColorScheme(next);
     setScheme(next);
+    markSaved('colorScheme');
   }
 
   return (
     <div data-guide="color-scheme" className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <p id="color-scheme-label" className="font-medium">
-          {t('settings.colorScheme.label')}
-        </p>
-        <DeviceChip id="color-scheme-device" />
-      </div>
+      <p id="color-scheme-label" className="font-medium">
+        {t('settings.colorScheme.label')}
+      </p>
       <RadioGroup
         aria-labelledby="color-scheme-label"
-        aria-describedby="color-scheme-hint color-scheme-device"
+        aria-describedby="color-scheme-hint"
         value={scheme}
         onValueChange={choose}
         className="flex flex-wrap gap-2"
@@ -55,6 +54,7 @@ export function ColorSchemePicker() {
       <p id="color-scheme-hint" className="text-[0.875rem] text-muted-foreground">
         {t('settings.colorScheme.hint')}
       </p>
+      {savedStatus('colorScheme')}
     </div>
   );
 }

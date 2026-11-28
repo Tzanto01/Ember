@@ -40,6 +40,9 @@ describe('LanguageCard', { timeout: 15_000 }, () => {
     expect(document.documentElement.lang).toBe('de');
     expect(localStorage.getItem('ember.language')).toBe('de');
     expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
+    expect(screen.getByRole('region', { name: 'Sprache' })).toContainElement(
+      screen.getByText('Gespeichert.'),
+    );
   });
 
   it('goes back to English and says so in the language card when saving it fails', async () => {
