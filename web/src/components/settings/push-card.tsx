@@ -262,13 +262,16 @@ export function PushCard({
           )
         ))}
       {!env.native && destinations.data?.some((d) => d.current && d.kind === 'browser') && (
-        <>
+        <div className="border-t border-border">
           <ReminderNamesSetting
+            id="browser-names"
+            controlId="browser-reminder-names"
             checked={browserNames}
             onCheckedChange={(on) => void changeBrowserNames(on)}
-          />
-          {savedStatus('push')}
-        </>
+          >
+            {savedStatus('push')}
+          </ReminderNamesSetting>
+        </div>
       )}
       {outcome('push')}
     </SettingsCard>

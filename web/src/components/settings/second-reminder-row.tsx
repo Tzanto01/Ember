@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { FormField } from '@/components/form-field';
-import { SettingsCard } from '@/components/settings/settings-card';
+import { SettingsRow } from '@/components/settings/settings-row';
 import { useSettingsStatus } from '@/components/settings/settings-status';
 import { NativeSelect } from '@/components/ui/select';
 import { t } from '@/lib/i18n';
@@ -14,12 +13,10 @@ function secondReminderLabel(minutes: SecondReminderMinutes): string {
 }
 
 /** How long after a reminder a second one follows when the habit is still open, or none. */
-export function SecondReminderCard({
-  title,
+export function SecondReminderRow({
   value,
   onChange,
 }: {
-  title: string;
   value: SecondReminderMinutes;
   onChange: (value: SecondReminderMinutes) => void;
 }) {
@@ -27,24 +24,28 @@ export function SecondReminderCard({
   const { outcome, savedStatus } = useSettingsStatus();
 
   return (
-    <SettingsCard id="second-reminder" title={title}>
-      <FormField label={t('settings.card.secondReminder')} hint={t('settings.second.hint')}>
-        {(field) => (
-          <NativeSelect
-            {...field}
-            value={String(value)}
-            onChange={(event) => onChange(Number(event.target.value) as SecondReminderMinutes)}
-          >
-            {secondReminderChoices.map((n) => (
-              <option key={n} value={n}>
-                {secondReminderLabel(n)}
-              </option>
-            ))}
-          </NativeSelect>
-        )}
-      </FormField>
+    <SettingsRow
+      id="second-reminder"
+      controlId="second-reminder-wait"
+      label={t('settings.card.secondReminder')}
+      hint={t('settings.second.hint')}
+      wide
+      control={(field) => (
+        <NativeSelect
+          {...field}
+          value={String(value)}
+          onChange={(event) => onChange(Number(event.target.value) as SecondReminderMinutes)}
+        >
+          {secondReminderChoices.map((n) => (
+            <option key={n} value={n}>
+              {secondReminderLabel(n)}
+            </option>
+          ))}
+        </NativeSelect>
+      )}
+    >
       {savedStatus('second')}
       {outcome('second')}
-    </SettingsCard>
+    </SettingsRow>
   );
 }

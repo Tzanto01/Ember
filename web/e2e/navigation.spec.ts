@@ -53,7 +53,7 @@ test('every sub page leads back up to its parent, and the main nav lights the pa
   await expect(page).toHaveURL(/\/settings(\/account)?$/);
 
   await page.getByRole('link', { name: 'Journal & reflections', exact: true }).click();
-  await page.getByRole('link', { name: 'Open Your moments' }).click();
+  await page.getByRole('link', { name: 'Your moments', exact: true }).click();
   await expect(title('Your moments')).toBeVisible();
   await expect(tab('Settings')).toHaveAttribute('aria-current', 'page');
   await back('Back to Settings');

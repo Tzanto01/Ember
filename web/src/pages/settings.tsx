@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Info, type LucideIcon, Sparkles } from 'lucide-react';
+import { ChevronRight, type LucideIcon } from 'lucide-react';
 import { Fragment, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -20,15 +20,16 @@ import { DiagnosticsCard } from '@/components/settings/diagnostics-card';
 import { DiscordCard } from '@/components/settings/discord-card';
 import { ExportCard } from '@/components/settings/export-card';
 import { FeedbackForm } from '@/components/settings/feedback-form';
-import { GraceCard } from '@/components/settings/grace-card';
-import { HabitNotesCard } from '@/components/settings/habit-notes-card';
+import { GraceRow } from '@/components/settings/grace-row';
+import { HabitNotesRow } from '@/components/settings/habit-notes-row';
 import { HelpsSettings } from '@/components/settings/helps-settings';
 import { JournalSettings } from '@/components/settings/journal-settings';
 import { LanguageCard } from '@/components/settings/language-card';
-import { PhoneRemindersCard } from '@/components/settings/phone-reminders-card';
+import { PhoneRemindersRow } from '@/components/settings/phone-reminders-row';
 import { PushCard } from '@/components/settings/push-card';
-import { SecondReminderCard } from '@/components/settings/second-reminder-card';
+import { SecondReminderRow } from '@/components/settings/second-reminder-row';
 import { SettingsCard } from '@/components/settings/settings-card';
+import { SettingsLinkRow, SettingsRows } from '@/components/settings/settings-row';
 import {
   type SettingsMessage,
   SettingsStatusProvider,
@@ -41,11 +42,10 @@ import {
   settingsGroups,
   settingsSlugAliases,
 } from '@/components/settings/settings-groups';
-import { StreaksCard } from '@/components/settings/streaks-card';
-import { TimerCard } from '@/components/settings/timer-card';
+import { StreaksRow } from '@/components/settings/streaks-row';
+import { TimerRow } from '@/components/settings/timer-row';
 import { TimezoneCard } from '@/components/settings/timezone-card';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
-import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMePatchField } from '@/hooks/use-me-patch';
@@ -91,10 +91,38 @@ function focusSection(id: string): void {
   document.getElementById(`${id}-heading`)?.focus({ preventScroll: true });
 }
 
-const linkItems = {
-  'whats-new': { to: '/whats-new', icon: Sparkles, summaryKey: 'settings.whatsNewSummary' },
-  about: { to: '/about', icon: Info, summaryKey: 'settings.aboutSummary' },
+const linkRows = {
+  routines: { to: '/routines', hintKey: 'settings.routines.hint' },
+  moments: { to: '/moments', hintKey: 'settings.moments.hint' },
+  'whats-new': { to: '/whats-new', hintKey: 'settings.whatsNewSummary' },
+  about: { to: '/about', hintKey: 'settings.aboutSummary' },
 } as const;
+
+/** Cards shown as rows; consecutive ones share one `SettingsRows` card. */
+const rowCards = new Set<string>([
+  'phone-reminders',
+  'second-reminder',
+  'timer',
+  'streaks',
+  'habit-notes',
+  ...Object.keys(linkRows),
+]);
+
+/** Cards shown inside another card's row: grace days under Show streaks. */
+const nestedCards = new Set<string>(['grace']);
+
+/** Splits a group's cards into runs: each card alone, consecutive rows together in one run. */
+function runsOf(ids: string[]): { rows: boolean; ids: string[] }[] {
+  const runs: { rows: boolean; ids: string[] }[] = [];
+  for (const id of ids) {
+    if (nestedCards.has(id)) continue;
+    const rows = rowCards.has(id);
+    const last = runs.at(-1);
+    if (rows && last?.rows) last.ids.push(id);
+    else runs.push({ rows, ids: [id] });
+  }
+  return runs;
+}
 
 const listItemClass =
   'flex min-h-[64px] items-center gap-4 px-4 py-3 no-underline focus-visible:-outline-offset-3';
@@ -378,40 +406,26 @@ export default function SettingsPage() {
       case 'push':
         return <PushCard title={title('push')} me={me} destinations={destinations} />;
       case 'phone-reminders':
-        return <PhoneRemindersCard title={title('phone-reminders')} local={local} />;
+        return <PhoneRemindersRow local={local} />;
       case 'second-reminder':
-        return (
-          <SecondReminderCard
-            title={title('second-reminder')}
-            value={second ?? me.secondReminderMinutes}
-            onChange={changeSecond}
-          />
-        );
+        return <SecondReminderRow value={second ?? me.secondReminderMinutes} onChange={changeSecond} />;
       case 'timer':
-        return <TimerCard title={title('timer')} />;
+        return <TimerRow />;
       case 'streaks':
-        return <StreaksCard title={title('streaks')} checked={streaksShown} onCheckedChange={changeStreaks} />;
-      case 'grace':
-        return <GraceCard title={title('grace')} value={grace ?? me.graceDaysPerWeek} onChange={changeGrace} />;
-      case 'habit-notes':
         return (
-          <HabitNotesCard
-            title={title('habit-notes')}
-            checked={offerNote ?? me.offerHabitNote}
-            onCheckedChange={changeOfferNote}
+          <StreaksRow
+            checked={streaksShown}
+            onCheckedChange={changeStreaks}
+            nested={shown('grace') && <GraceRow value={grace ?? me.graceDaysPerWeek} onChange={changeGrace} />}
           />
         );
+      case 'habit-notes':
+        return <HabitNotesRow checked={offerNote ?? me.offerHabitNote} onCheckedChange={changeOfferNote} />;
       case 'routines':
-        return (
-          <SettingsCard id="routines" title={title('routines')}>
-            <p>{t('settings.routines.intro')}</p>
-            <div>
-              <Button asChild variant="secondary">
-                <Link to="/routines">{t('settings.routines.link')}</Link>
-              </Button>
-            </div>
-          </SettingsCard>
-        );
+      case 'moments':
+      case 'whats-new':
+      case 'about':
+        return <SettingsLinkRow id={id} to={linkRows[id].to} label={title(id)} hint={t(linkRows[id].hintKey)} />;
       case 'journal':
         return (
           <SettingsCard id="journal" title={title('journal')}>
@@ -428,15 +442,6 @@ export default function SettingsPage() {
         return (
           <SettingsCard id="helps" title={title('helps')}>
             <HelpsSettings />
-          </SettingsCard>
-        );
-      case 'moments':
-        return (
-          <SettingsCard id="moments" title={title('moments')}>
-            <p>{t('settings.moments.intro')}</p>
-            <div>
-              <TapLink to="/moments">{t('settings.moments.open')}</TapLink>
-            </div>
           </SettingsCard>
         );
       case 'appearance':
@@ -599,31 +604,14 @@ export default function SettingsPage() {
           {notice}
           {me ? (
             <>
-              {current.cards
-                .filter((card) => !(card.id in linkItems))
-                .map((card) => (
-                  <Fragment key={card.id}>{renderCard(card.id, me)}</Fragment>
-                ))}
-              {current.cards.some((card) => card.id in linkItems) && (
-                <ul className={listClass}>
-                  {current.cards
-                    .filter((card) => card.id in linkItems)
-                    .map((card) => {
-                      const item = linkItems[card.id as keyof typeof linkItems];
-                      return (
-                        <li key={card.id} id={card.id}>
-                          <ListLink
-                            id={`${card.id}-link`}
-                            to={item.to}
-                            icon={item.icon}
-                            name={card.title}
-                            summary={t(item.summaryKey)}
-                          />
-                        </li>
-                      );
-                    })}
-                </ul>
-              )}
+              {runsOf(current.cards.map((card) => card.id)).map(({ rows, ids }) => {
+                const cards = ids.map((id) => <Fragment key={id}>{renderCard(id, me)}</Fragment>);
+                return rows ? (
+                  <SettingsRows key={ids[0]}>{cards}</SettingsRows>
+                ) : (
+                  <Fragment key={ids[0]}>{cards}</Fragment>
+                );
+              })}
             </>
           ) : (
             <>

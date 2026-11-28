@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { auth } from '@/lib/services';
@@ -25,7 +25,7 @@ vi.mock('@/lib/services', async (original) => {
   };
 });
 
-describe('SecondReminderCard', { timeout: 15_000 }, () => {
+describe('HabitNotesRow', { timeout: 15_000 }, () => {
   beforeEach(() => {
     stubSettingsMedia();
   });
@@ -34,20 +34,20 @@ describe('SecondReminderCard', { timeout: 15_000 }, () => {
     resetSettings();
   });
 
-  it('saves the second reminder choice to the account', async () => {
+  it('offers a note after check-in only once turned on, saving it to the account', async () => {
     const user = userEvent.setup();
-    const { fetch } = await openSettings('/settings/reminders');
-    const select = screen.getByRole('combobox', { name: 'Second reminder' });
-    expect(select).toHaveDisplayValue('Off');
-    expect(select).toHaveAccessibleDescription("If you haven't checked in yet, Ember nudges you once more.");
+    const { fetch } = await openSettings('/settings/habits');
+    const toggle = screen.getByRole('switch', { name: 'Offer a note after check-in' });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAccessibleDescription(/how it went/);
 
-    await user.selectOptions(select, '1 hour');
+    await user.click(toggle);
 
-    const patch = await fetch.next('PATCH', '/api/me');
-    expect(patch.body).toEqual({ secondReminderMinutes: 60 });
-    patch.respond(200, { ...me, secondReminderMinutes: 60 });
-    await waitFor(() => expect(auth.me.get()?.secondReminderMinutes).toBe(60));
-    expect(select).toHaveDisplayValue('1 hour');
-    expect(screen.getByText('Saved.')).toBeInTheDocument();
+    const sent = await fetch.next('PATCH', '/api/me');
+    expect(sent.body).toEqual({ offerHabitNote: true });
+    sent.respond(200, { ...me, offerHabitNote: true });
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    expect(toggle).toBeChecked();
+    expect(auth.me.get()?.offerHabitNote).toBe(true);
   });
 });

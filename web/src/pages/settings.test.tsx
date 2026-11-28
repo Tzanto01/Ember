@@ -90,10 +90,27 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(settingsPath(router)).toBe('/settings/reminders#push');
     expect(router.state.historyAction).toBe('REPLACE');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Reminders & sounds');
-    expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Grace days per week' })).toBeNull();
     frames.forEach((callback) => callback(0));
     expect(heading).toHaveFocus();
     expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById('push'));
+  });
+
+  it.each([
+    ['/settings/habits#habit-notes', 'habit-notes', () => screen.getByText('Offer a note after check-in')],
+    ['/settings/support#about', 'about', () => screen.getByRole('link', { name: 'About Ember' })],
+  ])('opens %s, scrolls to that row and focuses it', async (url, id, target) => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const frames = new Map<number, FrameRequestCallback>();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.set(frames.size + 1, callback).size);
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+    await openSettings(url);
+    await settle();
+
+    frames.forEach((callback) => callback(0));
+    expect(target()).toHaveFocus();
+    expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById(id));
   });
 
   it.each([
@@ -388,7 +405,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     const { router } = await openSettings('/settings/habits');
 
-    await user.click(screen.getByRole('link', { name: 'Your routines' }));
+    await user.click(screen.getByRole('link', { name: 'Routines' }));
     expect(router.state.location.pathname).toBe('/routines');
   });
   it('claims this browser for the account on entry, before listing reminders', async () => {

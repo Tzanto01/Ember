@@ -13,7 +13,7 @@ vi.mock('@/lib/services', async (original) => {
   };
 });
 
-describe('TimerCard', { timeout: 15_000 }, () => {
+describe('TimerRow', { timeout: 15_000 }, () => {
   beforeEach(() => {
     stubSettingsMedia();
   });
@@ -29,7 +29,7 @@ describe('TimerCard', { timeout: 15_000 }, () => {
     await openSettings('/settings/reminders');
     const sound = screen.getByRole('switch', { name: 'Sound when a timer ends' });
     expect(sound).not.toBeChecked();
-    expect(sound).toHaveAccessibleDescription(/calm mode it stays silent/);
+    expect(sound).toHaveAccessibleDescription(/silent in calm mode.*This device/);
 
     await user.click(sound);
 

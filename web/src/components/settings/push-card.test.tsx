@@ -89,6 +89,7 @@ describe('PushCard', { timeout: 15_000 }, () => {
 
       const names = await screen.findByRole('switch', { name: 'Show habit names in reminders' });
       expect(names).not.toBeChecked();
+      expect(names).toHaveAccessibleDescription(/lock screen.*This device/);
       await user.click(names);
 
       expect(setShowNames).toHaveBeenCalledWith(true);
@@ -224,7 +225,7 @@ describe('PushCard', { timeout: 15_000 }, () => {
 
     expect(await screen.findByText(/Nothing can remind you yet/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Turn on reminders in this browser' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Second reminder' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Second reminder' })).toBeInTheDocument();
   });
 
   it('says paused Discord DM reminders inside this card and resumes them', async () => {

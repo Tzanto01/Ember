@@ -27,7 +27,7 @@ vi.mock('@/lib/services', async (original) => {
   };
 });
 
-describe('StreaksCard', { timeout: 15_000 }, () => {
+describe('StreaksRow', { timeout: 15_000 }, () => {
   beforeEach(() => {
     stubSettingsMedia();
   });
@@ -41,14 +41,14 @@ describe('StreaksCard', { timeout: 15_000 }, () => {
     const { fetch } = await openSettings('/settings/habits');
     const toggle = screen.getByRole('switch', { name: 'Show streaks' });
     expect(toggle).toBeChecked();
-    expect(screen.getByRole('heading', { name: 'Grace days' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Grace days per week' })).toBeInTheDocument();
 
     await user.click(toggle);
 
     const sent = await fetch.next('PATCH', '/api/me');
     expect(sent.body).toEqual({ showStreaks: false });
     expect(toggle).not.toBeChecked();
-    expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Grace days per week' })).toBeNull();
     sent.respond(200, { ...me, showStreaks: false });
 
     expect(await screen.findByText('Saved.')).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('StreaksCard', { timeout: 15_000 }, () => {
     renderPage('/settings/:group?', SettingsPage, '/settings/habits');
     (await fetch.next('GET', '/api/me')).respond(200, off);
     const toggle = await screen.findByRole('switch', { name: 'Show streaks' });
-    expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Grace days per week' })).toBeNull();
 
     await user.click(toggle);
     const sent = await fetch.next('PATCH', '/api/me');
@@ -72,6 +72,6 @@ describe('StreaksCard', { timeout: 15_000 }, () => {
     sent.respond(500, { type: 'internal', title: 'Server error', status: 500 });
 
     await waitFor(() => expect(toggle).not.toBeChecked());
-    expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Grace days per week' })).toBeNull();
   });
 });

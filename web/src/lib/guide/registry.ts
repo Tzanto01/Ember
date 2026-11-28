@@ -252,7 +252,7 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'settings-streaks',
         questionKey: 'guide.settings.streaks.q',
         answerKey: 'guide.settings.streaks.a',
-        covers: [groups, settingsPage, 'web/src/components/settings/streaks-card.tsx'],
+        covers: [groups, settingsPage, 'web/src/components/settings/streaks-row.tsx'],
       },
       {
         id: 'settings-looks',
@@ -340,7 +340,7 @@ export const guides: Record<GuideScreen, Guide> = {
         answerKey: 'guide.habitsDays.grace.a',
         values: { max: Math.max(...graceOptions) },
         target: 'grace',
-        covers: [rules, 'web/src/lib/models.ts', 'web/src/components/settings/grace-card.tsx'],
+        covers: [rules, 'web/src/lib/models.ts', 'web/src/components/settings/grace-row.tsx'],
       },
       {
         id: 'habits-days-kinds',
