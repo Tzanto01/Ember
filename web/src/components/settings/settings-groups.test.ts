@@ -30,4 +30,12 @@ describe('settingsGroups', () => {
     expect(settingsGroupOf('dm-reminders')?.slug).toBe('reminders');
     expect(settingsGroupOf('nothing')).toBeUndefined();
   });
+
+  it('opens Look & feel for the addresses inside its cards', () => {
+    expect(['this-device', 'calm', 'gentle'].map((id) => settingsGroupOf(id)?.slug)).toEqual([
+      'appearance',
+      'appearance',
+      'appearance',
+    ]);
+  });
 });

@@ -144,8 +144,16 @@ export function settingsCardId(cardId: string): string {
   return legacyCardIds[cardId] ?? cardId;
 }
 
-/** The group holding the settings card with this id (or an older id of it), if any. */
+/** Addresses inside a card, and the card that holds them. */
+const innerAddresses: Record<string, string> = {
+  'this-device': 'appearance',
+  calm: 'appearance',
+  gentle: 'appearance',
+};
+
+/** The group holding the settings card with this id (or an older id of it, or an address inside it), if any. */
 export function settingsGroupOf(cardId: string): SettingsGroup | undefined {
   const id = settingsCardId(cardId);
-  return settingsGroups.find((group) => group.cards.includes(id));
+  const card = innerAddresses[id] ?? id;
+  return settingsGroups.find((group) => group.cards.includes(card));
 }

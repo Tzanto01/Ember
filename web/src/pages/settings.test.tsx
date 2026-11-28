@@ -126,6 +126,19 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(screen.queryByRole('heading', { name: 'Grace days' })).toBeNull();
   });
 
+  it('opens Look & feel for /settings#calm and focuses the Calm mode row', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const frames = new Map<number, FrameRequestCallback>();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.set(frames.size + 1, callback).size);
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+    const { router } = await openSettings('/settings#calm');
+
+    await waitFor(() => expect(settingsPath(router)).toBe('/settings/appearance#calm'));
+    await settle();
+    frames.forEach((callback) => callback(0));
+    expect(screen.getByText('Calm mode', { selector: 'label' })).toHaveFocus();
+  });
+
   it.each(['/settings#dm-reminders', '/settings/reminders#dm-reminders'])(
     'sends an older %s link to the push card that took its place and focuses its heading',
     async (url) => {
