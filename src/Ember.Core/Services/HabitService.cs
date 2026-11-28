@@ -493,7 +493,14 @@ public partial class HabitService
         if (reminderExclusions is not null) habit.ReminderExclusions = reminderExclusions.Distinct().ToList();
         if (clearTimer) habit.TimerMinutes = null;
         else if (timerMinutes is not null) habit.TimerMinutes = timerMinutes;
-        (habit.Picture, habit.PortionAmount, habit.PortionUnit) = pictureState;
+        if (pictureState != HabitPictureState.Of(habit))
+        {
+            (habit.Picture, habit.PortionAmount, habit.PortionUnit) = pictureState;
+            var entry = _db.Entry(habit);
+            entry.Property(h => h.Picture).IsModified = true;
+            entry.Property(h => h.PortionAmount).IsModified = true;
+            entry.Property(h => h.PortionUnit).IsModified = true;
+        }
         if (pictureOfferAnswered) habit.PictureOfferAnswered = true;
 
         if (clearReminder)
