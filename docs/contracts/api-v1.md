@@ -1,4 +1,6 @@
-# Ember API contract v1.29
+# Ember API contract v1.30
+
+v1.30 (2026-11-28, Nico on the habit visuals concept: "Both look conceptually good, build them as is please."): a build habit can show an optional picture on Today (`picture`, `portionAmount`, `portionUnit`, `pictureOfferAnswered`), and the account gains `suggestPictures` and `units`, in the API, export and import. See `habit-visuals-v1.md`.
 
 v1.29 (2026-11-24, Nico on Ember's copy of feedback in Lookout: "Ember keeps a copy (Recommended)"): Lookout owns feedback's board, status, comments and email. Ember keeps what a signed-in user sent only for the export and the deletion, so the export's reports no longer have `status`, `resolved_at` and pictures, and the daily digest, `--feedback-status` and the ops board are gone. See "Feedback copy v1.29".
 
