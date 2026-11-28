@@ -165,7 +165,7 @@ function RailLink({
       to={`/settings/${group.slug}`}
       aria-current={current ? 'page' : undefined}
       className={cn(
-        'flex min-h-[44px] items-center gap-3 rounded-md px-3 no-underline',
+        'flex min-h-[44px] items-center gap-3 rounded-md px-3 no-underline focus-visible:-outline-offset-3',
         apart
           ? cn(
               'bg-lowday text-lowday-foreground hover:text-lowday-foreground',
@@ -557,7 +557,7 @@ export default function SettingsPage() {
         {wide && (
           <nav
             aria-labelledby="settings-rail-label"
-            className="sticky top-[calc(56px+env(safe-area-inset-top)+1.5rem)] flex flex-col gap-2"
+            className="sticky top-[calc(56px+env(safe-area-inset-top)+1.5rem)] flex max-h-[calc(100dvh-56px-env(safe-area-inset-top)-3rem)] flex-col gap-2 overflow-y-auto"
           >
             <h2 id="settings-rail-label" className="px-3 text-[1rem] font-semibold">
               {t('title.settings')}
