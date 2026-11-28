@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  settingsBlocks,
-  settingsGroupOf,
-  settingsGroups,
-  settingsSlugAliases,
-} from './settings-groups';
+import { settingsBlocks, settingsGroupOf, settingsGroups } from './settings-groups';
 
 describe('settingsGroups', () => {
   it('holds every card in its group and block, in order, with Help right now apart at the end', () => {
@@ -31,8 +26,7 @@ describe('settingsGroups', () => {
     ]);
   });
 
-  it('opens the group that took the cards of an older slug or card id', () => {
-    expect(settingsSlugAliases).toEqual({ feedback: 'support' });
+  it('opens the group that took the cards of an older card id', () => {
     expect(settingsGroupOf('dm-reminders')?.slug).toBe('reminders');
     expect(settingsGroupOf('nothing')).toBeUndefined();
   });
