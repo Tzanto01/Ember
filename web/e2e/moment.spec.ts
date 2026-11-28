@@ -213,7 +213,7 @@ test('unlocked private journal: the reflection is saved encrypted and shows in T
   await expect(journal).toHaveValue(/What helped: Slow breathing/);
 });
 
-test('a plain-journal account reaches Reflect with no Save and a way to Privacy & data', async ({
+test('a plain-journal account reaches Reflect with no Save and a way to Journal & reflections', async ({
   page,
 }) => {
   await createUserWithHabit(page);
@@ -222,7 +222,7 @@ test('a plain-journal account reaches Reflect with no Save and a way to Privacy 
   await reachReflect(page);
   await expectNoSave(page);
   await expect(page.getByText(/needs the private journal/)).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open Privacy & data' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Journal & reflections' })).toBeVisible();
 });
 
 test('a no-account profile reaches Reflect with no Save', async ({ page }) => {
@@ -239,7 +239,7 @@ test('a cold start on /moment loads the account once at Reflect and saves with t
   page,
 }) => {
   await createWebUser(page);
-  await page.goto('/settings/privacy');
+  await page.goto('/settings/journal');
   const section = journalSection(page);
   await fillNewPassphrase(section, 'Journal passphrase', newPassphrase());
   await section.getByLabel('Your login password').fill(SECRET);

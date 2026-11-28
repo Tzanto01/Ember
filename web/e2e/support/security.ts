@@ -25,7 +25,7 @@ export async function fillNewPassphrase(
 
 /** Turns the private journal on from Settings; returns the one-time recovery code. */
 export async function enableJournal(page: Page, passphrase: string): Promise<string> {
-  await page.goto('/settings/privacy');
+  await page.goto('/settings/journal');
   const section = journalSection(page);
   await fillNewPassphrase(section, 'Journal passphrase', passphrase);
   await section.getByLabel('Your login password').fill(SECRET);

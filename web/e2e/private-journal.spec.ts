@@ -27,7 +27,7 @@ test('private journal: encrypted at rest, lock and unlock, recovery code, change
   expect(stored[0]?.text ?? null).toBeNull();
   expect(JSON.stringify(stored)).not.toContain('river');
 
-  await openSettingsGroup(page, 'Privacy & data');
+  await openSettingsGroup(page, 'Journal & reflections');
   const section = journalSection(page);
   await section.getByRole('button', { name: 'Lock on this device' }).click();
   await expect(section.getByText('Your private journal is locked on this device.')).toBeVisible();
@@ -35,14 +35,14 @@ test('private journal: encrypted at rest, lock and unlock, recovery code, change
   await expect(page.getByText('Your private journal is locked on this device.')).toBeVisible();
   await expect(page.getByLabel('A few words')).toHaveCount(0);
 
-  await openSettingsGroup(page, 'Privacy & data');
+  await openSettingsGroup(page, 'Journal & reflections');
   await section.getByLabel('Journal passphrase').fill(first);
   await section.getByRole('button', { name: 'Unlock', exact: true }).click();
   await expect(section.getByRole('status').filter({ hasText: 'Unlocked on this device.' })).toBeVisible();
   await openPage(page, 'Today');
   await expect(page.getByLabel('A few words')).toHaveValue(note);
 
-  await openSettingsGroup(page, 'Privacy & data');
+  await openSettingsGroup(page, 'Journal & reflections');
   await section.getByRole('button', { name: 'Lock on this device' }).click();
   await section.getByRole('button', { name: 'Use my recovery code' }).click();
   await section.getByLabel('Recovery code').fill(recoveryCode);
@@ -106,7 +106,7 @@ test('losing both passphrase and recovery code can delete the encrypted journal'
   await saveTodayNote(page, note);
   expect(await dayNotes(page)).toHaveLength(1);
 
-  await openSettingsGroup(page, 'Privacy & data');
+  await openSettingsGroup(page, 'Journal & reflections');
   const section = journalSection(page);
   await section.getByRole('button', { name: 'Lock on this device' }).click();
   await section.getByRole('button', { name: 'I lost both my passphrase and recovery code' }).click();

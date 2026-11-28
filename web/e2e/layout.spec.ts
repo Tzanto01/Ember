@@ -10,7 +10,7 @@ const sizes = [
   { width: 3440, height: 1440 },
 ];
 const longHabit = 'Wasser trinken und Donaudampfschifffahrtsgesellschaft';
-const settingsGroups = ['account', 'reminders', 'habits', 'appearance', 'privacy', 'feedback', 'help'];
+const settingsGroups = ['account', 'language', 'privacy', 'reminders', 'habits', 'journal', 'appearance', 'support', 'help'];
 
 /**
  * Reports what a reader would see broken: the page scrolling sideways, and text running out of its box.
@@ -321,9 +321,9 @@ for (const { code, locale, strings } of languages) {
       await visit(page, '/moments', tr('title.moments'), found);
       await expect(page.getByText(tr('moments.needsPrivate'))).toBeVisible();
       await check(page, '/moments (no private journal)', code, found);
-      await visit(page, '/settings/privacy', /./, found);
+      await visit(page, '/settings/journal', /./, found);
       await expect(page.getByText(tr('helps.needsPrivate'))).toBeVisible();
-      await check(page, '/settings/privacy (What helps me needs the journal)', code, found);
+      await check(page, '/settings/journal (What helps me needs the journal)', code, found);
 
       await setAccountLanguage(page, 'en');
       await enableRememberedJournal(page);
@@ -337,14 +337,14 @@ for (const { code, locale, strings } of languages) {
       await expect(page.getByText(reflectionTrigger)).toBeVisible();
       await check(page, '/moments (one moment)', code, found);
 
-      await visit(page, '/settings/privacy', /./, found);
+      await visit(page, '/settings/journal', /./, found);
       const card = page.getByRole('region', { name: tr('settings.card.helps') });
       await card.getByLabel(tr('helps.new')).fill(longHelp);
       await card.getByRole('button', { name: tr('helps.add'), exact: true }).click();
       await expect(card.getByText(longHelp, { exact: true })).toBeVisible();
-      await check(page, '/settings/privacy (What helps me with a long item)', code, found);
+      await check(page, '/settings/journal (What helps me with a long item)', code, found);
       await card.getByRole('button', { name: tr('helps.editLabel', { text: longHelp }) }).click();
-      await check(page, '/settings/privacy (What helps me editing)', code, found);
+      await check(page, '/settings/journal (What helps me editing)', code, found);
 
       await visit(page, '/today', tr('today.title'), found);
       await page.getByRole('link', { name: tr('moment.door.label') }).click();
@@ -363,7 +363,7 @@ for (const { code, locale, strings } of languages) {
       await page.getByRole('button', { name: tr('moment.catch.breathe') }).click();
       await check(page, '/moment practice (calm on)', code, found);
 
-      await visit(page, '/settings/privacy', /./, found);
+      await visit(page, '/settings/journal', /./, found);
       await page.getByRole('button', { name: tr('journalSettings.lock') }).click();
       await expect(page.getByText(tr('journalSettings.lockedDone'))).toBeAttached();
       await visit(page, '/moments', tr('title.moments'), found);

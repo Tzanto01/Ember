@@ -65,10 +65,10 @@ test('a signed-in user switches to German in Settings and back to English', asyn
   await createWebUser(page);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 
-  await page.goto('/settings/appearance');
+  await page.goto('/settings/language');
   await page.getByRole('radio', { name: 'Deutsch' }).check();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  await expect(page.getByRole('heading', { name: 'Darstellung', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sprache & Zeit', level: 1 })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('ember.language'))).toBe('de');
   await expect
     .poll(async () => ((await (await page.request.get('/api/me')).json()) as { language?: string }).language)
@@ -100,14 +100,25 @@ test('a signed-in user switches to German in Settings and back to English', asyn
 
   await page.goto('/settings');
   const groups = page.getByRole('main').getByRole('navigation');
-  for (const group of ['Konto & Sicherheit', 'Erinnerungen', 'Habits & Tage', 'Darstellung', 'Privatsphäre & Daten', 'Feedback senden', 'Hilfe jetzt']) {
+  for (const group of [
+    'Konto & Anmeldung',
+    'Sprache & Zeit',
+    'Privatsphäre & Daten',
+    'Erinnerungen & Töne',
+    'Habits & Streaks',
+    'Tagebuch & Reflexion',
+    'Aussehen & Bewegung',
+    'Am Lagerfeuer',
+    'Feedback & Infos',
+    'Hilfe jetzt',
+  ]) {
     await expect(groups.getByRole('link', { name: new RegExp(`^${group}`) })).toBeVisible();
   }
 
-  await page.goto('/settings/appearance');
+  await page.goto('/settings/language');
   await page.getByRole('radio', { name: 'English' }).check();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.getByRole('heading', { name: 'Appearance', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Language & time', level: 1 })).toBeVisible();
   await expect
     .poll(async () => ((await (await page.request.get('/api/me')).json()) as { language?: string }).language)
     .toBe('en');

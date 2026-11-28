@@ -156,10 +156,10 @@ for (const { code, strings } of languages) {
       ).toBeVisible();
       await snap('habits, none checked');
 
-      await go(page, '/settings/habits');
+      await go(page, '/settings/journal');
       await addMood(page, 'Cozy', '🧸');
       await addMood(page, 'Zufrieden und gelassen', '😌');
-      await capture(page, '/settings/habits', 'two own moods', code, found);
+      await capture(page, '/settings/journal', 'two own moods', code, found);
 
       await go(page, '/today', tr('today.title'));
       await checkButton(page, 'Stretch').click();
@@ -454,7 +454,7 @@ for (const { code, strings } of languages) {
         .getByRole('link', { name: tr('nav.settings') })
         .click();
       await page
-        .getByRole('link', { name: new RegExp(`^${tr('settings.group.privacy')}`) })
+        .getByRole('link', { name: new RegExp(`^${tr('settings.group.journal')}`) })
         .first()
         .click();
       await page.getByRole('button', { name: tr('journalSettings.lock') }).click();
@@ -634,14 +634,14 @@ for (const { code, strings } of languages) {
       expect(reviewVerdict(found)).toEqual([]);
     });
 
-    test(`Settings privacy, journal, What helps me ${code}`, async ({ page }) => {
+    test(`Settings journal, What helps me, privacy ${code}`, async ({ page }) => {
       test.setTimeout(timeout);
       const found: string[] = [];
-      const snap = (state: string, extras = {}) =>
-        capture(page, '/settings/privacy', state, code, found, extras);
+      let route = '/settings/journal';
+      const snap = (state: string, extras = {}) => capture(page, route, state, code, found, extras);
       await createWebUser(page);
       await setAccountLanguage(page, code);
-      await go(page, '/settings/privacy', /./);
+      await go(page, route, /./);
       const journal = page.getByRole('region', { name: tr('settings.card.journal') });
       const helps = page.getByRole('region', { name: tr('settings.card.helps') });
       const passphrase = newPassphrase();
@@ -727,8 +727,10 @@ for (const { code, strings } of languages) {
       await snap('journal turn off confirmation');
       await journal.getByRole('button', { name: tr('settings.cancel') }).click();
 
-      await go(page, '/settings/privacy', /./);
+      await go(page, route, /./);
       await snap('journal locked after reload, What helps me locked');
+      route = '/settings/privacy';
+      await go(page, route, /./);
       const exportCard = page.getByRole('region', { name: tr('settings.card.export') });
       await expect(
         exportCard.getByRole('button', { name: tr('export.download', { format: 'JSON' }) }),

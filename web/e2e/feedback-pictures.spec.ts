@@ -25,7 +25,7 @@ async function storedFeedback(page: Page, title: string): Promise<Stored> {
 }
 
 async function fillReport(page: Page, title: string): Promise<void> {
-  await page.goto('/settings/feedback');
+  await page.goto('/settings/support');
   await page.getByLabel('Title', { exact: true }).fill(title);
   await page.getByLabel('Description', { exact: true }).fill('Synthetic feedback from an end-to-end test.');
 }

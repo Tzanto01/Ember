@@ -22,7 +22,7 @@ interface Screen {
 const screens: Screen[] = [
   { name: 'today', path: '/today', heading: 'Today' },
   { name: 'history', path: '/history/1', heading: 'History' },
-  { name: 'settings', path: '/settings', heading: /^(Settings|Account & security)$/ },
+  { name: 'settings', path: '/settings', heading: /^(Settings|Account & sign-in)$/ },
   {
     name: 'habit-new',
     path: '/habits/new',

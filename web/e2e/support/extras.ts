@@ -10,7 +10,7 @@ export async function enableRememberedJournal(
   page: Page,
   passphrase = newPassphrase(),
 ): Promise<string> {
-  await page.goto('/settings/privacy');
+  await page.goto('/settings/journal');
   const section = journalSection(page);
   await fillNewPassphrase(section, 'Journal passphrase', passphrase);
   await section.getByLabel('Your login password').fill(SECRET);

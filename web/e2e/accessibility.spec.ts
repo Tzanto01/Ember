@@ -10,7 +10,7 @@ const viewports = [
   { name: 'desktop', width: 1280, height: 800 },
 ];
 const schemes = ['light', 'dark'] as const;
-const settingsGroups = ['account', 'reminders', 'habits', 'appearance', 'privacy', 'feedback'];
+const settingsGroups = ['account', 'language', 'privacy', 'reminders', 'habits', 'journal', 'appearance', 'support'];
 
 async function scan(page: Page, where: string, found: string[]): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
@@ -234,9 +234,9 @@ for (const { code, locale, strings } of languages) {
             await visitPage(page, '/moments', tr('title.moments'), found);
             await expect(page.getByText(tr('moments.needsPrivate'))).toBeVisible();
             await scan(page, '/moments (no private journal)', found);
-            await visitPage(page, '/settings/privacy', /./, found);
+            await visitPage(page, '/settings/journal', /./, found);
             await expect(page.getByText(tr('helps.needsPrivate'))).toBeVisible();
-            await scan(page, '/settings/privacy (What helps me needs the journal)', found);
+            await scan(page, '/settings/journal (What helps me needs the journal)', found);
 
             await setAccountLanguage(page, 'en');
             await enableRememberedJournal(page);
@@ -249,10 +249,10 @@ for (const { code, locale, strings } of languages) {
             await visitPage(page, '/moments', tr('title.moments'), found);
             await expect(page.getByText(reflectionTrigger)).toBeVisible();
             await scan(page, '/moments (one moment)', found);
-            await visitPage(page, '/settings/privacy', /./, found);
+            await visitPage(page, '/settings/journal', /./, found);
             const card = page.getByRole('region', { name: tr('settings.card.helps') });
             await card.getByRole('button', { name: tr('helps.editLabel', { text: 'Slow breathing' }) }).click();
-            await scan(page, '/settings/privacy (What helps me editing)', found);
+            await scan(page, '/settings/journal (What helps me editing)', found);
 
             await visitPage(page, '/today', tr('today.title'), found);
             await page.getByRole('link', { name: tr('moment.door.label') }).click();
@@ -272,7 +272,7 @@ for (const { code, locale, strings } of languages) {
             await page.getByRole('button', { name: tr('moment.catch.breathe') }).click();
             await scan(page, '/moment practice (calm on)', found);
 
-            await visitPage(page, '/settings/privacy', /./, found);
+            await visitPage(page, '/settings/journal', /./, found);
             await page.getByRole('button', { name: tr('journalSettings.lock') }).click();
             await expect(page.getByRole('status').filter({ hasText: tr('journalSettings.lockedDone') })).toBeVisible();
             await visitPage(page, '/moments', tr('title.moments'), found);

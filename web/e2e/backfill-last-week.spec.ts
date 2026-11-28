@@ -40,7 +40,7 @@ test('last week is backfilled in History and survives a reload', async ({ page }
   await expectDayState(page, addDays(today, -5), 'notdone');
   await expectDayState(page, addDays(today, -6), 'done');
 
-  await openSettingsGroup(page, 'Habits & days');
+  await openSettingsGroup(page, 'Habits & streaks');
   const showStreaks = page.getByRole('switch', { name: 'Show streaks' });
   await showStreaks.click();
   await expect(showStreaks).toBeChecked();
