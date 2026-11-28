@@ -22,6 +22,7 @@ import { ExportCard } from '@/components/settings/export-card';
 import { FeedbackForm } from '@/components/settings/feedback-form';
 import { GraceRow } from '@/components/settings/grace-row';
 import { HabitNotesRow } from '@/components/settings/habit-notes-row';
+import { HabitPicturesRow } from '@/components/settings/habit-pictures-row';
 import { HelpsSettings } from '@/components/settings/helps-settings';
 import { JournalSettings } from '@/components/settings/journal-settings';
 import { LanguageCard } from '@/components/settings/language-card';
@@ -47,6 +48,7 @@ import { StreaksRow } from '@/components/settings/streaks-row';
 import { TimerRow } from '@/components/settings/timer-row';
 import { TimezoneCard } from '@/components/settings/timezone-card';
 import { TwoFactorSettings } from '@/components/settings/two-factor-settings';
+import { UnitsRow } from '@/components/settings/units-row';
 import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMePatchField } from '@/hooks/use-me-patch';
@@ -54,7 +56,7 @@ import { env } from '@/lib/env';
 import { diagnosticsAvailable } from '@/lib/native/diagnostics';
 import { updaterAvailable } from '@/lib/native/updater';
 import { api, auth, localMode, push } from '@/lib/services';
-import type { Me, SecondReminderMinutes } from '@/lib/models';
+import type { Me, SecondReminderMinutes, UnitSystem } from '@/lib/models';
 import { useStore } from '@/lib/store';
 import { applyCalm, calmMode } from '@/lib/theme';
 import { t } from '@/lib/i18n';
@@ -106,6 +108,8 @@ const rowCards = new Set<string>([
   'timer',
   'streaks',
   'habit-notes',
+  'habit-pictures',
+  'units',
   ...Object.keys(linkRows),
 ]);
 
@@ -280,6 +284,13 @@ export default function SettingsPage() {
     (value: boolean) => patch('habitNotes', { offerHabitNote: value }),
     { onError: (error) => fail('habitNotes', error) },
   );
+  const [suggestPictures, changeSuggestPictures] = useMePatchField(
+    (value: boolean) => patch('suggestPictures', { suggestPictures: value }),
+    { onError: (error) => fail('suggestPictures', error) },
+  );
+  const [units, changeUnits] = useMePatchField((value: UnitSystem) => patch('units', { units: value }), {
+    onError: (error) => fail('units', error),
+  });
   const [grace, changeGrace] = useMePatchField((value: number) => patch('grace', { graceDaysPerWeek: value }), {
     onError: (error) => fail('grace', error),
   });
@@ -303,6 +314,7 @@ export default function SettingsPage() {
         ]),
     { id: 'language', title: t('language.label') },
     { id: 'timezone', title: t('settings.card.timezone') },
+    { id: 'units', title: t('habitVisuals.settings.units.label') },
     ...(local
       ? []
       : [
@@ -317,6 +329,7 @@ export default function SettingsPage() {
     { id: 'streaks', title: t('settings.card.streaks') },
     ...(streaksShown ? [{ id: 'grace', title: t('settings.card.grace') }] : []),
     { id: 'habit-notes', title: t('settings.card.habitNotes') },
+    { id: 'habit-pictures', title: t('habitVisuals.settings.suggest.label') },
     { id: 'routines', title: t('settings.card.routines') },
     ...(local ? [] : [{ id: 'journal', title: t('settings.card.journal') }]),
     { id: 'moods', title: t('settings.card.moods') },
@@ -431,6 +444,15 @@ export default function SettingsPage() {
         );
       case 'habit-notes':
         return <HabitNotesRow checked={offerNote ?? me.offerHabitNote} onCheckedChange={changeOfferNote} />;
+      case 'habit-pictures':
+        return (
+          <HabitPicturesRow
+            checked={suggestPictures ?? me.suggestPictures !== false}
+            onCheckedChange={changeSuggestPictures}
+          />
+        );
+      case 'units':
+        return <UnitsRow value={units ?? me.units ?? 'metric'} onChange={changeUnits} />;
       case 'routines':
       case 'moments':
       case 'whats-new':

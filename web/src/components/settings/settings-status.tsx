@@ -12,6 +12,8 @@ export type SettingsSection =
   | 'grace'
   | 'streaks'
   | 'habitNotes'
+  | 'suggestPictures'
+  | 'units'
   | 'calm'
   | 'second'
   | 'discord'

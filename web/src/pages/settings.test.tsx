@@ -242,10 +242,10 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
 
   const signedIn = [
     ['/settings/account', 'Password, two-step sign-in, Discord'],
-    ['/settings/language', 'Language, your time zone'],
+    ['/settings/language', 'Language, your time zone, units'],
     ['/settings/privacy', 'Consent, download, delete'],
     ['/settings/reminders', 'Where and when Ember nudges you'],
-    ['/settings/habits', 'Streaks, grace days, notes, routines'],
+    ['/settings/habits', 'Streaks, grace days, notes, pictures, routines'],
     ['/settings/journal', 'Private journal, moods, what helps you'],
     ['/settings/appearance', 'Light or dark, theme, calm mode'],
     ['/settings/people', 'Share your fire with people you choose'],
@@ -256,10 +256,10 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
   it.each([
     ['without an account on the web', 'local', false, [
       ['/settings/account', 'Backups and an account of your own'],
-      ['/settings/language', 'Language, your time zone'],
+      ['/settings/language', 'Language, your time zone, units'],
       ['/settings/privacy', 'Delete everything on this device'],
       ['/settings/reminders', 'The sound when a timer ends'],
-      ['/settings/habits', 'Streaks, grace days, notes, routines'],
+      ['/settings/habits', 'Streaks, grace days, notes, pictures, routines'],
       ['/settings/journal', 'Moods and what helps you'],
       ['/settings/appearance', 'Light or dark, theme, calm mode'],
       ['/settings/support', "Send feedback, what's new, app version"],
@@ -267,10 +267,10 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     ]],
     ['without an account in the Android app', 'local', true, [
       ['/settings/account', 'Backups and an account of your own'],
-      ['/settings/language', 'Language, your time zone'],
+      ['/settings/language', 'Language, your time zone, units'],
       ['/settings/privacy', 'Delete everything on this device'],
       ['/settings/reminders', 'Reminders on this phone, timer sound'],
-      ['/settings/habits', 'Streaks, grace days, notes, routines'],
+      ['/settings/habits', 'Streaks, grace days, notes, pictures, routines'],
       ['/settings/journal', 'Moods and what helps you'],
       ['/settings/appearance', 'Light or dark, theme, calm mode'],
       ['/settings/support', "Send feedback, what's new, app version"],
@@ -294,10 +294,10 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
     expect(help.closest('ul')).not.toHaveAccessibleName();
   });
 
-  const habitRows = ['streaks', 'grace', 'habit-notes', 'routines'];
+  const habitRows = ['streaks', 'grace', 'habit-notes', 'habit-pictures', 'routines'];
   const signedInCards = {
     account: ['account', 'two-factor', 'discord'],
-    language: ['language', 'timezone'],
+    language: ['language', 'timezone', 'units'],
     privacy: ['consent', 'export', 'delete'],
     reminders: ['push', 'second-reminder', 'timer'],
     habits: habitRows,
@@ -309,7 +309,7 @@ describe('SettingsPage', { timeout: 15_000 }, () => {
   };
   const localCards = {
     account: ['device'],
-    language: ['language', 'timezone'],
+    language: ['language', 'timezone', 'units'],
     privacy: ['delete'],
     reminders: ['timer'],
     habits: habitRows,

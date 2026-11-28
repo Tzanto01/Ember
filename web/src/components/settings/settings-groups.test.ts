@@ -6,14 +6,14 @@ describe('settingsGroups', () => {
     expect(settingsBlocks.map((block) => block.id)).toEqual(['you', 'ember', 'support']);
     expect(settingsGroups.map(({ slug, block, cards }) => ({ slug, block, cards }))).toEqual([
       { slug: 'account', block: 'you', cards: ['device', 'account', 'two-factor', 'discord'] },
-      { slug: 'language', block: 'you', cards: ['language', 'timezone'] },
+      { slug: 'language', block: 'you', cards: ['language', 'timezone', 'units'] },
       { slug: 'privacy', block: 'you', cards: ['consent', 'export', 'delete'] },
       {
         slug: 'reminders',
         block: 'ember',
         cards: ['push', 'phone-reminders', 'second-reminder', 'timer'],
       },
-      { slug: 'habits', block: 'ember', cards: ['streaks', 'grace', 'habit-notes', 'routines'] },
+      { slug: 'habits', block: 'ember', cards: ['streaks', 'grace', 'habit-notes', 'habit-pictures', 'routines'] },
       { slug: 'journal', block: 'ember', cards: ['journal', 'moods', 'helps', 'moments'] },
       { slug: 'appearance', block: 'ember', cards: ['appearance'] },
       { slug: 'people', block: 'ember', cards: ['fireside'] },
