@@ -1,6 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TimeZoneSelect } from '@/components/settings/time-zone-select';
 import { env } from '@/lib/env';
 import { me } from '@/test/test-support';
 import {
@@ -67,11 +68,83 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
     resetSettings();
   });
 
-  it('opens the list at the zone in use, moves with the arrow keys, Home and End, and Escape closes it unchanged', async () => {
+  it.each([
+    ['Tab', (user: ReturnType<typeof userEvent.setup>) => user.tab()],
+    ['a tap elsewhere', (user: ReturnType<typeof userEvent.setup>) => user.click(document.body)],
+  ])('puts the zone in use back and closes the list on %s, saving nothing', async (_, leave) => {
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/language');
+    const field = zoneField();
+
+    await user.clear(field);
+    await user.type(field, 'tok');
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    await leave(user);
+
+    expect(field).not.toHaveFocus();
+    expect(field).toHaveValue('Europe/Berlin');
+    expect(screen.queryByRole('listbox')).toBeNull();
+    await settle();
+    expect(openPatches(fetch)).toHaveLength(0);
+  });
+
+  it('keeps the field focused when the list itself or a group heading is pressed', async () => {
+    device.zone = 'America/New_York';
+    const user = userEvent.setup();
+    await openSettings('/settings/language');
+
+    await user.click(zoneField());
+
+    expect(fireEvent.mouseDown(screen.getByRole('listbox'))).toBe(false);
+    expect(fireEvent.mouseDown(screen.getByText('Your browser says America/New York'))).toBe(false);
+  });
+
+  it('scrolls the opened list into view, clear of the tab bar', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const user = userEvent.setup();
+    await openSettings('/settings/language');
+
+    await user.click(zoneField());
+
+    expect(scrollIntoView.mock.contexts).toContain(screen.getByRole('listbox'));
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  it('ignores Enter while a word is still being composed', async () => {
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/language');
+    const field = zoneField();
+
+    await user.clear(field);
+    await user.type(field, 'tokyo');
+    fireEvent.keyDown(field, { key: 'Enter', isComposing: true });
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    await settle();
+    expect(openPatches(fetch)).toHaveLength(0);
+  });
+
+  it('drops a pending result announcement when the field goes away', () => {
+    vi.useFakeTimers();
+    const { unmount } = render(
+      <TimeZoneSelect id="zone" value="Europe/Berlin" onChoose={() => undefined} />,
+    );
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'tok' } });
+    expect(vi.getTimerCount()).toBe(1);
+
+    unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('opens the list at the zone in use, moves with the arrow keys, leaves Home to the text, and Escape closes it unchanged', async () => {
     const user = userEvent.setup();
     const { fetch } = await openSettings('/settings/language');
     const field = zoneField();
@@ -93,12 +166,13 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
 
     await user.keyboard('{ArrowDown}');
     expect(activeOption()).toHaveTextContent(/^Europe\/Paris/);
-    await user.keyboard('{End}');
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    expect(activeOption()).toHaveTextContent(/^Atlantic\/Bermuda/);
+    await user.keyboard('{ArrowDown>12/}');
     expect(activeOption()).toHaveTextContent(/^UTC/);
     await user.keyboard('{Home}');
-    expect(activeOption()).toHaveTextContent(/^America\/Chicago/);
-    await user.keyboard('{ArrowUp}');
-    expect(activeOption()).toHaveTextContent(/^America\/Chicago/);
+    expect(activeOption()).toHaveTextContent(/^UTC/);
+    expect(field).toHaveProperty('selectionStart', 0);
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('listbox')).toBeNull();

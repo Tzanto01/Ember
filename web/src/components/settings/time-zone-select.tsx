@@ -165,8 +165,9 @@ export interface TimeZoneSelectProps {
 
 /**
  * A searchable list of every IANA time zone (a short list where the runtime can't name them all, plus `value` and
- * `suggested` always): type to filter, ArrowUp/ArrowDown, Home/End, Enter or a tap picks, Escape closes and puts the
- * zone in use back. `suggested` stands first, under "Your phone says …" (in the app) or "Your browser says …".
+ * `suggested` always): type to filter, ArrowUp/ArrowDown move, Enter or a tap picks, Escape, Tab or leaving the field
+ * closes it and puts the zone in use back. `suggested` stands first, under "Your phone says …" (in the app) or "Your
+ * browser says …". The list scrolls into view above the tab bar when it opens.
  */
 export function TimeZoneSelect({
   id,
@@ -230,6 +231,10 @@ export function TimeZoneSelect({
       box.scrollTop = option.offsetTop + option.offsetHeight - box.clientHeight;
   }, [active, expanded, base]);
 
+  useEffect(() => {
+    if (expanded) list.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [expanded]);
+
   function show(at: 'current' | 'last'): void {
     const all = optionsFor(query).zones;
     const current = all.indexOf(value);
@@ -261,13 +266,8 @@ export function TimeZoneSelect({
         if (!open) show('last');
         else setActive(Math.max(active - 1, 0));
         return;
-      case 'Home':
-      case 'End':
-        if (!expanded) return;
-        event.preventDefault();
-        setActive(event.key === 'Home' ? 0 : last);
-        return;
       case 'Enter': {
+        if (event.nativeEvent.isComposing) return;
         event.preventDefault();
         const zone = expanded ? options[active] : undefined;
         if (zone) choose(zone);
@@ -290,7 +290,6 @@ export function TimeZoneSelect({
         role="option"
         aria-selected={index === active}
         data-active={index === active || undefined}
-        onMouseDown={(event) => event.preventDefault()}
         onClick={() => choose(zone)}
         className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-base hover:bg-accent hover:text-accent-foreground data-[active]:bg-accent data-[active]:text-accent-foreground data-[active]:ring-1 data-[active]:ring-primary data-[active]:ring-inset"
       >
@@ -355,7 +354,8 @@ export function TimeZoneSelect({
           id={listId}
           role="listbox"
           aria-label={t('settings.timezone.listLabel')}
-          className="relative mt-2 max-h-[min(20rem,50dvh)] overflow-y-auto overscroll-contain rounded-md border-[length:max(1px,var(--border-width))] border-border bg-popover p-1 text-popover-foreground shadow-card"
+          onMouseDown={(event) => event.preventDefault()}
+          className="relative mt-2 max-h-[min(20rem,50dvh)] scroll-mb-[calc(64px+env(safe-area-inset-bottom)+1rem)] overflow-y-auto overscroll-contain rounded-md border-[length:max(1px,var(--border-width))] border-border bg-popover p-1 text-popover-foreground shadow-card"
         >
           {shown.suggested && suggestion ? (
             <>
