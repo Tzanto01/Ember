@@ -257,8 +257,10 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
   });
 
   it('names the zones with their offsets only once the list opens, and only once each', async () => {
+    vi.resetModules();
+    const fresh = await import('@/test/settings-page');
     const user = userEvent.setup();
-    await openSettings('/settings/language');
+    await fresh.openSettings('/settings/language');
     expect(device.labelled.filter((zone) => zone !== me.timezone)).toEqual([]);
 
     await user.click(zoneField());
@@ -322,6 +324,8 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
     ['Wien', ['Europe/Vienna']],
     ['Zürich', ['Europe/Zurich']],
     ['zurich', ['Europe/Zurich']],
+    ['Muenchen', ['Europe/Berlin']],
+    ['Zuerich', ['Europe/Zurich']],
   ])('typing %s lists cities that start with it first', async (typed, expected) => {
     const user = userEvent.setup();
     await openSettings('/settings/language');

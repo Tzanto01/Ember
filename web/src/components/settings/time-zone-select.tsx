@@ -69,13 +69,14 @@ const cityAliases: Record<string, string> = {
   Kopenhagen: 'Europe/Copenhagen',
 };
 
-/** Lower case, without accents or umlauts, `_` as a space: "Zürich" and "zurich" match. */
+/** Lower case, without accents or umlauts, `_` as a space: "Zürich", "Zuerich" and "zurich" match. */
 const fold = (text: string) =>
   text
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()
     .replaceAll('ß', 'ss')
+    .replace(/([aou])e/g, '$1')
     .replace(/[_\s]+/g, ' ')
     .trim();
 
