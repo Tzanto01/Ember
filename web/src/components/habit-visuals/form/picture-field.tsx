@@ -11,7 +11,7 @@ import {
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from '@/components/form-field';
-import { optionClass } from '@/components/habits/habit-fields';
+import { optionClass } from '@/components/habits/option-class';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -29,8 +29,9 @@ import {
   type PictureFieldState,
   type TypedUnit,
   typedUnit,
+  typeGoal,
+  typePortion,
   unitSymbol,
-  withGoal,
 } from './picture-form';
 
 const icons: Record<HabitPicture | 'plain', LucideIcon> = {
@@ -64,6 +65,8 @@ export interface PictureFieldProps<T extends PictureFieldState> {
   touched: boolean;
   /** Server field messages; a client message wins. */
   errors?: Record<string, string>;
+  /** New habit: choosing the bottle at once a day starts from a 2 L goal (see `choosePicture`). */
+  startGoal?: boolean;
 }
 
 /**
@@ -77,6 +80,7 @@ export function PictureField<T extends PictureFieldState>({
   units,
   touched,
   errors = {},
+  startGoal = false,
 }: PictureFieldProps<T>) {
   const { t } = useTranslation();
   const id = useId();
@@ -112,10 +116,15 @@ export function PictureField<T extends PictureFieldState>({
           value={value.picture ?? 'plain'}
           onValueChange={(picture) =>
             onChange(
-              choosePicture(value, picture === 'plain' ? null : (picture as HabitPicture), units),
+              choosePicture(
+                value,
+                picture === 'plain' ? null : (picture as HabitPicture),
+                units,
+                startGoal,
+              ),
             )
           }
-          className="grid-cols-2 sm:grid-cols-3"
+          className="grid-cols-[repeat(auto-fill,minmax(11.5rem,1fr))]"
         >
           {options.map((option) => {
             const Icon = icons[option];
@@ -132,7 +141,7 @@ export function PictureField<T extends PictureFieldState>({
                   aria-labelledby={`${id}-${option}-name`}
                 />
                 <Icon aria-hidden className="size-[1.25rem] shrink-0" />
-                <span id={`${id}-${option}-name`} className="min-w-0 [overflow-wrap:anywhere]">
+                <span id={`${id}-${option}-name`} className="[overflow-wrap:normal] hyphens-none">
                   {t(`habitVisuals.picture.${option}`)}
                 </span>
               </Label>
@@ -170,9 +179,7 @@ export function PictureField<T extends PictureFieldState>({
                   maxLength={6}
                   className="max-w-[8rem]"
                   value={value.goal}
-                  onChange={(event) =>
-                    onChange(withGoal({ ...value, goal: event.target.value }, units))
-                  }
+                  onChange={(event) => onChange(typeGoal(value, event.target.value, units))}
                   onBlur={() => setGoalLeft(true)}
                 />
                 <span id={`${field.id}-unit`}>{goalSymbol(units)}</span>
@@ -206,9 +213,7 @@ export function PictureField<T extends PictureFieldState>({
                 maxLength={6}
                 className="max-w-[8rem]"
                 value={value.portion}
-                onChange={(event) =>
-                  onChange(withGoal({ ...value, portion: event.target.value }, units))
-                }
+                onChange={(event) => onChange(typePortion(value, event.target.value, units))}
                 onBlur={() => setPortionLeft(true)}
               />
               {unitChoices.length > 1 ? (

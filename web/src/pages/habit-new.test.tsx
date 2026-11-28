@@ -196,6 +196,24 @@ describe('HabitNewPage', () => {
       });
     });
 
+    it('gives back the earlier times a day when the bottle is switched off', async () => {
+      const { user, fetch } = await start('Evening glass');
+      const times = screen.getByLabelText('Times a day');
+      await user.click(screen.getByRole('radio', { name: 'Bottle' }));
+      expect(times).toHaveValue('8');
+
+      await user.click(screen.getByRole('radio', { name: 'Shelf' }));
+      expect(times).toHaveValue('1');
+      await user.click(screen.getByRole('radio', { name: 'Plain' }));
+      await create(user);
+
+      expect((await fetch.next('POST', '/api/habits')).body).toEqual({
+        name: 'Evening glass',
+        frequency: 'daily',
+        timesPerDay: 1,
+      });
+    });
+
     it('keeps 10 taps for a 3 L goal and suggests a bigger portion, with no goal for a weekly habit', async () => {
       const { user } = await start('Evening glass');
       await user.click(screen.getByRole('radio', { name: 'Bottle' }));

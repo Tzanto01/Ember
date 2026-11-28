@@ -36,8 +36,8 @@ import {
   portionAmount,
   portionText,
   useUnits,
-  withGoal,
 } from '@/components/habit-visuals/form/picture-form';
+import { optionClass } from '@/components/habits/option-class';
 
 /** What the create and edit form holds; fields that don't fit the chosen schedule are kept but not sent. */
 export interface HabitFormState extends PictureFormState {
@@ -92,6 +92,7 @@ export const emptyHabitForm: HabitFormState = {
 export function habitToForm(habit: AnyHabit, units: UnitSystem = 'metric'): HabitFormState {
   const unit = habit.portionUnit ?? null;
   const amount = habit.portionAmount ?? null;
+  const goalMl = habit.picture === 'bottle' && amount !== null ? habit.timesPerDay * amount : null;
   return {
     kind: habit.kind === 'letGo' ? 'letGo' : 'build',
     name: habit.name,
@@ -104,8 +105,9 @@ export function habitToForm(habit: AnyHabit, units: UnitSystem = 'metric'): Habi
     picture: habit.picture ?? null,
     portion: unit && amount !== null ? portionText(amount, unit, units) : '',
     portionUnit: unit && amount !== null ? unit : null,
-    goal:
-      habit.picture === 'bottle' && amount !== null ? goalText(habit.timesPerDay * amount, units) : '',
+    goal: goalMl === null ? '' : goalText(goalMl, units),
+    goalMl,
+    timesBeforeGoal: null,
     pictureOfferAnswered: habit.pictureOfferAnswered ?? false,
   };
 }
@@ -243,10 +245,6 @@ const kinds = [
 const targets = Array.from({ length: limits.weeklyTarget }, (_, i) => i + 1);
 const perDayOptions = Array.from({ length: limits.timesPerDay }, (_, i) => i + 1);
 
-/** A bordered radio or checkbox option with its label, highlighted when checked. */
-export const optionClass =
-  'flex min-h-[56px] cursor-pointer items-center gap-3 rounded-md border-[length:max(1px,var(--border-width))] border-input bg-card px-4 py-2 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:text-secondary-foreground';
-
 export interface HabitFieldsProps {
   value: HabitFormState;
   onChange: (value: HabitFormState) => void;
@@ -269,6 +267,8 @@ export interface HabitFieldsProps {
   kindLocked?: boolean;
   /** Shown right under the name, for example the picture offer. */
   afterName?: ReactNode;
+  /** New habit: choosing the bottle at once a day starts from a 2 L goal, which sets times per day. */
+  startBottleGoal?: boolean;
 }
 
 /**
@@ -289,6 +289,7 @@ export function HabitFields({
   silent = false,
   kindLocked = false,
   afterName,
+  startBottleGoal = false,
 }: HabitFieldsProps) {
   const { t } = useTranslation();
   const id = useId();
@@ -466,7 +467,7 @@ export function HabitFields({
             aria-labelledby={legendId}
             value={value.frequency}
             onValueChange={(frequency) =>
-              changeSchedule(withGoal({ ...value, frequency: frequency as Frequency }, units))
+              changeSchedule(goalForTimes({ ...value, frequency: frequency as Frequency }, units))
             }
             className="sm:grid-cols-3"
           >
@@ -545,7 +546,10 @@ export function HabitFields({
                 value={value.timesPerDay}
                 onChange={(event) =>
                   changeSchedule(
-                    goalForTimes({ ...value, timesPerDay: Number(event.target.value) }, units),
+                    goalForTimes(
+                      { ...value, timesPerDay: Number(event.target.value), timesBeforeGoal: null },
+                      units,
+                    ),
                   )
                 }
               >
@@ -610,6 +614,7 @@ export function HabitFields({
         <PictureField
           value={value}
           onChange={changeSchedule}
+          startGoal={startBottleGoal}
           units={units}
           touched={touched}
           errors={errors}

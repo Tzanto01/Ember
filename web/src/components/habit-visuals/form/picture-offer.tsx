@@ -54,7 +54,7 @@ export function PictureOffer<T extends PictureFieldState>({
           type="button"
           variant="secondary"
           onClick={() =>
-            answer(choosePicture(value, picture, units), `[data-picture-option="${picture}"]`)
+            answer(choosePicture(value, picture, units, true), `[data-picture-option="${picture}"]`)
           }
         >
           {t(`habitVisuals.offer.try.${picture}`)}

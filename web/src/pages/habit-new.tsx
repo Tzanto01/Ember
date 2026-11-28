@@ -248,6 +248,7 @@ export default function HabitNewPage() {
                 onTouched={() => setTouched(true)}
                 errors={problem?.fields ?? {}}
                 nameId={nameId}
+                startBottleGoal
                 afterName={
                   <PictureOffer value={form} onChange={setForm} units={units} nameId={nameId} />
                 }

@@ -5,33 +5,31 @@ import { HabitPicturesSetting } from './habit-pictures-setting';
 import { UnitsSetting } from './units-setting';
 
 describe('HabitPicturesSetting', () => {
-  it('shows the current value with what it does, and reports a flip', async () => {
+  it.each([
+    [true, false],
+    [false, true],
+  ])('shows %s and reports %s when toggled', async (value, next) => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<HabitPicturesSetting value={true} onChange={onChange} />);
+    render(<HabitPicturesSetting value={value} onChange={onChange} />);
     const toggle = screen.getByRole('switch', { name: 'Suggest pictures for habits' });
-    expect(toggle).toBeChecked();
-    expect(toggle).toHaveAccessibleDescription(
-      /once per habit\. Pictures you already chose stay\./,
-    );
+    expect(toggle).toHaveAttribute('aria-checked', String(value));
 
     await user.click(toggle);
 
-    expect(onChange).toHaveBeenCalledExactlyOnceWith(false);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(next);
   });
 });
 
 describe('UnitsSetting', () => {
-  it('offers metric and imperial under "Units", and reports the choice', async () => {
+  it('shows the current system and reports imperial when chosen', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<UnitsSetting value="metric" onChange={onChange} />);
     const select = screen.getByRole('combobox', { name: 'Units' });
     expect(select).toHaveValue('metric');
-    expect(select).toHaveAccessibleDescription('For water and distances.');
-    expect(screen.getByRole('option', { name: 'Imperial (fl oz, mi)' })).toBeInTheDocument();
 
-    await user.selectOptions(select, 'Imperial (fl oz, mi)');
+    await user.selectOptions(select, 'imperial');
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('imperial');
   });

@@ -188,7 +188,7 @@ describe('HabitEditPage', () => {
         expect(await screen.findByText('Saved.')).toBeInTheDocument();
         return patch.body;
       };
-      return { user, save };
+      return { user, fetch, save };
     }
 
     it('leaves an untouched portion out even where fl oz rounds, and sends a changed one in ml', async () => {
@@ -227,6 +227,39 @@ describe('HabitEditPage', () => {
       expect(
         await save({ ...shelf, picture: null, portionAmount: null, portionUnit: null }),
       ).toEqual({ clearPicture: true });
+    });
+
+    it('keeps times a day when the bottle is chosen, and restores it when a typed goal is switched off', async () => {
+      const { user, fetch } = await open(stretch);
+      const times = screen.getByLabelText('Times a day');
+
+      await user.click(screen.getByRole('radio', { name: 'Bottle' }));
+      expect(times).toHaveValue('1');
+      expect(screen.getByLabelText('Daily goal')).toHaveValue('0.25');
+      const goal = screen.getByLabelText('Daily goal');
+      await user.clear(goal);
+      await user.type(goal, '2');
+      expect(times).toHaveValue('8');
+
+      await user.click(screen.getByRole('radio', { name: 'Plain' }));
+      expect(times).toHaveValue('1');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      expect(await screen.findByText('Nothing has changed yet.')).toBeInTheDocument();
+      expect(fetch.all.some((call) => call.method === 'PATCH')).toBe(false);
+    });
+
+    it('does not raise times a day from a rounded goal when another field changes', async () => {
+      const glasses: Habit = { ...bottle, timesPerDay: 3, portionAmount: 335 };
+      const { user, save } = await open(glasses);
+      expect(screen.getByLabelText('Daily goal')).toHaveValue('1.01');
+
+      await user.click(screen.getByRole('radio', { name: 'On set days' }));
+      await user.click(screen.getByRole('checkbox', { name: 'Monday' }));
+      expect(screen.getByLabelText('Times a day')).toHaveValue('3');
+      expect(await save({ ...glasses, frequency: 'weekdays', days: ['mon'] })).toEqual({
+        frequency: 'weekdays',
+        days: ['mon'],
+      });
     });
   });
 

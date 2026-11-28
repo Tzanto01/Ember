@@ -1,4 +1,5 @@
 import {
+  defaultBottleGoal,
   formatAmount,
   goalTaps,
   inputUnit,
@@ -26,6 +27,10 @@ export interface PictureFormState {
   portionUnit: PortionUnit | null;
   /** The bottle's daily goal as typed, in L (metric) or fl oz (imperial); never stored. */
   goal: string;
+  /** The exact goal in ml while `goal` shows a derived amount (times per day × portion), null once typed. */
+  goalMl: number | null;
+  /** Times per day before the bottle goal changed it, restored when the bottle is switched off. */
+  timesBeforeGoal: number | null;
   /** The create-time picture offer was answered either way. */
   pictureOfferAnswered: boolean;
 }
@@ -38,6 +43,8 @@ export const plainPicture: PictureFormState = {
   portion: '',
   portionUnit: null,
   goal: '',
+  goalMl: null,
+  timesBeforeGoal: null,
   pictureOfferAnswered: false,
 };
 
@@ -128,43 +135,74 @@ export function goalText(ml: number, units: UnitSystem): string {
     : format(Math.round(toTyped(ml, 'ml', units)), 1);
 }
 
-/** The bottle goal sets times per day, for daily and weekday habits; other states come back unchanged. */
-export function withGoal<T extends PictureFieldState>(state: T, units: UnitSystem): T {
+function currentGoal(state: PictureFormState, units: UnitSystem): number | null {
+  return state.goalMl ?? goalAmount(state.goal, units);
+}
+
+function applyGoal<T extends PictureFieldState>(state: T, units: UnitSystem): T {
   if (state.picture !== 'bottle' || state.frequency === 'weekly') return state;
-  const goal = goalAmount(state.goal, units);
+  const goal = currentGoal(state, units);
   const portion = portionAmount(state, units);
   if (!goal || !portion) return state;
   const { timesPerDay } = goalTaps(goal, portion);
-  return timesPerDay === state.timesPerDay ? state : { ...state, timesPerDay };
+  if (timesPerDay === state.timesPerDay) return state;
+  return { ...state, timesPerDay, timesBeforeGoal: state.timesBeforeGoal ?? state.timesPerDay };
+}
+
+/** The goal as typed; for a daily or weekday bottle it sets times per day to `ceil(goal / portion)`. */
+export function typeGoal<T extends PictureFieldState>(
+  state: T,
+  goal: string,
+  units: UnitSystem,
+): T {
+  return applyGoal({ ...state, goal, goalMl: null }, units);
+}
+
+/** The portion as typed; for a daily or weekday bottle the goal then sets times per day. */
+export function typePortion<T extends PictureFieldState>(
+  state: T,
+  portion: string,
+  units: UnitSystem,
+): T {
+  return applyGoal({ ...state, portion }, units);
 }
 
 /**
- * The state with `picture` chosen: its first unit and a starting portion, and for the bottle a goal (the current
- * times per day when above one, else 2 L, or 64 fl oz in imperial) that sets times per day.
+ * The state with `picture` chosen: its first unit and a starting portion. Leaving the bottle restores the times per
+ * day its goal replaced. The bottle's goal is times per day × portion, so choosing it changes nothing else, except
+ * with `startGoal` (a new habit at once a day): then it starts from 2 L (64 fl oz in imperial), which sets times
+ * per day.
  */
 export function choosePicture<T extends PictureFieldState>(
   state: T,
   picture: HabitPicture | null,
   units: UnitSystem,
+  startGoal = false,
 ): T {
   if (picture === state.picture) return state;
-  if (!picture) return { ...state, picture: null };
+  const base: T = {
+    ...state,
+    timesPerDay: state.timesBeforeGoal ?? state.timesPerDay,
+    goal: '',
+    goalMl: null,
+    timesBeforeGoal: null,
+  };
+  if (!picture) return { ...base, picture: null };
   const unit = portionRanges[picture][0]?.unit ?? null;
   const next: T = {
-    ...state,
+    ...base,
     picture,
     portionUnit: unit,
     portion: unit ? startPortion(picture, unit, units) : '',
   };
   if (picture !== 'bottle') return next;
   const portion = portionAmount(next, units) ?? 250;
-  const goal =
-    state.frequency !== 'weekly' && state.timesPerDay > 1
-      ? state.timesPerDay * portion
-      : units === 'metric'
-        ? 2000
-        : toCanonical(64, 'ml', units);
-  return withGoal({ ...next, goal: goalText(goal, units) }, units);
+  if (startGoal && next.frequency !== 'weekly' && next.timesPerDay === 1) {
+    const goal = units === 'metric' ? defaultBottleGoal : toCanonical(64, 'ml', units);
+    return applyGoal({ ...next, goal: goalText(goal, units), goalMl: goal }, units);
+  }
+  const goal = next.timesPerDay * portion;
+  return { ...next, goal: goalText(goal, units), goalMl: goal };
 }
 
 /** The state with the portion's unit switched (shelf and trail), starting from that unit's usual portion. */
@@ -177,11 +215,16 @@ export function chooseUnit<T extends PictureFieldState>(
   return { ...state, portionUnit: unit, portion: startPortion(state.picture, unit, units) };
 }
 
-/** The bottle goal text after times per day was picked by hand, so the goal keeps describing the taps. */
+/**
+ * The bottle goal rewritten as times per day × portion after another field changed (times per day, how often), so
+ * the goal keeps describing the taps; times per day itself never changes here.
+ */
 export function goalForTimes<T extends PictureFieldState>(state: T, units: UnitSystem): T {
   if (state.picture !== 'bottle') return state;
   const portion = portionAmount(state, units);
-  return portion ? { ...state, goal: goalText(state.timesPerDay * portion, units) } : state;
+  if (!portion) return state;
+  const goal = state.timesPerDay * portion;
+  return { ...state, goal: goalText(goal, units), goalMl: goal };
 }
 
 const canonicalPerTyped: Record<TypedUnit, number> = {
@@ -235,7 +278,7 @@ export function habitGoalError(
 ): string | null {
   if (state.kind === 'letGo' || state.picture !== 'bottle' || state.frequency === 'weekly')
     return null;
-  return goalAmount(state.goal, units)
+  return currentGoal(state, units)
     ? null
     : t('habitVisuals.form.goalInvalid', { unit: goalSymbol(units) });
 }
@@ -251,7 +294,7 @@ export function goalSummary(
   units: UnitSystem,
 ): { text: string; capped: boolean } | null {
   if (state.picture !== 'bottle' || state.frequency === 'weekly') return null;
-  const goal = goalAmount(state.goal, units);
+  const goal = currentGoal(state, units);
   const portion = portionAmount(state, units);
   if (!goal || !portion) return null;
   const taps = goalTaps(goal, portion);
