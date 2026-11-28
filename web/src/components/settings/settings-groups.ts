@@ -21,7 +21,8 @@ export type SettingsBlock = 'you' | 'ember' | 'support';
 /**
  * One entry of the Settings group list: its `/settings/<slug>` route, its name's key, the card ids it holds, in
  * order, and its block (`null` for Help right now, which stands apart after the blocks). `summaryKey` is its one-line
- * summary; `localSummaryKey` replaces it without an account, where some of its cards are hidden.
+ * summary; `localSummaryKey` replaces it without an account, where some of its cards are hidden, and
+ * `localWebSummaryKey` without an account on the web, where fewer still show.
  */
 export interface SettingsGroup {
   slug: string;
@@ -31,6 +32,7 @@ export interface SettingsGroup {
   block: SettingsBlock | null;
   summaryKey: SettingsKey;
   localSummaryKey?: SettingsKey;
+  localWebSummaryKey?: SettingsKey;
 }
 
 /** The blocks of the Settings group list, in order. */
@@ -79,6 +81,7 @@ export const settingsGroups: SettingsGroup[] = [
     block: 'ember',
     summaryKey: 'settings.group.remindersSummary',
     localSummaryKey: 'settings.group.remindersSummaryLocal',
+    localWebSummaryKey: 'settings.group.remindersSummaryLocalWeb',
   },
   {
     slug: 'habits',

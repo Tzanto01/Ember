@@ -336,7 +336,8 @@ export default function SettingsPage() {
     }))
     .filter((group) => group.cards.length > 0);
   const listed = blocksOf(groups);
-  const summaryOf = (group: Omit<SettingsGroup, 'cards'>) => t((local && group.localSummaryKey) || group.summaryKey);
+  const summaryOf = (group: Omit<SettingsGroup, 'cards'>) =>
+    t((local && ((!env.native && group.localWebSummaryKey) || group.localSummaryKey)) || group.summaryKey);
   const visibleGroup = (slug?: string) => groups.find((group) => group.slug === slug);
   const query = new URLSearchParams(location.search);
   const discordPending = !!discordNotice && query.has('discord');
