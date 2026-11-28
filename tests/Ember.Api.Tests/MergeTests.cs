@@ -165,13 +165,17 @@ public class MergeTests(PostgresFixture postgres) : ApiTestBase(postgres)
         await (await user.Put($"/api/low-days/{today}")).Expect(HttpStatusCode.NoContent);
         var bot = await BotOnlyAsync(["Water", "Read"], 0, -1);
         await Host.Db(db => db.Habits.Where(h => h.UserId == bot.UserId && h.Name == "Read")
-            .ExecuteUpdateAsync(s => s.SetProperty(h => h.TimerMinutes, 20)));
+            .ExecuteUpdateAsync(s => s.SetProperty(h => h.TimerMinutes, 20).SetProperty(h => h.Picture, HabitPicture.Shelf)
+                .SetProperty(h => h.PortionAmount, 40).SetProperty(h => h.PortionUnit, PortionUnit.Pages).SetProperty(h => h.PictureOfferAnswered, true)));
         await StartMergeAsync(user, bot.DiscordId);
 
         await (await user.Post(MergeUrl)).Expect(HttpStatusCode.NoContent);
 
         var habits = await (await user.Get("/api/habits")).ExpectJson();
-        habits.EnumerateArray().Single(h => h.GetProperty("name").GetString() == "Read").GetProperty("timerMinutes").GetInt32().Should().Be(20);
+        var read = habits.EnumerateArray().Single(h => h.GetProperty("name").GetString() == "Read");
+        read.GetProperty("timerMinutes").GetInt32().Should().Be(20);
+        (read.GetProperty("picture").GetString(), read.GetProperty("portionAmount").GetInt32(), read.GetProperty("portionUnit").GetString(),
+            read.GetProperty("pictureOfferAnswered").GetBoolean()).Should().Be(("shelf", 40, "pages", true));
         habits.EnumerateArray().Select(h => h.GetProperty("name").GetString()).Should().BeEquivalentTo("Water", "Water", "Read");
         (await UserExists(bot.UserId)).Should().BeFalse();
         (await Host.Service(s => s.FindDiscordUserAsync(bot.DiscordId))).Should().Be(userId);

@@ -1355,11 +1355,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "me.journal-turning-off": {
@@ -1400,11 +1402,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "mood.patch.after-discard": {

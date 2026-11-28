@@ -370,11 +370,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "link.password-needed": {
@@ -610,11 +612,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "login.unsafe-return.callback": {
@@ -693,11 +697,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "native-complete.direct": {

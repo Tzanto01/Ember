@@ -936,11 +936,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "me.get.declined": {
@@ -981,11 +983,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "me.get.deleted": {
@@ -1038,11 +1042,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "me.get.ok": {
@@ -1083,11 +1089,13 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "null",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "me.get.tips-and-order": {
@@ -1128,13 +1136,15 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "enum(tidepool)",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [
         "enum(routines,streaks)"
       ],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "me.get.today-order": {
@@ -1175,6 +1185,7 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "enum(tidepool)",
       "timezone": "string",
       "timezoneSet": "boolean",
@@ -1183,7 +1194,8 @@
       ],
       "todayOrder": [
         "enum(h:1)"
-      ]
+      ],
+      "units": "enum(metric)"
     }
   },
   "me.patch.invalid": {
@@ -1290,13 +1302,15 @@
       "offerHabitNote": "boolean",
       "secondReminderMinutes": "integer",
       "showStreaks": "boolean",
+      "suggestPictures": "boolean",
       "theme": "enum(tidepool)",
       "timezone": "string",
       "timezoneSet": "boolean",
       "tipsSeen": [
         "enum(streaks)"
       ],
-      "todayOrder": "null"
+      "todayOrder": "null",
+      "units": "enum(metric)"
     }
   },
   "me.patch.wrong-type": {

@@ -12,8 +12,13 @@ public class ImportValidationApiTests(PostgresFixture postgres) : ApiTestBase(po
     private static string B64(int bytes) => Convert.ToBase64String(Enumerable.Repeat((byte)7, bytes).ToArray());
 
     private static object Habit(int id, string name = "Water", string frequency = "daily", string? kind = null, int? weeklyTarget = null,
-        string[]? days = null, int? timesPerDay = null, string[]? reminderTimes = null, int? timerMinutes = null)
-        => new { id, name, frequency, kind, weekly_target = weeklyTarget, days, times_per_day = timesPerDay, reminder_times = reminderTimes, timer_minutes = timerMinutes, created_at = Created };
+        string[]? days = null, int? timesPerDay = null, string[]? reminderTimes = null, int? timerMinutes = null, string? picture = null,
+        int? portionAmount = null, string? portionUnit = null)
+        => new
+        {
+            id, name, frequency, kind, weekly_target = weeklyTarget, days, times_per_day = timesPerDay, reminder_times = reminderTimes,
+            timer_minutes = timerMinutes, picture, portion_amount = portionAmount, portion_unit = portionUnit, created_at = Created,
+        };
 
     private static object Doc(object[]? habits = null, object? settings = null, object[]? routines = null, object[]? moods = null,
         object[]? dayNotes = null, object[]? habitNotes = null, object? journalKey = null) => new
@@ -138,6 +143,53 @@ public class ImportValidationApiTests(PostgresFixture postgres) : ApiTestBase(po
             }
             """);
         await AssertNothingImportedAsync(user);
+    }
+
+    [DockerFact]
+    public async Task Habit_pictures_and_units_are_checked_with_the_api_rules_under_their_import_paths()
+    {
+        var user = await Host.SignedInAsync();
+        var doc = Doc(
+            settings: new { units = "furlongs" },
+            habits:
+            [
+                Habit(1, picture: "cactus"),
+                Habit(2, picture: "bottle", portionAmount: 10, portionUnit: "ml"),
+                Habit(3, picture: "trail", portionAmount: 500, portionUnit: "ml"),
+                Habit(4, picture: "pills", portionAmount: 1, portionUnit: "min"),
+                Habit(5, portionAmount: 15, portionUnit: "min"),
+                Habit(6, kind: "let_go", picture: "kindling"),
+                Habit(7, picture: "shelf", portionAmount: 20, portionUnit: "pages"),
+            ]);
+
+        await (await user.Post("/api/me/import", doc)).ExpectErrors("""
+            {
+              "settings.units":["Must be metric or imperial."],
+              "habits[0].picture":["Must be one of bottle, pills, kindling, shelf, trail."],
+              "habits[1].portion_amount":["Must be between 50 and 2000."],
+              "habits[2].portion_unit":["Must be min or m for trail."],
+              "habits[3].portion_amount":["Pills and kindling have no portion."],
+              "habits[4].portion_amount":["Choose a picture first."],
+              "habits[5].picture":["Never set for let-go habits."]
+            }
+            """);
+        await AssertNothingImportedAsync(user);
+    }
+
+    [DockerFact]
+    public async Task A_file_without_picture_fields_imports_plain_habits_and_keeps_the_new_account_preferences()
+    {
+        var user = await Host.SignedInAsync();
+
+        await (await user.Post("/api/me/import", Doc(habits: [Habit(1), Habit(2, picture: "bottle")]))).Expect(HttpStatusCode.NoContent);
+
+        var habits = (await (await user.Get("/api/habits")).ExpectJson()).EnumerateArray().ToList();
+        habits.Select(h => (h.GetProperty("picture").GetString(), h.GetProperty("pictureOfferAnswered").GetBoolean()))
+            .Should().BeEquivalentTo([((string?)null, false), ("bottle", false)]);
+        habits.Single(h => h.GetProperty("picture").GetString() == "bottle")
+            .GetProperty("portionAmount").GetInt32().Should().Be(250);
+        var me = await (await user.Get("/api/me")).ExpectJson();
+        (me.GetProperty("suggestPictures").GetBoolean(), me.GetProperty("units").GetString()).Should().Be((true, "metric"));
     }
 
     [DockerFact]
