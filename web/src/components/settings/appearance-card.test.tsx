@@ -183,6 +183,10 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
 
     await user.click(screen.getByRole('radio', { name: 'Marigold' }));
 
+    expect(screen.queryByRole('region', { name: 'Everywhere' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Theme and calm mode' })).toHaveTextContent(
+      'Without an account, these stay on this device.',
+    );
     const patch = await fetch.next('PATCH', '/api/me');
     expect(patch.body).toEqual({ theme: 'marigold' });
     patch.respond(200, { ...me, theme: 'marigold' });
