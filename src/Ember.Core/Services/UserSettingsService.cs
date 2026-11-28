@@ -23,7 +23,8 @@ public class UserSettingsService
 
     /// <summary>The settings <see cref="UpdateAsync"/> changes; a null one stays as it is. The caller validates the values.</summary>
     public sealed record SettingsUpdate(int? GraceDaysPerWeek = null, string? Theme = null, bool? ShowStreaks = null,
-        string? Language = null, bool? CalmMode = null, bool? OfferHabitNote = null, string? Timezone = null);
+        string? Language = null, bool? CalmMode = null, bool? OfferHabitNote = null, string? Timezone = null, bool? SuggestPictures = null,
+        UnitSystem? Units = null);
 
     /// <summary>
     /// Stores the non-null settings of <paramref name="update"/> with the setters below (a time zone without rescheduling reminders),
@@ -39,6 +40,8 @@ public class UserSettingsService
         if (update.CalmMode is { } calmMode) await SetCalmModeAsync(userId, calmMode);
         if (update.OfferHabitNote is { } offer) await SetOfferHabitNoteAsync(userId, offer);
         if (update.Timezone is { } timezone) await SetTimezoneAsync(userId, timezone);
+        if (update.SuggestPictures is { } suggest) await SetSuggestPicturesAsync(userId, suggest);
+        if (update.Units is { } units) await SetUnitsAsync(userId, units);
         _db.ChangeTracker.Clear();
     }
 
@@ -73,6 +76,22 @@ public class UserSettingsService
         await _db.Users
             .Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.OfferHabitNote, offer));
+    }
+
+    /// <summary>Sets <see cref="User.SuggestPictures"/>.</summary>
+    public async Task SetSuggestPicturesAsync(Guid userId, bool suggest)
+    {
+        await _db.Users
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.SuggestPictures, suggest));
+    }
+
+    /// <summary>Sets <see cref="User.Units"/>.</summary>
+    public async Task SetUnitsAsync(Guid userId, UnitSystem units)
+    {
+        await _db.Users
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.Units, units));
     }
 
     /// <summary>

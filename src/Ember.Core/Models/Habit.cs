@@ -7,6 +7,12 @@ public enum FrequencyType { Daily, Weekly, Weekdays }
 /// <summary>Build = a habit to build up (check-ins, streaks). LetGo = something to stop or do less (slips, days free); set at creation, never changed.</summary>
 public enum HabitKind { Build, LetGo }
 
+/// <summary>The picture Today shows for a build habit (<see cref="Habit.Picture"/>); stored as its integer value.</summary>
+public enum HabitPicture { Bottle, Pills, Kindling, Shelf, Trail }
+
+/// <summary>The canonical unit of a habit's portion (<see cref="Habit.PortionUnit"/>); stored as its integer value.</summary>
+public enum PortionUnit { Milliliters, Minutes, Pages, Meters }
+
 /// <summary>
 /// The server channels the bot dispatches by (<see cref="Discord"/>, <see cref="WebPush"/>) and the names of the deprecated
 /// <c>reminderChannels</c> field (v1.14 derives them, <see cref="Services.ReminderDestinations.LegacyChannels"/>).
@@ -83,6 +89,18 @@ public class Habit
     /// <see cref="HabitKind.LetGo"/> habit. The running timer lives on the device only.
     /// </summary>
     public int? TimerMinutes { get; set; }
+
+    /// <summary>The picture Today shows; null for a plain habit, always for a <see cref="HabitKind.LetGo"/> habit (<see cref="Rules.PictureRules"/>).</summary>
+    public HabitPicture? Picture { get; set; }
+
+    /// <summary>What one check-in means in <see cref="PortionUnit"/>; set together with it, null when the picture takes no portion.</summary>
+    public int? PortionAmount { get; set; }
+
+    /// <summary>The canonical unit of <see cref="PortionAmount"/>; set together with it.</summary>
+    public PortionUnit? PortionUnit { get; set; }
+
+    /// <summary>Whether the picture offer for this habit was answered (either way); once true it is never offered again.</summary>
+    public bool PictureOfferAnswered { get; set; }
 
     /// <summary>The routine this habit belongs to, if any.</summary>
     public int? RoutineId { get; set; }

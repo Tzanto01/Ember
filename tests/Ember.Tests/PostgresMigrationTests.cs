@@ -551,6 +551,40 @@ public class PostgresMigrationTests(PostgresFixture postgres)
         (habit.Name, habit.TimerMinutes).Should().Be(("Walk", null));
     }
 
+    [DockerFact]
+    public async Task HabitPicturesMigration_GivesExistingRowsTheDefaults_AndNewRowsKeepWhatTheyAreGiven()
+    {
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var options = new DbContextOptionsBuilder<EmberDbContext>().UseNpgsql(connectionString).Options;
+        await using var db = new EmberDbContext(options);
+        var migrator = db.GetService<IMigrator>();
+        const string previous = "20261124083433_DropFeedbackBoardColumns";
+        var existingId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var newId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+
+        await migrator.MigrateAsync();
+        db.Users.Add(new User { Id = existingId, SuggestPictures = false, Units = UnitSystem.Imperial });
+        db.Habits.Add(new Habit
+        {
+            UserId = existingId, Name = "Water", Picture = HabitPicture.Bottle, PortionAmount = 250,
+            PortionUnit = PortionUnit.Milliliters, PictureOfferAnswered = true,
+        });
+        await db.SaveChangesAsync();
+        await migrator.MigrateAsync(previous);
+        await migrator.MigrateAsync();
+        db.ChangeTracker.Clear();
+
+        var existing = await db.Users.AsNoTracking().SingleAsync(u => u.Id == existingId);
+        (existing.SuggestPictures, existing.Units).Should().Be((true, UnitSystem.Metric));
+        var habit = await db.Habits.AsNoTracking().SingleAsync();
+        (habit.Picture, habit.PortionAmount, habit.PortionUnit, habit.PictureOfferAnswered).Should().Be(((HabitPicture?)null, (int?)null, (PortionUnit?)null, false));
+
+        db.Users.Add(new User { Id = newId, SuggestPictures = false });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        (await db.Users.AsNoTracking().SingleAsync(u => u.Id == newId)).SuggestPictures.Should().BeFalse();
+    }
+
     private static async Task<DateOnly> CurrentDateAsync(EmberDbContext db)
         => (await db.Database.SqlQueryRaw<DateOnly>("SELECT CURRENT_DATE AS \"Value\"").ToListAsync()).Single();
 

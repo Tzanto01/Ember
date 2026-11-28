@@ -33,13 +33,20 @@ public partial class HabitService
     /// </remarks>
     /// <exception cref="ArgumentException">A <see cref="HabitKind.LetGo"/> habit that isn't daily, once a day, without weekly target, days or timer and with at most one reminder time.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timerMinutes"/> is outside 1 to <see cref="Limits.TimerMinutes"/>.</exception>
+    /// <remarks>
+    /// <paramref name="picture"/> without a portion gets its <see cref="PictureRules.DefaultPortion"/>; the picture and portion must pass
+    /// <see cref="PictureRules.Validate"/>, else <see cref="ArgumentException"/> and nothing is written.
+    /// </remarks>
     public async Task<(HabitWriteResult Result, Habit? Habit)> AddHabitAsync(Guid userId, string name, TimeOnly? reminderTime,
         FrequencyType frequency = FrequencyType.Daily, int? weeklyTarget = null, IReadOnlyCollection<string>? reminderExclusions = null,
         ScheduleDays? days = null, int timesPerDay = 1, IReadOnlyCollection<TimeOnly>? reminderTimes = null, HabitKind kind = HabitKind.Build,
-        int? timerMinutes = null)
+        int? timerMinutes = null, HabitPicture? picture = null, int? portionAmount = null, PortionUnit? portionUnit = null,
+        bool pictureOfferAnswered = false)
     {
         ThrowIfTimerOutOfRange(timerMinutes);
         LetGoRules.ThrowIfInvalid(kind, frequency, timesPerDay, weeklyTarget, days, reminderTimes?.Distinct().Count() ?? 0, timerMinutes);
+        var pictureState = PictureRules.Apply(default, picture, portionAmount, portionUnit);
+        PictureRules.ThrowIfInvalid(kind, pictureState);
         if (!await _consent.HasHealthDataConsentAsync(userId))
             return (HabitWriteResult.ConsentRequired, null);
         if (await _db.Habits.CountAsync(h => h.UserId == userId) >= Limits.HabitsPerUser)
@@ -56,6 +63,10 @@ public partial class HabitService
             Days = frequency == FrequencyType.Weekdays ? days : null,
             TimesPerDay = frequency == FrequencyType.Weekly ? 1 : timesPerDay,
             TimerMinutes = timerMinutes,
+            Picture = pictureState.Picture,
+            PortionAmount = pictureState.PortionAmount,
+            PortionUnit = pictureState.PortionUnit,
+            PictureOfferAnswered = pictureOfferAnswered,
             ReminderExclusions = reminderExclusions?.Distinct().ToList() ?? [],
             CreatedAt = _time.GetUtcNow().UtcDateTime
         };
@@ -454,17 +465,29 @@ public partial class HabitService
     /// </summary>
     /// <exception cref="ArgumentException">More than one reminder time or a timer for a let-go habit; nothing is written.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timerMinutes"/> is outside 1 to <see cref="Limits.TimerMinutes"/>; nothing is written.</exception>
+    /// <remarks>
+    /// The picture changes as <see cref="PictureRules.Apply"/> says: <paramref name="picture"/>, <paramref name="portionAmount"/> and
+    /// <paramref name="portionUnit"/> set it, <paramref name="clearPicture"/> removes it. <paramref name="pictureOfferAnswered"/> true
+    /// sets <see cref="Habit.PictureOfferAnswered"/>; false changes nothing. A result that fails <see cref="PictureRules.Validate"/>, or
+    /// <paramref name="clearPicture"/> with a picture or portion, throws <see cref="ArgumentException"/> and nothing is written.
+    /// </remarks>
     public async Task<(HabitWriteResult Result, Habit? Habit)> EditHabitAsync(Guid userId, int habitId, string? newName,
         TimeOnly? newReminderTime, bool clearReminder, IReadOnlyCollection<string>? reminderExclusions = null,
-        IReadOnlyCollection<TimeOnly>? newReminderTimes = null, int? timerMinutes = null, bool clearTimer = false)
+        IReadOnlyCollection<TimeOnly>? newReminderTimes = null, int? timerMinutes = null, bool clearTimer = false,
+        HabitPicture? picture = null, int? portionAmount = null, PortionUnit? portionUnit = null, bool clearPicture = false,
+        bool pictureOfferAnswered = false)
     {
         ThrowIfTimerOutOfRange(timerMinutes);
+        if (clearPicture && (picture is not null || portionAmount is not null || portionUnit is not null))
+            throw new ArgumentException("Can't be combined with clearPicture.", nameof(picture));
         var habit = await _db.Habits
             .FirstOrDefaultAsync(h => h.Id == habitId && h.UserId == userId);
 
         if (habit is null) return (HabitWriteResult.NotFound, null);
         LetGoRules.ThrowIfInvalid(habit.Kind, FrequencyType.Daily, 1, null, null,
             clearReminder ? 0 : newReminderTimes?.Distinct().Count() ?? 0, clearTimer ? null : timerMinutes);
+        var pictureState = PictureRules.Apply(HabitPictureState.Of(habit), picture, portionAmount, portionUnit, clearPicture);
+        PictureRules.ThrowIfInvalid(habit.Kind, pictureState);
         if (newName is not null && newName != habit.Name && !await _consent.HasHealthDataConsentAsync(userId))
             return (HabitWriteResult.ConsentRequired, null);
 
@@ -472,6 +495,8 @@ public partial class HabitService
         if (reminderExclusions is not null) habit.ReminderExclusions = reminderExclusions.Distinct().ToList();
         if (clearTimer) habit.TimerMinutes = null;
         else if (timerMinutes is not null) habit.TimerMinutes = timerMinutes;
+        (habit.Picture, habit.PortionAmount, habit.PortionUnit) = pictureState;
+        if (pictureOfferAnswered) habit.PictureOfferAnswered = true;
 
         if (clearReminder)
         {

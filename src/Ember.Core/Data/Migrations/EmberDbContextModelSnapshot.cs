@@ -326,6 +326,20 @@ namespace Ember.Core.Data.Migrations
                     b.Property<DateOnly?>("PausedUntil")
                         .HasColumnType("date");
 
+                    b.Property<int?>("Picture")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("PictureOfferAnswered")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int?>("PortionAmount")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PortionUnit")
+                        .HasColumnType("integer");
+
                     b.PrimitiveCollection<List<string>>("ReminderExclusions")
                         .IsRequired()
                         .HasColumnType("text[]");
@@ -1085,6 +1099,11 @@ namespace Ember.Core.Data.Migrations
                     b.Property<bool>("ShowStreaks")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("SuggestPictures")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("Theme")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
@@ -1103,6 +1122,11 @@ namespace Ember.Core.Data.Migrations
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<int>("Units")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)

@@ -53,6 +53,8 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
             entity.Property(u => u.EmailCodeKeyHash).HasMaxLength(64);
             entity.Property(u => u.Theme).HasMaxLength(32);
             entity.Property(u => u.Language).HasMaxLength(8).IsRequired();
+            entity.Property(u => u.SuggestPictures).HasDefaultValue(true).HasSentinel(true);
+            entity.Property(u => u.Units).HasDefaultValue(UnitSystem.Metric);
             entity.HasMany(u => u.Logins)
                   .WithOne()
                   .HasForeignKey(l => l.UserId)
@@ -66,6 +68,7 @@ public class EmberDbContext : IdentityUserContext<User, Guid>
             entity.HasIndex(h => h.NextReminderUtc);
             entity.HasIndex(h => h.SecondReminderUtc);
             entity.Property(h => h.TimesPerDay).HasDefaultValue(1);
+            entity.Property(h => h.PictureOfferAnswered).HasDefaultValue(false);
             entity.HasOne(h => h.User)
                   .WithMany(u => u.Habits)
                   .HasForeignKey(h => h.UserId)

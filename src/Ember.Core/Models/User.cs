@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Ember.Core.Models;
 
+/// <summary>How an account shows portions and totals (<see cref="User.Units"/>); stored as its integer value.</summary>
+public enum UnitSystem { Metric, Imperial }
+
 /// <summary>
 /// An Ember account. A Discord user is linked through a <see cref="Logins"/> row with
 /// <see cref="DiscordLogin.Provider"/>; a bot-only user has no email and no password.
@@ -148,6 +151,12 @@ public class User : IdentityUser<Guid>
 
     /// <summary>Whether the app offers a habit note after a check-in. Off by default.</summary>
     public bool OfferHabitNote { get; set; }
+
+    /// <summary>Whether the app suggests pictures for habits (the new-habit offer and the Today tip). On by default, also for accounts that existed when it was added.</summary>
+    public bool SuggestPictures { get; set; } = true;
+
+    /// <summary>How portions and totals are shown. Display only: portions are always stored in canonical units.</summary>
+    public UnitSystem Units { get; set; } = UnitSystem.Metric;
 
     public ICollection<IdentityUserLogin<Guid>> Logins { get; set; } = new List<IdentityUserLogin<Guid>>();
     public ICollection<Habit> Habits { get; set; } = new List<Habit>();
