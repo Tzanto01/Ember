@@ -283,6 +283,9 @@ export default function SettingsPage() {
   const [grace, changeGrace] = useMePatchField((value: number) => patch('grace', { graceDaysPerWeek: value }), {
     onError: (error) => fail('grace', error),
   });
+  const [zone, changeZone] = useMePatchField((timezone: string) => patch('timezone', { timezone }), {
+    onError: (error) => fail('timezone', error),
+  });
   const [second, changeSecond] = useMePatchField(
     (value: SecondReminderMinutes) => patch('second', { secondReminderMinutes: value }),
     { onError: (error) => fail('second', error) },
@@ -388,7 +391,9 @@ export default function SettingsPage() {
       case 'language':
         return <LanguageCard title={title('language')} local={local} />;
       case 'timezone':
-        return <TimezoneCard title={title('timezone')} me={me} />;
+        return (
+          <TimezoneCard title={title('timezone')} me={me} value={zone ?? me.timezone} onChange={changeZone} />
+        );
       case 'consent':
         return <ConsentCard title={title('consent')} me={me} />;
       case 'export':

@@ -8,6 +8,7 @@ import {
   openPatches,
   openSettings,
   resetSettings,
+  setWide,
   settle,
   stubSettingsMedia,
 } from '@/test/settings-page';
@@ -267,6 +268,23 @@ describe('TimezoneCard', { timeout: 15_000 }, () => {
 
     expect(screen.getAllByRole('option')).toHaveLength(listed);
     expect(device.labelled.length).toBe(named);
+  });
+
+  it('still shows the picked zone being saved after leaving Language & time and coming back', async () => {
+    setWide(true);
+    const user = userEvent.setup();
+    const { fetch } = await openSettings('/settings/language');
+
+    await user.click(zoneField());
+    await user.click(screen.getByRole('option', { name: /^Asia\/Tokyo/ }));
+    const sent = await fetch.next('PATCH', '/api/me');
+    await user.click(screen.getByRole('link', { name: 'Habits & streaks' }));
+    await user.click(screen.getByRole('link', { name: 'Language & time' }));
+
+    expect(zoneField()).toHaveValue('Asia/Tokyo');
+    sent.respond(200, { ...me, timezone: 'Asia/Tokyo' });
+    expect(await screen.findByText('Saved.')).toBeInTheDocument();
+    expect(zoneField()).toHaveValue('Asia/Tokyo');
   });
 
   it('lists the saved zone even when this device does not name it', async () => {
