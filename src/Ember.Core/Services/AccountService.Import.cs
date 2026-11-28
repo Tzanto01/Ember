@@ -15,7 +15,8 @@ public sealed record ImportData(
     IReadOnlyList<Routine> Routines, IReadOnlyList<Habit> Habits, IReadOnlyList<DayMark> DayMarks, IReadOnlyList<Mood> Moods,
     IReadOnlyList<(DayNote Note, Mood? CustomMood)> DayNotes, JournalKey? JournalKey, int? GraceDaysPerWeek, string? Theme,
     int SecondReminderMinutes, bool? ShowStreaks = null, string? Language = null, bool? CalmMode = null,
-    IReadOnlyList<string>? TipsSeen = null, bool? OfferHabitNote = null, IReadOnlyList<ImportTodayOrderEntry>? TodayOrder = null);
+    IReadOnlyList<string>? TipsSeen = null, bool? OfferHabitNote = null, IReadOnlyList<ImportTodayOrderEntry>? TodayOrder = null,
+    bool? SuggestPictures = null, UnitSystem? Units = null);
 
 /// <summary>One entry of <see cref="ImportData.TodayOrder"/>: exactly one of a habit or a routine of the same <see cref="ImportData"/>.</summary>
 public sealed class ImportTodayOrderEntry
@@ -119,6 +120,8 @@ public partial class AccountService
         var language = data.Language;
         var calmMode = data.CalmMode;
         var offerHabitNote = data.OfferHabitNote;
+        var suggestPictures = data.SuggestPictures;
+        var units = data.Units;
         await _db.Users
             .Where(u => u.Id == userId)
             .ExecuteUpdateAsync(s => s
@@ -128,7 +131,9 @@ public partial class AccountService
                 .SetProperty(u => u.ShowStreaks, u => showStreaks ?? u.ShowStreaks)
                 .SetProperty(u => u.Language, u => language ?? u.Language)
                 .SetProperty(u => u.CalmMode, u => calmMode ?? u.CalmMode)
-                .SetProperty(u => u.OfferHabitNote, u => offerHabitNote ?? u.OfferHabitNote));
+                .SetProperty(u => u.OfferHabitNote, u => offerHabitNote ?? u.OfferHabitNote)
+                .SetProperty(u => u.SuggestPictures, u => suggestPictures ?? u.SuggestPictures)
+                .SetProperty(u => u.Units, u => units ?? u.Units));
         foreach (var tip in data.TipsSeen ?? []) await _settings.MarkTipSeenAsync(userId, tip);
         if (data.TodayOrder is { } order) await _settings.SetTodayOrderAsync(userId, order.Select(e => e.Key).ToList());
         await transaction.CommitAsync();

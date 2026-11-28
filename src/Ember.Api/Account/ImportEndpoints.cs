@@ -23,10 +23,12 @@ internal static class ImportEndpoints
         JournalEndpoints.JournalKeyRequest? JournalKey, List<ImportSlip?>? Slips, List<ImportHabitNote?>? HabitNotes,
         List<ImportMadeItDay?>? MadeItDays);
     public sealed record ImportSettings(int? GraceDaysPerWeek, string? Theme, int? SecondReminderMinutes, bool? ShowStreaks,
-        string? Language, bool? CalmMode, List<string?>? TipsSeen, bool? OfferHabitNote, List<string?>? TodayOrder);
+        string? Language, bool? CalmMode, List<string?>? TipsSeen, bool? OfferHabitNote, List<string?>? TodayOrder, bool? SuggestPictures,
+        string? Units);
     public sealed record ImportHabit(int? Id, string? Name, string? Frequency, int? WeeklyTarget, TimeOnly? ReminderTime,
         DateOnly? PausedUntil, DateOnly? PausedFrom, DateTimeOffset? CreatedAt, string?[]? Days,
-        int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind, int? TimerMinutes);
+        int? TimesPerDay, int? RoutineId, int? RoutinePosition, TimeOnly[]? ReminderTimes, string? Kind, int? TimerMinutes,
+        string? Picture, int? PortionAmount, string? PortionUnit, bool? PictureOfferAnswered);
     public sealed record ImportLog(int? HabitId, DateOnly? Date, bool? Completed, int? Count, bool? Skipped);
     public sealed record ImportSlip(int? HabitId, DateOnly? Date, int? Count, List<string?>? Reasons);
     public sealed record ImportMadeItDay(int? HabitId, DateOnly? Date);
@@ -93,6 +95,7 @@ internal static class ImportEndpoints
         SettingsValidation.ValidateSecondReminder(doc.Settings?.SecondReminderMinutes, local);
         SettingsValidation.ValidateLanguage(doc.Settings?.Language, local);
         if (doc.Settings?.TodayOrder?.Count > User.MaxTodayOrderEntries) local["today_order"] = [$"At most {User.MaxTodayOrderEntries} entries."];
+        var units = SettingsValidation.ParseUnits(doc.Settings?.Units, local);
         Nest(errors, "settings", local);
 
         var routines = new List<Routine>();
@@ -141,6 +144,8 @@ internal static class ImportEndpoints
                 if (h.RoutineId is not null) local["routine_id"] = ["Let-go habits can't be in a routine."];
             }
             HabitValidation.ValidateTimer(h.TimerMinutes, kind, local);
+            var (picture, portionUnit) = HabitValidation.ValidatePicture(h.Picture, h.PortionAmount, h.PortionUnit, false, kind, default, local);
+            var pictureState = PictureRules.Apply(default, picture, h.PortionAmount, portionUnit);
 
             var habit = new Habit
             {
@@ -154,6 +159,10 @@ internal static class ImportEndpoints
                 Days = frequency == FrequencyType.Weekdays ? days : null,
                 TimesPerDay = frequency == FrequencyType.Weekly ? 1 : timesPerDay,
                 TimerMinutes = h.TimerMinutes,
+                Picture = pictureState.Picture,
+                PortionAmount = pictureState.PortionAmount,
+                PortionUnit = pictureState.PortionUnit,
+                PictureOfferAnswered = h.PictureOfferAnswered == true,
                 Routine = routine,
                 RoutinePosition = routine is null ? 0 : h.RoutinePosition ?? 0,
                 CreatedAt = createdAt,
@@ -337,7 +346,8 @@ internal static class ImportEndpoints
             doc.Settings?.SecondReminderMinutes ?? 0, doc.Settings?.ShowStreaks, doc.Settings?.Language, doc.Settings?.CalmMode,
             doc.Settings?.TipsSeen?.Where(t => t is not null && User.TipIds.Contains(t)).Select(t => t!).ToList(),
             doc.Settings?.OfferHabitNote,
-            doc.Settings?.TodayOrder?.Select(k => TodayOrderEntry(k, habitById, routineById)).OfType<ImportTodayOrderEntry>().ToList());
+            doc.Settings?.TodayOrder?.Select(k => TodayOrderEntry(k, habitById, routineById)).OfType<ImportTodayOrderEntry>().ToList(),
+            doc.Settings?.SuggestPictures, units);
     }
 
     /// <summary>The habit or routine of this file a canonical <c>h:&lt;id&gt;</c> or <c>r:&lt;id&gt;</c> key names; null for any other key.</summary>

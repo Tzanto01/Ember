@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Ember.Core.Models;
+using Ember.Core.Rules;
 
 namespace Ember.Core.Services;
 
@@ -19,7 +20,8 @@ public static class ExportBuilder
 {
     /// <summary>
     /// Column header of the CSV export. One row per record, discriminated by <c>record_type</c>. Columns after <c>discord_id</c>:
-    /// <c>two_factor_enabled</c> (settings); <c>days</c> (habit weekdays joined with <c>;</c>), <c>times_per_day</c>, <c>timer_minutes</c> (habit), <c>routine_id</c> (habit, routine);
+    /// <c>two_factor_enabled</c> (settings); <c>days</c> (habit weekdays joined with <c>;</c>), <c>times_per_day</c>, <c>timer_minutes</c>, <c>picture</c>,
+    /// <c>portion_amount</c>, <c>portion_unit</c>, <c>picture_offer_answered</c> (habit), <c>routine_id</c> (habit, routine);
     /// <c>count</c> (log); <c>routine_position</c> (habit, its order inside its routine); <c>text</c>, <c>mood</c> (day_note);
     /// <c>mood_id</c>, <c>label</c>, <c>emoji</c>, <c>archived</c> (mood); <c>cipher_version</c>, <c>cipher_iv</c>, <c>cipher_text</c>
     /// (encrypted day_note or mood); <c>version</c>, <c>turning_off</c>, <c>passphrase_salt</c>, <c>passphrase_iterations</c>,
@@ -27,7 +29,8 @@ public static class ExportBuilder
     /// <c>second_reminder_minutes</c> (settings); <c>enabled</c> (push_subscription, phone); <c>show_streaks</c>, <c>language</c>, <c>calm_mode</c> (settings);
     /// <c>helps_encrypted</c> (helps); <c>tips_seen</c> (settings, the seen tip ids joined with <c>;</c>);
     /// <c>fireside_enabled</c>, <c>fireside_name</c>, <c>fireside_notify</c> (settings; Fireside friends, warmth and codes are never exported); <c>reasons</c> (slip, its reason ids joined
-    /// with <c>;</c>); <c>offer_habit_note</c>, <c>today_order</c> (settings, the order keys joined with <c>;</c>). A habit_note uses <c>habit_id</c>,
+    /// with <c>;</c>); <c>offer_habit_note</c>, <c>today_order</c> (settings, the order keys joined with <c>;</c>),
+    /// <c>suggest_pictures</c>, <c>units</c> (settings). A habit_note uses <c>habit_id</c>,
     /// <c>date</c>, <c>text</c> and the cipher columns. <c>reminder_exclusions</c> joins a habit's or routine's excluded reminder destination ids with <c>;</c>. <c>kind</c> is
     /// <c>build</c> or <c>let_go</c> for a habit, the mark's kind for a day_mark; a slip uses <c>habit_id</c>, <c>date</c> and <c>count</c>;
     /// a made_it uses <c>habit_id</c> and <c>date</c>. A feedback row uses <c>feedback_id</c>, <c>platform</c>, <c>app_version</c>, <c>title</c>,
@@ -40,11 +43,12 @@ public static class ExportBuilder
         "health_data_consent_at,consent_policy_version,consent_prompted_on,consent_withdrawn_at," +
         "habit_id,name,frequency,weekly_target,reminder_time,paused_until,paused_from,created_at,next_reminder_utc," +
         "date,completed,guild_id,kind,reminder_exclusions,endpoint,email,discord_id,account_created_at," +
-        "two_factor_enabled,days,times_per_day,timer_minutes,routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived," +
+        "two_factor_enabled,days,times_per_day,timer_minutes,picture,portion_amount,portion_unit,picture_offer_answered," +
+        "routine_id,count,routine_position,text,mood,mood_id,label,emoji,archived," +
         "cipher_version,cipher_iv,cipher_text,version,turning_off," +
         "passphrase_salt,passphrase_iterations,passphrase_iv,passphrase_wrapped,recovery_salt,recovery_iv,recovery_wrapped," +
         "second_reminder_minutes,enabled,show_streaks,language,calm_mode,helps_encrypted,tips_seen," +
-        "fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order," +
+        "fireside_enabled,fireside_name,fireside_notify,reasons,offer_habit_note,today_order,suggest_pictures,units," +
         "feedback_id,platform,app_version,title,expires_at,last_seen_at,widget_key_set," +
         "skipped";
 
@@ -71,7 +75,7 @@ public static class ExportBuilder
         DateTime? HealthDataConsentAt, string? ConsentPolicyVersion, DateOnly? ConsentPromptedOn, bool TwoFactorEnabled,
         int SecondReminderMinutes, bool ShowStreaks, string Language, bool CalmMode, IReadOnlyList<string> TipsSeen,
         bool FiresideEnabled = false, string? FiresideName = null, bool FiresideNotify = false, DateTime? ConsentWithdrawnAt = null,
-        bool OfferHabitNote = false, IReadOnlyList<string>? TodayOrder = null);
+        bool OfferHabitNote = false, IReadOnlyList<string>? TodayOrder = null, bool SuggestPictures = true, string Units = "metric");
 
     /// <summary>
     /// One habit. Dates are ISO 8601; <c>CreatedAt</c> and <c>NextReminderUtc</c> are UTC. <c>ReminderExclusions</c> lists the reminder destination ids (<c>discord</c>, <c>browser-…</c>, <c>phone-…</c>) the habit does not remind on.
@@ -79,11 +83,14 @@ public static class ExportBuilder
     /// <c>RoutinePosition</c> is the habit's order inside its routine, null when it has none.
     /// <c>ReminderTimes</c> lists all reminder times, sorted; <c>ReminderTime</c> is the first of them, or null.
     /// <c>TimerMinutes</c> is null without a timer. <c>Kind</c> is <c>build</c> or <c>let_go</c>.
+    /// <c>Picture</c> (<c>bottle</c>, <c>pills</c>, <c>kindling</c>, <c>shelf</c>, <c>trail</c>) and the portion (<c>PortionUnit</c> <c>ml</c>,
+    /// <c>min</c>, <c>pages</c> or <c>m</c>) are null for a plain habit; <c>PictureOfferAnswered</c> says the picture offer was answered.
     /// </summary>
     public sealed record HabitRecord(
         int Id, string Name, string Frequency, int? WeeklyTarget,
         TimeOnly? ReminderTime, DateOnly? PausedUntil, DateOnly? PausedFrom, DateTime CreatedAt, DateTime? NextReminderUtc,
-        List<string> ReminderExclusions, List<string>? Days, int TimesPerDay, int? TimerMinutes, int? RoutineId, int? RoutinePosition,
+        List<string> ReminderExclusions, List<string>? Days, int TimesPerDay, int? TimerMinutes,
+        string? Picture, int? PortionAmount, string? PortionUnit, bool PictureOfferAnswered, int? RoutineId, int? RoutinePosition,
         List<TimeOnly> ReminderTimes, string Kind);
 
     /// <summary>The slips of a let-go habit on one local day: how many and the reason ids picked (may be empty).</summary>
@@ -194,12 +201,14 @@ public static class ExportBuilder
                 AsUtc(user.HealthDataConsentAt), user.ConsentPolicyVersion, user.ConsentPromptedOn, user.TwoFactorEnabled,
                 user.SecondReminderMinutes, user.ShowStreaks, user.Language, user.CalmMode, user.TipsSeen,
                 user.FiresideEnabled, user.FiresideName, user.FiresideNotify, AsUtc(user.ConsentWithdrawnAt),
-                user.OfferHabitNote, full ? user.TodayOrder : null),
+                user.OfferHabitNote, full ? user.TodayOrder : null, user.SuggestPictures, user.Units.ToString().ToLowerInvariant()),
             habits.Select(h => new HabitRecord(
                 h.Id, h.Name, h.FrequencyType.ToString().ToLowerInvariant(), h.WeeklyTarget,
                 h.ReminderTime, h.PausedUntil, h.PausedFrom, DateTime.SpecifyKind(h.CreatedAt, DateTimeKind.Utc),
                 AsUtc(h.NextReminderUtc), h.ReminderExclusions.ToList(),
-                h.Days is { } days ? ScheduleDayNames.ToNames(days) : null, h.TimesPerDay, h.TimerMinutes, h.RoutineId,
+                h.Days is { } days ? ScheduleDayNames.ToNames(days) : null, h.TimesPerDay, h.TimerMinutes,
+                h.Picture is { } picture ? PictureRules.Name(picture) : null, h.PortionAmount,
+                h.PortionUnit is { } unit ? PictureRules.Name(unit) : null, h.PictureOfferAnswered, h.RoutineId,
                 h.RoutineId is null ? null : h.RoutinePosition, h.ReminderTimes.ToList(),
                 h.Kind == HabitKind.LetGo ? "let_go" : "build")).ToList(),
             habits.SelectMany(h => h.Logs.OrderBy(l => l.Date).Select(l => new LogRecord(
@@ -280,7 +289,8 @@ public static class ExportBuilder
             ("show_streaks", Bool(s.ShowStreaks)), ("language", s.Language), ("calm_mode", Bool(s.CalmMode)),
             ("tips_seen", string.Join(';', s.TipsSeen)), ("fireside_enabled", Bool(s.FiresideEnabled)),
             ("fireside_name", s.FiresideName ?? ""), ("fireside_notify", Bool(s.FiresideNotify)),
-            ("offer_habit_note", Bool(s.OfferHabitNote)), ("today_order", string.Join(';', s.TodayOrder ?? [])));
+            ("offer_habit_note", Bool(s.OfferHabitNote)), ("today_order", string.Join(';', s.TodayOrder ?? [])),
+            ("suggest_pictures", Bool(s.SuggestPictures)), ("units", s.Units));
 
         foreach (var h in doc.Habits)
             AppendRow(csv, "habit", ("habit_id", Num(h.Id)), ("name", h.Name), ("frequency", h.Frequency),
@@ -288,7 +298,10 @@ public static class ExportBuilder
                 ("paused_until", Date(h.PausedUntil)), ("paused_from", Date(h.PausedFrom)),
                 ("created_at", Utc(h.CreatedAt)), ("next_reminder_utc", Utc(h.NextReminderUtc)),
                 ("reminder_exclusions", string.Join(';', h.ReminderExclusions)), ("days", string.Join(';', h.Days ?? [])),
-                ("times_per_day", Num(h.TimesPerDay)), ("timer_minutes", h.TimerMinutes is { } m ? Num(m) : ""), ("routine_id", h.RoutineId is { } r ? Num(r) : ""),
+                ("times_per_day", Num(h.TimesPerDay)), ("timer_minutes", h.TimerMinutes is { } m ? Num(m) : ""),
+                ("picture", h.Picture ?? ""), ("portion_amount", h.PortionAmount is { } amount ? Num(amount) : ""),
+                ("portion_unit", h.PortionUnit ?? ""), ("picture_offer_answered", Bool(h.PictureOfferAnswered)),
+                ("routine_id", h.RoutineId is { } r ? Num(r) : ""),
                 ("routine_position", h.RoutinePosition is { } p ? Num(p) : ""), ("kind", h.Kind));
 
         foreach (var l in doc.Logs)
