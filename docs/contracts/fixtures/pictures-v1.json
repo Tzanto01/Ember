@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "about": "Habit picture rules (habit-visuals-v1.md, API v1.30) shared by Core (PictureRules) and the no-account client. A case gives the habit kind, the picture and the portion as finally stored (after defaults), and either valid true or the first failing field and its message. defaults lists the portion a picture gets when it is set without one.",
+  "defaults": {
+    "bottle": { "portionAmount": 250, "portionUnit": "ml" },
+    "pills": { "portionAmount": null, "portionUnit": null },
+    "kindling": { "portionAmount": null, "portionUnit": null },
+    "shelf": { "portionAmount": 15, "portionUnit": "min" },
+    "trail": { "portionAmount": 10, "portionUnit": "min" }
+  },
+  "cases": [
+    { "name": "plain build habit", "kind": "build", "picture": null, "portionAmount": null, "portionUnit": null, "valid": true },
+    { "name": "bottle with 250 ml", "kind": "build", "picture": "bottle", "portionAmount": 250, "portionUnit": "ml", "valid": true },
+    { "name": "bottle at the lower bound", "kind": "build", "picture": "bottle", "portionAmount": 50, "portionUnit": "ml", "valid": true },
+    { "name": "bottle at the upper bound", "kind": "build", "picture": "bottle", "portionAmount": 2000, "portionUnit": "ml", "valid": true },
+    { "name": "bottle below the range", "kind": "build", "picture": "bottle", "portionAmount": 49, "portionUnit": "ml", "valid": false, "field": "portionAmount", "message": "Must be between 50 and 2000." },
+    { "name": "bottle above the range", "kind": "build", "picture": "bottle", "portionAmount": 2001, "portionUnit": "ml", "valid": false, "field": "portionAmount", "message": "Must be between 50 and 2000." },
+    { "name": "bottle in minutes", "kind": "build", "picture": "bottle", "portionAmount": 10, "portionUnit": "min", "valid": false, "field": "portionUnit", "message": "Must be ml for bottle." },
+    { "name": "bottle with only an amount", "kind": "build", "picture": "bottle", "portionAmount": 250, "portionUnit": null, "valid": false, "field": "portionAmount", "message": "Send portionAmount and portionUnit together." },
+    { "name": "pills without a portion", "kind": "build", "picture": "pills", "portionAmount": null, "portionUnit": null, "valid": true },
+    { "name": "pills with a portion", "kind": "build", "picture": "pills", "portionAmount": 1, "portionUnit": "min", "valid": false, "field": "portionAmount", "message": "Pills and kindling have no portion." },
+    { "name": "kindling with only a unit", "kind": "build", "picture": "kindling", "portionAmount": null, "portionUnit": "min", "valid": false, "field": "portionAmount", "message": "Pills and kindling have no portion." },
+    { "name": "shelf in pages", "kind": "build", "picture": "shelf", "portionAmount": 500, "portionUnit": "pages", "valid": true },
+    { "name": "shelf above the page range", "kind": "build", "picture": "shelf", "portionAmount": 501, "portionUnit": "pages", "valid": false, "field": "portionAmount", "message": "Must be between 1 and 500." },
+    { "name": "shelf in minutes", "kind": "build", "picture": "shelf", "portionAmount": 240, "portionUnit": "min", "valid": true },
+    { "name": "shelf above the minute range", "kind": "build", "picture": "shelf", "portionAmount": 241, "portionUnit": "min", "valid": false, "field": "portionAmount", "message": "Must be between 1 and 240." },
+    { "name": "shelf in meters", "kind": "build", "picture": "shelf", "portionAmount": 500, "portionUnit": "m", "valid": false, "field": "portionUnit", "message": "Must be min or pages for shelf." },
+    { "name": "trail in meters", "kind": "build", "picture": "trail", "portionAmount": 100, "portionUnit": "m", "valid": true },
+    { "name": "trail below the meter range", "kind": "build", "picture": "trail", "portionAmount": 99, "portionUnit": "m", "valid": false, "field": "portionAmount", "message": "Must be between 100 and 50000." },
+    { "name": "trail at the meter upper bound", "kind": "build", "picture": "trail", "portionAmount": 50000, "portionUnit": "m", "valid": true },
+    { "name": "trail in minutes below the range", "kind": "build", "picture": "trail", "portionAmount": 0, "portionUnit": "min", "valid": false, "field": "portionAmount", "message": "Must be between 1 and 240." },
+    { "name": "trail in ml", "kind": "build", "picture": "trail", "portionAmount": 250, "portionUnit": "ml", "valid": false, "field": "portionUnit", "message": "Must be min or m for trail." },
+    { "name": "portion without a picture", "kind": "build", "picture": null, "portionAmount": 250, "portionUnit": "ml", "valid": false, "field": "portionAmount", "message": "Choose a picture first." },
+    { "name": "let-go habit with a picture", "kind": "letGo", "picture": "kindling", "portionAmount": null, "portionUnit": null, "valid": false, "field": "picture", "message": "Never set for let-go habits." },
+    { "name": "let-go habit with a portion only", "kind": "letGo", "picture": null, "portionAmount": 250, "portionUnit": "ml", "valid": false, "field": "portionAmount", "message": "Never set for let-go habits." },
+    { "name": "plain let-go habit", "kind": "letGo", "picture": null, "portionAmount": null, "portionUnit": null, "valid": true }
+  ]
+}
