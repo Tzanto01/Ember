@@ -66,7 +66,10 @@ function flushPending(userId: string): void {
 
 function markSeen(me: Me, id: TipId): void {
   const memory = readTipMemory(me.id);
-  writeTipMemory(me.id, { wait: me.localToday, pending: memory.pending.includes(id) ? memory.pending : [...memory.pending, id] });
+  writeTipMemory(me.id, {
+    wait: me.localToday,
+    pending: memory.pending.includes(id) ? memory.pending : [...memory.pending, id],
+  });
   seenHere(me.id, id);
   void send(me.id, id);
 }
@@ -92,9 +95,15 @@ function useTip(
   const whatsNewShowing = useWhatsNewShowing(!!seen && !calm);
   const whatsNew = calm ? false : whatsNewShowing;
   const firstDay =
-    me && memory && habits ? [memory.first ?? me.localToday, ...habits.map((h) => h.startDate)].sort()[0]! : null;
+    me && memory && habits
+      ? [memory.first ?? me.localToday, ...habits.map((h) => h.startDate)].sort()[0]!
+      : null;
   const later =
-    !!me && !calm && firstDay !== null && me.localToday > firstDay && (memory!.wait === null || me.localToday > memory!.wait);
+    !!me &&
+    !calm &&
+    firstDay !== null &&
+    me.localToday > firstDay &&
+    (memory!.wait === null || me.localToday > memory!.wait);
 
   const notes = useQuery({
     queryKey: anyNoteKey,
@@ -109,7 +118,8 @@ function useTip(
       !!seen &&
       later &&
       !!habits?.length &&
-      ((!env.native && !seen.includes('android')) || (account && !me?.discord.linked && !seen.includes('discord'))),
+      ((!env.native && !seen.includes('android')) ||
+        (account && !me?.discord.linked && !seen.includes('discord'))),
     staleTime: fiveMinutes,
   });
 
@@ -139,7 +149,8 @@ function useTip(
   }, [userId, hasSeen]);
 
   const offer = me && forToday ? pictureOfferFor(forToday, me.suggestPictures) : null;
-  if (!me || !memory || !seen || !habits || firstDay === null || whatsNew === undefined) return { tip: null, offer };
+  if (!me || !memory || !seen || !habits || firstDay === null || whatsNew === undefined)
+    return { tip: null, offer };
   const tip = pickTip({
     today: me.localToday,
     firstDay,
@@ -194,9 +205,17 @@ function TipCard({
       data-tip={id}
       className="flex items-start gap-3 rounded-md border border-border bg-muted px-4 py-3 text-foreground"
     >
-      <Lightbulb aria-hidden className="mt-[0.1875rem] size-[1.125rem] shrink-0 text-muted-foreground" />
+      <Lightbulb
+        aria-hidden
+        className="mt-[0.1875rem] size-[1.125rem] shrink-0 text-muted-foreground"
+      />
       <div className="flex min-w-0 max-w-[38rem] flex-1 flex-col items-start gap-2 [overflow-wrap:anywhere]">
-        <h2 ref={headingRef} id={headingId} tabIndex={focus ? -1 : undefined} className="text-base font-semibold">
+        <h2
+          ref={headingRef}
+          id={headingId}
+          tabIndex={focus ? -1 : undefined}
+          className="text-base font-semibold"
+        >
           {heading}
         </h2>
         {children}
@@ -237,10 +256,20 @@ function StreaksTip({ me }: { me: Me }) {
       <p className="text-[0.875rem] text-muted-foreground">{t('tips.streaks.change')}</p>
       {problem && <p role="alert">{problem}</p>}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button type="button" variant="secondary" aria-disabled={busy || undefined} onClick={() => void show()}>
+        <Button
+          type="button"
+          variant="secondary"
+          aria-disabled={busy || undefined}
+          onClick={() => void show()}
+        >
           {t('tips.streaks.show')}
         </Button>
-        <Button type="button" variant="secondary" aria-disabled={busy || undefined} onClick={() => !busy && decline()}>
+        <Button
+          type="button"
+          variant="secondary"
+          aria-disabled={busy || undefined}
+          onClick={() => !busy && decline()}
+        >
           {t('tips.streaks.decline')}
         </Button>
       </div>
@@ -261,7 +290,14 @@ function LinkTip({ me, id }: { me: Me; id: Exclude<TipId, 'streaks'> }) {
       id={id}
       heading={t(`tips.${id}.heading`)}
       dismiss={
-        <Button type="button" variant="ghost" size="icon" className="-my-2 -mr-2 ml-auto shrink-0" aria-label={t('tips.dismiss')} onClick={dismiss}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="-my-2 -mr-2 ml-auto shrink-0"
+          aria-label={t('tips.dismiss')}
+          onClick={dismiss}
+        >
           <X aria-hidden />
         </Button>
       }
@@ -285,7 +321,11 @@ function PictureTip({ me, offer }: { me: Me; offer: PictureOffer }) {
   const answer = (patch: Partial<Habit>) =>
     queryClient.setQueryData<TodayData>(
       todayKey,
-      (data) => data && { ...data, habits: data.habits.map((h) => (h.id === habit.id ? { ...h, ...patch } : h)) },
+      (data) =>
+        data && {
+          ...data,
+          habits: data.habits.map((h) => (h.id === habit.id ? { ...h, ...patch } : h)),
+        },
     );
 
   async function show(): Promise<void> {
@@ -319,7 +359,10 @@ function PictureTip({ me, offer }: { me: Me; offer: PictureOffer }) {
     try {
       await api.updateHabit(habit.id, { pictureOfferAnswered: true });
     } catch (error) {
-      declineFailed.set({ habitId: habit.id, message: problemToMessage(asApiError(error)).message });
+      declineFailed.set({
+        habitId: habit.id,
+        message: problemToMessage(asApiError(error)).message,
+      });
       writeTipMemory(me.id, { wait });
       answer({ pictureOfferAnswered: false });
     }
@@ -329,10 +372,20 @@ function PictureTip({ me, offer }: { me: Me; offer: PictureOffer }) {
     <TipCard id="picture" heading={t(`habitVisuals.tip.${picture}`, { name: habit.name })}>
       {shownProblem && <p role="alert">{shownProblem}</p>}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button type="button" variant="secondary" aria-disabled={busy || undefined} onClick={() => void show()}>
+        <Button
+          type="button"
+          variant="secondary"
+          aria-disabled={busy || undefined}
+          onClick={() => void show()}
+        >
           {t('habitVisuals.tip.show')}
         </Button>
-        <Button type="button" variant="secondary" aria-disabled={busy || undefined} onClick={() => void decline()}>
+        <Button
+          type="button"
+          variant="secondary"
+          aria-disabled={busy || undefined}
+          onClick={() => void decline()}
+        >
           {t('habitVisuals.tip.decline')}
         </Button>
       </div>
@@ -354,7 +407,14 @@ function PictureNote({ name }: { name: string }) {
       heading={t('habitVisuals.tip.shown', { name })}
       focus
       dismiss={
-        <Button type="button" variant="ghost" size="icon" className="-my-2 -mr-2 ml-auto shrink-0" aria-label={t('tips.dismiss')} onClick={dismiss}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="-my-2 -mr-2 ml-auto shrink-0"
+          aria-label={t('tips.dismiss')}
+          onClick={dismiss}
+        >
           <X aria-hidden />
         </Button>
       }
@@ -384,7 +444,8 @@ export function TipSlot({
   const { tip, offer } = useTip(habits, routines, forToday);
   const me = useStore(auth.me);
   const note = useStore(pictureNote);
-  if (place === tipPlaces.picture && note && note.userId === me?.id) return <PictureNote name={note.name} />;
+  if (place === tipPlaces.picture && note && note.userId === me?.id)
+    return <PictureNote name={note.name} />;
   if (!tip || !me || tipPlaces[tip] !== place) return null;
   if (tip === 'picture') return offer && <PictureTip key={offer.habit.id} me={me} offer={offer} />;
   return tip === 'streaks' ? <StreaksTip me={me} /> : <LinkTip me={me} id={tip} />;

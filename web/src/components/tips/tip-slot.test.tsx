@@ -37,14 +37,18 @@ describe('TipSlot', () => {
       <TipSlot place="top" habits={[habit]} />
     ));
 
-    expect(await screen.findByRole('heading', { name: 'Do you want to see streaks?' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Do you want to see streaks?' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Dismiss tip' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Show streaks' }));
     const patch = await f.next('PATCH', '/api/me');
     expect(patch.body).toEqual({ showStreaks: true });
     patch.respond(200, { ...me, id: 'streaks-yes', showStreaks: true, tipsSeen: ['streaks'] });
 
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Do you want to see streaks?' })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Do you want to see streaks?' })).toBeNull(),
+    );
     expect(auth.me.get()?.showStreaks).toBe(true);
   });
 
@@ -59,7 +63,9 @@ describe('TipSlot', () => {
     (await f.next('PUT', '/api/me/tips/streaks')).respond(204);
     expect(auth.me.get()).toMatchObject({ showStreaks: false, tipsSeen: ['streaks'] });
     expect(f.all.some((c) => c.method === 'PATCH')).toBe(false);
-    await waitFor(() => expect(readTipMemory('streaks-no')).toMatchObject({ wait: '2026-11-01', pending: [] }));
+    await waitFor(() =>
+      expect(readTipMemory('streaks-no')).toMatchObject({ wait: '2026-11-01', pending: [] }),
+    );
   });
 
   it('dismisses a link tip with the × and sends the mark', async () => {
@@ -68,7 +74,10 @@ describe('TipSlot', () => {
     ));
     (await f.next('GET', '/api/day-notes')).respond(200, []);
 
-    expect(await screen.findByRole('link', { name: 'Make a routine' })).toHaveAttribute('href', '/routines/new');
+    expect(await screen.findByRole('link', { name: 'Make a routine' })).toHaveAttribute(
+      'href',
+      '/routines/new',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss tip' }));
 
     expect(screen.queryByRole('link', { name: 'Make a routine' })).toBeNull();
@@ -93,7 +102,10 @@ describe('TipSlot', () => {
   });
 
   it('sends marks left from an earlier start and keeps those tips hidden meanwhile', async () => {
-    localStorage.setItem('ember.tips.restart', JSON.stringify({ first: '2026-10-01', pending: ['routines'] }));
+    localStorage.setItem(
+      'ember.tips.restart',
+      JSON.stringify({ first: '2026-10-01', pending: ['routines'] }),
+    );
     await renderSlot(f, { ...me, id: 'restart', tipsSeen: ['streaks'] }, () => (
       <TipSlot place="below" habits={three} routines={[]} />
     ));
@@ -127,7 +139,9 @@ describe('TipSlot picture offer', () => {
     renderSlot(f, { ...me, id, tipsSeen: allSeen, suggestPictures }, () => (
       <TipSlot place="top" habits={[stretch, read, walk]} forToday={[stretch, read, walk]} />
     ));
-  const question = { name: '“Read” could show as a small shelf that fills with each session. Try it?' };
+  const question = {
+    name: '“Read” could show as a small shelf that fills with each session. Try it?',
+  };
 
   it('asks about the first matching habit and "Show me" sets its picture, then says where to switch it off', async () => {
     await offer('pictures-yes');
@@ -136,9 +150,17 @@ describe('TipSlot picture offer', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Show me' }));
     const patch = await f.next('PATCH', '/api/habits/2');
     expect(patch.body).toEqual({ picture: 'shelf', pictureOfferAnswered: true });
-    patch.respond(200, { ...read, picture: 'shelf', portionAmount: 15, portionUnit: 'min', pictureOfferAnswered: true });
+    patch.respond(200, {
+      ...read,
+      picture: 'shelf',
+      portionAmount: 15,
+      portionUnit: 'min',
+      pictureOfferAnswered: true,
+    });
 
-    expect(await screen.findByRole('heading', { name: '“Read” shows its picture now.' })).toHaveFocus();
+    expect(
+      await screen.findByRole('heading', { name: '“Read” shows its picture now.' }),
+    ).toHaveFocus();
     expect(screen.getByText("You can switch it off in the habit's settings.")).toBeInTheDocument();
     expect(screen.queryByRole('heading', question)).toBeNull();
     expect(readTipMemory('pictures-yes').wait).toBe('2026-11-01');

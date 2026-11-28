@@ -29,7 +29,10 @@ export interface PictureOffer {
  * The first of `forToday` (Today's For today habits, in Today order) the picture tip may ask about: the account
  * suggests pictures, and the habit is not paused, has no picture, was never asked, and its name matches a picture.
  */
-export function pictureOfferFor(forToday: readonly Habit[], suggestPictures: boolean | undefined): PictureOffer | null {
+export function pictureOfferFor(
+  forToday: readonly Habit[],
+  suggestPictures: boolean | undefined,
+): PictureOffer | null {
   if (suggestPictures === false) return null;
   for (const habit of forToday) {
     if (habit.picture || habit.pictureOfferAnswered || habit.pausedToday) continue;
@@ -103,12 +106,16 @@ export interface TipMemory {
 export const tipMemoryChanged = new Store(0);
 
 const memoryKey = (userId: string) => `ember.tips.${userId}`;
-const day = (value: unknown) => (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
+const day = (value: unknown) =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 
 /** This device's tip memory for `userId`; empty when nothing is stored or storage fails. */
 export function readTipMemory(userId: string): TipMemory {
   try {
-    const raw = JSON.parse(localStorage.getItem(memoryKey(userId)) ?? '{}') as Record<string, unknown> | null;
+    const raw = JSON.parse(localStorage.getItem(memoryKey(userId)) ?? '{}') as Record<
+      string,
+      unknown
+    > | null;
     const list: unknown = raw?.['pending'];
     const pending = Array.isArray(list) ? tipIds.filter((id) => list.includes(id)) : [];
     return { first: day(raw?.['first']), wait: day(raw?.['wait']), pending };

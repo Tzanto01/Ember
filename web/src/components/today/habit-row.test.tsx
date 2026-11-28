@@ -6,7 +6,12 @@ import type { NotTodayReason } from '@/lib/today-plan';
 import { habit } from '@/test/test-support';
 import { HabitRow } from './habit-row';
 
-function show(overrides: Partial<Habit>, showStreaks = true, checkInPaused = false, notToday?: NotTodayReason) {
+function show(
+  overrides: Partial<Habit>,
+  showStreaks = true,
+  checkInPaused = false,
+  notToday?: NotTodayReason,
+) {
   const subject: Habit = { ...habit, ...overrides };
   const { container } = render(
     <MemoryRouter>
@@ -49,7 +54,7 @@ describe('HabitRow meta line', () => {
     expect(row).not.toHaveTextContent('streak');
   });
 
-  it('shows this week\'s progress of a weekly habit', () => {
+  it("shows this week's progress of a weekly habit", () => {
     const row = show({
       frequency: 'weekly',
       weeklyTarget: 3,
@@ -109,7 +114,13 @@ describe('HabitRow meta line', () => {
 });
 
 describe('HabitRow picture', () => {
-  const water: Habit = { ...habit, name: 'Water', timesPerDay: 3, picture: 'kindling', today: { ...habit.today, count: 1 } };
+  const water: Habit = {
+    ...habit,
+    name: 'Water',
+    timesPerDay: 3,
+    picture: 'kindling',
+    today: { ...habit.today, count: 1 },
+  };
 
   function showPicture(subject: Habit, checkInPaused = false) {
     render(
@@ -131,14 +142,20 @@ describe('HabitRow picture', () => {
   it('shows the picture next to the check button', () => {
     showPicture(water);
 
-    expect(screen.getByRole('button', { name: 'Water, 1 of 3 logs. Add a log to the fire.' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Check in Water for today, 1/3 done' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Water, 1 of 3 logs. Add a log to the fire.' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Check in Water for today, 1/3 done' }),
+    ).toBeInTheDocument();
   });
 
   it('shows no picture for a paused habit, even where it can still be checked in', () => {
     showPicture({ ...water, pausedToday: true, today: { ...water.today, state: 'paused' } }, true);
 
-    expect(screen.getByRole('button', { name: 'Check in Water for today, 1/3 done' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Check in Water for today, 1/3 done' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /logs/ })).toBeNull();
   });
 });
@@ -152,14 +169,31 @@ describe('HabitRow under Not for today', () => {
     ['open', { state: 'offday', completed: null, count: 0 }, 1, restLine, 'false'],
     ['on a low day', { state: 'lowday', completed: null, count: 0 }, 1, restLine, 'false'],
     ['checked in', { state: 'done', completed: true, count: 1 }, 1, checkedInLine, 'true'],
-    ['partly checked in', { state: 'partial', completed: null, count: 1 }, 2, checkedInLine, 'false'],
-  ] as const)('says a rest day is a rest day when it is %s', (_, today, timesPerDay, line, pressed) => {
-    const row = show({ ...restDays, timesPerDay, today: { ...habit.today, ...today } }, true, true, 'restDay');
+    [
+      'partly checked in',
+      { state: 'partial', completed: null, count: 1 },
+      2,
+      checkedInLine,
+      'false',
+    ],
+  ] as const)(
+    'says a rest day is a rest day when it is %s',
+    (_, today, timesPerDay, line, pressed) => {
+      const row = show(
+        { ...restDays, timesPerDay, today: { ...habit.today, ...today } },
+        true,
+        true,
+        'restDay',
+      );
 
-    expect(row).toHaveTextContent(line);
-    expect(row).not.toHaveTextContent(/Low day|Done today|of 2 today/);
-    expect(screen.getByRole('button', { name: /^Check in Walk for today/ })).toHaveAttribute('aria-pressed', pressed);
-  });
+      expect(row).toHaveTextContent(line);
+      expect(row).not.toHaveTextContent(/Low day|Done today|of 2 today/);
+      expect(screen.getByRole('button', { name: /^Check in Walk for today/ })).toHaveAttribute(
+        'aria-pressed',
+        pressed,
+      );
+    },
+  );
 
   it('says "Done for this week" for a weekly habit met before today, even after another check-in today', () => {
     const row = show(
@@ -179,6 +213,8 @@ describe('HabitRow under Not for today', () => {
   });
 
   it('keeps the day-state line for a For today row in the same state', () => {
-    expect(show({ today: { ...habit.today, state: 'done', completed: true, count: 1 } })).toHaveTextContent('Done today');
+    expect(
+      show({ today: { ...habit.today, state: 'done', completed: true, count: 1 } }),
+    ).toHaveTextContent('Done today');
   });
 });

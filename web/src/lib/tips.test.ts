@@ -44,8 +44,12 @@ describe('pickTip', () => {
     expect(pickTip({ ...all, seen: ['streaks'] })).toBe('private-journal');
     expect(pickTip({ ...all, seen: ['streaks', 'private-journal'] })).toBe('routines');
     expect(pickTip({ ...all, seen: ['streaks', 'private-journal', 'routines'] })).toBe('android');
-    expect(pickTip({ ...all, seen: ['streaks', 'private-journal', 'routines', 'android'] })).toBe('discord');
-    expect(pickTip({ ...all, seen: ['streaks', 'private-journal', 'routines', 'android', 'discord'] })).toBeNull();
+    expect(pickTip({ ...all, seen: ['streaks', 'private-journal', 'routines', 'android'] })).toBe(
+      'discord',
+    );
+    expect(
+      pickTip({ ...all, seen: ['streaks', 'private-journal', 'routines', 'android', 'discord'] }),
+    ).toBeNull();
   });
 
   it('waits until the next local day after an answer, except for the streaks question', () => {
@@ -74,7 +78,9 @@ describe('pickTip', () => {
   it('offers a picture only after every other tip, and only on a later, unanswered day outside calm mode', () => {
     const all = { ...base, ...everything, pictureOffer: true };
     const allSeen = ['streaks', 'private-journal', 'routines', 'android', 'discord'] as const;
-    expect(pickTip({ ...all, seen: ['streaks', 'private-journal', 'routines', 'android'] })).toBe('discord');
+    expect(pickTip({ ...all, seen: ['streaks', 'private-journal', 'routines', 'android'] })).toBe(
+      'discord',
+    );
     expect(pickTip({ ...all, seen: [...allSeen] })).toBe('picture');
     expect(pickTip({ ...base, pictureOffer: true })).toBe('picture');
     expect(pickTip({ ...base, pictureOffer: true, waitDay: '2026-11-14' })).toBeNull();
@@ -122,7 +128,9 @@ describe('pickTip', () => {
     const due = { ...base, hasNote: null, habits: 3, activeHabits: 3, routines: 0 };
     expect(pickTip(due)).toBeNull();
     expect(pickTip({ ...due, hasNote: false })).toBe('routines');
-    expect(pickTip({ ...base, routines: null, habits: 3, activeHabits: 3, checkInDays: 3 })).toBeNull();
+    expect(
+      pickTip({ ...base, routines: null, habits: 3, activeHabits: 3, checkInDays: 3 }),
+    ).toBeNull();
   });
 });
 
@@ -131,10 +139,17 @@ describe('tip memory', () => {
     localStorage.clear();
     writeTipMemory('u1', { first: '2026-11-01', pending: ['routines'] });
     writeTipMemory('u1', { wait: '2026-11-14' });
-    expect(readTipMemory('u1')).toEqual({ first: '2026-11-01', wait: '2026-11-14', pending: ['routines'] });
+    expect(readTipMemory('u1')).toEqual({
+      first: '2026-11-01',
+      wait: '2026-11-14',
+      pending: ['routines'],
+    });
     expect(readTipMemory('u2')).toEqual({ first: null, wait: null, pending: [] });
 
-    localStorage.setItem('ember.tips.u3', JSON.stringify({ first: 'soon', pending: ['nope', 'android'] }));
+    localStorage.setItem(
+      'ember.tips.u3',
+      JSON.stringify({ first: 'soon', pending: ['nope', 'android'] }),
+    );
     expect(readTipMemory('u3')).toEqual({ first: null, wait: null, pending: ['android'] });
     localStorage.setItem('ember.tips.u4', '{');
     expect(readTipMemory('u4')).toEqual({ first: null, wait: null, pending: [] });
@@ -154,7 +169,9 @@ describe('pictureOfferFor', () => {
 
   it('skips habits that have a picture, were asked already or are paused, and offers nothing when switched off', () => {
     expect(pictureOfferFor([{ ...read, picture: 'kindling' }, walk], true)?.habit).toBe(walk);
-    expect(pictureOfferFor([{ ...read, pictureOfferAnswered: true }, walk], true)?.habit).toBe(walk);
+    expect(pictureOfferFor([{ ...read, pictureOfferAnswered: true }, walk], true)?.habit).toBe(
+      walk,
+    );
     expect(pictureOfferFor([{ ...read, pausedToday: true }, walk], true)?.habit).toBe(walk);
     expect(pictureOfferFor([read, walk], false)).toBeNull();
   });

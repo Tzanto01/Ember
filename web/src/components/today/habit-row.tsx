@@ -55,7 +55,15 @@ export interface HabitRowProps {
 /** The DOM id of a habit's Today row. */
 export const habitRowId = (habitId: number) => `habit-row-${habitId}`;
 
-function Progress({ habit, roll, showStreaks }: { habit: Habit; roll: boolean; showStreaks: boolean }) {
+function Progress({
+  habit,
+  roll,
+  showStreaks,
+}: {
+  habit: Habit;
+  roll: boolean;
+  showStreaks: boolean;
+}) {
   const { t } = useTranslation();
   const week = habit.stats.week;
   if (week) {
@@ -124,7 +132,8 @@ export function HabitRow({
   const paused = state === 'paused' || habit.pausedToday;
   const notStarted = !paused && state === 'beforestart';
   const checkable = (!paused || checkInPaused) && !notStarted;
-  const done = checkable && (state === 'done' || (paused && habit.today.count >= habit.timesPerDay));
+  const done =
+    checkable && (state === 'done' || (paused && habit.today.count >= habit.timesPerDay));
   const roll = reward !== null;
   const target = habit.timesPerDay;
   const count = Math.min(habit.today.count, target);
@@ -153,7 +162,11 @@ export function HabitRow({
     meta = (
       <span className="inline-flex items-start gap-1.5">
         <Leaf aria-hidden className="mt-[3px] size-[14px] shrink-0" />
-        {t(notToday === 'restDay' && habit.today.count > 0 ? 'today.restDayCheckedIn' : 'today.restDay')}
+        {t(
+          notToday === 'restDay' && habit.today.count > 0
+            ? 'today.restDayCheckedIn'
+            : 'today.restDay',
+        )}
       </span>
     );
   } else if (state === 'lowday') {
@@ -169,7 +182,12 @@ export function HabitRow({
         {done ? (
           <span>{t('today.doneToday')}</span>
         ) : (
-          multi && count > 0 && <span className="font-medium text-foreground">{t('today.countToday', { n: count, target })}</span>
+          multi &&
+          count > 0 && (
+            <span className="font-medium text-foreground">
+              {t('today.countToday', { n: count, target })}
+            </span>
+          )
         )}
         <Progress habit={habit} roll={roll} showStreaks={showStreaks} />
       </>
@@ -189,7 +207,10 @@ export function HabitRow({
         )}
       >
         {grip && (
-          <GripVertical aria-hidden className="absolute top-1/2 left-1 size-[16px] -translate-y-1/2 text-muted-foreground" />
+          <GripVertical
+            aria-hidden
+            className="absolute top-1/2 left-1 size-[16px] -translate-y-1/2 text-muted-foreground"
+          />
         )}
         <div className="flex min-w-0 flex-col">
           <Heading className="text-[1.125rem] break-words">{habit.name}</Heading>
@@ -211,7 +232,10 @@ export function HabitRow({
                 </Button>
               )}
               <Button asChild variant="ghost" size="icon" className="text-muted-foreground">
-                <Link to={`/habits/${habit.id}/edit`} aria-label={t('today.edit', { name: habit.name })}>
+                <Link
+                  to={`/habits/${habit.id}/edit`}
+                  aria-label={t('today.edit', { name: habit.name })}
+                >
                   <Pencil aria-hidden />
                 </Link>
               </Button>
