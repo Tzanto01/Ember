@@ -4,8 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '@/lib/env';
 import { reminderNames } from '@/lib/native/reminder-names';
 import type { ReminderDestination } from '@/lib/models';
-import { deviceSync, push } from '@/lib/services';
+import { auth, deviceSync, push } from '@/lib/services';
+import SettingsPage from '@/pages/settings';
 import { openSettings, resetSettings, settle, stubSettingsMedia } from '@/test/settings-page';
+import { me, mockFetch } from '@/test/test-support';
+import { renderPage } from '@/test/test-utils';
 
 vi.mock('@/lib/env', async (original) => ({ env: { ...(await original<typeof import('@/lib/env')>()).env } }));
 const exactAlarms = vi.hoisted(() => ({ beta: false, allowed: false, allowExact: vi.fn() }));
@@ -222,5 +225,25 @@ describe('PushCard', { timeout: 15_000 }, () => {
     expect(await screen.findByText(/Nothing can remind you yet/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Turn on reminders in this browser' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Second reminder' })).toBeInTheDocument();
+  });
+
+  it('says paused Discord DM reminders inside this card and resumes them', async () => {
+    const user = userEvent.setup();
+    const paused = { ...me, dmReminders: { paused: true } };
+    auth.setMe(paused);
+    const fetch = mockFetch();
+    renderPage('/settings/:group?', SettingsPage, '/settings/reminders');
+    (await fetch.next('GET', '/api/me')).respond(200, paused);
+    (await fetch.next('GET', '/api/me/reminder-destinations')).respond(200, []);
+
+    const card = within(await screen.findByRole('region', { name: 'Where Ember reminds you' }));
+    expect(card.getByText(/Ember paused your Discord DM reminders/)).toBeInTheDocument();
+    await user.click(card.getByRole('button', { name: 'Resume DM reminders' }));
+    (await fetch.next('POST', '/api/me/dm-reminders/resume')).respond(204);
+    (await fetch.next('GET', '/api/me')).respond(200, me);
+
+    expect(await card.findByText('DM reminders are back on.')).toBeInTheDocument();
+    expect(card.queryByText(/Ember paused your Discord DM reminders/)).toBeNull();
+    expect(card.queryByRole('button', { name: 'Resume DM reminders' })).toBeNull();
   });
 });

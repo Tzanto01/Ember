@@ -14,9 +14,9 @@ import { Notice } from '@/components/ui/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { env } from '@/lib/env';
-import type { ReminderDestination } from '@/lib/models';
+import type { Me, ReminderDestination } from '@/lib/models';
 import { ApiError, asApiError, problemToMessage } from '@/lib/problem';
-import { api, deviceSync, push, reminders } from '@/lib/services';
+import { api, auth, deviceSync, push, reminders } from '@/lib/services';
 import { useStore } from '@/lib/store';
 
 function isIos(): boolean {
@@ -35,9 +35,18 @@ function isStandalone(): boolean {
 
 /**
  * Where reminders go: a switch per reminder destination of the account, turning on this browser's push or this phone
- * when it isn't one yet, and whether browser reminders show habit names. `destinations` is the page's list query.
+ * when it isn't one yet, and whether browser reminders show habit names. While Discord DM reminders are paused it says
+ * so first and resumes them. `destinations` is the page's list query.
  */
-export function PushCard({ title, destinations }: { title: string; destinations: UseQueryResult<ReminderDestination[]> }) {
+export function PushCard({
+  title,
+  me,
+  destinations,
+}: {
+  title: string;
+  me: Me;
+  destinations: UseQueryResult<ReminderDestination[]>;
+}) {
   const { t } = useTranslation();
   const { busy, isBusy, start, finish, markSaved, show, fail, outcome, savedStatus, act } = useSettingsStatus();
   const queryClient = useQueryClient();
@@ -101,6 +110,13 @@ export function PushCard({ title, destinations }: { title: string; destinations:
     }
   }
 
+  const resumeDms = () =>
+    act('dm', async () => {
+      await api.resumeDmReminders();
+      await auth.loadMe(true);
+      return { tone: 'success', text: t('settings.dm.resumed') };
+    });
+
   async function changeBrowserNames(on: boolean): Promise<void> {
     if (isBusy()) return;
     start('push');
@@ -116,6 +132,21 @@ export function PushCard({ title, destinations }: { title: string; destinations:
 
   return (
     <SettingsCard id="push" title={title}>
+      {me.dmReminders.paused && (
+        <Notice heading={t('settings.card.dmReminders')}>
+          <p>{t('settings.dm.paused')}</p>
+          <BusyButton
+            type="button"
+            variant="secondary"
+            busy={busy === 'dm'}
+            busyLabel={t('settings.dm.resuming')}
+            onClick={() => void resumeDms()}
+          >
+            {t('settings.dm.resume')}
+          </BusyButton>
+        </Notice>
+      )}
+      {outcome('dm')}
       {destinations.data ? (
         destinations.data.length > 0 ? (
           <>

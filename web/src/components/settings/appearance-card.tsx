@@ -1,21 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { ColorSchemePicker } from '@/components/settings/color-scheme-picker';
-import { LanguagePicker } from '@/components/settings/language-picker';
 import { SettingsCard } from '@/components/settings/settings-card';
 import { useSettingsStatus } from '@/components/settings/settings-status';
 import { ThemePicker } from '@/components/theme-picker';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { env } from '@/lib/env';
-import {
-  applyLanguage,
-  currentLanguage,
-  heldLanguage,
-  holdLanguage,
-  type Language,
-  rememberDeviceLanguage,
-  storedLanguage,
-} from '@/lib/i18n';
 import { auth } from '@/lib/services';
 import { useStore } from '@/lib/store';
 import {
@@ -26,8 +16,8 @@ import {
 } from '@/lib/theme';
 
 /**
- * Language, light or dark, the theme and calm mode, saved to the account when there is one; in the native app also
- * gentle motion, which stays on this device.
+ * Light or dark, the theme and calm mode, saved to the account when there is one; in the native app also gentle
+ * motion, which stays on this device.
  */
 export function AppearanceCard({
   title,
@@ -52,28 +42,11 @@ export function AppearanceCard({
     });
   }
 
-  function saveLanguage(language: Language): void {
-    const before = currentLanguage();
-    const stored = storedLanguage();
-    holdLanguage(language);
-    rememberDeviceLanguage(language);
-    applyLanguage(language);
-    void patch('appearance', { language }).then((error) => {
-      if (heldLanguage() !== language) return;
-      holdLanguage(null);
-      if (!error) return;
-      rememberDeviceLanguage(stored);
-      applyLanguage(before);
-      if (!error.handled) show('appearance', { tone: 'info', text: t('language.notSaved') });
-    });
-  }
-
   return (
     <SettingsCard id="appearance" title={title}>
       <p id="appearance-hint">
         {local ? t('settings.appearance.hintLocal') : t('settings.appearance.hintAccount')}
       </p>
-      <LanguagePicker local={local} onChoose={saveLanguage} />
       <ColorSchemePicker />
       <ThemePicker labelledBy="appearance-heading" describedBy="appearance-hint" onChoose={saveTheme} />
       {outcome('appearance')}

@@ -7,11 +7,16 @@ const choices: { id: Language; label: string }[] = [
   { id: 'de', label: 'Deutsch' },
 ];
 
-/** Settings → Appearance: English or Deutsch, each named in its own language; `onChoose` applies and saves it. */
+/**
+ * Settings → Language & time: English or Deutsch, each named in its own language, labelled by the element with id
+ * `labelledBy`; `onChoose` applies and saves it.
+ */
 export function LanguagePicker({
+  labelledBy,
   local,
   onChoose,
 }: {
+  labelledBy: string;
   local: boolean;
   onChoose: (language: Language) => void;
 }) {
@@ -23,11 +28,8 @@ export function LanguagePicker({
 
   return (
     <div className="flex flex-col gap-2">
-      <p id="language-label" className="font-medium">
-        {t('language.label')}
-      </p>
       <RadioGroup
-        aria-labelledby="language-label"
+        aria-labelledby={labelledBy}
         aria-describedby="language-hint"
         value={i18n.language}
         onValueChange={choose}

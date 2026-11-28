@@ -18,6 +18,7 @@ export type SettingsSection =
   | 'dm'
   | 'push'
   | 'appearance'
+  | 'language'
   | 'export'
   | 'consent'
   | 'password'

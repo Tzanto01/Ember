@@ -55,7 +55,7 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     expect(localStorage.getItem('ember.colorScheme')).toBeNull();
   });
 
-  it('turns calm mode on through PATCH /api/me from Appearance', async () => {
+  it('turns calm mode on through PATCH /api/me from Look & feel', async () => {
     const user = userEvent.setup();
     const { fetch } = await openSettings('/settings/appearance');
     const toggle = screen.getByRole('switch', { name: 'Calm mode' });
@@ -71,15 +71,15 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     expect(toggle).toBeChecked();
   });
 
-  it('still shows calm mode being saved after leaving Appearance and coming back', async () => {
+  it('still shows calm mode being saved after leaving Look & feel and coming back', async () => {
     setWide(true);
     const user = userEvent.setup();
     const { fetch } = await openSettings('/settings/appearance');
 
     await user.click(screen.getByRole('switch', { name: 'Calm mode' }));
     const sent = await fetch.next('PATCH', '/api/me');
-    await user.click(screen.getByRole('link', { name: 'Habits & days' }));
-    await user.click(screen.getByRole('link', { name: 'Appearance' }));
+    await user.click(screen.getByRole('link', { name: 'Habits & streaks' }));
+    await user.click(screen.getByRole('link', { name: 'Look & feel' }));
 
     expect(screen.getByRole('switch', { name: 'Calm mode' })).toBeChecked();
     sent.respond(200, { ...me, calmMode: true });
@@ -168,35 +168,5 @@ describe('AppearanceCard', { timeout: 15_000 }, () => {
     expect(document.documentElement.dataset['theme']).toBe('tidepool');
     expect(localStorage.getItem('ember.theme')).toBe('tidepool');
     expect(screen.getByRole('radio', { name: 'Tidepool' })).toBeChecked();
-  });
-
-  it('switches to German on picking Deutsch: saves it to the account, remembers it on the device and sets <html lang>', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await openSettings('/settings/appearance');
-
-    await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
-
-    const patch = await fetch.next('PATCH', '/api/me');
-    expect(patch.body).toEqual({ language: 'de' });
-    patch.respond(200, { ...me, language: 'de' });
-    expect(await screen.findByRole('heading', { level: 1, name: 'Darstellung' })).toBeInTheDocument();
-    expect(screen.getByText('Sprache')).toBeInTheDocument();
-    expect(document.documentElement.lang).toBe('de');
-    expect(localStorage.getItem('ember.language')).toBe('de');
-    expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
-  });
-
-  it('goes back to English and says the language was not saved when saving it fails', async () => {
-    const user = userEvent.setup();
-    const { fetch } = await openSettings('/settings/appearance');
-
-    await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
-    (await fetch.next('PATCH', '/api/me')).fail();
-
-    const status = await screen.findByText("Your language couldn't be saved. Try again in a moment.");
-    expect(status.closest('[role="status"]')).not.toBeNull();
-    expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
-    expect(document.documentElement.lang).toBe('en');
-    expect(localStorage.getItem('ember.language')).toBeNull();
   });
 });
