@@ -382,7 +382,7 @@ export const guides: Record<GuideScreen, Guide> = {
         id: 'language-time-day-start',
         questionKey: 'guide.languageTime.dayStart.q',
         answerKey: 'guide.languageTime.dayStart.a',
-        covers: [timeZones, timezoneCard],
+        covers: [timeZones, timezoneCard, 'web/src/components/settings/time-zone-select.tsx'],
       },
     ],
   },

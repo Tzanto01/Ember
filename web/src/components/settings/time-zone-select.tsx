@@ -1,0 +1,304 @@
+import { Check, ChevronDown } from 'lucide-react';
+import { type KeyboardEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { controlClass } from '@/components/ui/input';
+import { env } from '@/lib/env';
+import { timeZoneLabel } from '@/lib/local-date';
+import { cn } from '@/lib/utils';
+
+const fallbackZones = [
+  'UTC',
+  'Europe/London',
+  'Europe/Lisbon',
+  'Europe/Berlin',
+  'Europe/Vienna',
+  'Europe/Zurich',
+  'Europe/Paris',
+  'Europe/Madrid',
+  'Europe/Rome',
+  'Europe/Amsterdam',
+  'Europe/Warsaw',
+  'Europe/Athens',
+  'Europe/Istanbul',
+  'Africa/Cairo',
+  'Africa/Johannesburg',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Bangkok',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+  'America/Sao_Paulo',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+];
+
+function supportedZones(): readonly string[] {
+  return typeof Intl.supportedValuesOf === 'function'
+    ? Intl.supportedValuesOf('timeZone')
+    : fallbackZones;
+}
+
+const searchable = (text: string) => text.toLowerCase().replaceAll('_', ' ');
+
+/** "America/New York" for `America/New_York`. */
+const zoneName = (zone: string) => zone.replaceAll('_', ' ');
+
+export interface TimeZoneSelectProps {
+  /** The text field's id, for its label. */
+  id: string;
+  /** The zone in use, an IANA id. */
+  value: string;
+  /** This device's zone, offered at the top of the list. */
+  suggested?: string | null;
+  'aria-describedby'?: string;
+  /** Called with the IANA id the person picks. */
+  onChoose: (zone: string) => void;
+}
+
+/**
+ * A searchable list of every IANA time zone (a short list where the runtime can't name them all, plus `value` and
+ * `suggested` always): type to filter, ArrowUp/ArrowDown, Home/End, Enter or a tap picks, Escape closes and puts the
+ * zone in use back. `suggested` stands first, under "Your phone says …" (in the app) or "Your browser says …".
+ */
+export function TimeZoneSelect({
+  id,
+  value,
+  suggested,
+  'aria-describedby': describedBy,
+  onChoose,
+}: TimeZoneSelectProps) {
+  const { t } = useTranslation();
+  const base = useId();
+  const listId = `${base}-list`;
+  const optionId = (index: number) => `${base}-option-${index}`;
+  const list = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState<string | null>(null);
+  const [active, setActive] = useState(-1);
+  const [announced, setAnnounced] = useState('');
+
+  const suggestion = suggested ?? null;
+  const zones = useMemo(
+    () => [...new Set([...supportedZones(), value, ...(suggestion ? [suggestion] : [])])].sort(),
+    [value, suggestion],
+  );
+  const labels = useMemo(
+    () => new Map(zones.map((zone) => [zone, zoneName(timeZoneLabel(zone))])),
+    [zones],
+  );
+
+  function optionsFor(text: string | null): { suggested: boolean; zones: string[] } {
+    const words = text === null ? [] : searchable(text).split(/\s+/).filter(Boolean);
+    const matches = (zone: string) => {
+      const label = searchable(`${zone} ${labels.get(zone) ?? zone}`);
+      return words.every((word) => label.includes(word));
+    };
+    const first = !!suggestion && matches(suggestion);
+    return {
+      suggested: first,
+      zones: [
+        ...(first && suggestion ? [suggestion] : []),
+        ...zones.filter((zone) => zone !== suggestion && matches(zone)),
+      ],
+    };
+  }
+
+  const shown = optionsFor(query);
+  const options = shown.zones;
+  const expanded = open && options.length > 0;
+  const message =
+    open && query !== null
+      ? options.length > 0
+        ? t('settings.timezone.results', { count: options.length })
+        : t('settings.timezone.none')
+      : '';
+
+  useEffect(() => {
+    const timer = setTimeout(() => setAnnounced(message), 400);
+    return () => clearTimeout(timer);
+  }, [message]);
+
+  useEffect(() => {
+    const box = list.current;
+    const option =
+      expanded && active >= 0 ? document.getElementById(`${base}-option-${active}`) : null;
+    if (!box || !option) return;
+    if (option.offsetTop < box.scrollTop) box.scrollTop = option.offsetTop;
+    else if (option.offsetTop + option.offsetHeight > box.scrollTop + box.clientHeight)
+      box.scrollTop = option.offsetTop + option.offsetHeight - box.clientHeight;
+  }, [active, expanded, base]);
+
+  function show(at: 'current' | 'last'): void {
+    const all = optionsFor(query).zones;
+    const current = all.indexOf(value);
+    setOpen(true);
+    setActive(at === 'last' && current < 0 ? all.length - 1 : Math.max(current, 0));
+  }
+
+  function close(): void {
+    setOpen(false);
+    setQuery(null);
+    setActive(-1);
+  }
+
+  function choose(zone: string): void {
+    close();
+    onChoose(zone);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    const last = options.length - 1;
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        if (!open) show('current');
+        else if (!event.altKey) setActive(Math.min(active + 1, last));
+        return;
+      case 'ArrowUp':
+        event.preventDefault();
+        if (!open) show('last');
+        else setActive(Math.max(active - 1, 0));
+        return;
+      case 'Home':
+      case 'End':
+        if (!expanded) return;
+        event.preventDefault();
+        setActive(event.key === 'Home' ? 0 : last);
+        return;
+      case 'Enter': {
+        event.preventDefault();
+        const zone = expanded ? options[active] : undefined;
+        if (zone) choose(zone);
+        else if (!open) show('current');
+        return;
+      }
+      case 'Escape':
+        if (!open && query === null) return;
+        event.preventDefault();
+        close();
+        return;
+    }
+  }
+
+  function renderOption(zone: string, index: number) {
+    return (
+      <div
+        key={zone}
+        id={optionId(index)}
+        role="option"
+        aria-selected={index === active}
+        data-active={index === active || undefined}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => choose(zone)}
+        className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-base hover:bg-accent hover:text-accent-foreground data-[active]:bg-accent data-[active]:text-accent-foreground data-[active]:ring-1 data-[active]:ring-primary data-[active]:ring-inset"
+      >
+        <span className="min-w-0 flex-1 break-words">{labels.get(zone) ?? zone}</span>
+        {zone === value && (
+          <>
+            <Check aria-hidden className="size-[18px] shrink-0 text-primary" />
+            <span className="sr-only">{t('settings.timezone.inUse')}</span>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const rest = shown.suggested ? options.slice(1) : options;
+  const offset = shown.suggested ? 1 : 0;
+  const suggestionLabel =
+    suggestion &&
+    t(env.native ? 'settings.timezone.phoneSays' : 'settings.timezone.browserSays', {
+      zone: zoneName(suggestion),
+    });
+
+  return (
+    <div className="flex flex-col">
+      <div className="relative">
+        <input
+          id={id}
+          type="text"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={expanded}
+          aria-controls={expanded ? listId : undefined}
+          aria-activedescendant={expanded && active >= 0 ? optionId(active) : undefined}
+          aria-describedby={describedBy}
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          enterKeyHint="done"
+          value={query ?? zoneName(value)}
+          onChange={(event) => {
+            const text = event.target.value;
+            setQuery(text);
+            setOpen(true);
+            setActive(optionsFor(text).zones.length > 0 ? 0 : -1);
+          }}
+          onFocus={(event) => event.target.select()}
+          onClick={() => {
+            if (!open) show('current');
+          }}
+          onKeyDown={onKeyDown}
+          onBlur={close}
+          className={cn(controlClass, 'pr-11')}
+        />
+        <ChevronDown
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 right-3 size-[18px] -translate-y-1/2 text-muted-foreground"
+        />
+      </div>
+      {expanded && (
+        <div
+          ref={list}
+          id={listId}
+          role="listbox"
+          aria-label={t('settings.timezone.listLabel')}
+          className="relative mt-2 max-h-[min(20rem,50dvh)] overflow-y-auto overscroll-contain rounded-md border-[length:max(1px,var(--border-width))] border-border bg-popover p-1 text-popover-foreground shadow-card"
+        >
+          {shown.suggested && suggestion ? (
+            <>
+              <div role="group" aria-label={suggestionLabel ?? undefined} className="pb-1">
+                <p
+                  aria-hidden
+                  className="px-3 pt-1 pb-0.5 text-[0.875rem] font-semibold text-muted-foreground"
+                >
+                  {suggestionLabel}
+                </p>
+                {renderOption(suggestion, 0)}
+              </div>
+              <div
+                role="group"
+                aria-label={t('settings.timezone.allZones')}
+                className="border-t border-border pt-1"
+              >
+                <p
+                  aria-hidden
+                  className="px-3 pt-1 pb-0.5 text-[0.875rem] font-semibold text-muted-foreground"
+                >
+                  {t('settings.timezone.allZones')}
+                </p>
+                {rest.map((zone, index) => renderOption(zone, index + offset))}
+              </div>
+            </>
+          ) : (
+            rest.map((zone, index) => renderOption(zone, index + offset))
+          )}
+        </div>
+      )}
+      {open && options.length === 0 && (
+        <p className="mt-2 rounded-md bg-muted px-3 py-2 text-muted-foreground">
+          {t('settings.timezone.none')}
+        </p>
+      )}
+      <p role="status" className="sr-only">
+        {announced}
+      </p>
+    </div>
+  );
+}
