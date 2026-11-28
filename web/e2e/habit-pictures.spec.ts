@@ -43,13 +43,17 @@ async function tapThroughTheDay(page: Page): Promise<void> {
   await expect(progress).toHaveText('4 of 8, 1 L');
 }
 
-test('a bottle habit goes from the new-habit offer to tapped, topped-up and undone check-ins', async ({ page }) => {
+test('a bottle habit goes from the new-habit offer to tapped, topped-up and undone check-ins', async ({
+  page,
+}) => {
   await createWebUser(page);
   await createBottleHabit(page);
   await tapThroughTheDay(page);
 
   await page.reload();
-  await expect(page.locator('p[aria-live="polite"]').filter({ hasText: /^\d of 8, / })).toHaveText('4 of 8, 1 L');
+  await expect(page.locator('p[aria-live="polite"]').filter({ hasText: /^\d of 8, / })).toHaveText(
+    '4 of 8, 1 L',
+  );
 });
 
 test('the same bottle journey works without an account', async ({ page }) => {
