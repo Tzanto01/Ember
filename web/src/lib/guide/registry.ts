@@ -196,6 +196,16 @@ export const guides: Record<GuideScreen, Guide> = {
           letGoRules,
         ],
       },
+      {
+        id: 'habit-pictures',
+        questionKey: 'guide.habit.pictures.q',
+        answerKey: 'guide.habit.pictures.a',
+        covers: [
+          'web/src/components/habit-visuals/form/picture-field.tsx',
+          'web/src/components/habit-visuals/pictures/shared.tsx',
+          'web/src/lib/habit-visuals/keywords.ts',
+        ],
+      },
     ],
   },
   routines: {
